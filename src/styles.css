@@ -2533,9 +2533,3 @@ body[data-ssr-tab="true"] #loading-overlay {
   border: 1px solid rgba(50, 211, 163, 0.25);
   border-radius: 999px;
 }
-/* D-D2 reversal: in-stream audio toggle is currently disabled. The
-   label is dimmed so it's visually obvious the option is deferred. */
-#ssr-audio-route-label:has(input:disabled) {
-  color: rgba(255, 255, 255, 0.45);
-  cursor: not-allowed;
-}

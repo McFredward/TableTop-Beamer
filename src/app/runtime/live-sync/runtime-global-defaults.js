@@ -420,11 +420,6 @@
       state.animationSpeed = ctx.clampAnimationSpeed(payload.animationSpeed);
     }
 
-    if (payload && Object.prototype.hasOwnProperty.call(payload, "renderMode")) {
-      const mode = payload.renderMode;
-      state.renderMode = mode === "2d" || mode === "gl" ? mode : "auto";
-    }
-
     if (payload && Object.prototype.hasOwnProperty.call(payload, "diagnosticOverlay")) {
       state.diagnosticOverlay = Boolean(payload.diagnosticOverlay);
     }

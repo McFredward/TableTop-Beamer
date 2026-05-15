@@ -118,6 +118,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   let userPreset = null;
   let userResolution = "auto";
   let userFps = null;
+  let userStreamFpsCap = 60;
   try {
     const raw = await readFile(configPath, "utf8");
     const cfg = JSON.parse(raw);
@@ -128,32 +129,16 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (typeof sr.qualityPreset === "string") userPreset = sr.qualityPreset;
     if (typeof sr.resolutionPreference === "string") userResolution = sr.resolutionPreference;
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
+    if (typeof sr.streamFpsCap === "number" && Number.isFinite(sr.streamFpsCap)) {
+      userStreamFpsCap = sr.streamFpsCap;
+    }
   } catch (err) {
     if (err && err.code !== "ENOENT") {
       logger.warn(`[ssr-host] could not parse config: ${err.message}`);
     }
   }
 
-  // Phase 32 D-A3: read streamFpsCap + alignModeBoost from config block.
-  // sr is already parsed above; access directly from the parsed cfg object.
-  let userStreamFpsCap = 60;  // default per STREAM_FPS_CAP_DEFAULT
-  let userAlignModeBoost = true;  // default per ALIGN_MODE_BOOST_DEFAULT
-  try {
-    const raw2 = await readFile(path.join(rootDir, "config", "global-defaults.json"), "utf8");
-    const cfg2 = JSON.parse(raw2);
-    const sr2 = (cfg2 && typeof cfg2 === "object" && cfg2.serverRendering && typeof cfg2.serverRendering === "object")
-      ? cfg2.serverRendering
-      : {};
-    if (typeof sr2.streamFpsCap === "number" && Number.isFinite(sr2.streamFpsCap)) {
-      userStreamFpsCap = sr2.streamFpsCap;
-    }
-    if (typeof sr2.alignModeBoost === "boolean") {
-      userAlignModeBoost = sr2.alignModeBoost;
-    }
-  } catch {
-    // config missing or unparseable — use defaults above
-  }
-  // effectiveStreamFpsCap: 0 = native (no cap) → use 60 as the actual constraint value.
+  // Phase 32 D-A3: effectiveStreamFpsCap. 0 = native (no cap) → 60 actual constraint.
   const effectiveStreamFpsCap = (userStreamFpsCap === 0) ? 60 : userStreamFpsCap;
 
   let available = await detectAvailableEncoders();
@@ -196,7 +181,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     `[ssr-host] qualityPreset=${presetName} bitrate=${preset.bitrate} fpsTarget=${fpsTarget} keyframeIntervalSec=${preset.keyframeIntervalSec}`,
   );
   logger.info(
-    `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap} alignModeBoost=${userAlignModeBoost}`,
+    `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap}`,
   );
 
   return {
@@ -211,7 +196,6 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
-    alignModeBoost: userAlignModeBoost,       // Phase 32 D-A2
   };
 }
 
@@ -512,30 +496,6 @@ export function bootSsrRenderHost({
     const hasVaapiEnabled =
       process.env.SSR_ENABLE_VAAPI === "1" && hasIgpuDev;
 
-    // 2026-05-14 GL-backend selector. Operator picks via SSR_GL_BACKEND env
-    // var (later via dashboard System settings). "mesa" needs the iGPU node;
-    // we gracefully fall back to "swiftshader" when no iGPU device is present.
-    // The resolved value drives --use-angle=... below and is exposed via
-    // globalThis.__ttBeamerSsrGlBackend for /api/system/info.
-    const glBackendRequested = (process.env.SSR_GL_BACKEND || "auto").toLowerCase();
-    let glBackendResolved;
-    if (glBackendRequested === "swiftshader") {
-      glBackendResolved = "swiftshader";
-    } else if (glBackendRequested === "mesa" && !hasIgpuDev) {
-      glBackendResolved = "swiftshader"; // graceful fallback — Mesa needs iGPU node
-    } else {
-      glBackendResolved = "default"; // = ANGLE → Mesa under Xvfb (historic)
-    }
-    logger.info(
-      `[ssr-host] glBackend requested=${glBackendRequested} resolved=${glBackendResolved} hasIgpuDev=${hasIgpuDev}`,
-    );
-    if (typeof globalThis !== "undefined") {
-      globalThis.__ttBeamerSsrGlBackend = {
-        requested: glBackendRequested,
-        resolved: glBackendResolved,
-        hasIgpuDev,
-      };
-    }
     const enabledFeatures = [
       // VAAPI features ONLY when explicitly enabled (D-06 lock).
       ...(hasVaapiEnabled ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
@@ -563,65 +523,39 @@ export function bootSsrRenderHost({
         // which can hit higher rates given the +extension flags h19
         // also adds.
         "--ozone-platform=x11",
-        // h7 (Phase 31): SwiftShader was catastrophically slow (4 fps + tearing).
-        // Phase 32 hotfix h9 (2026-05-07) — re-apply h4 (was reverted in 97d4dd3
-        // when user reported "Jetzt läuft es garnicht mehr". That breakage was
-        // actually BUG-C in h6's incomplete in-flight flag — fixed by h7's
-        // try/finally. With h7 + h8 in place, h9 re-introduces the GPU-crash
-        // fix safely.
-        //
-        // ROOT CAUSE: Chrome 131 ("Chrome for Testing", the bundled puppeteer
-        // binary) removed support for --use-gl=egl. Passing it crashes the
-        // GPU process on every launch with "Requested GL implementation
-        // (gl=egl-gles2,angle=none) not found in allowed implementations:
-        // [(gl=egl-angle,angle=default)]". Chrome falls back to SwiftShader
-        // Vulkan SW renderer for ALL GPU work — compositor, WebGL mesh-warp,
-        // 2D canvas, AND h264 video element decode. Under animation load:
-        // 2-5 fps compositor output. Pi's frame-stale 8s threshold trips →
-        // Pi heartbeat-stale → disconnect → reconnect storm.
-        //
-        // Fix: --use-gl=angle (ANGLE abstraction, lands on Mesa llvmpipe under
-        // Xvfb). Verified by gsd-debugger at the binary level: rAF 58fps, no
-        // GPU crashes, mp4 video decode works. ignore-gpu-blocklist +
-        // enable-gpu-rasterization (added below if iGPU present) still let
-        // libva see the iGPU for whatever paths actually use it.
-        //
-        // 2026-05-14 GL-backend selector: SSR_GL_BACKEND env var picks
-        // between Mesa (= "mesa", needs --ignore-gpu-blocklist below) and
-        // pure software (= "swiftshader"). Default "auto" preserves the
-        // historic --use-angle=default path that worked on most hardware
-        // pre-this-change. On hardware without an iGPU device (no
-        // /dev/dri/renderDxxx), "mesa" silently falls back to "swiftshader"
-        // since Mesa needs the iGPU node. The /api/system/info endpoint
-        // exposes the resolved value so the dashboard UI can gate the
-        // selector accordingly. See Phase 39 39-1-DIAG.md sub-path A.
+        // Chrome 131 ("Chrome for Testing", the bundled puppeteer binary)
+        // removed support for --use-gl=egl. Without --use-gl=angle the
+        // GPU process crashes at launch and Chromium silently falls back to
+        // SwiftShader, which collapses to 2-5 fps compositor output under
+        // animation load — heartbeats stale, consumer reconnects forever.
+        // ANGLE abstraction lands on Mesa llvmpipe under Xvfb and reaches
+        // ~60 fps with mp4 decode working. ignore-gpu-blocklist +
+        // enable-gpu-rasterization are appended below only when VAAPI is
+        // explicitly enabled (D-06 lock).
         "--use-gl=angle",
-        `--use-angle=${glBackendResolved}`,
+        "--use-angle=default",
         "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
-        // h9: anti-throttling. These individual --disable-X flags are
-        // separate from the merged --disable-features below. Both layers
-        // together prevent Chromium from treating the Xvfb-headful tab
-        // as background/occluded.
+        // Anti-throttling: prevent Chromium from treating the Xvfb-headful
+        // tab as background/occluded.
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
         "--disable-ipc-flooding-protection",
-        // h10: lift fps cap. Chromium's software BeginFrameSource caps
-        // ~20-30 Hz under Xvfb without these.
+        // Lift fps cap. Chromium's software BeginFrameSource caps ~20-30 Hz
+        // under Xvfb without these.
         "--disable-gpu-vsync",
         "--disable-frame-rate-limit",
-        // h18 (2026-05-06): explicit getUserMedia / getDisplayMedia
-        // frame-rate cap. Chromium's MediaStreamVideoSource defaults to
-        // 30 fps even when the constraint says 60 — this flag lifts the
-        // hard cap so the constraint can take effect. (TabCaptureFastPath
-        // is in the merged --enable-features below.)
+        // Explicit getUserMedia / getDisplayMedia frame-rate cap.
+        // Chromium's MediaStreamVideoSource defaults to 30 fps even when
+        // the constraint says 60; this flag lifts the hard cap so the
+        // 60-fps publisher constraint can take effect.
         "--max-gum-fps=60",
         `--app=${ssrUrl}`,
         `--window-size=${viewport.width},${viewport.height}`,
         "--window-position=0,0",
         "--start-fullscreen",
-        // h4: tab-capture, page-only (no chrome surfaces in the stream).
+        // Tab-capture, page-only (no chrome surfaces in the stream).
         "--auto-select-tab-capture-source-by-title=TableTop Beamer",
         "--no-first-run",
         "--no-default-browser-check",
@@ -661,15 +595,6 @@ export function bootSsrRenderHost({
         // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
         // the operator's discretion (same opt-in as VAAPI itself).
         ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
-        // 2026-05-14 streifen-fix attempt: tested SSR_FORCE_WEBGL=1 to layer
-        // --ignore-gpu-blocklist (without --enable-gpu-rasterization). Result:
-        // cdp-ping-timeout-4s within 5s of producer-up — Mesa-llvmpipe
-        // sync-flush stall fires the same way as the Phase 34 h2 documented
-        // failure mode. Conclusion: --ignore-gpu-blocklist on this hardware
-        // class breaks the stream regardless of whether
-        // --enable-gpu-rasterization is also set. Streifen are now fixed at
-        // a different layer (2D-fallback alpha-overlap, see
-        // runtime-projection-2d-fallback-renderer.js) instead.
         `--display=${display}`,
       ],
       env: { ...process.env, DISPLAY: display },
@@ -884,14 +809,16 @@ export function bootSsrRenderHost({
         }
       });
       page = await browser.newPage();
-      // h9: forward SSR-Tab console messages + page errors to server log so
-      // debugging the in-tab runtime doesn't require a separate DevTools.
-      // Filter spammy `[ssr-publisher]` echo since we already log those.
+      // Forward SSR-tab errors + warnings to the server log so debugging
+      // the in-tab runtime doesn't require a separate DevTools. Info/log
+      // levels are suppressed by default (too noisy at steady-state);
+      // enable with SSR_TAB_CONSOLE_VERBOSE=1 if needed.
       page.on?.("console", (msg) => {
         try {
           const t = msg.type();
           const text = msg.text();
           if (text.startsWith("[ssr-publisher]")) return; // already logged
+          if (t !== "error" && t !== "warning" && process.env.SSR_TAB_CONSOLE_VERBOSE !== "1") return;
           const fn = (t === "error" ? logger.error : t === "warning" ? logger.warn : logger.info).bind(logger);
           fn(`[ssr-tab:${t}] ${text.slice(0, 800)}`);
         } catch {}
@@ -925,7 +852,6 @@ export function bootSsrRenderHost({
             logger,
             encoderConfig: status.encoderConfig,
             effectiveStreamFpsCap: status.encoderConfig?.effectiveStreamFpsCap ?? 60,
-            alignModeBoost: status.encoderConfig?.alignModeBoost ?? true,
           });
           status.producerIds = producers;
         } catch (err) {

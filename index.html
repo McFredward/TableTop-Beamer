@@ -761,82 +761,16 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
-        <h2>Render mode (/output/)</h2>
-        <p class="status-line">Controls how the projector view composites the canvas. The 2D fallback was retired on 2026-05-14 — the SSR Chromium tab always uses WebGL.</p>
-        <label>
-          Mode
-          <select id="render-mode-select">
-            <option value="auto">Auto (GL only when warp grid is bent)</option>
-            <option value="gl">GL — always run mesh warp</option>
-          </select>
-        </label>
-        <p id="render-mode-status" class="status-line" aria-live="polite">Render mode: auto</p>
+        <h2>Diagnostics</h2>
         <label class="inline-checkbox">
           <input id="diagnostic-overlay-toggle" type="checkbox" />
-          Show diagnostic overlay (version · fps · render mode · canvas · frame cost)
+          Show diagnostic overlay (version · fps · canvas · frame cost)
         </label>
         <p id="diagnostic-overlay-status" class="status-line" aria-live="polite">Diagnostic overlay: hidden</p>
       </section>
 
-      <!-- 2026-05-14: GL backend selector (SSR Chromium tab).
-           Operator picks whether the SSR tab's WebGL context is backed by
-           Mesa (GPU) or SwiftShader (CPU). Mesa is grayed-out + reason-
-           tooltipped when no compatible iGPU device is detected at server
-           boot. Change POSTs /api/system/gl-backend → server writes to
-           config/runtime-system.json + restarts the SSR Chromium tab. -->
-      <section id="settings-gl-backend" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
-        <h2>GL backend (SSR-Tab)</h2>
-        <p class="status-line">Wählt aus, wie der SSR-Chromium-Tab WebGL ausführt. Mesa nutzt die GPU; SoftwareWebGL nutzt reines CPU-Rendering (SwiftShader) als Fallback ohne GPU. Änderung startet den SSR-Tab neu — /output/ zeigt kurz "Reconnecting".</p>
-        <fieldset class="ssr-radio-group" id="gl-backend-radio-group">
-          <legend>Backend</legend>
-          <label id="gl-backend-mesa-label">
-            <input type="radio" name="gl-backend" value="mesa" />
-            Mesa (GPU)
-          </label>
-          <label id="gl-backend-swiftshader-label">
-            <input type="radio" name="gl-backend" value="swiftshader" />
-            SoftwareWebGL (SwiftShader)
-          </label>
-        </fieldset>
-        <p id="gl-backend-disabled-hint" class="status-line" hidden></p>
-        <p id="gl-backend-status" class="status-line" aria-live="polite">GL backend: loading…</p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
-        <h2>MP4 performance controls</h2>
-        <p class="status-line">Deterministic quality/performance policy for weak hardware and concurrent MP4 load.</p>
-        <label>
-          Profile
-          <select id="mp4-performance-tier">
-            <option value="quality">Quality first</option>
-            <option value="balanced" selected>Balanced</option>
-            <option value="performance">Performance first</option>
-          </select>
-        </label>
-        <label>
-          MP4 render cap per frame <span id="mp4-render-cap-value">48</span>
-          <input id="mp4-render-cap" type="range" min="8" max="96" step="1" value="48" />
-        </label>
-        <label>
-          Quality floor <span id="mp4-quality-floor-value">0.68</span>
-          <input id="mp4-quality-floor" type="range" min="0.45" max="1" step="0.01" value="0.68" />
-        </label>
-        <label>
-          Degrade threshold <span id="mp4-degrade-threshold-value">1.35</span>x frame budget
-          <input id="mp4-degrade-threshold" type="range" min="1.05" max="2" step="0.05" value="1.35" />
-        </label>
-        <label>
-          Recover threshold <span id="mp4-recover-threshold-value">0.92</span>x frame budget
-          <input id="mp4-recover-threshold" type="range" min="0.55" max="1.2" step="0.01" value="0.92" />
-        </label>
-        <p id="mp4-performance-status" class="status-line" aria-live="polite">MP4 controls: balanced profile</p>
-      </section>
-
-      <!-- Phase 31 (Plan 05): Server-side Rendering controls. Bound to
-           config/global-defaults.json#serverRendering via existing live-sync.
-           D-D2 reversal: audioRoute toggle defaults to pi-local; in-stream
-           option is disabled until cross-platform audio capture stabilizes
-           (WAVE0_AUDIO_CAPTURE_VERIFIED feature flag). -->
+      <!-- Server-side Rendering controls. Bound to
+           config/global-defaults.json#serverRendering via existing live-sync. -->
       <section id="settings-server-rendering" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Server-side Rendering</h2>
         <p class="status-line">Controls how the server encodes the projection stream. Defaults adapt to the hardware detected at server boot. Changes apply within a few seconds; the projector briefly shows a "Reconnecting" banner.</p>
@@ -885,27 +819,6 @@
           <label><input type="radio" name="ssr-stream-fps-cap" value="60" /> 60 fps</label>
           <label><input type="radio" name="ssr-stream-fps-cap" value="0" /> Native (no cap)</label>
         </fieldset>
-
-        <!-- Phase 32 D-A2: when ON, the publisher boosts stream FPS to
-             60 during active align-mode drag for smoother handle feedback,
-             then returns to the configured cap when align-mode exits. -->
-        <label class="inline-checkbox" id="ssr-align-mode-boost-label"
-          title="Recommended: ON. Stream briefly bumps to 60 fps during align-mode drag for smoother handle feedback.">
-          <input id="ssr-align-mode-boost-toggle" type="checkbox" />
-          Boost stream FPS during align-mode drag (recommended)
-        </label>
-
-        <!-- D-D2 REVERSAL (2026-05-06, see 31-D-D2-REVERSAL-ADDENDUM.md):
-             audioRoute defaults to "pi-local" (unchecked = pi-local). The
-             "in-stream" branch (checked) is rendered as a disabled checkbox
-             with tooltip until the WAVE0_AUDIO_CAPTURE_VERIFIED feature flag
-             flips to true. Pi-local audio uses the existing WebSocket-driven
-             runtime-wire-room-audio-binders.js path. -->
-        <label class="inline-checkbox" id="ssr-audio-route-label"
-          title="Currently deferred — requires cross-platform audio capture support (puppeteer-stream activeTab issue on Chrome 131+)">
-          <input id="ssr-audio-route-toggle" type="checkbox" disabled />
-          Use in-stream audio (deferred — Pi-local audio active)
-        </label>
 
         <p id="ssr-server-rendering-status" class="status-line" aria-live="polite">Server-side rendering: loading…</p>
       </section>
@@ -1127,11 +1040,6 @@
        runtime-orchestration.js so the init function is available when
        the panel-controller wires it. -->
   <script src="/src/app/lib/ui/settings/server-rendering-panel.js" defer></script>
-  <!-- 2026-05-14: GL backend selector panel (Settings → System).
-       Fetches /api/system/info on mount; POSTs /api/system/gl-backend on
-       radio change. Mesa option is disabled with a tooltip when the server
-       reports no compatible iGPU. -->
-  <script src="/src/app/lib/ui/settings/gl-backend-panel.js" defer></script>
   <script src="/src/app/lib/ui/runtime-panels-controller.js" defer></script>
   <script src="/src/app/runtime/core/polygon-contract.js" defer></script>
   <script src="/src/app/runtime/state/runtime-polygon-normalizers.js" defer></script>

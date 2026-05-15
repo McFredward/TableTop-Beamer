@@ -43,7 +43,6 @@ test(
             encoder: "x264-software",
             qualityPreset: "balanced",
             streamFpsCap: 45,
-            alignModeBoost: false,
           },
         }),
       );
@@ -51,7 +50,6 @@ test(
       const result = await resolveEncoderConfig({ rootDir: tmp, logger: silentLogger });
       assert.equal(result.streamFpsCap, 45, "streamFpsCap must be read from config");
       assert.equal(result.effectiveStreamFpsCap, 45, "effectiveStreamFpsCap must equal streamFpsCap when non-zero");
-      assert.equal(result.alignModeBoost, false, "alignModeBoost must be read from config");
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
@@ -127,37 +125,5 @@ test(
   },
 );
 
-test(
-  "A3c: buildInPagePublisherScript with alignModeBoost=true includes __TT_BEAMER_STATE_FOR_DIAG__ polling loop",
-  async () => {
-    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
-    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 60, alignModeBoost: true });
-    assert.ok(
-      script.includes("__TT_BEAMER_STATE_FOR_DIAG__"),
-      "Script must reference __TT_BEAMER_STATE_FOR_DIAG__ for align-mode polling",
-    );
-    assert.ok(
-      script.includes("setInterval"),
-      "Script must include setInterval polling loop for align-mode boost",
-    );
-    assert.ok(
-      script.includes("applyConstraints"),
-      "Script must include applyConstraints for reactive fps change",
-    );
-  },
-);
-
-test(
-  "A3d: buildInPagePublisherScript with alignModeBoost=false does NOT include the polling setInterval body",
-  async () => {
-    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
-    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 60, alignModeBoost: false });
-    // The boost setInterval should be gated behind alignModeBoostEnabled=false
-    // so the setInterval call body for align-mode is NOT reached at runtime.
-    // We verify the flag is set to false in the script.
-    assert.ok(
-      script.includes("alignModeBoostEnabled = false"),
-      "Script must set alignModeBoostEnabled=false when alignModeBoost=false",
-    );
-  },
-);
+// A3c / A3d alignModeBoost polling tests retired in Phase 40 — the
+// publisher no longer has an align-mode boost path.

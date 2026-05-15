@@ -43,7 +43,6 @@
  * @property {Object} [dashboard]
  * @property {Function} [renderRoomOverlay]
  * @property {Function} [showToast]
- * @property {Function} [getRenderMode]
  * @property {Function} [getBoardId]
  * @property {Console} [logger]
  * @property {HTMLElement} [feedbackEl]
@@ -99,9 +98,6 @@ export function bootAlignMode(args) {
     getBoardId: typeof a.getBoardId === "function"
       ? a.getBoardId
       : () => a.state?.boardId ?? null,
-    getRenderMode: typeof a.getRenderMode === "function"
-      ? a.getRenderMode
-      : () => a.state?.renderMode ?? "auto",
     showToast: typeof a.showToast === "function"
       ? a.showToast
       : () => {},

@@ -84,7 +84,6 @@ function _resolveModule(name, logger) {
  * @param {Object} [args.dashboard]            Dashboard-only helpers (settings panel, animation editor)
  * @param {Function} [args.renderRoomOverlay]  Cross-module overlay-redraw callback
  * @param {Function} [args.showToast]          Cross-module toast surface (logger fallback)
- * @param {Function} [args.getRenderMode]      "auto"|"2d"|"gl" supplier
  * @param {Function} [args.getBoardId]         Currently active board id supplier
  * @param {Object} [args.callbacks]            Optional misc cross-module callbacks (forwarded)
  * @param {Console} [args.logger]              Diagnostic logger (default: console)
@@ -111,7 +110,6 @@ export function bootHandleUi(args) {
     sync = {}, dashboard = {},
     // Cross-module callbacks
     renderRoomOverlay = null, showToast = null,
-    getRenderMode = () => "auto",
     getBoardId = () => state?.boardId || null,
     callbacks = {},
     // Diagnostic
@@ -223,7 +221,6 @@ export function bootHandleUi(args) {
     outputRole,
     OUTPUT_ROLE_FINAL,
     OUTPUT_ROLE_CONTROL,
-    getRenderMode,
     getBoardId,
     liveSyncCoreOverride,         // NEW for Phase 36 — grid-state reads this
     alignModeDirtyEndpoint,        // NEW for Phase 36 — profile-persistence reads this if supplied

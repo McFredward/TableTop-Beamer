@@ -83,12 +83,10 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
  *
  * Phase 32 D-A3: effectiveStreamFpsCap drives getDisplayMedia frameRate
  * constraint (0=native maps to 60 before reaching here via resolveEncoderConfig).
- * Phase 32 D-A2: alignModeBoost enables a polling loop that calls
- * applyConstraints to boost frameRate to 60 during active align-mode drag.
  *
- * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, alignModeBoost?: boolean }} [opts]
+ * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number }} [opts]
  */
-export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, alignModeBoost = true } = {}) {
+export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60 } = {}) {
   const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap });
   // h18: pick simulcast vs single-layer based on encoder. x264-software
   // is CPU-bound — running 3 spatial layers triples encode cost and
@@ -224,28 +222,6 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
     }
 
-    // Phase 32 D-A2: reactive align-mode FPS boost.
-    // When alignModeBoost is enabled, a 250ms polling loop monitors
-    // window.__TT_BEAMER_STATE_FOR_DIAG__.alignMode. On false→true
-    // transition: boost to alignModeFpsCap=60 (always ceiling during drag).
-    // On true→false: revert to baseFpsCap (the configured streamFpsCap).
-    const alignModeBoostEnabled = ${alignModeBoost ? "true" : "false"};
-    const baseFpsCap = ${effectiveStreamFpsCap};
-    const alignModeFpsCap = 60;  // always boost to ceiling during drag per D-A2
-    let lastAlignMode = false;
-    if (alignModeBoostEnabled) {
-      setInterval(() => {
-        const state = window.__TT_BEAMER_STATE_FOR_DIAG__;
-        const currentAlign = Boolean(state?.alignMode);
-        if (currentAlign !== lastAlignMode) {
-          lastAlignMode = currentAlign;
-          const cap = currentAlign ? alignModeFpsCap : baseFpsCap;
-          videoTrack.applyConstraints({ frameRate: { ideal: cap, max: cap } })
-            .then(() => console.log("[ssr-publisher] align-mode boost: fps cap ->", cap))
-            .catch((e) => console.warn("[ssr-publisher] align-mode boost applyConstraints failed", e?.message));
-        }
-      }, 250);
-    }
     // h18: log effective track settings so the operator can read them
     // in the SSR-tab console when chasing fps issues.
     try {
@@ -259,33 +235,6 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
         }));
       }
     } catch {}
-
-    // Phase 32 hotfix h3 (2026-05-07): periodic FPS diagnostic.
-    // Every 5s log (a) actual rAF rate inside this SSR tab, (b) videoTrack
-    // current settings.frameRate. Hard evidence so we can see whether
-    // Xvfb -fakescreenfps actually lifted the rAF rate, and whether the
-    // applied frameRate constraint is being honored. Cheap: only logs.
-    try {
-      let rafCount = 0;
-      let lastRafLogAtMs = Date.now();
-      function rafTick() {
-        rafCount += 1;
-        requestAnimationFrame(rafTick);
-      }
-      requestAnimationFrame(rafTick);
-      setInterval(() => {
-        const now = Date.now();
-        const elapsedMs = now - lastRafLogAtMs;
-        const measuredRafFps = elapsedMs > 0 ? Math.round((rafCount * 1000) / elapsedMs) : 0;
-        rafCount = 0;
-        lastRafLogAtMs = now;
-        let tracFr = null;
-        try { tracFr = videoTrack.getSettings?.()?.frameRate ?? null; } catch {}
-        console.log(\`[ssr-publisher] fps-diag rafFps=\${measuredRafFps} trackFrameRate=\${tracFr}\`);
-      }, 5000);
-    } catch (e) {
-      console.warn("[ssr-publisher] fps-diag setup failed", e?.message || e);
-    }
 
     // 4. D-A3 encoding layers + D-A2 H264 codec preference.
     // h18 (2026-05-06): single-layer on software encoders (x264) so the
@@ -453,8 +402,8 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
  * @param {{ logger?: { info: Function, warn: Function, error: Function }, timeoutMs?: number }} [opts]
  * @returns {Promise<{ video: string }>}
  */
-export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null, effectiveStreamFpsCap = 60, alignModeBoost = true } = {}) {
-  const script = buildInPagePublisherScript({ encoderConfig, effectiveStreamFpsCap, alignModeBoost });
+export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null, effectiveStreamFpsCap = 60 } = {}) {
+  const script = buildInPagePublisherScript({ encoderConfig, effectiveStreamFpsCap });
   await page.evaluate(script);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

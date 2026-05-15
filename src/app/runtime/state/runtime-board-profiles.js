@@ -80,31 +80,17 @@
 
   function buildPersistedRuntimeSettingsFromState() {
     const state = ctx.state;
-    const mp4Controls = ctx.getMp4PerformanceControls();
     return {
       audio: {
         enabled: Boolean(state.audio.enabled),
         volume: window.TT_BEAMER_RUNTIME_UTILS.clamp01(Number(state.audio.volume) || 0),
       },
       animationSpeed: ctx.clampAnimationSpeed(state.animationSpeed),
-      renderMode: normalizeRenderMode(state.renderMode),
       diagnosticOverlay: Boolean(state.diagnosticOverlay),
-      mp4Performance: {
-        tier: mp4Controls.tier,
-        renderCap: mp4Controls.renderCap,
-        qualityFloor: mp4Controls.qualityFloor,
-        degradeThreshold: mp4Controls.degradeThreshold,
-        recoverThreshold: mp4Controls.recoverThreshold,
-      },
-      // Projection mapping corners
       ...(window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING
         ? { projectionMapping: { corners: window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.getCornersForPersistence() } }
         : {}),
     };
-  }
-
-  function normalizeRenderMode(value) {
-    return value === "2d" || value === "gl" ? value : "auto";
   }
 
   function buildBoardProfileStoragePayload() {
@@ -132,14 +118,6 @@
 
     if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
       state.animationSpeed = ctx.clampAnimationSpeed(payload.animationSpeed);
-    }
-
-    if (Object.prototype.hasOwnProperty.call(payload, "mp4Performance")) {
-      state.runtimePerf.mp4Controls = ctx.normalizeMp4PerformanceControls(payload.mp4Performance);
-    }
-
-    if (Object.prototype.hasOwnProperty.call(payload, "renderMode")) {
-      state.renderMode = normalizeRenderMode(payload.renderMode);
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, "diagnosticOverlay")) {
@@ -267,7 +245,6 @@
     extractBoardProfilesCandidate,
     buildMigratedBoardProfiles,
     loadBoardProfiles,
-    normalizeRenderMode,
     // Phase 28 B1: exported for cross-module consumers (e.g. defensive
     // re-validation at write sites in runtime-projection-profile-persistence).
     validateProfileName,

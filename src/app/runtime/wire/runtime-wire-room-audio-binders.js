@@ -57,13 +57,6 @@
       alignModeButton,
       exportGlobalDefaultsButton,
       runMobilePerformanceCheckButton,
-      mp4PerformanceTierInput,
-      mp4RenderCapInput,
-      mp4QualityFloorInput,
-      mp4DegradeThresholdInput,
-      mp4RecoverThresholdInput,
-      renderModeSelect,
-      setRenderMode,
       diagnosticOverlayToggle,
       setDiagnosticOverlay,
       armClearAllGuard,
@@ -114,9 +107,7 @@
       refreshApplyDiscardButtonsUi,
       syncMobilePerformanceStatus,
       percentile,
-      normalizeMp4PerformanceTier,
       getMp4TierDefaults,
-      updateMp4PerformanceControls,
       roomFrozenCheckbox,
       roomColorPicker,
       roomColorPickerLabel,
@@ -597,32 +588,6 @@
       const snapshot = state.mobilePerf.lastSnapshot;
       triggerFeedback.textContent =
         `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
-    });
-
-    mp4PerformanceTierInput?.addEventListener("change", () => {
-      const tier = normalizeMp4PerformanceTier(mp4PerformanceTierInput.value);
-      const defaults = getMp4TierDefaults(tier);
-      updateMp4PerformanceControls({ tier, ...defaults });
-    });
-
-    mp4RenderCapInput?.addEventListener("input", () => {
-      updateMp4PerformanceControls({ renderCap: Number(mp4RenderCapInput.value) }, { announce: false });
-    });
-
-    mp4QualityFloorInput?.addEventListener("input", () => {
-      updateMp4PerformanceControls({ qualityFloor: Number(mp4QualityFloorInput.value) }, { announce: false });
-    });
-
-    mp4DegradeThresholdInput?.addEventListener("input", () => {
-      updateMp4PerformanceControls({ degradeThreshold: Number(mp4DegradeThresholdInput.value) }, { announce: false });
-    });
-
-    mp4RecoverThresholdInput?.addEventListener("input", () => {
-      updateMp4PerformanceControls({ recoverThreshold: Number(mp4RecoverThresholdInput.value) }, { announce: false });
-    });
-
-    renderModeSelect?.addEventListener("change", () => {
-      setRenderMode(renderModeSelect.value);
     });
 
     diagnosticOverlayToggle?.addEventListener("change", () => {

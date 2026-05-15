@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Milestone complete
-last_updated: "2026-05-15T00:00:00Z"
+last_updated: "2026-05-16T00:00:00Z"
 progress:
-  total_phases: 39
-  completed_phases: 13
-  total_plans: 67
-  completed_plans: 163
+  total_phases: 40
+  completed_phases: 14
+  total_plans: 68
+  completed_plans: 164
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 40 (next planned)
-- Current Phase Key: phase-40
-- Last Prepared: 2026-05-12
+- Current Phase: 41 (next planned)
+- Current Phase Key: phase-41
+- Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 39 (CLOSED — visual UAT confirmed 2026-05-15, tag phase-39-closed)
-- Last Executed Plan: 39 (D-01 MP4 MIME + D-02 INITIAL_CONNECT state + D-03 mesh-warp seam fix — sub-path B UV-inset) + iter-3 hotfix series h1–h6 (WS-fragmentation on /api/webrtc/signal, boot-race, retry-cancel guard, 2D-fallback restore w/ streifen-fix, dirty-flag isBaseline tag + captureRemoteBaseline on activate, board-switch handle scrub, /output/ room-zone hover suppression)
-- Planned Next Execution: Phase 40 — Remove GL-backend selector (Mesa-only). Retire UI switch, runtime-system.json glBackend, SSR_GL_BACKEND-resolution logic in ssr-render-host.mjs. Mesa with llvmpipe is the universal Linux fallback; SwiftShader path is currently broken and provides no compatibility benefit. Operator decision 2026-05-15.
-- Last Execution Summary: Phase 39 closed three SSR defects from operator UAT 2026-05-12 (D-01 MP4 MIME table extension + RFC 7233 Range; D-02 INITIAL_CONNECT state in receiver-bootstrap.js suppressing RECONNECTING banner during 5s cold-boot grace; D-03 mesh-warp seam fix via 0.5-texel UV-inset epsilon in fragment shader) plus iter-3 hotfix series h1–h6 closing operator UAT regressions on connection stability + align-mode UX. Phase 39 fully CLOSED 2026-05-15.
+- Previous Phase: 40 (CLOSED — SSR + align-mode cleanup, tag phase-40-closed, 2026-05-16)
+- Last Executed Plan: 40 — Comprehensive SSR + align-mode cleanup: retired GL-backend selector (Mesa-only), removed five Settings → System sections (Render mode, GL backend, MP4 performance, Boost stream FPS, Use in-stream audio), deleted alignModeBoost + audioRoute + renderMode plumbing across ~15 modules, locked MP4 perf controls to "balanced" defaults (adaptive logic preserved), quieted noisy steady-state server logs ([ssr-stats] renderMode now logs on transition only; fps-diag every-5s removed; SSR-tab info/log forwarding gated behind env var).
+- Planned Next Execution: Phase 41 — TBD (operator priorities).
+- Last Execution Summary: Phase 40 closed 2026-05-16. 408 tests, 388 pass, 1 fail (pre-existing 04-T3 receiver-bootstrap baseline, unrelated), 19 skipped. Server smoke-test 200/200 on /, /output/, /api/global-defaults. Operator UAT deferred — no behavior changes expected since the removed knobs were either dead or at default values.
 
 ## Source Inputs
 

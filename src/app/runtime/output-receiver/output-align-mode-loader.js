@@ -243,7 +243,6 @@ function _createOutputState(boardId) {
       selectedVertexIndex: null, selectedEdgeIndex: null,
       _lastEdgeTap: null,
     },
-    renderMode: "auto",
     runtime: { activeProjectionProfileId: null },
   };
 }
@@ -560,7 +559,6 @@ export function bootAlignModeLoader({
           }
         },
         showToast: (...args) => { try { logger?.log?.("[output-toast]", ...args); } catch { /* logger guard */ } },
-        getRenderMode: () => _state.renderMode || "auto",
         getBoardId: () => _state.boardId,
         logger,
       });

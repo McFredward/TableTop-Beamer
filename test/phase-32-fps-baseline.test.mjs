@@ -39,16 +39,8 @@ test("POST-PATCH: STREAM_FPS_CAP_VALUES = [30, 45, 60, 0] (Phase 32 D-A3)", () =
   );
 });
 
-// ── Baseline 3: alignModeBoost GREEN post-patch (rewritten by 32-01-T2) ──
-
-test("POST-PATCH: SERVER_RENDERING_DEFAULTS includes alignModeBoost: true (Phase 32 D-A2)", () => {
-  const defaults = cfg.SERVER_RENDERING_DEFAULTS({ available: ["x264-software"] });
-  assert.equal(
-    defaults.alignModeBoost,
-    true,
-    "SERVER_RENDERING_DEFAULTS must include alignModeBoost: true after 32-01-T2",
-  );
-});
+// Phase 32 D-A2 alignModeBoost baseline retired in Phase 40 — the field
+// was removed from defaults along with the publisher polling loop.
 
 // ── Baseline 4: MAX_RECONNECT_ATTEMPTS REMOVED (owned by 32-02) ───────────
 // Rewritten by 32-02-T2: assert the export is GONE (not = 10 as at Wave 0).

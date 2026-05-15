@@ -1,51 +1,32 @@
 // src/server/ssr-server-rendering-config.mjs
 //
-// Phase 31 Plan 04 — Wave 4 publishability gap.
-//
 // Validator + read/write helpers for `config/global-defaults.json#serverRendering`.
-// The five settings (encoder, qualityPreset, resolutionPreference, fpsTarget,
-// audioRoute) are surfaced via the System & Performance UI in Plan 05; the
+// Settings are surfaced via the System & Performance UI; the
 // server-authoritative live-sync handler (`serverRendering-update` mutation)
 // in server.mjs validates patches through this module and persists via the
 // shared writer.
-//
-// D-D2 REVERSAL (2026-05-06): audioRoute default is now "pi-local" — NOT
-// "in-stream". in-stream audio is deferred — see
-// .planning/phases/phase-31/31-D-D2-REVERSAL-ADDENDUM.md
-// The validator still ACCEPTS both enum values so the future feature flip
-// requires no schema migration; the in-stream branch is currently a no-op
-// in the SSR render-host (audio capture not wired).
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
-// ── Enum value lists (locked by Plan 04 spec) ──────────────────────────
+// ── Enum value lists ──────────────────────────────────────────────────
 export const ENCODER_VALUES = ["auto", "nvenc", "vaapi", "videotoolbox", "x264-software"];
 export const QUALITY_PRESET_VALUES = ["low-latency", "balanced", "high-quality"];
 export const RESOLUTION_VALUES = ["auto", "1080p", "720p"];
 export const FPS_VALUES = [30, 24, 15];
-// in-stream audio is deferred — see 31-D-D2-REVERSAL-ADDENDUM.md
-export const AUDIO_ROUTE_VALUES = ["in-stream", "pi-local"];
 
 // Phase 32 D-A3: Stream FPS cap. 0 = native (no cap, hardware-bounded).
-// Distinct from FPS_VALUES (which is the legacy fpsTarget enum kept for
-// backward compatibility per Research Pitfall 5). This field drives the
-// publisher's getDisplayMedia frameRate constraint AND encoder bitrate scaling.
+// Drives the publisher's getDisplayMedia frameRate constraint AND encoder
+// bitrate scaling.
 export const STREAM_FPS_CAP_VALUES = [30, 45, 60, 0];
-// Default is 60fps — the third element of STREAM_FPS_CAP_VALUES (index 2).
 export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
-// Phase 32 D-A2: Align-mode boost — when true, publisher reactively bumps
-// frameRate to cap-max=60 during active align-mode drag operations.
-export const ALIGN_MODE_BOOST_DEFAULT = true;
 
 const KNOWN_KEYS = new Set([
   "encoder",
   "qualityPreset",
   "resolutionPreference",
   "fpsTarget",
-  "audioRoute",
-  "streamFpsCap",     // Phase 32 D-A3
-  "alignModeBoost",   // Phase 32 D-A2
+  "streamFpsCap",
 ]);
 
 /**
@@ -53,10 +34,8 @@ const KNOWN_KEYS = new Set([
  * NVENC / VAAPI / VideoToolbox available  → "balanced" preset, 1080p
  * software-only (x264-software)           → "low-latency" preset, 720p
  *
- * D-D2 REVERSAL: audioRoute default = "pi-local" (was "in-stream").
- *
  * @param {{available?: string[]}} [opts]
- * @returns {{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, audioRoute:string}}
+ * @returns {{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, streamFpsCap:number}}
  */
 export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
   const hasHwEncoder =
@@ -69,9 +48,7 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
       qualityPreset: "balanced",
       resolutionPreference: "1080p",
       fpsTarget: 30,
-      audioRoute: "pi-local", // D-D2 reversal default
-      streamFpsCap: STREAM_FPS_CAP_DEFAULT,     // Phase 32 D-A3
-      alignModeBoost: ALIGN_MODE_BOOST_DEFAULT, // Phase 32 D-A2
+      streamFpsCap: STREAM_FPS_CAP_DEFAULT,
     };
   }
   return {
@@ -79,9 +56,7 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
     qualityPreset: "low-latency",
     resolutionPreference: "720p",
     fpsTarget: 30,
-    audioRoute: "pi-local", // D-D2 reversal default
-    streamFpsCap: STREAM_FPS_CAP_DEFAULT,     // Phase 32 D-A3
-    alignModeBoost: ALIGN_MODE_BOOST_DEFAULT, // Phase 32 D-A2
+    streamFpsCap: STREAM_FPS_CAP_DEFAULT,
   };
 }
 
@@ -117,25 +92,13 @@ export function validateServerRenderingPatch(patch) {
     }
     if (!FPS_VALUES.includes(patch.fpsTarget)) return { valid: false, reason: "fpsTarget-not-in-enum" };
   }
-  if ("audioRoute" in patch) {
-    if (typeof patch.audioRoute !== "string") return { valid: false, reason: "audioRoute-wrong-type" };
-    // in-stream audio is deferred — see 31-D-D2-REVERSAL-ADDENDUM.md
-    if (!AUDIO_ROUTE_VALUES.includes(patch.audioRoute)) return { valid: false, reason: "audioRoute-not-in-enum" };
-  }
   // Phase 32 D-A3: streamFpsCap validation — strict finite number from enum.
-  // Same pattern as fpsTarget validator above (Research § Security: V5 Input Validation).
   if ("streamFpsCap" in patch) {
     if (typeof patch.streamFpsCap !== "number" || !Number.isFinite(patch.streamFpsCap)) {
       return { valid: false, reason: "streamFpsCap-wrong-type" };
     }
     if (!STREAM_FPS_CAP_VALUES.includes(patch.streamFpsCap)) {
       return { valid: false, reason: "streamFpsCap-not-in-enum" };
-    }
-  }
-  // Phase 32 D-A2: alignModeBoost validation — strict boolean only.
-  if ("alignModeBoost" in patch) {
-    if (typeof patch.alignModeBoost !== "boolean") {
-      return { valid: false, reason: "alignModeBoost-wrong-type" };
     }
   }
   return { valid: true };
@@ -178,7 +141,7 @@ export function applyServerRenderingPatch(currentCfg, patch) {
  * @param {object} opts
  * @param {string} opts.rootDir
  * @param {string[]} [opts.available]
- * @returns {Promise<{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, audioRoute:string}>}
+ * @returns {Promise<{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, streamFpsCap:number}>}
  */
 export async function readServerRenderingConfig({ rootDir, available = [] }) {
   if (!rootDir) throw new Error("readServerRenderingConfig: rootDir is required");
@@ -195,11 +158,7 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
       qualityPreset: typeof sr.qualityPreset === "string" && QUALITY_PRESET_VALUES.includes(sr.qualityPreset) ? sr.qualityPreset : defaults.qualityPreset,
       resolutionPreference: typeof sr.resolutionPreference === "string" && RESOLUTION_VALUES.includes(sr.resolutionPreference) ? sr.resolutionPreference : defaults.resolutionPreference,
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
-      audioRoute: typeof sr.audioRoute === "string" && AUDIO_ROUTE_VALUES.includes(sr.audioRoute) ? sr.audioRoute : defaults.audioRoute,
-      // Phase 32 D-A3: streamFpsCap — coerce from disk; fall back to default when missing/invalid.
       streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,
-      // Phase 32 D-A2: alignModeBoost — boolean only; fall back to default when missing/invalid.
-      alignModeBoost: typeof sr.alignModeBoost === "boolean" ? sr.alignModeBoost : defaults.alignModeBoost,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") return defaults;

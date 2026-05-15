@@ -88,56 +88,24 @@ test(
   },
 );
 
-// ── A5: alignModeBoost validation ─────────────────────────────────────────
+// Phase 32 D-A2 alignModeBoost validators retired in Phase 40 — the
+// publisher always runs at the configured streamFpsCap.
+
+// ── A6: SERVER_RENDERING_DEFAULTS includes streamFpsCap ──────────────────
 
 test(
-  "A5a: validateServerRenderingPatch({ alignModeBoost: true }) → valid",
-  async () => {
-    const { validateServerRenderingPatch } = await loadServerRenderingConfig();
-    assert.deepEqual(
-      validateServerRenderingPatch({ alignModeBoost: true }),
-      { valid: true },
-    );
-  },
-);
-
-test(
-  "A5b: validateServerRenderingPatch({ alignModeBoost: false }) → valid",
-  async () => {
-    const { validateServerRenderingPatch } = await loadServerRenderingConfig();
-    assert.deepEqual(
-      validateServerRenderingPatch({ alignModeBoost: false }),
-      { valid: true },
-    );
-  },
-);
-
-test(
-  'A5c: validateServerRenderingPatch({ alignModeBoost: "yes" }) → invalid with reason alignModeBoost-wrong-type',
-  async () => {
-    const { validateServerRenderingPatch } = await loadServerRenderingConfig();
-    const r = validateServerRenderingPatch({ alignModeBoost: "yes" });
-    assert.equal(r.valid, false);
-    assert.equal(r.reason, "alignModeBoost-wrong-type");
-  },
-);
-
-// ── A6: SERVER_RENDERING_DEFAULTS includes new fields ────────────────────
-
-test(
-  "A6: SERVER_RENDERING_DEFAULTS({ available: ['x264-software'] }) returns streamFpsCap: 60 and alignModeBoost: true",
+  "A6: SERVER_RENDERING_DEFAULTS({ available: ['x264-software'] }) returns streamFpsCap: 60",
   async () => {
     const { SERVER_RENDERING_DEFAULTS } = await loadServerRenderingConfig();
     const defaults = SERVER_RENDERING_DEFAULTS({ available: ["x264-software"] });
     assert.equal(defaults.streamFpsCap, 60, "streamFpsCap must default to 60");
-    assert.equal(defaults.alignModeBoost, true, "alignModeBoost must default to true");
   },
 );
 
-// ── A7: applyServerRenderingPatch preserves new fields ───────────────────
+// ── A7: applyServerRenderingPatch preserves streamFpsCap ─────────────────
 
 test(
-  "A7: applyServerRenderingPatch preserves streamFpsCap and alignModeBoost when other fields change",
+  "A7: applyServerRenderingPatch preserves streamFpsCap when other fields change",
   async () => {
     const { applyServerRenderingPatch } = await loadServerRenderingConfig();
     const current = {
@@ -147,14 +115,11 @@ test(
         qualityPreset: "balanced",
         resolutionPreference: "1080p",
         fpsTarget: 30,
-        audioRoute: "pi-local",
         streamFpsCap: 60,
-        alignModeBoost: true,
       },
     };
     const patched = applyServerRenderingPatch(current, { encoder: "vaapi" });
     assert.equal(patched.serverRendering.streamFpsCap, 60, "streamFpsCap must be preserved");
-    assert.equal(patched.serverRendering.alignModeBoost, true, "alignModeBoost must be preserved");
     assert.equal(patched.serverRendering.encoder, "vaapi", "encoder must be updated");
   },
 );

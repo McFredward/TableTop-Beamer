@@ -580,10 +580,6 @@
       state.audio.enabled = Boolean(runtime.audio.enabled);
       state.audio.volume = ctx.clampAudioVolumePercent(Math.round(Number(runtime.audio.volume ?? state.audio.volume) * 100)) / 100;
     }
-    if (runtime.mp4Performance && typeof runtime.mp4Performance === "object") {
-      state.runtimePerf.mp4Controls = ctx.normalizeMp4PerformanceControls(runtime.mp4Performance);
-      ctx.syncMp4PerformanceControlsPanel();
-    }
     if (typeof snapshot?.alignMode === "boolean") {
       state.alignMode = snapshot.alignMode;
     } else if (typeof runtime.alignMode === "boolean") {

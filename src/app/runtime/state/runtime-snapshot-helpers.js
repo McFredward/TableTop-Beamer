@@ -38,7 +38,6 @@
       animationSpeed: state.animationSpeed,
       audio: state.audio,
       alignMode: state.alignMode,
-      mp4Performance: ctx.getMp4PerformanceControls(),
     };
   }
 

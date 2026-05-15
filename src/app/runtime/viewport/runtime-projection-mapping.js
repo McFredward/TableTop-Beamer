@@ -261,21 +261,13 @@
         return;
       }
     } catch (_) { /* ignore */ }
-    // Phase 30 B1 h7: the h6 CSS-warp short-circuit was removed.
-    // Canvas mesh-warp now drives geometry for ALL grids (the user
-    // requires it for inner grid points). The GL/2D path below is
-    // taken whenever there are displacements OR renderMode forces it.
+    // Canvas mesh-warp drives geometry for ALL grids. The GL path below
+    // is taken whenever there are interior-grid displacements; otherwise
+    // fx-canvas is shown directly.
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
 
-    // Server-driven render-mode override. "gl" forces GL on; "auto" keeps
-    // the historical behavior (GL only when warp grid is bent). 2026-05-14:
-    // the "2d" mode is gone; the GL backend itself is now operator-
-    // selectable in Settings → System (Mesa / SwiftShader). Legacy
-    // "2d" persisted values fall through to "auto" semantically.
-    const renderMode = typeof ctx.getRenderMode === "function" ? ctx.getRenderMode() : "auto";
-
-    if (renderMode !== "gl" && !hasGridDisplacements()) {
+    if (!hasGridDisplacements()) {
       // No active warp — fx-canvas content is shown directly. Hide
       // the GL overlay so it can't display a stale frame.
       if (glCanvasEl && glCanvasEl.style.display !== "none") {

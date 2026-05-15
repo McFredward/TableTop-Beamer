@@ -187,34 +187,17 @@
       globalAnimationPanel: document.querySelector("#global-animation-panel"),
       runMobilePerformanceCheckButton: document.querySelector("#run-mobile-performance-check"),
       mobilePerformanceStatus: document.querySelector("#mobile-performance-status"),
-      mp4PerformanceTierInput: document.querySelector("#mp4-performance-tier"),
-      mp4RenderCapInput: document.querySelector("#mp4-render-cap"),
-      mp4RenderCapValue: document.querySelector("#mp4-render-cap-value"),
-      mp4QualityFloorInput: document.querySelector("#mp4-quality-floor"),
-      mp4QualityFloorValue: document.querySelector("#mp4-quality-floor-value"),
-      mp4DegradeThresholdInput: document.querySelector("#mp4-degrade-threshold"),
-      mp4DegradeThresholdValue: document.querySelector("#mp4-degrade-threshold-value"),
-      mp4RecoverThresholdInput: document.querySelector("#mp4-recover-threshold"),
-      mp4RecoverThresholdValue: document.querySelector("#mp4-recover-threshold-value"),
-      mp4PerformanceStatus: document.querySelector("#mp4-performance-status"),
-      renderModeSelect: document.querySelector("#render-mode-select"),
-      renderModeStatus: document.querySelector("#render-mode-status"),
       diagnosticOverlayToggle: document.querySelector("#diagnostic-overlay-toggle"),
       diagnosticOverlayStatus: document.querySelector("#diagnostic-overlay-status"),
-      // Phase 31 Plan 05 (publishability) — System & Performance subtab
-      // Server-side Rendering controls. Bound by
+      // Server-side Rendering settings panel — bound by
       // src/app/lib/ui/settings/server-rendering-panel.js.
       ssrEncoderSelect: document.querySelector("#ssr-encoder-select"),
       ssrDetectedEncodersBadge: document.querySelector("#ssr-detected-encoders-badge"),
       ssrQualityPresetRadios: Array.from(document.querySelectorAll('input[name="ssr-quality-preset"]')),
       ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
-      ssrAudioRouteToggle: document.querySelector("#ssr-audio-route-toggle"),
-      ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
-      // Phase 32 D-A3: stream FPS cap radio group (30/45/60/0=native)
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
-      // Phase 32 D-A2: align-mode boost toggle
-      ssrAlignModeBoostToggle: document.querySelector("#ssr-align-mode-boost-toggle"),
+      ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),
       polygonRoomSelect: document.querySelector("#polygon-room-select"),
       showRoomVerticesInput: document.querySelector("#show-room-vertices"),

@@ -55,12 +55,8 @@
       syncBoardZoomPanel: ctx.syncBoardZoomPanel,
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,
       syncMobilePerformanceStatus: ctx.syncMobilePerformanceStatus,
-      syncMp4PerformanceControlsPanel: ctx.syncMp4PerformanceControlsPanel,
-      syncRenderModePanel: ctx.syncRenderModePanel,
       syncDiagnosticOverlayPanel: ctx.syncDiagnosticOverlayPanel,
     });
-    ctx.syncMp4PerformanceControlsPanel();
-    ctx.syncRenderModePanel?.();
     ctx.syncDiagnosticOverlayPanel?.();
   }
 

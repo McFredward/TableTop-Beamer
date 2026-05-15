@@ -37,7 +37,6 @@
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
     syncMobilePerformanceStatus,
-    syncRenderModePanel,
     syncDiagnosticOverlayPanel,
   }) {
     switchBoard(state.boardId, { announceStatus: false });
@@ -68,7 +67,6 @@
     syncBoardZoomPanel();
     syncDashboardZoneVisibility();
     syncMobilePerformanceStatus();
-    if (typeof syncRenderModePanel === "function") syncRenderModePanel();
     if (typeof syncDiagnosticOverlayPanel === "function") syncDiagnosticOverlayPanel();
   }
 

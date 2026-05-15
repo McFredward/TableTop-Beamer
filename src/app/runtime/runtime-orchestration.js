@@ -75,15 +75,6 @@ document.body.dataset.outputRole = outputRole;
     /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
-    // Phase 34 D-02: SSR tab is rendering INTO a stream. 2D-canvas
-    // fallback produces banding in solid-color animations (operator
-    // observed). Force renderMode = "gl" via a window-level hint that
-    // state's renderMode initializer reads after construction. Setting
-    // the hint here (before any state initializer runs) is the simplest
-    // cross-module wiring; the clamp below reads
-    // window.__ttBeamerForceRenderMode and overrides the
-    // persisted/default mode if present.
-    window.__ttBeamerForceRenderMode = "gl";
   }
   // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
   // default per RESEARCH § Q3). Dashboard URL with `?ssr-preview=1` opts
@@ -224,17 +215,11 @@ const {
   quickModeColorPicker, quickModeColorPickerLabel,
   controlPanel, projectionArea, primaryViewSwitch, dashboardStickyShell, mobileZoneSwitch,
   runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
-  mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
-  mp4QualityFloorValue, mp4DegradeThresholdInput, mp4DegradeThresholdValue,
-  mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus,
-  renderModeSelect, renderModeStatus,
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
-  // Phase 31 Plan 05: Server-side Rendering settings (System & Performance subtab)
+  // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
-  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrAudioRouteToggle,
+  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
   ssrServerRenderingStatus,
-  // Phase 32 D-A3/D-A2: stream FPS cap + align-mode boost controls
-  ssrStreamFpsCapRadios, ssrAlignModeBoostToggle,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
@@ -291,11 +276,6 @@ const SETTINGS_SUBTAB_LABELS = {
 // resolves to a DOM element and that no other view claims write access.
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
-  "mp4-performance-tier",
-  "mp4-render-cap",
-  "mp4-quality-floor",
-  "mp4-degrade-threshold",
-  "mp4-recover-threshold",
   "animation-speed",
   "audio-enabled",
   "audio-volume",
@@ -477,10 +457,6 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init(_wrapCtxForTrace({
   renderRoomOverlay: () => { try { renderRoomOverlay(); } catch { /* not ready yet */ } },
   // Current board for server-side profile scoping
   getBoardId: () => state?.boardId ?? null,
-  // Server-driven render-mode (auto / 2d / gl) so /output/ can skip the
-  // GL warp on weak hardware (e.g. Raspberry Pi). Read at frame time so
-  // a live update via global-config-update takes effect immediately.
-  getRenderMode: () => state?.renderMode ?? "auto",
   // Phase 30 B2 h10: forward showToast lazily so the gl-renderer can
   // surface fallback transitions ("WebGL context lost — recovering",
   // "GL disabled — using 2D"). The const `showToast` is declared
@@ -518,25 +494,10 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
 
-// Phase 34 D-02: enforce the SSR-tab GL force set above by the /ssr
-// marker block. This overrides any persisted renderMode loaded from
-// localStorage or server defaults so the SSR-tab always starts in
-// "gl" mode. Runs immediately after state construction so the clamp
-// is in place before BOOTSTRAP.init or any GL-renderer init frame.
-// Non-SSR paths: window.__ttBeamerForceRenderMode is undefined, guard
-// keeps state.renderMode from the persisted/default value unchanged.
-if (
-  typeof window.__ttBeamerForceRenderMode === "string" &&
-  window.__ttBeamerForceRenderMode.length > 0 &&
-  state
-) {
-  state.renderMode = window.__ttBeamerForceRenderMode;
-}
-
 window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
 
 // Tiny probe so the inline /output/ status-chip script in index.html can
-// read state.renderMode without taking a hard runtime dependency.
+// read state fields without taking a hard runtime dependency.
 window.__ttBeamerStateProbe = () => state;
 
 // Phase-31 h17: expose the live state object via a stable window key so
@@ -547,35 +508,18 @@ window.__ttBeamerStateProbe = () => state;
 // publisher and to avoid colliding with normal runtime APIs.
 window.__TT_BEAMER_STATE_FOR_DIAG__ = state;
 
-// Phase 30 B2 h10: expose the EFFECTIVE render mode (configured + the
-// gl-renderer's runtime fallback flag), so the diagnostic chip can
-// honestly show what's currently being rendered.
-//
-// Phase 30 B2 h11: granularised. Even a SINGLE context-loss event
-// flips _glInitOk to false until the next successful frame; during
-// that window the render path falls through to 2D-fallback. Reporting
-// only the 3-loss permanent-disable threshold meant the chip kept
-// saying "gl" while the user was actually seeing 2D output. Now
-// any lossCount > 0 surfaces "gl→2d (loss xN)" so the chip never
-// lies about effective rendering. Resets cleanly because gl-renderer
-// resets _glContextLossCount to 0 on a successful drawElements call.
+// Effective render mode reporter for the SSR diagnostic overlay.
+// The mesh-warp always uses GL when a non-identity grid is applied;
+// the 2D fallback only fires if GL init permanently fails on this
+// hardware. Returns "gl", "gl-failed", or "gl (loss xN)" so the chip
+// reflects the real path the renderer is on right now.
 window.__ttBeamerEffectiveRenderMode = () => {
-  const configured = state?.renderMode ?? "auto";
-  // 2026-05-14: 2D fallback retired. Permanent-disable and loss-count
-  // pathways now surface as "gl-failed" / "gl (loss xN)" — the operator
-  // is expected to either switch GL backend (Settings → System) or accept
-  // the visible CONTEXT_LOST recovery. There is no fallback render path.
   const glRenderer = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER;
   const glDisabled = glRenderer?.isGlPermanentlyDisabled?.() === true;
   const lossCount = Number(glRenderer?.getGlContextLossCount?.() || 0);
-  if (glDisabled) {
-    return configured === "gl" ? "gl-failed" : "auto-failed";
-  }
-  if (lossCount > 0) {
-    const suffix = `(loss x${lossCount})`;
-    return `${configured} ${suffix}`;
-  }
-  return configured;
+  if (glDisabled) return "gl-failed";
+  if (lossCount > 0) return `gl (loss x${lossCount})`;
+  return "gl";
 };
 
 // Opt-in save: local config edits stay local (dirty) until
@@ -743,8 +687,6 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   reconcileStopPendingFromSnapshot: () => reconcileStopPendingFromSnapshot(),
   clampAnimationSpeed: (value) => clampAnimationSpeed(value),
   clampAudioVolumePercent: (value) => clampAudioVolumePercent(value),
-  normalizeMp4PerformanceControls: (raw) => normalizeMp4PerformanceControls(raw),
-  syncMp4PerformanceControlsPanel: () => syncMp4PerformanceControlsPanel(),
   hardStopRuntimeEffects: (opts) => hardStopRuntimeEffects(opts),
   isControlCriticalMutationEnvelope: (envelope) => isControlCriticalMutationEnvelope(envelope),
   enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
@@ -981,8 +923,6 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
   normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
   normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
-  getMp4PerformanceControls: () => getMp4PerformanceControls(),
-  normalizeMp4PerformanceControls: (raw) => normalizeMp4PerformanceControls(raw),
 });
 const {
   createDefaultBoardProfiles,
@@ -1176,48 +1116,10 @@ const {
   clearAllActiveAnimationAudio,
 } = window.TT_BEAMER_RUNTIME_AUDIO;
 
-// Render-mode (auto / 2d / gl) — server-persisted via global-defaults.
-// Lives here rather than in a dedicated module since it's a single
-// state field with a select-driven UI.
-const RENDER_MODE_LABELS = {
-  auto: "Render mode: auto (GL only when warp grid is bent)",
-  gl: "Render mode: GL — always run mesh warp",
-};
-// 2026-05-14: "2d" is no longer a valid render mode (2D fallback retired —
-// GL is the sole mesh-warp path, with backend selectable via Settings →
-// System). Legacy persisted "2d" values silently coerce to "auto" so old
-// configs keep working without operator intervention.
-function normalizeRenderModeValue(value) {
-  return value === "gl" ? value : "auto";
-}
-function syncRenderModePanel() {
-  const mode = normalizeRenderModeValue(state.renderMode);
-  state.renderMode = mode;
-  if (renderModeSelect && renderModeSelect.value !== mode) {
-    renderModeSelect.value = mode;
-  }
-  if (renderModeStatus) {
-    renderModeStatus.textContent = RENDER_MODE_LABELS[mode];
-  }
-}
-function setRenderMode(nextMode) {
-  state.renderMode = normalizeRenderModeValue(nextMode);
-  syncRenderModePanel();
-  // Push to server immediately so /output/ sees the change live via
-  // global-config-update broadcast. persistBoardProfiles (the localStorage-
-  // only path that persistRuntimeSoundSettingsChange uses) does not
-  // notify the server.
-  saveGlobalDefaultsToServer().catch((error) => {
-    triggerFeedback.textContent = "Status: render mode save failed (see console)";
-    console.warn("[render-mode] save failed:", error?.message || error);
-  });
-}
-
-// Diagnostic overlay toggle. Mirror of setRenderMode wiring — server-
-// persisted via global-defaults so toggling on the dashboard PC pushes
-// to /output/ on the Pi via the global-config-update broadcast. Uses a
-// body data-attribute so the chip's visibility is purely CSS-driven
-// (no per-frame JS guard needed).
+// Diagnostic overlay toggle. Server-persisted via global-defaults so a
+// dashboard toggle propagates to /output/ via the global-config-update
+// broadcast. Uses a body data-attribute so the chip's visibility is
+// purely CSS-driven (no per-frame JS guard needed).
 function syncDiagnosticOverlayPanel() {
   const enabled = Boolean(state.diagnosticOverlay);
   state.diagnosticOverlay = enabled;
@@ -1436,26 +1338,12 @@ const {
 window.TT_BEAMER_RUNTIME_PERF.init({
   state,
   mobilePerformanceStatus,
-  mp4PerformanceTierInput,
-  mp4RenderCapInput,
-  mp4RenderCapValue,
-  mp4QualityFloorInput,
-  mp4QualityFloorValue,
-  mp4DegradeThresholdInput,
-  mp4DegradeThresholdValue,
-  mp4RecoverThresholdInput,
-  mp4RecoverThresholdValue,
-  mp4PerformanceStatus,
-  triggerFeedback,
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
-  persistRuntimeSoundSettingsChange: (message) => persistRuntimeSoundSettingsChange(message),
 });
 const {
   percentile,
   getRuntimeQualityScale,
-  normalizeMp4PerformanceTier,
   getMp4TierDefaults,
-  normalizeMp4PerformanceControls,
   getMp4PerformanceControls,
   computeAnimationCoalesceSeed,
   isRenderCriticalAnimation,
@@ -1464,8 +1352,6 @@ const {
   getRuntimeVisualCaps,
   recordRuntimeFrameCost,
   updateMobilePerformanceStatus: syncMobilePerformanceStatus,
-  syncMp4PerformanceControlsPanel,
-  updateMp4PerformanceControls,
 } = window.TT_BEAMER_RUNTIME_PERF;
 
 window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
@@ -3091,29 +2977,16 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   alignModeButton,
   exportGlobalDefaultsButton,
   runMobilePerformanceCheckButton,
-  mp4PerformanceTierInput,
-  mp4RenderCapInput,
-  mp4QualityFloorInput,
-  mp4DegradeThresholdInput,
-  mp4RecoverThresholdInput,
-  renderModeSelect,
-  renderModeStatus,
-  setRenderMode: (mode) => setRenderMode(mode),
-  syncRenderModePanel: () => syncRenderModePanel(),
   diagnosticOverlayToggle,
   diagnosticOverlayStatus,
-  // Phase 31 Plan 05: pass Server-side Rendering settings refs into the
-  // wire-binder so initServerRenderingPanel(ctx) can find the 5 controls.
+  // Server-side Rendering settings refs for initServerRenderingPanel.
   ssrEncoderSelect,
   ssrDetectedEncodersBadge,
   ssrQualityPresetRadios,
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
-  ssrAudioRouteToggle,
-  ssrServerRenderingStatus,
-  // Phase 32 D-A3/D-A2: stream FPS cap + align-mode boost controls
   ssrStreamFpsCapRadios,
-  ssrAlignModeBoostToggle,
+  ssrServerRenderingStatus,
   // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
   // serverRendering-update mutations directly through the existing
   // pipeline (Plan-04 validate→apply→persist→broadcast).
@@ -3168,9 +3041,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   refreshApplyDiscardButtonsUi: () => refreshApplyDiscardButtonsUi(),
   syncMobilePerformanceStatus: () => syncMobilePerformanceStatus(),
   percentile: (samples, p) => percentile(samples, p),
-  normalizeMp4PerformanceTier: (v) => normalizeMp4PerformanceTier(v),
   getMp4TierDefaults: (tier) => getMp4TierDefaults(tier),
-  updateMp4PerformanceControls: (partial, opts) => updateMp4PerformanceControls(partial, opts),
   roomFrozenCheckbox,
   roomColorPicker,
   roomColorPickerLabel,
@@ -3239,8 +3110,6 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
     syncMobilePerformanceStatus,
-    syncMp4PerformanceControlsPanel,
-    syncRenderModePanel,
     syncDiagnosticOverlayPanel,
     loadExternalBoardZones,
     loadOutsideResourceAssets,

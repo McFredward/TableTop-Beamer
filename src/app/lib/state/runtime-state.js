@@ -48,16 +48,10 @@
         volume: 0.7,
       },
       animationSpeed: 1,
-      // /output/ render-mode: "auto" (GL only when interior grid points
-      // are displaced), "2d" (always skip GL — Pi-friendly), "gl"
-      // (always run GL warp). Server-persisted via global-defaults so a
-      // PC dashboard can flip the mode and the Pi /output/ picks it up
-      // live via the global-config-update broadcast.
-      renderMode: "auto",
       // Diagnostic overlay: when true, the floating status chip
-      // (version · fps · mode · canvas · frame-cost) is visible on
-      // every client. Server-persisted alongside renderMode so toggle
-      // on the dashboard PC propagates to /output/ on the Pi.
+      // (version · fps · canvas · frame-cost) is visible on every
+      // client. Server-persisted so a dashboard toggle propagates
+      // to /output/ via the global-config-update broadcast.
       diagnosticOverlay: false,
       uiView: "dashboard",
       settingsSubtab: "board",
