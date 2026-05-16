@@ -200,7 +200,7 @@
   // Phase 26 hotfix → "0.26.1"). Surfaced to the user via the small
   // chip in the topbar (index.html #app-version, populated at parse
   // time by the inline script next to the topbar).
-  const APP_VERSION = "0.30.0-30-04-T14T15T16-raf-yield";
+  const APP_VERSION = "1.0.0";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,
