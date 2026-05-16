@@ -94,7 +94,7 @@ at once.
 - 🔊 **Per-animation sounds** with global master volume.
 - 💾 **Self-contained board packages.** Export everything as a single `.zip`;
   re-import on another machine, nothing else required.
-- 🥧 **Raspberry-Pi-friendly output path.** WebGL warp runs smoothly on a Pi 4 / Pi 5.
+- 🥧 **Server-Side-Rendering.** The output path is build and optimized for a "weak" thin client like a Raspberry-Pi.
 
 ---
 

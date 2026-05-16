@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.asset-manifest.v1",
-  "generatedAt": "2026-05-16T23:10:17.938Z",
+  "generatedAt": "2026-05-16T23:51:29.930Z",
   "hashByPath": {
     "/resources/animations/burst.gif": {
       "hash": "ea0b0774b013",
@@ -21,11 +21,6 @@
       "hash": "ce795c9b4405",
       "size": 58185897,
       "mtime": "2026-04-12T08:27:47.262Z"
-    },
-    "/resources/animations/sandstorm-1080p-backup.mp4": {
-      "hash": "ef3d9bf25b19",
-      "size": 2839670,
-      "mtime": "2026-05-05T23:06:00.317Z"
     },
     "/resources/animations/sandstorm.mp4": {
       "hash": "56a8f8ac5ff0",
