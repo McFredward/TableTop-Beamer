@@ -4781,24 +4781,44 @@ function buildDefaultAnimationsForBoard(targetBoardId) {
   }
 }
 
-// Auto-start default animations on server startup.
+// Auto-start default animations on server startup — only for the
+// ACTIVE board (taken from runtime-active-animations.json#boardId),
+// not every board on disk. Pre-loading defaults for boards that
+// aren't selected wastes asset cache slots and adds noise to the
+// snapshot fanout. If no persisted boardId is available we fall
+// back to the first board file we find on disk so a fresh install
+// still has something to render.
 try {
-  let entries = [];
-  try { entries = readdirSync(BOARD_STORAGE_DIR, { withFileTypes: true }); } catch { /* dir missing */ }
-  const allDefaults = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json") || entry.name.startsWith(".")) continue;
-    const boardId = entry.name.replace(/\.json$/, "");
-    allDefaults.push(...buildDefaultAnimationsForBoard(boardId));
+  let activeBoardId = null;
+  try {
+    const raw = readFileSync(path.join(ROOT_DIR, "config", "runtime-active-animations.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.boardId === "string") activeBoardId = parsed.boardId;
+  } catch { /* missing or unparseable — fall back below */ }
+
+  if (!activeBoardId) {
+    try {
+      const entries = readdirSync(BOARD_STORAGE_DIR, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.endsWith(".json") || entry.name.startsWith(".")) continue;
+        activeBoardId = entry.name.replace(/\.json$/, "");
+        break;
+      }
+    } catch { /* dir missing — pre-load skipped */ }
   }
-  if (allDefaults.length > 0) {
-    if (!liveSessionState.snapshot.runtime) {
-      liveSessionState.snapshot.runtime = {};
+
+  if (activeBoardId) {
+    const boardDefaults = buildDefaultAnimationsForBoard(activeBoardId);
+    if (boardDefaults.length > 0) {
+      if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
+      liveSessionState.snapshot.runtime.runningAnimations = boardDefaults;
+      liveSessionState.snapshot.selectedBoard = activeBoardId;
+      liveSessionState.version = 1;
+      liveSessionState.updatedAt = new Date().toISOString();
+      console.log(
+        `[default-animations] Pre-loaded ${boardDefaults.length} default animation(s) for board ${activeBoardId}`,
+      );
     }
-    liveSessionState.snapshot.runtime.runningAnimations = allDefaults;
-    liveSessionState.version = 1;
-    liveSessionState.updatedAt = new Date().toISOString();
-    console.log(`[default-animations] Pre-loaded ${allDefaults.length} default animation(s) into live session`);
   }
 } catch (error) {
   console.warn("[default-animations] Could not load defaults:", error?.message || error);

@@ -145,12 +145,12 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
 body[data-diagnostic-overlay="true"] .output-status-chip {
   display: inline-flex;
 }
-/* h17 (2026-05-06): when the chip is in extended overlay mode (set by
-   receiver-status-ui.updateMetrics), switch to a multi-line monospace
-   panel so all 6 lines of telemetry are readable. The pill chip stays
-   for compatibility (when only legacy fields are passed). */
+/* When the chip is in extended overlay mode (set by receiver-status-ui
+   .updateMetrics), switch to a multi-line monospace panel so all 6
+   lines of telemetry are readable. Styling is unconditional; visibility
+   stays gated on body[data-diagnostic-overlay="true"] via the rule below
+   so the operator's toggle keeps working in extended mode. */
 .output-status-chip[data-overlay-extended="true"] {
-  display: block;
   white-space: pre;
   text-align: left;
   border-radius: 8px;
@@ -160,8 +160,6 @@ body[data-diagnostic-overlay="true"] .output-status-chip {
   background: rgba(0, 0, 0, 0.78);
   border-color: rgba(80, 200, 160, 0.55);
   max-width: min(640px, calc(100vw - 16px));
-  /* Body[data-diagnostic-overlay="true"] is what unhides the chip; keep
-     that gate working with the extended layout. */
 }
 body[data-diagnostic-overlay="true"] .output-status-chip[data-overlay-extended="true"] {
   display: block;

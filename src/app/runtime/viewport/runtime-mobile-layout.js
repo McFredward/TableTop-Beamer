@@ -130,6 +130,16 @@
 
   function validateViewNavigationVisibility({ silent = false, context = "runtime" } = {}) {
     const state = ctx.state;
+    // Skip on /output/ and /ssr — both pages intentionally hide the dashboard
+    // navigation switch (they render the projection, not the operator UI).
+    // Without this gate the validator fires false-positive
+    // "navigation-visibility-violation" errors on every SSR-tab boot.
+    if (typeof document !== "undefined") {
+      const ds = document.body?.dataset;
+      if (ds?.outputRole === "final-output" || ds?.ssrTab === "true") {
+        return true;
+      }
+    }
     const issues = [];
     const navButtons = [
       ["dashboard", ctx.openDashboardViewButton],

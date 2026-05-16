@@ -60,9 +60,25 @@
     ctx.animationSpeedStatus.textContent = `Animation Speed: ${speed.toFixed(2)}x`;
   }
 
+  // Phase 41: skip audio preload on the SSR Chromium tab. The SSR tab
+  // renders the projection only; audio is Pi-local (D-D2 reversal).
+  // Preloading 5 voices per asset there triggers ERR_ABORTED noise as
+  // Chrome dedupes the concurrent fetches without ever playing them.
+  function _shouldSkipAudioOnThisDocument() {
+    if (typeof document === "undefined") return false;
+    return document.body?.dataset?.ssrTab === "true";
+  }
+
   function createAudioAssetVoice(path) {
-    const voice = new Audio(path);
-    voice.preload = "auto";
+    const voice = new Audio();
+    // On the SSR-tab leave the voice unloaded — it's never played and
+    // setting src starts a fetch that gets immediately aborted.
+    if (!_shouldSkipAudioOnThisDocument()) {
+      voice.src = path;
+      voice.preload = "auto";
+    } else {
+      voice.preload = "none";
+    }
     return voice;
   }
 
