@@ -13,6 +13,14 @@ logs/*.jsonl
 # Node / npm
 node_modules/
 
+# Phase 45 — click-and-run installer artifacts (downloaded per-machine)
+.node-portable/
+.node-portable.dl/
+ffmpeg-portable/
+ffmpeg-portable.dl/
+.server.pid
+start.log
+
 # Phase 31 Plan 02 — bundled mediasoup-client browser blob, generated on
 # demand by src/server/ssr-stream-publisher.mjs:ensureMediasoupClientBundle.
 public/vendor/

@@ -154,18 +154,32 @@ at once.
 
 ## Quick start
 
+### Non-developer? Use the click-and-run launcher
+
+If you just want to run TT-Beamer without touching Node.js / npm:
+
+- **Linux:** `git clone` the repo, then in a terminal: `./start.sh`
+- **Windows:** download the repo, then **double-click `start.bat`**.
+
+The launcher downloads a portable Node.js, installs system dependencies
+(with a single `sudo`/UAC prompt on first run), and opens the dashboard
+in your browser. See [`docs/INSTALL.md`](docs/INSTALL.md) for the full
+walkthrough + troubleshooting.
+
+### Manual / developer setup
+
 Clone the repo on your **server machine** and start it:
 
 ```bash
-sudo apt update && sudo apt install -y nodejs npm
+sudo apt update && sudo apt install -y nodejs npm xvfb chromium-browser ffmpeg
 git clone https://github.com/McFredward/TableTop-Beamer
 cd TableTop-Beamer
+npm ci
 node server.mjs --host 0.0.0.0 --port 4173
 ```
 
-> Windows users: install Node.js via
-> [Microsoft's guide](https://learn.microsoft.com/windows/dev-environment/javascript/nodejs-on-windows),
-> then run the same `node server.mjs ...` command.
+> Windows users: see [`docs/INSTALL.md`](docs/INSTALL.md) — the click-and-run
+> launcher handles all the Windows-specific dependency setup automatically.
 
 Then open two URLs:
 
