@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "reason": "error",
+  "detail": {
+    "ok": false,
+    "reason": "error",
+    "message": "cdp-screenshot-timeout-4000ms"
+  }
+}

@@ -43,14 +43,10 @@ config/runtime-active-animations.json
 config/runtime-active-grid.json
 config/runtime-active-system.json
 
-# Generated debug artifacts — kept locally for spot-checks, not for repo.
-debug/*.png
-debug/*.jpg
-debug/p3[0-9]-*/
-debug/p4[0-9]-*/
-debug/phase3[0-9]_*
-debug/streifen-*/
-debug/w[0-9]*/
+# Phase 46 iter9 (2026-05-17): top-level `debug/` was moved into
+# `.planning/debug-legacy/` so the project root stays tidy. New debug
+# artifacts go under `.planning/debug/` (or a phase-specific subfolder).
+debug/
 
 # Design-system handoff archive — extracted essentials are tracked under
 # .planning/design-system/; the raw zip is local-only.
