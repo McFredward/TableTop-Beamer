@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location -LiteralPath $ScriptDir
 
-$Port          = if ($env:PORT) { $env:PORT } else { '8080' }
+$Port          = if ($env:PORT) { $env:PORT } else { '4173' }
 $HealthUrl     = "http://localhost:$Port/api/health"
 $DashboardUrl  = "http://localhost:$Port/"
 
@@ -40,10 +40,17 @@ $PidFile       = Join-Path $ScriptDir '.server.pid'
 # -----------------------------------------------------------------------------
 # Banner
 # -----------------------------------------------------------------------------
-Write-Host ""
-Write-Host "  TT-Beamer  Click-and-run launcher (Windows)"
-Write-Host "  Phase 45"
-Write-Host ""
+Write-Host (@'
+
+   _____ _____   ____
+  |_   _|_   _| | __ )  ___  __ _ _ __ ___   ___ _ __
+    | |   | |   |  _ \ / _ \/ _` | '_ ` _ \ / _ \ '__|
+    | |   | |   | |_) |  __/ (_| | | | | | |  __/ |
+    |_|   |_|   |____/ \___|\__,_|_| |_| |_|\___|_|
+
+   Click-and-run launcher (Windows)
+
+'@)
 
 if (-not (Test-Path -LiteralPath (Join-Path $ScriptDir 'package.json'))) {
   Write-Host "[start] ERROR: not in project root (no package.json found at $ScriptDir)" -ForegroundColor Red

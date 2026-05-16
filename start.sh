@@ -45,13 +45,12 @@ for arg in "$@"; do
   esac
 done
 
-PORT="${PORT:-8080}"
+PORT="${PORT:-4173}"
 HEALTH_URL="http://localhost:${PORT}/api/health"
 DASHBOARD_URL="http://localhost:${PORT}/"
 
 LOG_FILE="${SCRIPT_DIR}/start.log"
 PID_FILE="${SCRIPT_DIR}/.server.pid"
-XVFB_PID_FILE="${SCRIPT_DIR}/.xvfb.pid"
 
 # -----------------------------------------------------------------------------
 # Banner
@@ -59,15 +58,13 @@ XVFB_PID_FILE="${SCRIPT_DIR}/.xvfb.pid"
 print_banner() {
   cat <<'BANNER'
 
-  ███████████ █████████████
-       ███    ███    █████
-       ███    ███
-       ███    ███████  ████ ████  ███████   ██  ████████   ███████  █████
-       ███    ██████   ████ ████  ██████    ██  ████████   █████    ██
-       ███    ███   ██ ████ ████  ██   ██  ██   ██████     ██████   ███
+   _____ _____   ____
+  |_   _|_   _| | __ )  ___  __ _ _ __ ___   ___ _ __
+    | |   | |   |  _ \ / _ \/ _` | '_ ` _ \ / _ \ '__|
+    | |   | |   | |_) |  __/ (_| | | | | | |  __/ |
+    |_|   |_|   |____/ \___|\__,_|_| |_| |_|\___|_|
 
-  TT-Beamer — Click-and-run launcher (Linux)
-  Phase 45
+   Click-and-run launcher (Linux)
 
 BANNER
 }
@@ -216,21 +213,14 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 4 — boot server under Xvfb
+# Step 4 — boot server
 # -----------------------------------------------------------------------------
 echo "[start] (4/6) Boot server …"
 
-# Pick a free X display in range :99..:108
-pick_free_display() {
-  local d
-  for d in 99 100 101 102 103 104 105 106 107 108; do
-    if [ ! -e "/tmp/.X${d}-lock" ]; then
-      echo ":$d"
-      return 0
-    fi
-  done
-  return 1
-}
+# Note: the server spawns its own Xvfb internally (see ssr-render-host.mjs)
+# and picks a free X display on its own. We just need Xvfb to be installed
+# on the system (probed in step 2). Do NOT pre-start Xvfb here — it
+# conflicts with the server's own display picker.
 
 stop_children() {
   if [ -f "$PID_FILE" ]; then
@@ -238,6 +228,13 @@ stop_children() {
     pid=$(cat "$PID_FILE" 2>/dev/null || true)
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
       echo "[start] Stopping server (PID $pid) …"
+      # Collect descendants BEFORE killing the parent — once the parent is
+      # dead, the kernel re-parents them to init and we lose the tree.
+      # The server's own SSR-host shutdown is supposed to reap its Xvfb,
+      # but historically has leaked them; this is defense-in-depth.
+      local descendants
+      descendants=$(pgrep -P "$pid" 2>/dev/null || true)
+
       kill "$pid" 2>/dev/null || true
       # Give it 3 seconds to shut down cleanly, then SIGKILL.
       local i=0
@@ -245,23 +242,23 @@ stop_children() {
         sleep 0.1; i=$((i+1))
       done
       kill -9 "$pid" 2>/dev/null || true
+
+      # Defensive Xvfb sweep: any Xvfb that was a direct child of our
+      # server gets killed too.
+      for child in $descendants; do
+        if ps -p "$child" -o cmd= 2>/dev/null | grep -qE "^(Xvfb |/.*Xvfb )"; then
+          kill "$child" 2>/dev/null || true
+        fi
+      done
     fi
     rm -f "$PID_FILE"
-  fi
-  if [ -f "$XVFB_PID_FILE" ]; then
-    local xpid
-    xpid=$(cat "$XVFB_PID_FILE" 2>/dev/null || true)
-    if [ -n "$xpid" ] && kill -0 "$xpid" 2>/dev/null; then
-      kill "$xpid" 2>/dev/null || true
-    fi
-    rm -f "$XVFB_PID_FILE"
   fi
 }
 
 trap stop_children INT TERM EXIT
 
 if [ "$DRY_RUN" = "1" ]; then
-  echo "[start]    [dry-run] Would launch: Xvfb \$display & ; DISPLAY=\$display node server.mjs"
+  echo "[start]    [dry-run] Would launch: node server.mjs (port ${PORT})"
   echo "[start]    [dry-run] All probes passed. Re-run without --dry-run to start."
   trap - INT TERM EXIT
   exit 0
@@ -270,29 +267,16 @@ fi
 # Stop any prior orphan from a previous run.
 stop_children
 
-DISPLAY_NUM=$(pick_free_display) || {
-  echo "[start] ERROR: no free X display in :99..:108. Is another X server running?" >&2
-  exit 1
-}
-
 # Truncate log so the user sees only this session's output.
 : > "$LOG_FILE"
 
-# Start Xvfb in the background.
-echo "[start]    Starting Xvfb on ${DISPLAY_NUM} …"
-Xvfb "$DISPLAY_NUM" -screen 0 1920x1080x24 -nolisten tcp >> "$LOG_FILE" 2>&1 &
-echo $! > "$XVFB_PID_FILE"
-sleep 0.5
-
-if ! kill -0 "$(cat "$XVFB_PID_FILE")" 2>/dev/null; then
-  echo "[start] ERROR: Xvfb failed to start. See ${LOG_FILE}." >&2
-  exit 1
-fi
-
-# Start the Node server.
+# Start the Node server. It manages its own Xvfb (ssr-render-host.mjs
+# picks a free display on its own). We deliberately do NOT export
+# DISPLAY so the server's "needs-virtual-display" probe fires the
+# Xvfb spawn path.
 echo "[start]    Starting Node server (port ${PORT}) …"
 (
-  export DISPLAY="$DISPLAY_NUM"
+  unset DISPLAY
   export PORT
   cd "$SCRIPT_DIR"
   exec "${NODE_PORTABLE_BIN}/node" server.mjs >> "$LOG_FILE" 2>&1

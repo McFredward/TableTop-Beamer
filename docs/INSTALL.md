@@ -30,7 +30,7 @@ When you run `start.sh` or `start.bat`, the script:
    the `mediasoup-worker` binary automatically — no Visual Studio Build
    Tools needed.
 4. **Starts the server** in the background.
-5. **Opens the dashboard** at http://localhost:8080/ in your default
+5. **Opens the dashboard** at http://localhost:4173/ in your default
    browser.
 
 Press **Ctrl+C** in the terminal/console window to stop the server cleanly.
@@ -159,7 +159,7 @@ Workaround:
    ```
 4. Re-run `start.bat`.
 
-### Port 8080 already in use
+### Port 4173 already in use
 
 Set a different port:
 
@@ -182,7 +182,7 @@ $env:PORT="9000"; .\start.bat
 ### "Dashboard didn't open automatically"
 
 The server is still running — open the URL manually:
-- http://localhost:8080/
+- http://localhost:4173/
 
 ### Health probe timed out
 
