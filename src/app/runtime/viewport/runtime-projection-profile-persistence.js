@@ -225,6 +225,21 @@
     }
   }
 
+  // Phase 46 iter4 (2026-05-16): force-fan-out for chip refresh after a
+  // profile-name change. The dirty listeners (see handle-ui.js:847) also
+  // serve as the chip-refresh trigger — they call _refreshAlignToolbarVisual
+  // which re-reads getLoadedProfileName(). When a profile load sets
+  // _loadedProfileName but dirty was already false and stays false,
+  // _recomputeAndNotifyDirty's early-exit suppresses the listener call →
+  // chip stays at the previous name (often "Unsaved") until the next
+  // gesture flips dirty. This helper unconditionally invokes listeners
+  // so the chip refreshes the moment a profile is loaded.
+  function _notifyChipRefresh() {
+    for (const cb of _dirtyListeners) {
+      try { cb(_dirty); } catch (e) { console.warn("[profile-dirty] listener error:", e?.message || e); }
+    }
+  }
+
   function getLoadedProfileName() { return _loadedProfileName; }
   function isCurrentlyDirty() { return _dirty; }
   function addDirtyListener(cb) { if (typeof cb === "function") _dirtyListeners.add(cb); }
@@ -263,17 +278,9 @@
     _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
     try { _persistLoadedProfileToLs(); } catch (_) { /* never break a sync */ }
     _recomputeAndNotifyDirty();
-    // Phase 46 iter3 (2026-05-16): force listener fan-out so the align
-    // toolbar chip refreshes even when _dirty didn't change. On cold
-    // boot the W5-restored grid has dirty=false, and _recomputeAndNotify
-    // Dirty's early-exit (`if (next === _dirty) return`) skipped the
-    // listeners — so the chip stayed at "Unsaved" even though
-    // _loadedProfileName was correctly populated. Listeners re-read
-    // getLoadedProfileName() to compute the chip text, so firing them
-    // with the unchanged dirty value is safe and idempotent.
-    for (const cb of _dirtyListeners) {
-      try { cb(_dirty); } catch (e) { console.warn("[profile-dirty] listener error:", e?.message || e); }
-    }
+    // Phase 46 iter3 (2026-05-16): force chip refresh even when _dirty
+    // didn't change. See _notifyChipRefresh comment.
+    _notifyChipRefresh();
   }
   function notifyDirtyChanged() {
     // Phase 36 M5 (D-06 + Q1 LOCKED) — on /output/, every gesture broadcasts
@@ -594,6 +601,7 @@
             applyTransform();
             if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
             _recomputeAndNotifyDirty();
+            _notifyChipRefresh();
           }
           return;
         }
@@ -614,6 +622,10 @@
         applyTransform();
         if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
         _recomputeAndNotifyDirty();
+        // Phase 46 iter4 (2026-05-16): force chip refresh so the new
+        // profile name appears immediately — operator UAT: "der name
+        // wird erst angezeigt nachdem ich etwas bearbeite".
+        _notifyChipRefresh();
         // Phase 36 iter2 h4 (2026-05-10): broadcast the new grid so the SSR
         // Chromium tab's mesh-warp follows. Mirrors applyAndCaptureSnapshot's
         // Phase-31 h30 fix (line 657). Without this, profileLoadFlow mutates
@@ -714,6 +726,11 @@
     applyTransform();
     if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
+    // Phase 46 iter4 (2026-05-16): force chip refresh so the new
+    // profile name appears immediately on profile-load — without this,
+    // the chip stayed on the previous name until the operator's next
+    // gesture flipped dirty.
+    _notifyChipRefresh();
     // Phase-31 h30: profile load swaps the grid wholesale → broadcast.
     // 2026-05-15: silent auto-load is a baseline reset.
     try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
