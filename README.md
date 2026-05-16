@@ -14,7 +14,6 @@ room, in real time.
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Version](https://img.shields.io/badge/version-1.0.0-7c3aed.svg)](#project-status)
-[![Click-and-run](https://img.shields.io/badge/install-double--click-0f9e75.svg)](docs/INSTALL.md)
 
 <br>
 
@@ -179,8 +178,7 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
 - Cleaner audio routing.
 
 ---
-
-## Project status
+---
 
 **v1.0.0** — first laypeople-friendly public release. Click-and-run launchers
 for Linux + Windows, server-side-rendered projector stream, drag-and-drop
@@ -190,9 +188,5 @@ If you want to fork or extend, the full architecture + decision history is
 documented under `.planning/phases/`. Open a
 [GitHub issue](https://github.com/McFredward/TableTop-Beamer/issues) for
 suggestions, or reach me as **McFredward** on Discord.
-
----
-
-## License
 
 [GNU General Public License v3.0](LICENCE) © McFredward
