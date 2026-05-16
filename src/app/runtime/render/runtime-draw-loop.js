@@ -547,10 +547,28 @@
       }
       ctx.clearOutsideMp4PlaybackState(state.boardId);
       const codedEffectType = ctx.resolveOutsideCodedEffectType(selectedDefinition.assetRef);
+      // Phase 46 mobile-freeze fix (outside-space + animation trigger):
+      // request the lightweight starfield preview path when this draw
+      // loop is NOT the final-output Chromium tab. The dashboard's
+      // local canvas is purely an aesthetic preview — the actual
+      // projector image comes from the SSR tab (role=FINAL), which
+      // continues to render the full immersive parallax untouched.
+      //
+      // Why: on mid-range Android / iPhone the original outside-space
+      // case generated ~71 strokes + 68 fillRects + ~213 GPU state
+      // changes (per-star strokeStyle / fillStyle / lineWidth) per
+      // frame. The first frame after an animation trigger could
+      // exceed 100 ms; cumulatively this produced the visible ~1 s
+      // UI freeze the operator reported. The lightweight path
+      // collapses each layer's streaks + dots into a single Path2D,
+      // dropping per-frame canvas ops to ~6 for the entire outside
+      // layer.
+      const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
       ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, null, {
         outsideMode: effectiveMode,
         outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,
+        lightweight: !isFinalOutput,
       });
     } finally {
       c.restore();
