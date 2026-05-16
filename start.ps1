@@ -115,12 +115,19 @@ if ($DryRun) {
 Write-Host "[start] (2/6) Detecting Chromium …"
 
 function Resolve-Chromium {
+  # Phase 46 iter11 (2026-05-17): WinPS 5.1 parser chokes on
+  # ${env:ProgramFiles(x86)} inside double-quoted strings — the (x86)
+  # parentheses get misinterpreted and the function body fails to
+  # close, producing a cascading "Missing closing '}'" parser error
+  # later in the file. Use Environment.GetEnvironmentVariable so the
+  # name is a plain string literal, no fancy-variable parsing involved.
+  $pfx86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
   $candidates = @(
     "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+    "$pfx86\Google\Chrome\Application\chrome.exe",
     "$env:LocalAppData\Google\Chrome\Application\chrome.exe",
     "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
-    "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+    "$pfx86\Microsoft\Edge\Application\msedge.exe"
   )
   foreach ($p in $candidates) {
     if ($p -and (Test-Path -LiteralPath $p)) { return $p }
