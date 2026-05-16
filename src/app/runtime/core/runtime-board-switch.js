@@ -63,7 +63,22 @@
     try {
       const resp = await fetch("/api/live/snapshot");
       if (!resp.ok) return false;
-      const snap = await resp.json();
+      const body = await resp.json();
+      // Phase 46 iter2 (2026-05-16): unwrap the response envelope. The
+      // /api/live/snapshot route returns
+      // `{ ok, changed, sinceVersion, session: { version, snapshot, ... } }`
+      // — the runtime payload lives at body.session.snapshot.runtime, NOT
+      // body.runtime. Pre-iter2 we read body.runtime directly, which is
+      // always undefined, so this helper unconditionally returned false →
+      // autoLoadRememberedProjectionProfile fell back to
+      // applyDefaultAndCaptureSnapshot (identity grid + broadcast isBaseline=true).
+      // That baseline broadcast then OVERRODE the live-hello W5 apply on
+      // every client, leaving the SSR Chromium tab's mesh-warp at identity
+      // even though server.mjs's W5 fallback had correctly seeded
+      // lastAlignGridSnapshot with the chosen profile. Matches the other
+      // consumers' defensive unwrap pattern (output-align-mode-loader.js
+      // line 663, output-live-sync.js line 405).
+      const snap = body?.session?.snapshot ?? body?.snapshot ?? body ?? {};
       const lastSnap = snap?.runtime?.lastAlignGridSnapshot;
       if (!lastSnap || !Array.isArray(lastSnap.srcXs)
           || !Array.isArray(lastSnap.srcYs) || !Array.isArray(lastSnap.points)) {

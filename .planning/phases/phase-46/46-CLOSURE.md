@@ -140,3 +140,78 @@ src/styles.css                                              | mobile-bg tokeniza
 ## Tag
 
 `phase-46-closed` at the closure commit.
+
+## iter2 follow-up — `_tryApplyDiskRestoredGrid` envelope unwrap (2026-05-16)
+
+### Problem
+
+Operator UAT against commit 43860eb ("fix(phase-46): cold-boot desync —
+dashboard / SSR now apply server-restored grid") found the dashboard
+fix worked but the SSR Chromium tab + Pi /output/ still showed the
+edge-to-edge identity stream when projection-profiles.json existed but
+runtime-active-grid.json did not. See
+`.planning/debug/desync/one_more_desync_bug.png` for the operator
+screenshot.
+
+### Root cause
+
+`src/app/runtime/core/runtime-board-switch.js#_tryApplyDiskRestoredGrid`
+used the wrong JSON path on the `/api/live/snapshot` response:
+
+```js
+// BUGGY (pre-iter2):
+const snap = await resp.json();
+const lastSnap = snap?.runtime?.lastAlignGridSnapshot;
+```
+
+The route's actual envelope is
+`{ ok, changed, sinceVersion, session: { version, snapshot: {…}, … } }`
+— so `snap.runtime` is always `undefined`. The helper therefore
+unconditionally returned `false`, and
+`autoLoadRememberedProjectionProfile` fell through to
+`applyDefaultAndCaptureSnapshot()` which (a) reset the grid to the
+10/90 identity-inset default AND (b) broadcast it as
+`isBaseline=true`. That baseline broadcast then overrode the server's
+W5 disk-restore on every other client that had already applied it via
+live-hello, leaving the SSR tab's mesh-warp at the inset/identity grid
+while /output/'s handles painted at the W5 profile geometry.
+
+### Fix
+
+`runtime-board-switch.js` — unwrap the envelope the same way every
+other consumer already does (see
+`src/app/runtime/output-receiver/output-align-mode-loader.js#L663` and
+`src/app/runtime/output-receiver/output-live-sync.js#L405`):
+
+```js
+const body = await resp.json();
+const snap = body?.session?.snapshot ?? body?.snapshot ?? body ?? {};
+const lastSnap = snap?.runtime?.lastAlignGridSnapshot;
+```
+
+### Verification
+
+- `curl /api/live/snapshot | jq '.session.snapshot.runtime.lastAlignGridSnapshot'`
+  on a cold-boot server (with `runtime-active-grid.json` removed) returns
+  the W5-restored `Nemesis A with xrandr` profile with 54 points and
+  `originatorClientId=server-disk-restore`.
+- The buggy access `.runtime.lastAlignGridSnapshot` on the raw response
+  body returns `null` — confirming that pre-iter2 the helper always
+  returned `false`.
+- The new path correctly resolves to the W5 snapshot.
+- New regression test
+  `test/phase-46-disk-restored-grid-envelope-unwrap.test.mjs` pins the
+  unwrap pattern AND the server-side route shape, so any future
+  refactor that moves the runtime payload elsewhere will fail this
+  test first.
+- Full test suite: **406 / 386 pass / 1 fail / 19 skipped**. The 1
+  failing test is the pre-existing Phase-41 telemetry flake — unrelated.
+
+### Files changed
+
+```
+src/app/runtime/core/runtime-board-switch.js                       | +16 -1
+test/phase-46-disk-restored-grid-envelope-unwrap.test.mjs          | +85 (new)
+.planning/phases/phase-46/46-CLOSURE.md                            | this section
+```
+
