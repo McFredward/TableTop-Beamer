@@ -61,7 +61,6 @@
       syncBoardSelectOptions,
       // ─── Area F — Status sync ───────────────────────────────────
       syncAudioStatus,
-      syncMobilePerformanceStatus,
       // ─── Area G — Audio side-effects ────────────────────────────
       syncAudioGain,
       enforceAudioLifecycleGuard,
@@ -178,7 +177,6 @@
       syncBoardSelectOptions: () => syncBoardSelectOptions(),
       // ─── Area F — Status sync ───────────────────────────────────
       syncAudioStatus: () => syncAudioStatus(),
-      syncMobilePerformanceStatus: () => syncMobilePerformanceStatus(),
       // ─── Area G — Audio side-effects ────────────────────────────
       syncAudioGain: () => syncAudioGain(),
       enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),

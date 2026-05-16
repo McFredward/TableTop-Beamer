@@ -176,27 +176,6 @@
     }
   }
 
-  function syncMobilePerformanceStatus() {
-    const state = ctx.state;
-    if (!ctx.mobilePerformanceStatus) {
-      return;
-    }
-    const trigger = state.mobilePerf.triggerLatencySamples;
-    const frames = state.mobilePerf.frameDeltaSamples;
-    if (trigger.length === 0 || frames.length === 0) {
-      ctx.mobilePerformanceStatus.textContent = "Mobile performance: no snapshot yet";
-      return;
-    }
-    const p95Trigger = percentile(trigger, 0.95);
-    const p95Frame = percentile(frames, 0.95);
-    const approxFps = p95Frame > 0 ? (1000 / p95Frame).toFixed(1) : "0.0";
-    const jankFrames = frames.filter((delta) => delta >= 40).length;
-    const jankRate = frames.length > 0 ? (jankFrames / frames.length) * 100 : 0;
-    const quality = Math.round(getRuntimeQualityScale() * 100);
-    ctx.mobilePerformanceStatus.textContent =
-      `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS) | Jank>=40ms ${jankRate.toFixed(1)}% | Quality ${quality}%`;
-  }
-
   window.TT_BEAMER_RUNTIME_PERF = {
     init,
     percentile,
@@ -209,6 +188,5 @@
     shouldSkipRoomMp4Frame,
     getRuntimeVisualCaps,
     recordRuntimeFrameCost,
-    updateMobilePerformanceStatus: syncMobilePerformanceStatus,
   };
 })();

@@ -27,6 +27,7 @@ import {
   applyServerRenderingPatch,
   readFullConfig as readServerRenderingFullConfig,
   scheduleServerRenderingWrite,
+  SERVER_RENDERING_DEFAULTS,
 } from "./src/server/ssr-server-rendering-config.mjs";
 // Phase-31 h15: hardware-agnostic resource header helper (Connection: close
 // for /resources/animations/* etc.) — see module header for rationale.
@@ -3518,6 +3519,15 @@ async function handleGlobalDefaultsSave(req, res) {
     ...(parsed.projectionMapping || existing?.projectionMapping
       ? { projectionMapping: parsed.projectionMapping ?? existing?.projectionMapping }
       : {}),
+    // Preserve the serverRendering block written by the separate
+    // serverRendering-update mutation path. Without this preserve,
+    // every saveGlobalDefaults POST (diagnosticOverlay toggle, audio
+    // volume change, etc.) wipes the operator's encoder / preset /
+    // resolution / fpsTarget / streamFpsCap and the Settings → System
+    // → Server-side Rendering radios reset to "no value selected".
+    ...(existing?.serverRendering && typeof existing.serverRendering === "object"
+      ? { serverRendering: existing.serverRendering }
+      : {}),
   };
 
   await writeFile(GLOBAL_DEFAULTS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
@@ -4268,19 +4278,24 @@ const server = createServer(async (req, res) => {
         // shape on /api/global-defaults) keep working.
         const synthesized = await synthesizeBoardProfiles();
         const response = { ...parsed, boardProfiles: synthesized };
-        // Phase 31 Plan 05: enrich the serverRendering block with the
-        // auto-detected encoder list from liveSessionState.snapshot. This
-        // is a passive read-only field consumed by the System UI's
-        // Detected-encoders badge — NOT validated by the patch validator
-        // (which silently drops unknown keys). Empty list when SSR is
-        // not running, so the badge shows "(auto-detection in progress…)".
+        // Always surface a fully-populated serverRendering block so the
+        // dashboard Settings → System radios reflect the current state
+        // on first paint. Disk-resident keys win; missing keys fall back
+        // to hardware-aware defaults. The auto-detected encoder list
+        // (read-only, populated by SSR boot) is layered on top.
         const detected = liveSessionState.snapshot?.serverRendering?.availableEncoders;
-        if (Array.isArray(detected) && detected.length > 0) {
-          response.serverRendering = {
-            ...(response.serverRendering ?? {}),
-            availableEncoders: detected,
-          };
-        }
+        const sr = (parsed && typeof parsed === "object" && parsed.serverRendering
+          && typeof parsed.serverRendering === "object")
+            ? parsed.serverRendering
+            : {};
+        const srDefaults = SERVER_RENDERING_DEFAULTS({
+          available: Array.isArray(detected) ? detected : [],
+        });
+        response.serverRendering = {
+          ...srDefaults,
+          ...sr,
+          ...(Array.isArray(detected) && detected.length > 0 ? { availableEncoders: detected } : {}),
+        };
         sendJson(res, 200, response);
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });

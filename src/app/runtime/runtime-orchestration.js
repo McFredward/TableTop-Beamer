@@ -214,7 +214,7 @@ const {
   quickModeOffButton, quickModeToggleButton, quickModeClearButton,
   quickModeColorPicker, quickModeColorPickerLabel,
   controlPanel, projectionArea, primaryViewSwitch, dashboardStickyShell, mobileZoneSwitch,
-  runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
+  runningOverviewPanel, globalAnimationPanel,
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
@@ -343,7 +343,6 @@ window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
   setPanCursorState: () => setPanCursorState(),
   syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
   syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
-  syncMobilePerformanceStatus: () => syncMobilePerformanceStatus(),
   validateViewExclusivity: (view, opts) => validateViewExclusivity(view, opts),
   validateViewNavigationVisibility: (opts) => validateViewNavigationVisibility(opts),
   runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
@@ -1337,7 +1336,6 @@ const {
 
 window.TT_BEAMER_RUNTIME_PERF.init({
   state,
-  mobilePerformanceStatus,
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
 });
 const {
@@ -1351,7 +1349,6 @@ const {
   shouldSkipRoomMp4Frame,
   getRuntimeVisualCaps,
   recordRuntimeFrameCost,
-  updateMobilePerformanceStatus: syncMobilePerformanceStatus,
 } = window.TT_BEAMER_RUNTIME_PERF;
 
 window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
@@ -2976,7 +2973,6 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   alignModeToggleInput,
   alignModeButton,
   exportGlobalDefaultsButton,
-  runMobilePerformanceCheckButton,
   diagnosticOverlayToggle,
   diagnosticOverlayStatus,
   // Server-side Rendering settings refs for initServerRenderingPanel.
@@ -3039,7 +3035,6 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   applyLocalConfigToServer: () => applyLocalConfigToServer(),
   discardLocalConfigAndReloadFromServer: () => discardLocalConfigAndReloadFromServer(),
   refreshApplyDiscardButtonsUi: () => refreshApplyDiscardButtonsUi(),
-  syncMobilePerformanceStatus: () => syncMobilePerformanceStatus(),
   percentile: (samples, p) => percentile(samples, p),
   getMp4TierDefaults: (tier) => getMp4TierDefaults(tier),
   roomFrozenCheckbox,
@@ -3109,7 +3104,6 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     syncAlignModeDirtyDashboardState,
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
-    syncMobilePerformanceStatus,
     syncDiagnosticOverlayPanel,
     loadExternalBoardZones,
     loadOutsideResourceAssets,

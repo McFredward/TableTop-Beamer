@@ -89,6 +89,11 @@ const QUALITY_PRESETS = {
   "low-latency":  { bitrate:  4_000_000, fpsTarget: 30, keyframeIntervalSec: 1, x264Preset: "ultrafast" },
   "balanced":     { bitrate:  8_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "veryfast"  },
   "high-quality": { bitrate: 12_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "fast"      },
+  // Phase 42: extra-high / ultra-high — operator opt-in for cleaner
+  // textures on LAN setups with hardware encoders. x264-software at
+  // ≥16 Mbit/s costs noticeable CPU; only pick on capable hosts.
+  "extra-high":   { bitrate: 16_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "fast"      },
+  "ultra-high":   { bitrate: 20_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "medium"    },
 };
 
 /**

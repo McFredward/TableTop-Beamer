@@ -11,7 +11,6 @@
     setPanCursorState,
     syncDashboardZoneVisibility,
     syncMobileStickyOffsets,
-    syncMobilePerformanceStatus,
     validateViewExclusivity,
     validateViewNavigationVisibility,
     runMobileProjectionVisibilityGuard,
@@ -28,7 +27,6 @@
     setPanCursorState();
     syncDashboardZoneVisibility();
     syncMobileStickyOffsets();
-    syncMobilePerformanceStatus();
     validateViewExclusivity(state.uiView, { context: "resize-guard" });
     validateViewNavigationVisibility({ context: "resize-guard" });
     runMobileProjectionVisibilityGuard({ context: "resize-guard" });

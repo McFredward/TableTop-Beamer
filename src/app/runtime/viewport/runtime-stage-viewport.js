@@ -293,7 +293,6 @@
       setPanCursorState: ctx.setPanCursorState,
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,
       syncMobileStickyOffsets: ctx.syncMobileStickyOffsets,
-      syncMobilePerformanceStatus: ctx.syncMobilePerformanceStatus,
       validateViewExclusivity: ctx.validateViewExclusivity,
       validateViewNavigationVisibility: ctx.validateViewNavigationVisibility,
       runMobileProjectionVisibilityGuard: ctx.runMobileProjectionVisibilityGuard,

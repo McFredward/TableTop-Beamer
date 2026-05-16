@@ -11,7 +11,7 @@ import path from "node:path";
 
 // ── Enum value lists ──────────────────────────────────────────────────
 export const ENCODER_VALUES = ["auto", "nvenc", "vaapi", "videotoolbox", "x264-software"];
-export const QUALITY_PRESET_VALUES = ["low-latency", "balanced", "high-quality"];
+export const QUALITY_PRESET_VALUES = ["low-latency", "balanced", "high-quality", "extra-high", "ultra-high"];
 export const RESOLUTION_VALUES = ["auto", "1080p", "720p"];
 export const FPS_VALUES = [30, 24, 15];
 

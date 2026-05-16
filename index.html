@@ -753,14 +753,6 @@
            own Sound dropdown so users can set sound per-definition. -->
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
-        <h2>Mobile Performance-Checks</h2>
-        <p class="status-line">Measures trigger latency and frame stability for mobile operation.</p>
-        <button id="run-mobile-performance-check" type="button">Create performance snapshot</button>
-        <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile performance: no snapshot yet
-        </p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Diagnostics</h2>
         <label class="inline-checkbox">
           <input id="diagnostic-overlay-toggle" type="checkbox" />
@@ -792,6 +784,8 @@
           <label><input type="radio" name="ssr-quality-preset" value="low-latency" /> Low latency (4 Mbit/s, 720p, ultrafast)</label>
           <label><input type="radio" name="ssr-quality-preset" value="balanced" /> Balanced (8 Mbit/s, 1080p, veryfast)</label>
           <label><input type="radio" name="ssr-quality-preset" value="high-quality" /> High quality (12 Mbit/s, 1080p, fast)</label>
+          <label><input type="radio" name="ssr-quality-preset" value="extra-high" /> Extra high (16 Mbit/s, 1080p, fast)</label>
+          <label><input type="radio" name="ssr-quality-preset" value="ultra-high" /> Ultra high (20 Mbit/s, 1080p, medium — HW encoder recommended)</label>
         </fieldset>
 
         <fieldset class="ssr-radio-group">

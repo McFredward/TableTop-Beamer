@@ -185,8 +185,6 @@
       mobileZoneSwitch: document.querySelector("#mobile-zone-switch"),
       runningOverviewPanel: document.querySelector("#running-overview-panel"),
       globalAnimationPanel: document.querySelector("#global-animation-panel"),
-      runMobilePerformanceCheckButton: document.querySelector("#run-mobile-performance-check"),
-      mobilePerformanceStatus: document.querySelector("#mobile-performance-status"),
       diagnosticOverlayToggle: document.querySelector("#diagnostic-overlay-toggle"),
       diagnosticOverlayStatus: document.querySelector("#diagnostic-overlay-status"),
       // Server-side Rendering settings panel — bound by

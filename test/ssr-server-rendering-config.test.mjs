@@ -38,7 +38,7 @@ function makeTmp() {
 
 test("cfg: enum value lists match spec", () => {
   assert.deepEqual(ENCODER_VALUES, ["auto", "nvenc", "vaapi", "videotoolbox", "x264-software"]);
-  assert.deepEqual(QUALITY_PRESET_VALUES, ["low-latency", "balanced", "high-quality"]);
+  assert.deepEqual(QUALITY_PRESET_VALUES, ["low-latency", "balanced", "high-quality", "extra-high", "ultra-high"]);
   assert.deepEqual(RESOLUTION_VALUES, ["auto", "1080p", "720p"]);
   assert.deepEqual(FPS_VALUES, [30, 24, 15]);
   assert.deepEqual(STREAM_FPS_CAP_VALUES, [30, 45, 60, 0]);

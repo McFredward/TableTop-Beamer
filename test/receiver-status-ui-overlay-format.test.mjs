@@ -171,12 +171,12 @@ test("formatter: missing ssrStats shows `?` placeholders without throwing", () =
   assert.match(out, /\?/);
 });
 
-test("formatter: ALIGN flag shown when alignMode is true", () => {
+test("formatter: alignMode=ON flag shown when alignMode is true", () => {
   const fx = fixture();
   fx.ssrStats.alignMode = true;
   const out = formatDiagnosticOverlay(fx);
   const lines = out.split("\n");
-  assert.match(lines[6], /ALIGN/);
+  assert.match(lines[6], /alignMode=ON/);
 });
 
 test("formatter: gif cache loading + fallback counts surface separately", () => {

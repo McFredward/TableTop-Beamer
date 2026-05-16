@@ -56,7 +56,6 @@
       alignModeToggleInput,
       alignModeButton,
       exportGlobalDefaultsButton,
-      runMobilePerformanceCheckButton,
       diagnosticOverlayToggle,
       setDiagnosticOverlay,
       armClearAllGuard,
@@ -105,7 +104,6 @@
       applyLocalConfigToServer,
       discardLocalConfigAndReloadFromServer,
       refreshApplyDiscardButtonsUi,
-      syncMobilePerformanceStatus,
       percentile,
       getMp4TierDefaults,
       roomFrozenCheckbox,
@@ -569,25 +567,6 @@
       event.preventDefault();
       event.returnValue = "You have unsaved changes.";
       return event.returnValue;
-    });
-
-    runMobilePerformanceCheckButton?.addEventListener("click", () => {
-      syncMobilePerformanceStatus();
-      const jankFrames = state.mobilePerf.frameDeltaSamples.filter((delta) => delta >= 40).length;
-      state.mobilePerf.lastSnapshot = {
-        measuredAt: new Date().toISOString(),
-        triggerSampleCount: state.mobilePerf.triggerLatencySamples.length,
-        frameSampleCount: state.mobilePerf.frameDeltaSamples.length,
-        triggerP95Ms: percentile(state.mobilePerf.triggerLatencySamples, 0.95),
-        frameP95Ms: percentile(state.mobilePerf.frameDeltaSamples, 0.95),
-        jankRatePct:
-          state.mobilePerf.frameDeltaSamples.length > 0
-            ? (jankFrames / state.mobilePerf.frameDeltaSamples.length) * 100
-            : 0,
-      };
-      const snapshot = state.mobilePerf.lastSnapshot;
-      triggerFeedback.textContent =
-        `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
     });
 
     diagnosticOverlayToggle?.addEventListener("change", () => {

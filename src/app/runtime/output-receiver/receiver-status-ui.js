@@ -600,7 +600,8 @@ export function createStatusUi({
     const activeAnims = typeof ssrStats?.activeAnimations === "number"
       ? ssrStats.activeAnimations : "?";
     const alignMode = ssrStats?.alignMode === true
-      ? "ALIGN" : (ssrStats?.alignMode === false ? "off" : "?");
+      ? "alignMode=ON"
+      : (ssrStats?.alignMode === false ? "alignMode=off" : "alignMode=?");
     const gifsReady = ssrStats?.gifsReady ?? null;
     const gifsTotal = ssrStats?.gifsTotal ?? null;
     const gifsLoading = ssrStats?.gifsLoading ?? 0;

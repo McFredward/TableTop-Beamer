@@ -54,7 +54,6 @@
       syncAlignModePanel: ctx.syncAlignModePanel,
       syncBoardZoomPanel: ctx.syncBoardZoomPanel,
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,
-      syncMobilePerformanceStatus: ctx.syncMobilePerformanceStatus,
       syncDiagnosticOverlayPanel: ctx.syncDiagnosticOverlayPanel,
     });
     ctx.syncDiagnosticOverlayPanel?.();

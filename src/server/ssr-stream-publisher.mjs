@@ -330,18 +330,22 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
             if (gl) {
               const ext = gl.getExtension("WEBGL_debug_renderer_info");
               if (ext) {
+                // Prefer the UNMASKED renderer (e.g. "ANGLE (Mesa, llvmpipe)").
                 cached = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "").slice(0, 60);
+              }
+              // Fallback: masked RENDERER (always available — typically
+              // "WebKit WebGL" but still better than "?").
+              if (!cached) {
+                cached = String(gl.getParameter(gl.RENDERER) || "WebGL").slice(0, 60);
               }
               // Aggressively release the context immediately.
               const lose = gl.getExtension("WEBGL_lose_context");
               try { lose && lose.loseContext(); } catch (_) {}
             }
           } catch (_) { /* swallow — diagnostic, not critical */ }
-          window.__ttbCachedWebglRenderer = cached;
+          window.__ttbCachedWebglRenderer = cached || "unavailable";
         }
-        if (window.__ttbCachedWebglRenderer) {
-          out.webglRenderer = window.__ttbCachedWebglRenderer;
-        }
+        out.webglRenderer = window.__ttbCachedWebglRenderer;
       } catch {}
       try {
         // Render method (parser vs image-decoder) — the runtime sets
