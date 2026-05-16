@@ -388,21 +388,31 @@ body[data-output-role="final-output"] #animation-editor-page {
   color: var(--c-accent);
 }
 
-/* Phase 46 iter6: drag-and-drop reorder feedback. */
+/* Phase 46 iter7: pointer-events drag-and-drop reorder.
+ * The dragged row becomes `position: fixed` so it visually follows the
+ * cursor; a placeholder takes its spot in the list. Other rows reflow
+ * naturally as the placeholder is moved. On drop the floating row is
+ * removed and renderList() rebuilds the list from the new array. */
 .anim-editor-row.is-dragging {
-  opacity: 0.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45),
+              0 0 0 1px var(--c-accent);
+  background: var(--c-surface-2);
+  opacity: 0.92;
   cursor: grabbing;
+  transition: none;  /* don't animate the cursor-follow position */
 }
-.anim-editor-row.is-drop-before {
-  box-shadow: 0 -2px 0 0 var(--c-accent) inset;
+.anim-editor-row-placeholder {
+  background: var(--c-accent-bg);
+  border: 1px dashed var(--c-accent);
+  border-radius: var(--rd-r-md, 6px);
+  margin: 2px 0;
+  opacity: 0.6;
 }
-.anim-editor-row.is-drop-after {
-  box-shadow: 0 2px 0 0 var(--c-accent) inset;
-}
-.anim-editor-row[draggable="true"] {
+.anim-editor-row {
   cursor: grab;
+  touch-action: pan-x;  /* allow horizontal pan (scope tabs) but capture vertical for drag */
 }
-.anim-editor-row[draggable="true"]:active {
+.anim-editor-row:active {
   cursor: grabbing;
 }
 

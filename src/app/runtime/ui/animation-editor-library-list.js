@@ -19,6 +19,12 @@
   let renderPane = null;
   let renderPreview = null;
 
+  // Phase 46 iter7: pointer-events drag state. Singleton — only one drag
+  // can be in progress at a time. Created on pointerdown, populated on
+  // activate (after movement threshold), cleared on pointerup/cancel.
+  let activeDrag = null;
+  let dragHandlersBound = false;
+
   function init(deps) {
     ctx = deps;
     state = deps.state ?? deps.shell?.getState?.() ?? null;
@@ -32,6 +38,159 @@
     if (typeof deps.notifySelection === "function") notifySelection = deps.notifySelection;
     if (typeof deps.renderPane === "function") renderPane = deps.renderPane;
     if (typeof deps.renderPreview === "function") renderPreview = deps.renderPreview;
+    // Bind document-level handlers ONCE — pointer events from a captured
+    // pointer fire on the captured element, but as a defensive fallback
+    // when capture fails we also listen at document level.
+    if (!dragHandlersBound) {
+      document.addEventListener("pointermove", _onDragPointerMove, { passive: false });
+      document.addEventListener("pointerup", _onDragPointerUp);
+      document.addEventListener("pointercancel", _onDragPointerUp);
+      dragHandlersBound = true;
+    }
+  }
+
+  // Phase 46 iter7: per-row pointer-event hookup. Just records the start
+  // state on pointerdown; activation + movement happens at document level
+  // so the drag continues even when the cursor leaves the row.
+  function _setupRowPointerDrag(row, def, list) {
+    row.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (activeDrag) return;  // one drag at a time
+      const rect = row.getBoundingClientRect();
+      activeDrag = {
+        pointerId: e.pointerId,
+        defId: def.id,
+        row,
+        list,
+        startY: e.clientY,
+        offsetY: e.clientY - rect.top,
+        width: rect.width,
+        left: rect.left,
+        height: rect.height,
+        activated: false,
+        placeholder: null,
+        wasActivated: false,  // sticks after activate, used to suppress click
+      };
+      try { row.setPointerCapture(e.pointerId); } catch {}
+    });
+  }
+
+  function _onDragPointerMove(e) {
+    if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+    const dy = e.clientY - activeDrag.startY;
+    if (!activeDrag.activated) {
+      if (Math.abs(dy) < 6) return;
+      _activateDrag();
+    }
+    e.preventDefault();
+    // Float the row so its top edge follows the cursor (cursor stays
+    // at the same offset within the row as on pointerdown).
+    activeDrag.row.style.top = `${e.clientY - activeDrag.offsetY}px`;
+    _updatePlaceholderPosition(e.clientY);
+  }
+
+  function _activateDrag() {
+    activeDrag.activated = true;
+    activeDrag.wasActivated = true;
+    const row = activeDrag.row;
+    const placeholder = document.createElement("div");
+    placeholder.className = "anim-editor-row-placeholder";
+    placeholder.style.height = `${activeDrag.height}px`;
+    row.parentElement.insertBefore(placeholder, row);
+    row.classList.add("is-dragging");
+    row.style.position = "fixed";
+    row.style.left = `${activeDrag.left}px`;
+    row.style.top = `${activeDrag.row.getBoundingClientRect().top}px`;
+    row.style.width = `${activeDrag.width}px`;
+    row.style.zIndex = "1000";
+    row.style.pointerEvents = "none";
+    // Move row out of the list to a top-level absolute layer would also
+    // work, but fixed + zIndex keeps DOM siblings intact for the
+    // placeholder-position search below.
+    activeDrag.placeholder = placeholder;
+  }
+
+  function _updatePlaceholderPosition(cursorY) {
+    if (!activeDrag?.placeholder) return;
+    const list = activeDrag.list;
+    const others = Array.from(list.querySelectorAll(".anim-editor-row"))
+      .filter((r) => r !== activeDrag.row);
+    let insertBefore = null;
+    for (const r of others) {
+      const rect = r.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (cursorY < mid) {
+        insertBefore = r;
+        break;
+      }
+    }
+    if (insertBefore) {
+      if (activeDrag.placeholder.nextElementSibling !== insertBefore) {
+        list.insertBefore(activeDrag.placeholder, insertBefore);
+      }
+    } else {
+      // Cursor past the last row → drop at end.
+      if (activeDrag.placeholder !== list.lastElementChild) {
+        list.appendChild(activeDrag.placeholder);
+      }
+    }
+  }
+
+  function _onDragPointerUp(e) {
+    if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+    if (activeDrag.activated) {
+      e.preventDefault();
+      _commitDrop();
+    }
+    _cleanupDrag();
+  }
+
+  function _commitDrop() {
+    const placeholder = activeDrag.placeholder;
+    if (!placeholder) return;
+    // Find the row that will be next to the placeholder after drop.
+    let targetId = null;
+    let mode = null;
+    const next = placeholder.nextElementSibling;
+    const prev = placeholder.previousElementSibling;
+    if (next && next.classList && next.classList.contains("anim-editor-row")
+        && next !== activeDrag.row) {
+      targetId = next.dataset.animationId;
+      mode = "before";
+    } else if (prev && prev.classList && prev.classList.contains("anim-editor-row")
+               && prev !== activeDrag.row) {
+      targetId = prev.dataset.animationId;
+      mode = "after";
+    }
+    if (targetId && targetId !== activeDrag.defId) {
+      reorderAnimations(state.scope, activeDrag.defId, targetId, mode);
+    }
+  }
+
+  function _cleanupDrag() {
+    if (!activeDrag) return;
+    const row = activeDrag.row;
+    const wasActivated = activeDrag.wasActivated;
+    if (activeDrag.placeholder?.parentElement) {
+      activeDrag.placeholder.remove();
+    }
+    if (row) {
+      row.classList.remove("is-dragging");
+      row.style.position = "";
+      row.style.left = "";
+      row.style.top = "";
+      row.style.width = "";
+      row.style.zIndex = "";
+      row.style.pointerEvents = "";
+      try { row.releasePointerCapture?.(activeDrag.pointerId); } catch {}
+      if (wasActivated) {
+        // Suppress trailing click that some browsers fire after the drag.
+        row.dataset.justDropped = "1";
+        // Clear the flag after the click event has had time to fire.
+        setTimeout(() => { try { delete row.dataset.justDropped; } catch {} }, 300);
+      }
+    }
+    activeDrag = null;
   }
 
   function collectAnimations(scope) {
@@ -145,8 +304,14 @@
       row.className = "anim-editor-row";
       row.setAttribute("role", "option");
       row.dataset.animationId = def.id;
-      // Phase 46 iter6: native HTML5 drag-and-drop reorder.
-      row.draggable = true;
+      // Phase 46 iter7 (2026-05-17): switched from HTML5 DnD to pointer
+      // events. Operator UAT: "ich will, dass man den gesamten Balken im
+      // Mauszeiger hat während man es nach oben oder unten verschieben
+      // kann und sieht wie sich die Reihenfolge neu anordnet, und wenn
+      // man loslässt zappt es an die Stelle an der es am nächsten ist."
+      // HTML5 DnD gave only a faint OS-drawn ghost; pointer events let
+      // the actual row visually follow the cursor + live-reorder the
+      // others via DOM moves.
       if (state.selectedIds[state.scope] === def.id) {
         row.classList.add("is-selected");
         row.setAttribute("aria-selected", "true");
@@ -208,47 +373,11 @@
         notifySelection();
       });
 
-      // Phase 46 iter6: drag-and-drop reorder handlers per row.
-      row.addEventListener("dragstart", (e) => {
-        row.classList.add("is-dragging");
-        if (e.dataTransfer) {
-          e.dataTransfer.effectAllowed = "move";
-          // Required for Firefox to fire drag events.
-          try { e.dataTransfer.setData("text/plain", def.id); } catch {}
-        }
-      });
-      row.addEventListener("dragend", () => {
-        row.classList.remove("is-dragging");
-        row.dataset.justDropped = "1";
-        // Clean any stray drop indicators.
-        for (const r of list.querySelectorAll(".anim-editor-row")) {
-          r.classList.remove("is-drop-before", "is-drop-after");
-        }
-      });
-      row.addEventListener("dragover", (e) => {
-        const dragging = list.querySelector(".anim-editor-row.is-dragging");
-        if (!dragging || dragging === row) return;
-        e.preventDefault();
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        const rect = row.getBoundingClientRect();
-        const isAfter = (e.clientY - rect.top) > rect.height / 2;
-        row.classList.toggle("is-drop-after", isAfter);
-        row.classList.toggle("is-drop-before", !isAfter);
-      });
-      row.addEventListener("dragleave", () => {
-        row.classList.remove("is-drop-before", "is-drop-after");
-      });
-      row.addEventListener("drop", (e) => {
-        e.preventDefault();
-        const dragging = list.querySelector(".anim-editor-row.is-dragging");
-        const fromId = dragging?.dataset.animationId;
-        const toId = row.dataset.animationId;
-        const isAfter = row.classList.contains("is-drop-after");
-        row.classList.remove("is-drop-before", "is-drop-after");
-        if (fromId && toId) {
-          reorderAnimations(state.scope, fromId, toId, isAfter ? "after" : "before");
-        }
-      });
+      // Phase 46 iter7: pointer-events-based drag. See _setupRowPointerDrag
+      // below for the full state machine. We bind onto the row + window so
+      // pointermove/up continues to fire even when the dragged row leaves
+      // the list.
+      _setupRowPointerDrag(row, def, list);
 
       list.append(row);
     }
