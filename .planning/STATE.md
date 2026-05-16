@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 45 (next planned)
-- Current Phase Key: phase-45
+- Current Phase: 46 (next planned)
+- Current Phase Key: phase-46
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 44 (CLOSED — SSR always-on, env-var gates retired, tag phase-44-closed, 2026-05-16)
-- Last Executed Plan: 44 — Retired SSR_RENDER_HOST=1 and SSR_PUBLISH=1 env gates. SSR Chromium tab + mediasoup signaling + in-page publisher now boot unconditionally on `node server.mjs`. Phase 40 already retired the non-SSR pipeline; these env gates had been dead toggles since then. Also documented operator UAT confirmation that frequent /output/ disconnect/reconnect cycles are Chromium background-tab-throttling (Hypothesis B) — foreground tab = no cycles.
-- Planned Next Execution: Phase 45 — TBD (operator priorities).
-- Last Execution Summary: Phase 44 closed 2026-05-16 across commits 9aab5d9 + (closure). 408 / 388 pass / 1 pre-existing baseline. Smoke verified: PORT=18870 node server.mjs (no env vars) → full SSR boot, mediasoup router up, encoder auto-detect, /api/health 200.
+- Previous Phase: 45 (CLOSED — click-and-run installer scripts for Linux + Windows, tag phase-45-closed, 2026-05-16)
+- Last Executed Plan: 45 — Added laypeople-friendly start scripts. `./start.sh` (Linux, Debian/Ubuntu auto-install) and `start.bat`/`start.ps1` (Windows). Both bootstrap a portable Node 22 LTS into `.node-portable/`, probe + install system deps, run `npm ci` with `PUPPETEER_SKIP_DOWNLOAD=true`, boot the server under Xvfb (Linux) or hidden process (Windows), wait for `/api/health` 200, and open the dashboard in the user's default browser. mediasoup ≥ 3.12 prebuilt worker.exe is auto-fetched on Windows — no VS Build Tools required. Existing `SSR_BROWSER_BIN` + PATH-based ffmpeg detection in server code needed zero changes.
+- Planned Next Execution: Phase 46 — TBD (operator priorities).
+- Last Execution Summary: Phase 45 closed 2026-05-16. Files: start.sh, start.bat, start.ps1, scripts/bootstrap-node.{sh,ps1}, docs/INSTALL.md, README.md hook, .gitignore entries, 45-CONTEXT.md, 45-PLAN.md, 45-CLOSURE.md. Validation: bash -n + dry-run on dev box (all probes pass, snapshot-marker staleness check works). PowerShell scripts pass brace/paren/bracket balance — full pwsh parse-check deferred to Windows operator host.
 
 ## Source Inputs
 
