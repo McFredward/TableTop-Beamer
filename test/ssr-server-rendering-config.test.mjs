@@ -169,13 +169,13 @@ test("cfg: applyServerRenderingPatch deep-merges known keys; unknown ignored", (
 test("cfg: round-trip preserves all fields after write+reload", async () => {
   const { rootDir, cleanup } = makeTmp();
   try {
-    // Empty cfg in a fresh tmp dir → readServerRenderingConfig returns
-    // HW-aware defaults (NVENC/VAAPI present → "balanced").
+    // Empty cfg in a fresh tmp dir → defaults (Phase 43 set extra-high
+    // / 1080p / 60-fps cap regardless of detected encoder list).
     const initial = await readServerRenderingConfig({
       rootDir,
       available: ["nvenc", "vaapi", "x264-software"],
     });
-    assert.equal(initial.qualityPreset, "balanced");
+    assert.equal(initial.qualityPreset, "extra-high");
     assert.equal(initial.resolutionPreference, "1080p");
     assert.equal(initial.streamFpsCap, 60);
 
@@ -205,19 +205,15 @@ test("cfg: round-trip preserves all fields after write+reload", async () => {
 
 // ── HW-aware defaults factory ──────────────────────────────────────────
 
-test("cfg: SERVER_RENDERING_DEFAULTS is HW-aware (HW present → balanced/1080p; software-only → low-latency/720p)", () => {
-  const hw = SERVER_RENDERING_DEFAULTS({ available: ["nvenc", "vaapi", "x264-software"] });
-  assert.equal(hw.qualityPreset, "balanced");
-  assert.equal(hw.resolutionPreference, "1080p");
-  assert.equal(hw.streamFpsCap, 60);
-
-  const sw = SERVER_RENDERING_DEFAULTS({ available: ["x264-software"] });
-  assert.equal(sw.qualityPreset, "low-latency");
-  assert.equal(sw.resolutionPreference, "720p");
-  assert.equal(sw.streamFpsCap, 60);
-
-  const empty = SERVER_RENDERING_DEFAULTS({});
-  assert.equal(empty.qualityPreset, "low-latency");
+test("cfg: SERVER_RENDERING_DEFAULTS returns extra-high / 1080p / 60 regardless of encoder list (Phase 43)", () => {
+  for (const available of [["nvenc", "vaapi", "x264-software"], ["x264-software"], []]) {
+    const d = SERVER_RENDERING_DEFAULTS({ available });
+    assert.equal(d.encoder, "auto");
+    assert.equal(d.qualityPreset, "extra-high");
+    assert.equal(d.resolutionPreference, "1080p");
+    assert.equal(d.fpsTarget, 30);
+    assert.equal(d.streamFpsCap, 60);
+  }
 });
 
 // ── Reject patch-not-object ────────────────────────────────────────────

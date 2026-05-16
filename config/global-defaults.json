@@ -1,10 +1,10 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-05-05T22:35:46.504Z",
+  "savedAt": "2026-05-16T08:58:57.846Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
-    "volume": 1
+    "volume": 0.7
   },
   "animationSpeed": 1,
   "diagnosticOverlay": true,
@@ -30,7 +30,7 @@
   },
   "serverRendering": {
     "encoder": "auto",
-    "qualityPreset": "high-quality",
+    "qualityPreset": "extra-high",
     "resolutionPreference": "1080p",
     "fpsTarget": 30,
     "streamFpsCap": 60

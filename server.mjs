@@ -15,10 +15,11 @@ import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
-// Phase 31 Plan 04: D-X7 active-animations persistence + D-D1 align-mode round-trip.
+// active-animations persistence (in-session writer; cold-start
+// restore was retired in Phase 43 per operator request) + align-mode
+// grid round-trip.
 import {
-  loadSsrInitialState, persistRunningAnimations, flushRunningAnimations,
-  // Phase-31 h41: server-side persistence of the active projection grid.
+  persistRunningAnimations, flushRunningAnimations,
   loadActiveGrid, persistActiveGrid, flushActiveGrid,
 } from "./src/server/ssr-state-restore.mjs";
 // Phase 31 Plan 04: serverRendering config schema (5 enum settings) + live-sync.
@@ -4451,26 +4452,16 @@ if (process.env.SSR_RENDER_HOST === "1") {
   // IIFE so the existing call order around it stays unchanged.
   (async () => {
     try {
-      // Phase 31 Plan 04 (D-X7): restore active animations from disk on
-      // boot BEFORE the SSR tab connects. Survivors land in
-      // liveSessionState.snapshot.runtime so the initial WS snapshot
-      // sent to the SSR tab carries them — re-fire happens via existing
-      // snapshot-apply logic.
-      try {
-        const restored = await loadSsrInitialState({ rootDir: ROOT_DIR });
-        if (restored.runningAnimations.length > 0) {
-          if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
-          liveSessionState.snapshot.runtime.runningAnimations = restored.runningAnimations;
-          if (restored.boardId) {
-            liveSessionState.snapshot.selectedBoard = restored.boardId;
-          }
-          console.log(`[ssr-restore] restored ${restored.runningAnimations.length} animations for board ${restored.boardId} (${restored.droppedExpired ?? 0} expired)`);
-        } else if (restored.schemaMismatch) {
-          console.warn("[ssr-restore] schema mismatch — ignoring runtime-active-animations.json");
-        }
-      } catch (err) {
-        console.warn("[ssr-restore] load failed:", err?.message || err);
-      }
+      // Phase 43: server-restart no longer restores operator-triggered
+      // animations. Only the default-animations pre-load (top-level,
+      // synchronous, board-scoped) seeds runningAnimations on boot —
+      // anything the operator triggered during the previous session is
+      // dropped. runtime-active-animations.json is still written during
+      // the session (so an SSR-tab in-session crash recovery could
+      // theoretically read it) but the cold-server-start path ignores
+      // it. Operator request 2026-05-16: "Bei Server Start sollen NUR
+      // die autostart Animationen direkt starten ansonsten soll sich
+      // nichts über einen neustart hinweg halten".
 
       // Phase-31 h41: load the persisted active projection grid so the
       // SSR Chromium tab — which spawns with a fresh user-data-dir and

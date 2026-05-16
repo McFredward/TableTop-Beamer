@@ -38,23 +38,18 @@ const KNOWN_KEYS = new Set([
  * @returns {{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, streamFpsCap:number}}
  */
 export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
-  const hasHwEncoder =
-    available.includes("nvenc") ||
-    available.includes("vaapi") ||
-    available.includes("videotoolbox");
-  if (hasHwEncoder) {
-    return {
-      encoder: "auto",
-      qualityPreset: "balanced",
-      resolutionPreference: "1080p",
-      fpsTarget: 30,
-      streamFpsCap: STREAM_FPS_CAP_DEFAULT,
-    };
-  }
+  // Phase 43 default: extra-high (16 Mbit) at 1080p / 60-fps cap.
+  // fpsTarget=30 is metadata only — the real stream cap is
+  // streamFpsCap. Operator can step down to balanced/low-latency on
+  // weak hardware via the Settings → System UI.
+  // `available` is kept in the signature for backwards compatibility
+  // with callers that hand-roll an encoder list; the chosen preset
+  // is the same regardless of the auto-detect result.
+  void available;
   return {
     encoder: "auto",
-    qualityPreset: "low-latency",
-    resolutionPreference: "720p",
+    qualityPreset: "extra-high",
+    resolutionPreference: "1080p",
     fpsTarget: 30,
     streamFpsCap: STREAM_FPS_CAP_DEFAULT,
   };
