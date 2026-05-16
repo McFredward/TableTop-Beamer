@@ -388,6 +388,24 @@ body[data-output-role="final-output"] #animation-editor-page {
   color: var(--c-accent);
 }
 
+/* Phase 46 iter6: drag-and-drop reorder feedback. */
+.anim-editor-row.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+.anim-editor-row.is-drop-before {
+  box-shadow: 0 -2px 0 0 var(--c-accent) inset;
+}
+.anim-editor-row.is-drop-after {
+  box-shadow: 0 2px 0 0 var(--c-accent) inset;
+}
+.anim-editor-row[draggable="true"] {
+  cursor: grab;
+}
+.anim-editor-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .anim-editor-row-icon {
   width: 32px;
   height: 32px;

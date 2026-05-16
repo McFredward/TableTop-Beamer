@@ -57,6 +57,48 @@
     syncDirtyBar();
   }
 
+  // Phase 46 iter6 (2026-05-17): drag-and-drop reorder. Operator UAT —
+  // "Ich will im Animations-Editor in der Lage sein bei den Elementen
+  // auf der linken Seite die Reihenfolge zu verändern per drag and drop.
+  // Die Reihenfolge soll dann entsprechend auch direkt bei der Toggle
+  // 'Tap Action' bei den Kacheln sichtbar sein und server seitig
+  // genauso gespeichert werden."
+  //
+  // The Tap-Action picker + Dashboard global buttons read directly from
+  // the profile's animations array, so persisting a new array order
+  // propagates automatically.
+  function reorderAnimations(scope, fromId, toId, dropPos /* "before" | "after" */) {
+    const boardId = getEditorBoardId();
+    if (!boardId || !fromId || !toId || fromId === toId) return;
+    const getter = scope === "inside" ? ctx.getInsideFxProfile
+      : scope === "outside" ? ctx.getOutsideFxProfile
+      : scope === "room" ? ctx.getRoomFxProfile
+      : null;
+    const setter = scope === "inside" ? ctx.setInsideFxProfile
+      : scope === "outside" ? ctx.setOutsideFxProfile
+      : scope === "room" ? ctx.setRoomFxProfile
+      : null;
+    if (!getter || !setter) return;
+    const profile = getter(boardId);
+    if (!profile?.animations) return;
+    const arr = profile.animations.slice();
+    const fromIdx = arr.findIndex((d) => d.id === fromId);
+    if (fromIdx < 0) return;
+    const [moved] = arr.splice(fromIdx, 1);
+    let toIdx = arr.findIndex((d) => d.id === toId);
+    if (toIdx < 0) {
+      arr.splice(fromIdx, 0, moved);
+      return;
+    }
+    if (dropPos === "after") toIdx += 1;
+    arr.splice(toIdx, 0, moved);
+    setter(boardId, { ...profile, animations: arr });
+    if (typeof ctx.persistBoardProfiles === "function") ctx.persistBoardProfiles();
+    if (typeof ctx.refreshGlobalButtons === "function") ctx.refreshGlobalButtons();
+    if (typeof syncDirtyBar === "function") syncDirtyBar();
+    renderList();
+  }
+
   function renderScopeTabs() {
     const nav = ctx.animEditorScopeTabs;
     if (!nav) return;
@@ -103,6 +145,8 @@
       row.className = "anim-editor-row";
       row.setAttribute("role", "option");
       row.dataset.animationId = def.id;
+      // Phase 46 iter6: native HTML5 drag-and-drop reorder.
+      row.draggable = true;
       if (state.selectedIds[state.scope] === def.id) {
         row.classList.add("is-selected");
         row.setAttribute("aria-selected", "true");
@@ -143,7 +187,14 @@
       dot.setAttribute("aria-hidden", "true");
       row.append(dot);
 
-      row.addEventListener("click", () => {
+      row.addEventListener("click", (e) => {
+        // Phase 46 iter6: a drag-end fires click on some browsers — skip
+        // selection if we just dropped (drag flag was set during dragstart
+        // and cleared on dragend).
+        if (row.dataset.justDropped === "1") {
+          delete row.dataset.justDropped;
+          return;
+        }
         state.selectedIds[state.scope] = def.id;
         renderList();
         // The click handler used to only refresh
@@ -156,6 +207,49 @@
         renderPreview();
         notifySelection();
       });
+
+      // Phase 46 iter6: drag-and-drop reorder handlers per row.
+      row.addEventListener("dragstart", (e) => {
+        row.classList.add("is-dragging");
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = "move";
+          // Required for Firefox to fire drag events.
+          try { e.dataTransfer.setData("text/plain", def.id); } catch {}
+        }
+      });
+      row.addEventListener("dragend", () => {
+        row.classList.remove("is-dragging");
+        row.dataset.justDropped = "1";
+        // Clean any stray drop indicators.
+        for (const r of list.querySelectorAll(".anim-editor-row")) {
+          r.classList.remove("is-drop-before", "is-drop-after");
+        }
+      });
+      row.addEventListener("dragover", (e) => {
+        const dragging = list.querySelector(".anim-editor-row.is-dragging");
+        if (!dragging || dragging === row) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        const rect = row.getBoundingClientRect();
+        const isAfter = (e.clientY - rect.top) > rect.height / 2;
+        row.classList.toggle("is-drop-after", isAfter);
+        row.classList.toggle("is-drop-before", !isAfter);
+      });
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("is-drop-before", "is-drop-after");
+      });
+      row.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const dragging = list.querySelector(".anim-editor-row.is-dragging");
+        const fromId = dragging?.dataset.animationId;
+        const toId = row.dataset.animationId;
+        const isAfter = row.classList.contains("is-drop-after");
+        row.classList.remove("is-drop-before", "is-drop-after");
+        if (fromId && toId) {
+          reorderAnimations(state.scope, fromId, toId, isAfter ? "after" : "before");
+        }
+      });
+
       list.append(row);
     }
     notifySelection();
@@ -167,5 +261,6 @@
     render,
     renderScopeTabs,
     renderList,
+    reorderAnimations,
   };
 })();

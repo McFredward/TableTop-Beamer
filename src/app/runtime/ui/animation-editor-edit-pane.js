@@ -531,6 +531,17 @@
       }
       select.addEventListener("change", () => {
         patchAnimation(scope, boardId, def.id, { assetRef: select.value });
+        // Phase 46 iter6 (2026-05-17): coded-effect change can change the
+        // fields shown in the pane — e.g. picking "solid-color" should
+        // immediately surface the colour picker; switching FROM solid-color
+        // should remove it. Mirror the assetType-change behaviour
+        // (line ~570) and force a pane rebuild so the operator doesn't
+        // have to round-trip through a different animation to see the
+        // new fields. Operator UAT: "der Coded Effect erscheint erst
+        // nachdem ich zu einer anderen Animation gewechselt bin und
+        // wieder zurück."
+        currentPaneKey = null;
+        renderPane();
       });
       label.append(cap, select);
       card.append(label);
