@@ -4420,6 +4420,20 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Phase 46: legacy /favicon.ico probe served as the inline SVG icon
+    // (same artwork as index.html / output.html link[rel=icon]). Many
+    // browsers still auto-fetch /favicon.ico even when a <link rel=icon>
+    // is declared; without this route the dev console gets a stray 404.
+    if (routePath === "/favicon.ico" || routePath === "/favicon.svg") {
+      const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#32D3A3"/><path d="M13.5 16L9 27h14L18.5 16z" fill="#06110C" fill-opacity="0.22"/><g fill="none" stroke="#06110C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="6" width="22" height="10" rx="2"/><line x1="9" y1="9.5" x2="13" y2="9.5"/><line x1="9" y1="12.5" x2="13" y2="12.5"/><circle cx="16" cy="14.5" r="2.4" fill="#32D3A3"/><path d="M13.5 16L9 27h14L18.5 16z"/></g></svg>`;
+      res.writeHead(200, {
+        "content-type": "image/svg+xml",
+        "cache-control": "public, max-age=86400",
+      });
+      res.end(FAVICON_SVG);
+      return;
+    }
+
     await handleStaticFile(req, res, routePath);
   } catch (error) {
     logErrorEvent("http-handler-error", error instanceof Error ? error.message : "unknown", {
