@@ -115,6 +115,19 @@ function findFreePort(startAt = 4801) {
 async function spawnServer(port) {
   const stdoutChunks = [];
   const stderrChunks = [];
+  // Phase 46 iter3 (2026-05-16): snapshot operator's runtime-active-grid.json
+  // BEFORE spawning the server. The test below sends synthetic align-grid-
+  // snapshot mutations with profileId="w10-batch-{first,second}", which the
+  // server persists to <ROOT>/config/runtime-active-grid.json — overwriting
+  // any operator calibration data on dev machines. We restore the original
+  // file on test teardown. This snapshot-and-restore is per-test rather
+  // than a global afterEach so a crash in one test doesn't corrupt another.
+  const fs = await import("node:fs/promises");
+  const activeGridPath = path.join(ROOT, "config", "runtime-active-grid.json");
+  let originalActiveGrid = null;
+  try {
+    originalActiveGrid = await fs.readFile(activeGridPath);
+  } catch { /* file doesn't exist — that's fine */ }
   const proc = spawn(process.execPath, [SERVER_MJS], {
     env: { ...process.env, PORT: String(port) },
     cwd: ROOT,
@@ -139,6 +152,14 @@ async function spawnServer(port) {
         await delay(100);
       }
       if (proc.exitCode == null) proc.kill("SIGKILL");
+      // Restore operator's runtime-active-grid.json (Phase 46 iter3).
+      try {
+        if (originalActiveGrid !== null) {
+          await fs.writeFile(activeGridPath, originalActiveGrid);
+        } else {
+          await fs.unlink(activeGridPath).catch(() => {});
+        }
+      } catch { /* never fail teardown over cleanup */ }
     },
   };
 }

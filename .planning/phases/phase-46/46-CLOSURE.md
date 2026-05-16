@@ -141,6 +141,84 @@ src/styles.css                                              | mobile-bg tokeniza
 
 `phase-46-closed` at the closure commit.
 
+## iter3 follow-up — stale-profileId sanitization + chip refresh + test isolation (2026-05-16)
+
+### Discovery
+
+Operator UAT against iter2 still surfaced the bug — but the geometry
+was correct all along. The pixel-perfect measurements from the iter3
+debugger (cyan handles vs grey-fill warped content match within ±0.001
+of viewport width) confirmed alignment was right. Two SEPARATE issues
+caused the persistent UAT complaint:
+
+1. **`runtime-active-grid.json` contained `profileId="w10-batch-second"`** — a name the operator never created. Source: `test/phase-38-w10-ws-frame-fragmentation.test.mjs:330` spawns a server with `cwd: ROOT` (no config isolation), then sends an `align-grid-snapshot` WS frame with that profile name. The mutation handler persists it to `<ROOT>/config/runtime-active-grid.json`, overwriting the operator's calibration data. On the next cold boot the server's W5 fallback restores this contaminated state verbatim — the geometry is a valid 3×3 inset grid but the name is meaningless to the operator.
+2. **The align-toolbar chip stayed at "Unsaved"** even after `captureRemoteBaseline` correctly populated `_loadedProfileName`. Cause: `_recomputeAndNotifyDirty()` had an early-exit `if (next === _dirty) return` — on cold boot `dirty=false → false` so the dirty listeners (which include the chip-refresh callback) never fired.
+
+### Fixes
+
+**server.mjs W5 block (~line 4499):** sanitize stale `profileId` on
+boot. After `loadActiveGrid`, check whether the restored `profileId`
+exists in `config/projection-profiles.json` (any board). If not, clear
+it to `null` and log:
+
+```
+[active-grid] cleared stale profileId=w10-batch-second: not present in projection-profiles.json (orphan from test or removed profile)
+```
+
+Geometry is preserved — the grid IS a valid calibrated grid, just
+unfortunately tagged. The toolbar chip will read "Unsaved" rather than
+the bogus name, prompting save-as if the operator wants to keep it.
+
+**`captureRemoteBaseline` (runtime-projection-profile-persistence.js):**
+force listener fan-out at the end of the function. Listeners re-read
+`getLoadedProfileName()` to compute the chip text, so firing them with
+the unchanged dirty value is safe and idempotent.
+
+**phase-38-w10 test (test/phase-38-w10-ws-frame-fragmentation.test.mjs):**
+snapshot `config/runtime-active-grid.json` before `spawnServer` and
+restore it on test teardown. Per-test (not global afterEach) so a
+crash in one test doesn't corrupt another.
+
+### Verification
+
+```bash
+# Scenario A: TRUE fresh-install (runtime-active-grid.json absent)
+mv config/runtime-active-grid.json /tmp/_bak.json
+env PORT=5415 node server.mjs
+# → [active-grid] restored profile=Nemesis A with xrandr srcXs=6 srcYs=9 points=54 version=2 source=projection-profile/nemesis-board-a/...
+# curl /api/live/snapshot → profileId: Nemesis A with xrandr
+# (W5 picks the operator's actual saved profile via fallback path)
+
+# Scenario B: contaminated runtime-active-grid.json
+mv /tmp/_bak.json config/runtime-active-grid.json  # has profileId="w10-batch-second"
+env PORT=5413 node server.mjs
+# → [active-grid] cleared stale profileId=w10-batch-second: not present in projection-profiles.json (orphan from test or removed profile)
+# → [active-grid] restored profile=null srcXs=3 srcYs=3 points=9 version=2 source=runtime-active-grid
+# curl /api/live/snapshot → profileId: null, points: 9
+# (Geometry preserved, bogus name cleared, chip will show "Unsaved")
+```
+
+Playwright probe on /output/ after sanitization: grid state `3x3` at
+top-left `(0.07, 0.105)` — matches the warped stream content visible
+in `/tmp/iter3-final-cleaned.png` screenshot.
+
+Tests: 406 / 386 pass / 1 pre-existing baseline fail / 19 skipped
+(unchanged from iter2 baseline).
+
+### Operator post-fix recovery (one-time, optional)
+
+Operators who have a contaminated `runtime-active-grid.json` from
+running tests will see "Unsaved" + the test's synthetic 3×3 inset
+geometry on first cold-boot post-fix. To get back to their real
+calibration:
+
+```bash
+rm config/runtime-active-grid.json
+```
+
+Then restart the server. W5 will fall back to the operator's
+`projection-profiles.json` and pick a real saved profile.
+
 ## iter2 follow-up — `_tryApplyDiskRestoredGrid` envelope unwrap (2026-05-16)
 
 ### Problem

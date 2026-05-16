@@ -263,6 +263,17 @@
     _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
     try { _persistLoadedProfileToLs(); } catch (_) { /* never break a sync */ }
     _recomputeAndNotifyDirty();
+    // Phase 46 iter3 (2026-05-16): force listener fan-out so the align
+    // toolbar chip refreshes even when _dirty didn't change. On cold
+    // boot the W5-restored grid has dirty=false, and _recomputeAndNotify
+    // Dirty's early-exit (`if (next === _dirty) return`) skipped the
+    // listeners — so the chip stayed at "Unsaved" even though
+    // _loadedProfileName was correctly populated. Listeners re-read
+    // getLoadedProfileName() to compute the chip text, so firing them
+    // with the unchanged dirty value is safe and idempotent.
+    for (const cb of _dirtyListeners) {
+      try { cb(_dirty); } catch (e) { console.warn("[profile-dirty] listener error:", e?.message || e); }
+    }
   }
   function notifyDirtyChanged() {
     // Phase 36 M5 (D-06 + Q1 LOCKED) — on /output/, every gesture broadcasts

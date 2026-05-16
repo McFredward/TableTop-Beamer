@@ -4498,13 +4498,51 @@ attachLiveWebSocket(server);
 
         const gridRestored = await loadActiveGrid({ rootDir: ROOT_DIR });
         if (gridRestored && Array.isArray(gridRestored.points) && gridRestored.points.length > 0) {
+          // Phase 46 iter3 (2026-05-16): defensive sanitization of stale
+          // profileIds. The phase-38-w10 frame-fragmentation test was
+          // spawning the server with cwd=ROOT and writing
+          // runtime-active-grid.json with profileId="w10-batch-second" +
+          // synthetic 3×3 grid — names that don't exist in the operator's
+          // projection-profiles.json. On the next cold boot this was
+          // restored into liveSessionState verbatim, surfacing as a
+          // confusing "w10-batch-second" profile name in /output/'s align
+          // toolbar. The geometry was a valid grid, so the stream warped
+          // correctly — but the operator had no way to know what profile
+          // they were looking at.
+          //
+          // Strategy: keep the geometry (the grid IS calibrated state, just
+          // unfortunately tagged), but null-out profileId if it doesn't
+          // exist in projection-profiles.json. The toolbar will then show
+          // "Unsaved" rather than the bogus name, prompting the operator
+          // to save-as if they want to keep it.
+          let sanitizedProfileId = gridRestored.profileId || null;
+          try {
+            if (sanitizedProfileId) {
+              const allProfiles = await loadProjectionProfilesRaw();
+              const profileExistsOnAnyBoard = Object.values(allProfiles || {}).some(
+                (boardProfiles) =>
+                  boardProfiles
+                  && typeof boardProfiles === "object"
+                  && Object.prototype.hasOwnProperty.call(boardProfiles, sanitizedProfileId),
+              );
+              if (!profileExistsOnAnyBoard) {
+                console.log(
+                  `[active-grid] cleared stale profileId=${sanitizedProfileId}: `
+                  + `not present in projection-profiles.json (orphan from test or removed profile)`,
+                );
+                sanitizedProfileId = null;
+              }
+            }
+          } catch (sanitizeErr) {
+            console.warn("[active-grid] profileId sanitization failed:", sanitizeErr?.message || sanitizeErr);
+          }
           gridSeed = {
             srcXs: gridRestored.srcXs.slice(),
             srcYs: gridRestored.srcYs.slice(),
             points: gridRestored.points.map((p) => ({
               row: p.row, col: p.col, x: p.x, y: p.y,
             })),
-            profileId: gridRestored.profileId,
+            profileId: sanitizedProfileId,
             persistedAt: gridRestored.persistedAt || null,
           };
           gridSeedSource = "runtime-active-grid";
