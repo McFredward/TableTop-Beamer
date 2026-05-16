@@ -5,10 +5,10 @@ milestone_name: milestone
 status: Milestone complete
 last_updated: "2026-05-16T00:00:00Z"
 progress:
-  total_phases: 43
-  completed_phases: 17
-  total_plans: 71
-  completed_plans: 167
+  total_phases: 44
+  completed_phases: 18
+  total_plans: 72
+  completed_plans: 168
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 44 (next planned)
-- Current Phase Key: phase-44
+- Current Phase: 45 (next planned)
+- Current Phase Key: phase-45
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 43 (CLOSED — new SSR defaults + no animation restore, tag phase-43-closed, 2026-05-16)
-- Last Executed Plan: 43 — Two operator behavior changes: (1) SSR defaults collapsed to single profile (encoder=auto, qualityPreset=extra-high 16Mbit, resolutionPreference=1080p, fpsTarget=30, streamFpsCap=60) regardless of detected encoder list; documented fpsTarget as cosmetic-metadata-only (streamFpsCap controls real frame cap). (2) Cold-boot animation restore retired — removed loadSsrInitialState call from start(); only the board-scoped default-animations pre-load seeds runningAnimations on boot, anything operator-triggered drops on restart.
-- Planned Next Execution: Phase 44 — TBD (operator priorities).
-- Last Execution Summary: Phase 43 closed 2026-05-16 across commits e31e96a + (closure). 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline). Smoke verified: fake manual-test entry in runtime-active-animations.json ignored on restart; snapshot only contains the 13 board-scoped defaults.
+- Previous Phase: 44 (CLOSED — SSR always-on, env-var gates retired, tag phase-44-closed, 2026-05-16)
+- Last Executed Plan: 44 — Retired SSR_RENDER_HOST=1 and SSR_PUBLISH=1 env gates. SSR Chromium tab + mediasoup signaling + in-page publisher now boot unconditionally on `node server.mjs`. Phase 40 already retired the non-SSR pipeline; these env gates had been dead toggles since then. Also documented operator UAT confirmation that frequent /output/ disconnect/reconnect cycles are Chromium background-tab-throttling (Hypothesis B) — foreground tab = no cycles.
+- Planned Next Execution: Phase 45 — TBD (operator priorities).
+- Last Execution Summary: Phase 44 closed 2026-05-16 across commits 9aab5d9 + (closure). 408 / 388 pass / 1 pre-existing baseline. Smoke verified: PORT=18870 node server.mjs (no env vars) → full SSR boot, mediasoup router up, encoder auto-detect, /api/health 200.
 
 ## Source Inputs
 
