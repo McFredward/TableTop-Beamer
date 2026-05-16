@@ -598,9 +598,12 @@
     // desync where lines + warped board don't match. Idempotent: the
     // _lastAppliedAlignGridSnapshotKey gate prevents repeated apply
     // of the same snapshot during regular polls.
+    // Phase 46 (2026-05-16): same role-gate removal as the live-hello
+    // eager-apply above — slow-path needs to fire on the SSR Chromium tab
+    // + dashboard too so they pick up the server-disk-restored grid on
+    // cold boot. Originator + snapKey gates below remain.
     if (
-      ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
-      && runtime.lastAlignGridSnapshot
+      runtime.lastAlignGridSnapshot
       && typeof runtime.lastAlignGridSnapshot === "object"
     ) {
       try {
@@ -836,9 +839,18 @@
             try {
               const helloRuntime = payload?.session?.snapshot?.runtime;
               const helloGridSnap = helloRuntime?.lastAlignGridSnapshot;
+              // Phase 46 (2026-05-16): removed the OUTPUT_ROLE_FINAL gate.
+              // Pre-fix, the eager-apply only fired on Pi /output/, so the
+              // SSR Chromium tab + dashboard never picked up the W5 server-
+              // disk-restored grid via live-hello → SSR rendered at identity
+              // while /output/ showed the W5 profile geometry. The originator
+              // check + snapKey gate below already prevent re-applying our
+              // own broadcasts; the role gate was redundant and harmful on
+              // cold boot when projection-profiles.json exists but runtime-
+              // active-grid.json does not. (Operator UAT screenshot
+              // .planning/debug/desync/one_more_desync_bug.png.)
               if (
-                ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
-                && helloGridSnap
+                helloGridSnap
                 && typeof helloGridSnap === "object"
                 && Array.isArray(helloGridSnap.srcXs)
                 && Array.isArray(helloGridSnap.srcYs)

@@ -70,29 +70,34 @@
         return false;
       }
       const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
-      const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-      if (!persist || !gridState || typeof gridState.restoreGridSnapshot !== "function") {
+      if (!persist || typeof persist.applyAndCaptureSnapshot !== "function") {
         return false;
       }
-      // Convert from broadcast's flat point list into 2D points array.
-      const points2D = [];
-      for (let r = 0; r < lastSnap.srcYs.length; r++) {
-        points2D[r] = [];
-        for (let c = 0; c < lastSnap.srcXs.length; c++) {
-          points2D[r][c] = { x: lastSnap.srcXs[c], y: lastSnap.srcYs[r] };
-        }
-      }
-      for (const pt of lastSnap.points) {
-        if (Number.isInteger(pt.row) && Number.isInteger(pt.col)
-            && points2D[pt.row] && points2D[pt.row][pt.col]) {
-          points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
-        }
-      }
-      gridState.restoreGridSnapshot({
-        srcXs: lastSnap.srcXs.slice(),
-        srcYs: lastSnap.srcYs.slice(),
-        points: points2D,
-      });
+      // Phase 46 fix (2026-05-16): route through applyAndCaptureSnapshot
+      // instead of grid-state's restoreGridSnapshot directly. The bare
+      // restore mutates grid.points but never calls applyTransform(),
+      // rebuildHandleElements(), or refreshes _loadedProfileSnapshot —
+      // so the SSR mesh-warp didn't re-render with the new geometry on
+      // cold boot. Result: SSR streamed at identity while /output/'s
+      // align-mode handles showed the W5-restored profile geometry. The
+      // operator UAT screenshot (.planning/debug/desync/one_more_desync_bug.png)
+      // captured this exact desync on a fresh install where projection-
+      // profiles.json existed but runtime-active-grid.json did not.
+      //
+      // applyAndCaptureSnapshot performs the full post-restore sequence
+      // (handle rebuild, drawLines, positionRotateHandles, applyTransform,
+      // renderRoomOverlay, snapshot=loaded baseline, broadcast as
+      // isBaseline=true), matching the path used by an explicit profile
+      // load — which is why the bug disappeared once the operator
+      // saved/loaded any profile.
+      persist.applyAndCaptureSnapshot(
+        {
+          srcXs: lastSnap.srcXs,
+          srcYs: lastSnap.srcYs,
+          points: lastSnap.points,
+        },
+        lastSnap.profileId,
+      );
       console.log(
         `[autoLoad h5] applied disk-restored grid `
         + `profile=${lastSnap.profileId} originator=${lastSnap.originatorClientId} `
