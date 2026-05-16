@@ -5,10 +5,10 @@ milestone_name: milestone
 status: Milestone complete
 last_updated: "2026-05-16T00:00:00Z"
 progress:
-  total_phases: 42
-  completed_phases: 16
-  total_plans: 70
-  completed_plans: 166
+  total_phases: 43
+  completed_phases: 17
+  total_plans: 71
+  completed_plans: 167
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 43 (next planned)
-- Current Phase Key: phase-43
+- Current Phase: 44 (next planned)
+- Current Phase Key: phase-44
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 42 (CLOSED — post-Phase-41 operator follow-ups, tag phase-42-closed, 2026-05-16)
-- Last Executed Plan: 42 — Five operator follow-ups: (1) confirmed existing board-switch lifecycle already unloads/pre-loads correctly (no code change); (2) SSR settings radios now reflect current state — saveGlobalDefaults preserves serverRendering, GET layers SERVER_RENDERING_DEFAULTS over disk; (3) added extra-high (16 Mbit) + ultra-high (20 Mbit) quality presets; (4) retired Mobile Performance-Checks section across HTML + 8 JS modules; (5) diagnostic overlay polish — webglRenderer falls back to gl.RENDERER then "unavailable", BOARD line shows alignMode=ON/off/? instead of bare ALIGN/off/?.
-- Planned Next Execution: Phase 43 — TBD (operator priorities).
-- Last Execution Summary: Phase 42 closed 2026-05-16 across commits e46fbff + (closure). 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline, unrelated). Server smoke verified: /api/global-defaults returns full serverRendering block with all 5 keys; pre-load logs board-scoped count.
+- Previous Phase: 43 (CLOSED — new SSR defaults + no animation restore, tag phase-43-closed, 2026-05-16)
+- Last Executed Plan: 43 — Two operator behavior changes: (1) SSR defaults collapsed to single profile (encoder=auto, qualityPreset=extra-high 16Mbit, resolutionPreference=1080p, fpsTarget=30, streamFpsCap=60) regardless of detected encoder list; documented fpsTarget as cosmetic-metadata-only (streamFpsCap controls real frame cap). (2) Cold-boot animation restore retired — removed loadSsrInitialState call from start(); only the board-scoped default-animations pre-load seeds runningAnimations on boot, anything operator-triggered drops on restart.
+- Planned Next Execution: Phase 44 — TBD (operator priorities).
+- Last Execution Summary: Phase 43 closed 2026-05-16 across commits e31e96a + (closure). 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline). Smoke verified: fake manual-test entry in runtime-active-animations.json ignored on restart; snapshot only contains the 13 board-scoped defaults.
 
 ## Source Inputs
 
