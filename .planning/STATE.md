@@ -5,10 +5,10 @@ milestone_name: milestone
 status: Milestone complete
 last_updated: "2026-05-16T00:00:00Z"
 progress:
-  total_phases: 40
-  completed_phases: 14
-  total_plans: 68
-  completed_plans: 164
+  total_phases: 41
+  completed_phases: 15
+  total_plans: 69
+  completed_plans: 165
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 41 (next planned)
-- Current Phase Key: phase-41
+- Current Phase: 42 (next planned)
+- Current Phase Key: phase-42
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 40 (CLOSED — SSR + align-mode cleanup, tag phase-40-closed, 2026-05-16)
-- Last Executed Plan: 40 — Comprehensive SSR + align-mode cleanup: retired GL-backend selector (Mesa-only), removed five Settings → System sections (Render mode, GL backend, MP4 performance, Boost stream FPS, Use in-stream audio), deleted alignModeBoost + audioRoute + renderMode plumbing across ~15 modules, locked MP4 perf controls to "balanced" defaults (adaptive logic preserved), quieted noisy steady-state server logs ([ssr-stats] renderMode now logs on transition only; fps-diag every-5s removed; SSR-tab info/log forwarding gated behind env var).
-- Planned Next Execution: Phase 41 — TBD (operator priorities).
-- Last Execution Summary: Phase 40 closed 2026-05-16. 408 tests, 388 pass, 1 fail (pre-existing 04-T3 receiver-bootstrap baseline, unrelated), 19 skipped. Server smoke-test 200/200 on /, /output/, /api/global-defaults. Operator UAT deferred — no behavior changes expected since the removed knobs were either dead or at default values.
+- Previous Phase: 41 (CLOSED — post-Phase-40 operator-UAT hotfixes, tag phase-41-closed, 2026-05-16)
+- Last Executed Plan: 41 — Three operator-reported hotfixes after Phase 40 cleanup: (1) diagnostic overlay on /output/ ignored dashboard toggle — fixed via output-live-sync global-config-update envelope handler + CSS visibility ungate of extended-overlay rule; (2) server pre-loaded animations for every board (47) instead of the active one (13) — fixed by reading runtime-active-animations.json#boardId at top-level boot; (3) SSR-tab boot noise (navigation-visibility-violation x2, navigation-regression-violation x2, monsters/048.wav ERR_ABORTED x4, align-mode debug log) — fixed by gating dashboard nav validator on data-output-role/data-ssr-tab, skipping audio src= on SSR tab, and removing the Phase-31 align-mode diagnostic log.
+- Planned Next Execution: Phase 42 — TBD (operator priorities).
+- Last Execution Summary: Phase 41 closed 2026-05-16 across commits 662f1e5 + 380841d. 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline, unrelated). Server smoke verified: diagnostic-overlay flip propagates to /output/; pre-load logs "Pre-loaded 13 default animation(s) for board nemesis-board-a" instead of unfiltered 47.
 
 ## Source Inputs
 
