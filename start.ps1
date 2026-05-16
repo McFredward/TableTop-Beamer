@@ -31,8 +31,32 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location -LiteralPath $ScriptDir
 
 $Port          = if ($env:PORT) { $env:PORT } else { '4173' }
-$HealthUrl     = "http://localhost:$Port/api/health"
-$DashboardUrl  = "http://localhost:$Port/"
+# Health probe + browser auto-open use localhost (this machine, no DNS).
+$HealthUrl         = "http://localhost:$Port/api/health"
+$DashboardUrlLocal = "http://localhost:$Port/"
+
+# LAN IP for the post-boot banner — dashboard/output are typically opened
+# from a phone/tablet/Pi on the LAN, not on the server itself.
+function Get-LanIp {
+  try {
+    $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object {
+        $_.IPAddress -notmatch '^127\.' -and
+        $_.IPAddress -notmatch '^169\.254\.' -and
+        $_.PrefixOrigin -ne 'WellKnown'
+      } |
+      Sort-Object -Property `
+        @{Expression={$_.PrefixOrigin -eq 'Dhcp'}; Descending=$true}, `
+        @{Expression={$_.IPAddress -like '192.168.*' -or $_.IPAddress -like '10.*' -or $_.IPAddress -like '172.*'}; Descending=$true}
+    if ($candidates) {
+      return ($candidates | Select-Object -First 1).IPAddress
+    }
+  } catch {}
+  return 'localhost'
+}
+$LanIp        = Get-LanIp
+$DashboardUrl = "http://${LanIp}:$Port/"
+$OutputUrl    = "http://${LanIp}:$Port/output/"
 
 $LogFile       = Join-Path $ScriptDir 'start.log'
 $PidFile       = Join-Path $ScriptDir '.server.pid'
@@ -341,14 +365,14 @@ if (-not (Probe-Health -TimeoutSec 90)) {
 }
 
 Write-Host "[start]    Opening dashboard …"
-Start-Process $DashboardUrl
+Start-Process $DashboardUrlLocal
 
 Write-Host ""
 Write-Host "  ─────────────────────────────────────────────────────"
 Write-Host "  TT-Beamer is running."
-Write-Host "    Dashboard:    $DashboardUrl"
-Write-Host "    Output view:  http://localhost:$Port/output/"
-Write-Host "    Log:          $LogFile"
+Write-Host "    Dashboard (open on phone/tablet):  $DashboardUrl"
+Write-Host "    Output view (open on the Pi):      $OutputUrl"
+Write-Host "    Log:                                $LogFile"
 Write-Host "  ─────────────────────────────────────────────────────"
 Write-Host "  Press Ctrl+C to stop."
 Write-Host ""

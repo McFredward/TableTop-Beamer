@@ -31,7 +31,9 @@ When you run `start.sh` or `start.bat`, the script:
    Tools needed.
 4. **Starts the server** in the background.
 5. **Opens the dashboard** at http://localhost:4173/ in your default
-   browser.
+   browser. The console also prints the **LAN URL** (e.g.
+   `http://192.168.0.80:4173/`) — open that on your phone/tablet, and
+   the `/output/` URL on your projector Pi.
 
 Press **Ctrl+C** in the terminal/console window to stop the server cleanly.
 

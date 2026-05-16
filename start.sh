@@ -46,8 +46,25 @@ for arg in "$@"; do
 done
 
 PORT="${PORT:-4173}"
+# Health probe + browser auto-open use localhost (this machine, no DNS).
 HEALTH_URL="http://localhost:${PORT}/api/health"
-DASHBOARD_URL="http://localhost:${PORT}/"
+DASHBOARD_URL_LOCAL="http://localhost:${PORT}/"
+
+# LAN IP for the post-boot banner — dashboard/output are typically opened
+# from a phone/tablet/Pi on the LAN, not on the server itself.
+get_lan_ip() {
+  local ip
+  # Best: source-IP for the default route (the IP other LAN devices reach us on)
+  ip=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/ {for (i=1; i<=NF; i++) if ($i=="src") { print $(i+1); exit }}')
+  # Fallback: first non-loopback IPv4 from hostname -I
+  if [ -z "$ip" ]; then
+    ip=$(hostname -I 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i !~ /^127\./ && $i ~ /\./) { print $i; exit }}')
+  fi
+  echo "${ip:-localhost}"
+}
+LAN_IP=$(get_lan_ip)
+DASHBOARD_URL="http://${LAN_IP}:${PORT}/"
+OUTPUT_URL="http://${LAN_IP}:${PORT}/output/"
 
 LOG_FILE="${SCRIPT_DIR}/start.log"
 PID_FILE="${SCRIPT_DIR}/.server.pid"
@@ -328,9 +345,9 @@ fi
 echo "[start] (6/6) Opening dashboard …"
 
 if command -v xdg-open >/dev/null 2>&1; then
-  (xdg-open "$DASHBOARD_URL" >/dev/null 2>&1 || true) &
+  (xdg-open "$DASHBOARD_URL_LOCAL" >/dev/null 2>&1 || true) &
 elif command -v gnome-open >/dev/null 2>&1; then
-  (gnome-open "$DASHBOARD_URL" >/dev/null 2>&1 || true) &
+  (gnome-open "$DASHBOARD_URL_LOCAL" >/dev/null 2>&1 || true) &
 else
   echo "[start]    (no xdg-open available — open manually)"
 fi
@@ -339,9 +356,9 @@ cat <<EOF
 
   ─────────────────────────────────────────────────────
   TT-Beamer is running.
-    Dashboard:    ${DASHBOARD_URL}
-    Output view:  http://localhost:${PORT}/output/
-    Log:          ${LOG_FILE}
+    Dashboard (open on phone/tablet):  ${DASHBOARD_URL}
+    Output view (open on the Pi):      ${OUTPUT_URL}
+    Log:                                ${LOG_FILE}
   ─────────────────────────────────────────────────────
   Press Ctrl+C to stop.
 
