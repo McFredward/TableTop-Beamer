@@ -5,10 +5,10 @@ milestone_name: milestone
 status: Milestone complete
 last_updated: "2026-05-16T00:00:00Z"
 progress:
-  total_phases: 41
-  completed_phases: 15
-  total_plans: 69
-  completed_plans: 165
+  total_phases: 42
+  completed_phases: 16
+  total_plans: 70
+  completed_plans: 166
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 42 (next planned)
-- Current Phase Key: phase-42
+- Current Phase: 43 (next planned)
+- Current Phase Key: phase-43
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 41 (CLOSED — post-Phase-40 operator-UAT hotfixes, tag phase-41-closed, 2026-05-16)
-- Last Executed Plan: 41 — Three operator-reported hotfixes after Phase 40 cleanup: (1) diagnostic overlay on /output/ ignored dashboard toggle — fixed via output-live-sync global-config-update envelope handler + CSS visibility ungate of extended-overlay rule; (2) server pre-loaded animations for every board (47) instead of the active one (13) — fixed by reading runtime-active-animations.json#boardId at top-level boot; (3) SSR-tab boot noise (navigation-visibility-violation x2, navigation-regression-violation x2, monsters/048.wav ERR_ABORTED x4, align-mode debug log) — fixed by gating dashboard nav validator on data-output-role/data-ssr-tab, skipping audio src= on SSR tab, and removing the Phase-31 align-mode diagnostic log.
-- Planned Next Execution: Phase 42 — TBD (operator priorities).
-- Last Execution Summary: Phase 41 closed 2026-05-16 across commits 662f1e5 + 380841d. 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline, unrelated). Server smoke verified: diagnostic-overlay flip propagates to /output/; pre-load logs "Pre-loaded 13 default animation(s) for board nemesis-board-a" instead of unfiltered 47.
+- Previous Phase: 42 (CLOSED — post-Phase-41 operator follow-ups, tag phase-42-closed, 2026-05-16)
+- Last Executed Plan: 42 — Five operator follow-ups: (1) confirmed existing board-switch lifecycle already unloads/pre-loads correctly (no code change); (2) SSR settings radios now reflect current state — saveGlobalDefaults preserves serverRendering, GET layers SERVER_RENDERING_DEFAULTS over disk; (3) added extra-high (16 Mbit) + ultra-high (20 Mbit) quality presets; (4) retired Mobile Performance-Checks section across HTML + 8 JS modules; (5) diagnostic overlay polish — webglRenderer falls back to gl.RENDERER then "unavailable", BOARD line shows alignMode=ON/off/? instead of bare ALIGN/off/?.
+- Planned Next Execution: Phase 43 — TBD (operator priorities).
+- Last Execution Summary: Phase 42 closed 2026-05-16 across commits e46fbff + (closure). 408 tests, 388 pass, 1 fail (pre-existing 04-T3 baseline, unrelated). Server smoke verified: /api/global-defaults returns full serverRendering block with all 5 keys; pre-load logs board-scoped count.
 
 ## Source Inputs
 
