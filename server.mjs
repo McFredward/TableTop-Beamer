@@ -1293,11 +1293,10 @@ function applyLiveMutation({
     // wrt runtime state — the broadcast itself is the live-sync signal so
     // Plan-05's UI re-fetches /api/global-defaults.
     //
-    // Phase 31 Plan 05 Task 2b step 7: when the patched key includes
-    // `encoder`, restart the SSR Chromium tab so the new encoder takes
-    // effect on the next launch. Pi reconnect banner from Plan 03 D-C2
-    // fires automatically. Gated behind SSR_RENDER_HOST so the standard
-    // (non-SSR) `node server.mjs` path stays unchanged.
+    // When the patched key includes `encoder`/`qualityPreset`/
+    // `fpsTarget`/`resolutionPreference`, restart the SSR Chromium tab so
+    // the new value takes effect on the next launch. /output/ reconnect
+    // banner fires automatically.
     (async () => {
       try {
         const current = await readServerRenderingFullConfig({ rootDir: ROOT_DIR });
@@ -1312,8 +1311,7 @@ function applyLiveMutation({
         // sees "balanced" forever in the chip (h17 reported issue).
         const restartKeys = ["encoder", "qualityPreset", "fpsTarget", "resolutionPreference"];
         const needsRestart =
-          process.env.SSR_RENDER_HOST === "1"
-          && payload && typeof payload === "object"
+          payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));
         if (needsRestart) {
           const changedKeys = restartKeys.filter((k) =>
@@ -2290,11 +2288,11 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
     selectedLayout: liveSessionState.snapshot.selectedLayout ?? null,
     outsideEnabledBoards,
   });
-  // Phase 31 Plan 04 (D-X7): persist running animations to disk so the SSR
-  // Chromium tab can replay them after a restart. Gated behind
-  // SSR_RENDER_HOST=1 so non-SSR runs don't write the file. 200ms debounce
-  // (in ssr-state-restore.mjs) coalesces rapid mutations.
-  if (process.env.SSR_RENDER_HOST === "1") {
+  // Persist running animations to disk for in-session SSR-tab crash
+  // recovery (200ms debounce in ssr-state-restore.mjs). Phase 43 retired
+  // the cold-boot restore path; the file is still useful for mid-session
+  // SSR-tab respawn.
+  {
     const runtime = liveSessionState.snapshot?.runtime;
     if (runtime && Array.isArray(runtime.runningAnimations)) {
       const boardId =
@@ -3670,9 +3668,8 @@ const server = createServer(async (req, res) => {
     // limited and buffered) so tests can deterministically verify that the
     // SSR tab's grid.points matches the latest broadcast.
     //
-    // Returns 503 when the SSR render-host is not active (env SSR_RENDER_HOST
-    // != 1 or CDP not yet attached). Returns 200 with { grid: {srcXs, srcYs,
-    // points} } otherwise.
+    // Returns 503 when CDP isn't yet attached to the SSR tab. Returns 200
+    // with { grid: {srcXs, srcYs, points} } otherwise.
     if (req.method === "GET" && routePath === "/api/diag/ssr-grid") {
       const host = getActiveSsrRenderHost();
       if (!host || typeof host.evaluateInTab !== "function") {
@@ -4438,18 +4435,11 @@ const server = createServer(async (req, res) => {
 
 attachLiveWebSocket(server);
 
-// Phase 31 (Plan 01): SSR render-host. Headful Chromium under Xvfb
-// navigates to /output?ssr=1 and runs the existing render pipeline.
-// Wave 2 (Plan 02) wires the in-page WebRTC publish to mediasoup;
-// this plan only proves the tab boots and is process-managed.
-// Disabled by default until the user opts in via env var so the
-// existing 63-test suite + normal `node server.mjs` behavior is
-// fully unchanged.
-if (process.env.SSR_RENDER_HOST === "1") {
-  // Plan 02 (Wave 2): boot mediasoup + signaling BEFORE the render-host
-  // so the in-page publisher (when SSR_PUBLISH=1) finds the signaling
-  // endpoint already attached. The render-host is started in an async
-  // IIFE so the existing call order around it stays unchanged.
+// Phase 44: SSR is the only render path. The previous SSR_RENDER_HOST
+// + SSR_PUBLISH env-var gating (added during the Phase 31 experimental
+// rollout) is retired — `node server.mjs` now always boots the
+// Chromium SSR tab + publisher, no opt-in required.
+{
   (async () => {
     try {
       // Phase 43: server-restart no longer restores operator-triggered

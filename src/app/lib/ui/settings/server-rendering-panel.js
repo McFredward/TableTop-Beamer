@@ -121,7 +121,7 @@
           reflectConfig(sr);
           setStatus("Server-side rendering: ready");
         } else {
-          setStatus("Server-side rendering: (no config — run server with SSR_RENDER_HOST=1)");
+          setStatus("Server-side rendering: (no config available)");
         }
       })
       .catch(() => {

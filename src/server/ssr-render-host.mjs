@@ -843,10 +843,9 @@ export function bootSsrRenderHost({
       });
       status.browserConnected = true;
       status.state = "running";
-      // Plan 02: opt-in WebRTC publisher injection. Gated separately
-      // from SSR_RENDER_HOST so Plan 01's tab-only smoke can still run
-      // without mediasoup being available.
-      if (process.env.SSR_PUBLISH === "1") {
+      // Phase 44: publisher injection is always-on (SSR is the only render
+      // path). The previous SSR_PUBLISH=1 gating is retired.
+      {
         try {
           // h18: thread encoder config to the publisher so it can pick a
           // single-layer encoding when running on x264-software (3-layer
