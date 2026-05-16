@@ -14,7 +14,7 @@
     "test:connection-stability": "RUN_LIVE_TESTS=1 node --test test/connection-stability/",
     "test:phase35": "node --test 'test/phase-35-*.test.mjs'",
     "test:live-e2e": "python -m pytest test/live-e2e/ -v",
-    "wave0:env": "bash scripts/wave0-environment-check.sh",
+    "wave0:env": "bash test/wave0-environment-check.sh",
     "wave0:audio": "node --test test/ssr-audio-capture-smoke.test.mjs"
   },
   "dependencies": {

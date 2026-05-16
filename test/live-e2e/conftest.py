@@ -21,12 +21,13 @@ import sys
 
 import pytest
 
-# Make `scripts/with_server.py` importable as `with_server`.
-_REPO_SCRIPTS = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "scripts")
+# Make `test/with_server.py` importable as `with_server`. Phase 46:
+# moved out of scripts/ since it's test infrastructure, not user-facing.
+_TEST_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..")
 )
-if _REPO_SCRIPTS not in sys.path:
-    sys.path.insert(0, _REPO_SCRIPTS)
+if _TEST_DIR not in sys.path:
+    sys.path.insert(0, _TEST_DIR)
 
 from with_server import with_server  # noqa: E402  (path-mutated import)
 

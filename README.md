@@ -55,6 +55,7 @@ room, in real time.
   - [Export / Import](#export--import)
 - [Data layout (where things live on disk)](#data-layout-where-things-live-on-disk)
 - [Optional: hardware-level cropping with `xrandr`](#optional-hardware-level-cropping-with-xrandr)
+- [Optional: looping non-loop videos with `loop_video.sh`](#optional-looping-non-loop-videos-with-loop_videosh)
 - [Performance tips](#performance-tips)
 - [Known issues](#known-issues)
 - [Roadmap](#roadmap)
@@ -540,11 +541,39 @@ python3 -m venv venv
 Run it:
 
 ```bash
-~/TableTop-Beamer/scripts/venv/bin/python map.py
+~/TableTop-Beamer/scripts/venv/bin/python scripts/projection_mapper.py
 ```
 
 Adjust the rectangle to match your table — drag vertices with the mouse,
 fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
+
+---
+
+## Optional: looping non-loop videos with `loop_video.sh`
+
+Have an MP4 clip you'd like to use as an animation, but it doesn't loop
+cleanly? `scripts/loop_video.sh` is a small `ffmpeg` wrapper that takes
+any video and produces a seamlessly-looping version by cross-fading the
+end back into the beginning. Drop the result into the animation editor as
+a regular video animation.
+
+Requires `ffmpeg` (already installed if you ran `./start.sh` on Linux,
+or get the same portable build that `start.bat` uses on Windows).
+
+```bash
+# Basic usage — writes <input>_looped.mp4 next to the input
+./scripts/loop_video.sh my_clip.mp4
+
+# Custom output path
+./scripts/loop_video.sh my_clip.mp4 my_clip_seamless.mp4
+
+# Custom fade duration in seconds (default: auto, ≈ 1 s)
+./scripts/loop_video.sh my_clip.mp4 my_clip_seamless.mp4 2
+```
+
+The script auto-detects audio and cross-fades both the video and audio
+streams if present. Output drops into the same directory as the input by
+default; use the second argument to override.
 
 ---
 
