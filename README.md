@@ -11,9 +11,10 @@ intruders, space backdrops — and you trigger them from your phone, room by
 room, in real time.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20RPi-orange.svg)](#requirements)
-[![Made with Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-0.28.0-purple.svg)](#project-status)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Version](https://img.shields.io/badge/version-1.0.0-7c3aed.svg)](#project-status)
+[![Click-and-run](https://img.shields.io/badge/install-double--click-0f9e75.svg)](docs/INSTALL.md)
 
 <br>
 
@@ -24,6 +25,12 @@ room, in real time.
 > [!NOTE]
 > Hobby project I built for myself, not a polished commercial product. AI was
 > used heavily during development. Bugs exist 🕷️ — suggestions and PRs welcome.
+
+> [!TIP]
+> **v1.0** is the first laypeople-friendly release. Just download the repo,
+> run `./start.sh` (Linux) or double-click `start.bat` (Windows) — the
+> launcher installs everything itself, no Node.js / npm knowledge needed.
+> See [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ---
 
@@ -137,7 +144,7 @@ at once.
 |---|---|
 | 🎥 **Projector** | Short-throw, DLP, ceiling-mounted |
 | 🖥️ **Output device** | Raspberry Pi 4/5 (or any Linux mini PC) connected to the projector |
-| 🌐 **Server** | Any machine running Node.js 20+, reachable from the Pi and the phone |
+| 🌐 **Server** | Any 64-bit Linux (Debian/Ubuntu) or Windows 10/11 machine on the same LAN. Node.js auto-installed by the launcher. |
 | 📱 **Controller** | Phone / tablet / desktop with a modern browser |
 
 **Reference setup** I use:
@@ -154,42 +161,53 @@ at once.
 
 ## Quick start
 
-### Non-developer? Use the click-and-run launcher
-
-If you just want to run TT-Beamer without touching Node.js / npm:
-
-- **Linux:** `git clone` the repo, then in a terminal: `./start.sh`
-- **Windows:** download the repo, then **double-click `start.bat`**.
-
-The launcher downloads a portable Node.js, installs system dependencies
-(with a single `sudo`/UAC prompt on first run), and opens the dashboard
-in your browser. See [`docs/INSTALL.md`](docs/INSTALL.md) for the full
-walkthrough + troubleshooting.
-
-### Manual / developer setup
-
-Clone the repo on your **server machine** and start it:
+### The lazy way — click-and-run launcher (recommended)
 
 ```bash
-sudo apt update && sudo apt install -y nodejs npm xvfb chromium-browser ffmpeg
+git clone https://github.com/McFredward/TableTop-Beamer
+cd TableTop-Beamer
+./start.sh             # Linux
+# Windows: double-click start.bat in File Explorer
+```
+
+That's it. On first run the launcher will:
+
+1. Download a portable Node 22 LTS into `.node-portable/` (no admin needed).
+2. Install Xvfb / Chromium / ffmpeg via `sudo apt` (Linux) or fetch a
+   portable ffmpeg + detect system Chrome/Edge (Windows).
+3. Run `npm ci` (mediasoup's prebuilt worker is fetched automatically —
+   **no Visual Studio Build Tools required on Windows**).
+4. Boot the server, wait for `/api/health`, and open the dashboard.
+
+After ~2–5 minutes the console prints two URLs to open from your devices:
+
+```
+TT-Beamer is running.
+  Dashboard (open on phone/tablet):  http://192.168.x.x:4173/
+  Output view (open on the Pi):      http://192.168.x.x:4173/output/
+```
+
+Subsequent runs reach the browser-open step in under 30 seconds.
+Full walkthrough + troubleshooting in [`docs/INSTALL.md`](docs/INSTALL.md).
+
+<details>
+<summary><b>Manual / developer setup</b></summary>
+
+```bash
+sudo apt update && sudo apt install -y xvfb chromium-browser ffmpeg \
+                                       python3 build-essential
 git clone https://github.com/McFredward/TableTop-Beamer
 cd TableTop-Beamer
 npm ci
-node server.mjs --host 0.0.0.0 --port 4173
+node server.mjs
 ```
 
-> Windows users: see [`docs/INSTALL.md`](docs/INSTALL.md) — the click-and-run
-> launcher handles all the Windows-specific dependency setup automatically.
+Server defaults: `HOST=0.0.0.0`, `PORT=4173`. Override via env vars.
 
-Then open two URLs:
+</details>
 
-| Where | URL | What it shows |
-|---|---|---|
-| 📱 Phone / tablet | `http://<SERVER-IP>:4173` | Control dashboard |
-| 🥧 Pi (kiosk / fullscreen) | `http://<SERVER-IP>:4173/output` | Projector output |
-
-That's it — head to [Aligning the projection](#aligning-the-projection) to map
-the image onto your physical board.
+Once the dashboard is up, head to [Aligning the projection](#aligning-the-projection)
+to map the image onto your physical board.
 
 ---
 
@@ -533,14 +551,24 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 ## Performance tips
 
 - **Prefer GIF over MP4** on the Pi — MP4 decode is the heaviest path.
+- **Keep `/output/` in the foreground** on the projector Pi. Chromium
+  aggressively throttles background tabs, which pauses the heartbeat
+  evaluator and causes spurious "lost connection" reconnect cycles.
+  Fullscreen-kiosk mode on the projector display avoids this entirely.
+- **The default quality preset** (`extra-high`, 1080p, 30 fps source / 60
+  fps stream cap, 16 Mbit) is tuned for a Pi 5 + a 1080p projector on
+  a quiet LAN. Step down to `balanced` if you see jitter.
 
 ---
 
 ## Known issues
 
-- MP4 decode is heavy on Pi — prefer GIFs where possible.
+- MP4 decode is heavier than GIF on Pi — prefer GIFs where possible.
 - Sound for non-looped global animations is unreliable. Workaround: tick
   *Loop until stopped* and stop manually.
+- Mediasoup currently ships **no prebuilt worker for ARM64 Windows** —
+  the click-and-run launcher bails fast on ARM64 Windows with a clear
+  message. AMD64 (Intel/AMD 64-bit) is fully supported.
 
 ---
 
@@ -557,7 +585,19 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 
 ## Project status
 
-Hobby project I built primarily for mysels. AI was used
+**v1.0.0** — first public release. The big v1 milestones:
+
+- Server-Side Rendering (SSR) is the only render path; `/output/` is a
+  thin WebRTC consumer that just paints what the server produces. No more
+  client-side GL-backend juggling, MP4 perf controls, or experimental
+  fallbacks — those were retired in phases 40–44.
+- One-click installer launchers for Linux + Windows (phase 45). No more
+  `npm install` literacy needed.
+- Default quality preset locked to `extra-high` / 1080p / 30 fps source /
+  60 fps stream cap (phase 43). The whole adaptive perf feedback loop
+  collapsed onto known-good values that work on Pi 5 + a 1080p projector.
+
+Hobby project I built primarily for myself. AI was used
 heavily during development. It's been running reliably on my own setup for
 many game nights, but bugs exist.
 

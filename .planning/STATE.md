@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 46 (next planned)
-- Current Phase Key: phase-46
+- Current Phase: 47 (next planned)
+- Current Phase Key: phase-47
 - Last Prepared: 2026-05-16
 - Execution Readiness: PLANNING
-- Previous Phase: 45 (CLOSED — click-and-run installer scripts for Linux + Windows, tag phase-45-closed, 2026-05-16)
-- Last Executed Plan: 45 — Added laypeople-friendly start scripts. `./start.sh` (Linux, Debian/Ubuntu auto-install) and `start.bat`/`start.ps1` (Windows). Both bootstrap a portable Node 22 LTS into `.node-portable/`, probe + install system deps, run `npm ci` with `PUPPETEER_SKIP_DOWNLOAD=true`, boot the server under Xvfb (Linux) or hidden process (Windows), wait for `/api/health` 200, and open the dashboard in the user's default browser. mediasoup ≥ 3.12 prebuilt worker.exe is auto-fetched on Windows — no VS Build Tools required. Existing `SSR_BROWSER_BIN` + PATH-based ffmpeg detection in server code needed zero changes.
-- Planned Next Execution: Phase 46 — TBD (operator priorities).
-- Last Execution Summary: Phase 45 closed 2026-05-16. Files: start.sh, start.bat, start.ps1, scripts/bootstrap-node.{sh,ps1}, docs/INSTALL.md, README.md hook, .gitignore entries, 45-CONTEXT.md, 45-PLAN.md, 45-CLOSURE.md. Validation: bash -n + dry-run on dev box (all probes pass, snapshot-marker staleness check works). PowerShell scripts pass brace/paren/bracket balance — full pwsh parse-check deferred to Windows operator host.
+- Previous Phase: 46 (CLOSED — v1.0.0 release prep: version bump, README modernization, mobile light-mode fix, gitignore audit, tag phase-46-closed, 2026-05-16)
+- Last Executed Plan: 46 — Release-prep polish for v1.0.0. (1) Fixed mobile light-mode top-nav bug: replaced hardcoded dark gradients on .dashboard-sticky-shell + .primary-view-switch with theme-token-based values so .dir-obsidian-light overrides reach the mobile breakpoint (verified via Playwright). (2) Bumped package.json version 0.31.0-wave0 → 1.0.0 + engines.node >=18 → >=22. (3) Modernized README: new badges (version 1.0.0, Node 22 LTS, Linux/Windows/RPi, double-click install), v1.0 callout at top, Quick-Start now leads with the click-and-run launcher and hides manual setup behind <details>, expanded Performance Tips, updated Project Status with v1.0 milestones. Videos + GIFs preserved verbatim. (4) Gitignore audit: ignored .claude/, __pycache__/, config/projection-profiles.json (untracked via git rm --cached — file remains on operator disk), config/runtime-active-*.json, debug/*.png and phase-debug-dir patterns. Boards + assets + .planning/ all stay tracked.
+- Planned Next Execution: Phase 47 — TBD (operator priorities).
+- Last Execution Summary: Phase 46 closed 2026-05-16. Files changed: .gitignore, README.md, package.json, src/styles.css, config/{asset-manifest,global-defaults}.json (timestamp + diagnosticOverlay default off), config/projection-profiles.json (DELETED from index, kept on disk), 46-CONTEXT.md + 46-PLAN.md + 46-CLOSURE.md, 2 reference PNGs in .planning/debug/. Tests: 404 / 384 pass / 1 pre-existing fail (04-T3 baseline). Visual verification: Playwright probe at 393x852 mobile viewport in .dir-obsidian-light confirms nav strip + buttons render light/white as expected.
 
 ## Source Inputs
 

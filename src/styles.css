@@ -1657,15 +1657,19 @@ button.danger.is-armed {
     gap: 0.8rem;
   }
 
+  /* Phase 46: theme-token-based mobile sticky-nav backgrounds.
+   * Previously these used hardcoded rgba(18,29,44,…) gradients that
+   * couldn't be overridden by `.dir-obsidian-light` → on mobile the
+   * Dashboard/Settings strip stayed dark even in light mode. */
   #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell {
     position: static;
     top: auto;
     z-index: auto;
     margin: -0.35rem -0.2rem 0;
     padding: 0.35rem 0.2rem 0.45rem;
-    background: linear-gradient(180deg, rgba(18, 29, 44, 0.97), rgba(13, 21, 34, 0.94));
-    border-bottom: 1px solid rgba(105, 130, 158, 0.4);
-    box-shadow: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.28);
+    background: linear-gradient(180deg, var(--c-bg-raised), var(--c-bg));
+    border-bottom: 1px solid var(--c-border-str);
+    box-shadow: var(--c-shadow);
   }
 
   .primary-view-switch {
@@ -1674,9 +1678,9 @@ button.danger.is-armed {
     z-index: auto;
     margin: -0.35rem -0.2rem 0;
     padding: 0.35rem 0.2rem 0.42rem;
-    background: linear-gradient(180deg, rgba(17, 27, 41, 0.98), rgba(12, 20, 32, 0.96));
-    border-bottom: 1px solid rgba(105, 130, 158, 0.38);
-    box-shadow: 0 0.32rem 0.85rem rgba(0, 0, 0, 0.24);
+    background: linear-gradient(180deg, var(--c-surface), var(--c-bg-raised));
+    border-bottom: 1px solid var(--c-border-str);
+    box-shadow: var(--c-shadow);
   }
 
   #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell .view-switch,

@@ -1,13 +1,13 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-05-16T08:58:57.846Z",
+  "savedAt": "2026-05-16T11:30:30.919Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
     "volume": 0.7
   },
   "animationSpeed": 1,
-  "diagnosticOverlay": true,
+  "diagnosticOverlay": false,
   "projectionMapping": {
     "corners": {
       "topLeft": {

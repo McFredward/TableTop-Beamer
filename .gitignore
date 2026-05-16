@@ -2,9 +2,14 @@
 .DS_Store
 Thumbs.db
 
-# Editor
+# Editor / agent session state
 .idea/
 .vscode/
+.claude/
+
+# Python bytecode (live-e2e tests, helper scripts)
+__pycache__/
+*.pyc
 
 # Logs
 *.log
@@ -29,6 +34,23 @@ public/vendor/
 .env
 .env.*
 config/global-defaults.json.pre-migration-bak
+
+# Phase 46 — operator-local runtime + calibration files.
+# Each install needs its own; checking these in would push someone else's
+# board alignment / running-animation snapshot onto every fresh clone.
+config/projection-profiles.json
+config/runtime-active-animations.json
+config/runtime-active-grid.json
+config/runtime-active-system.json
+
+# Generated debug artifacts — kept locally for spot-checks, not for repo.
+debug/*.png
+debug/*.jpg
+debug/p3[0-9]-*/
+debug/p4[0-9]-*/
+debug/phase3[0-9]_*
+debug/streifen-*/
+debug/w[0-9]*/
 
 # Design-system handoff archive — extracted essentials are tracked under
 # .planning/design-system/; the raw zip is local-only.
