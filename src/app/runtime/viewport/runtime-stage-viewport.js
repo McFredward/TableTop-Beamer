@@ -189,6 +189,18 @@
     const state = ctx.state;
     const nextAlignMode = Boolean(enabled);
     if (emit && ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL) {
+      // Phase 48 W2 — optimistic dashboard update. Pre-fix, state.alignMode
+      // only flipped after the server's snapshot echo (120-250 ms later),
+      // leaving the dashboard's dirty-chip + indicator + body class stale
+      // for ~2-3 s after the click (operator UAT 2026-05-17, ROADMAP Phase 48).
+      // Now we mutate locally + sync panels synchronously, then emit + await
+      // server confirmation. On emit failure we rollback to the previous state.
+      // applyLiveRuntimeSnapshot's alignMode hoist (live-sync-core.js line 374)
+      // is idempotent via the _lastAlignModeState gate (line 146 of this file).
+      const previousAlignMode = state.alignMode;
+      state.alignMode = nextAlignMode;
+      syncAlignModePanel();
+      ctx.renderRoomOverlay();
       void ctx.emitLiveMutation("context-update", {
         reason: "align-toggle",
         alignMode: nextAlignMode,
@@ -198,8 +210,11 @@
       }).then(() => {
         ctx.triggerFeedback.textContent = `Pending: align mode ${nextAlignMode ? "ON" : "OFF"} (waiting for snapshot)`;
       }).catch(() => {
-        ctx.triggerFeedback.textContent = "Status: align-mode command failed";
+        // Phase 48 W2 — rollback on emit failure.
+        state.alignMode = previousAlignMode;
         syncAlignModePanel();
+        ctx.renderRoomOverlay();
+        ctx.triggerFeedback.textContent = "Status: align-mode command failed";
       });
       return;
     }
