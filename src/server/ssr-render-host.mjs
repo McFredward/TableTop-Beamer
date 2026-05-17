@@ -1175,6 +1175,34 @@ export function bootSsrRenderHost({
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
+      // Phase 47 gap-closure-15 (2026-05-17): on Win32 headless=new, even
+      // after Browser.setWindowBounds (gap-closure-14), getDisplayMedia
+      // returned a 800x450 stream — Chrome respected the 16:9 aspect ratio
+      // change but clamped the captured source to the headless default
+      // max-width of 800. Need to ALSO pin the SCREEN dimensions via
+      // Emulation.setDeviceMetricsOverride (with explicit screenWidth /
+      // screenHeight, not just the CSS viewport width/height). Run this
+      // AFTER page.goto so it survives the navigation reset.
+      //
+      // Linux path untouched (Xvfb pins the screen for free).
+      if (isWin32) {
+        try {
+          await cdpSession.send("Emulation.setDeviceMetricsOverride", {
+            width: viewport.width,
+            height: viewport.height,
+            deviceScaleFactor: viewport.deviceScaleFactor ?? 1,
+            mobile: false,
+            screenWidth: viewport.width,
+            screenHeight: viewport.height,
+            positionX: 0,
+            positionY: 0,
+            dontSetVisibleSize: false,
+          });
+          logger.info(`[ssr-host] win32 device-metrics overridden to ${viewport.width}x${viewport.height} (screenWidth/Height pinned)`);
+        } catch (err) {
+          logger.warn(`[ssr-host] win32 setDeviceMetricsOverride failed: ${err?.message ?? err}`);
+        }
+      }
       status.browserConnected = true;
       status.state = "running";
       // Phase 44: publisher injection is always-on (SSR is the only render
