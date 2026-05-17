@@ -1148,56 +1148,6 @@ export function bootSsrRenderHost({
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
-      // Phase 47 gap-closure-16 (2026-05-17): adaptive window-resize for
-      // Win32 headful. Operator UAT (SSR_WIN_HEADLESS=0): the captured
-      // stream came back as 1920x940 even though --window-size=1920,1080
-      // is in the launch args. Chrome's outer window IS 1920x1080 but
-      // its title bar + minor chrome UI eat ~140 vertical pixels from
-      // the content area. The publisher captures the content area, not
-      // the outer window, so /output/ got a 1920x940 frame and the
-      // align-mode grid (which assumes 1920x1080) was vertically
-      // misaligned.
-      //
-      // Fix: after page.goto, measure window.innerWidth/innerHeight (the
-      // actual usable content area) vs viewport.width/height (what we
-      // wanted). The diff is the chrome overhead. Grow the outer window
-      // by that delta so the next paint gives us exactly viewport-sized
-      // content.
-      //
-      // Gated to Win32 AND !useHeadlessNew (headful + iter15 mode).
-      // headless=new has no chrome overhead but its capture surface is
-      // clamped by other Chrome internals — adaptive resize won't help
-      // there. Linux untouched (Xvfb pins the content area for free).
-      if (isWin32 && !useHeadlessNew) {
-        try {
-          const innerDims = await page.evaluate(() => ({
-            iw: window.innerWidth,
-            ih: window.innerHeight,
-            ow: window.outerWidth,
-            oh: window.outerHeight,
-          }));
-          const chromeOverheadW = Math.max(0, innerDims.ow - innerDims.iw);
-          const chromeOverheadH = Math.max(0, innerDims.oh - innerDims.ih);
-          if (chromeOverheadW > 0 || chromeOverheadH > 0) {
-            const targetOuterW = viewport.width + chromeOverheadW;
-            const targetOuterH = viewport.height + chromeOverheadH;
-            const { windowId } = await cdpSession.send("Browser.getWindowForTarget");
-            await cdpSession.send("Browser.setWindowBounds", {
-              windowId,
-              bounds: { width: targetOuterW, height: targetOuterH },
-            });
-            logger.info(
-              `[ssr-host] win32 headful window grown to ${targetOuterW}x${targetOuterH} ` +
-              `(compensating ${chromeOverheadW}x${chromeOverheadH}px chrome overhead; ` +
-              `target inner = ${viewport.width}x${viewport.height})`,
-            );
-          } else {
-            logger.info(`[ssr-host] win32 headful: no chrome overhead detected (inner=${innerDims.iw}x${innerDims.ih})`);
-          }
-        } catch (err) {
-          logger.warn(`[ssr-host] win32 headful adaptive resize failed (stream may be cropped vertically): ${err?.message ?? err}`);
-        }
-      }
       status.browserConnected = true;
       status.state = "running";
       // Phase 44: publisher injection is always-on (SSR is the only render
