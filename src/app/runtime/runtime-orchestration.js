@@ -75,50 +75,6 @@ document.body.dataset.outputRole = outputRole;
     /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
-    // Phase 49 gap-closure-7: RAF throttle DISABLED by default (was Phase 49
-    // gap-closure-5/6). Two consecutive throttle attempts (setTimeout-based
-    // and re-RAF-based) broke /output/:
-    //   - setTimeout version: produced 43 fps for a 60-cap (browser
-    //     setTimeout minimum + native RAF latency stacked)
-    //   - re-RAF version: catastrophic feedback loop in Chrome --headless=new
-    //     (operator UAT: SSR 0 fps, stream 1 fps, /output/ black). RAF in
-    //     headless=new is partly tied to tab-capture pull rate; throttling
-    //     RAF starves capture, which starves RAF further. Cascade to 0 fps.
-    //
-    // Opt-in path preserved for future experimentation:
-    //   URL ?ssrFpsCapDebug=N  → install the re-RAF throttle at N fps.
-    //   System panel UI still emits ssrFpsCap (server stores it; this branch
-    //   simply doesn't act on it). Server-side restartKeys still applies.
-    //
-    // Default behavior: native rate (matches pre-Phase-49 stable state).
-    const __ttbSsrFpsCapDebug = (() => {
-      const m = /[?&]ssrFpsCapDebug=(\d+)/.exec(__ttbSearch);
-      if (!m) return 0;
-      const n = parseInt(m[1], 10);
-      return Number.isFinite(n) && n > 0 && n < 240 ? n : 0;
-    })();
-    if (__ttbSsrFpsCapDebug > 0) {
-      try {
-        const __ttbMinFrameMs = 1000 / __ttbSsrFpsCapDebug;
-        const __ttbNativeRaf = window.requestAnimationFrame.bind(window);
-        let __ttbLastFrameTs = 0;
-        window.requestAnimationFrame = function (cb) {
-          const onFrame = (ts) => {
-            if (__ttbLastFrameTs === 0 || ts - __ttbLastFrameTs >= __ttbMinFrameMs) {
-              __ttbLastFrameTs = ts;
-              return cb(ts);
-            }
-            return __ttbNativeRaf(onFrame);
-          };
-          return __ttbNativeRaf(onFrame);
-        };
-        console.info(`[ssr-runtime] DEBUG: requestAnimationFrame throttled to ${__ttbSsrFpsCapDebug} fps via ?ssrFpsCapDebug — known unstable in headless=new`);
-      } catch (err) {
-        console.warn("[ssr-runtime] RAF throttle install failed:", err?.message ?? err);
-      }
-    } else {
-      console.info("[ssr-runtime] RAF native rate (Phase 49 gap-closure-7: throttle disabled, use ?ssrFpsCapDebug=N to opt-in)");
-    }
   }
   // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
   // default per RESEARCH § Q3). Dashboard URL with `?ssr-preview=1` opts
@@ -262,7 +218,7 @@ const {
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
-  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios, ssrSsrFpsCapRadios,
+  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
   ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
@@ -3026,7 +2982,6 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
   ssrStreamFpsCapRadios,
-  ssrSsrFpsCapRadios,
   ssrServerRenderingStatus,
   // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
   // serverRendering-update mutations directly through the existing

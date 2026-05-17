@@ -195,7 +195,6 @@
       ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
-      ssrSsrFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-ssr-fps-cap"]')),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),
       polygonRoomSelect: document.querySelector("#polygon-room-select"),

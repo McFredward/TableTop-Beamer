@@ -814,18 +814,6 @@
           <label><input type="radio" name="ssr-stream-fps-cap" value="0" /> Native (no cap)</label>
         </fieldset>
 
-        <!-- Phase 49 gap-closure-5: SSR page RAF cap (separate from stream
-             cap). Throttles requestAnimationFrame in the SSR Chromium tab so
-             the page doesn't render at 280+ Hz when stream samples at 30/60.
-             0 = native (no throttle, hardware-bounded). Default = 60. -->
-        <fieldset class="ssr-radio-group">
-          <legend>SSR FPS cap (page render rate)</legend>
-          <label><input type="radio" name="ssr-ssr-fps-cap" value="30" /> 30 fps</label>
-          <label><input type="radio" name="ssr-ssr-fps-cap" value="45" /> 45 fps</label>
-          <label><input type="radio" name="ssr-ssr-fps-cap" value="60" /> 60 fps</label>
-          <label><input type="radio" name="ssr-ssr-fps-cap" value="0" /> Native (no cap)</label>
-        </fieldset>
-
         <p id="ssr-server-rendering-status" class="status-line" aria-live="polite">Server-side rendering: loading…</p>
       </section>
 

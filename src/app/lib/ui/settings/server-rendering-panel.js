@@ -69,12 +69,6 @@
           r.checked = (Number(r.value) === Number(serverRendering.streamFpsCap));
         }
       }
-      // Phase 49 gap-closure-5: SSR FPS cap radio sync.
-      if (serverRendering.ssrFpsCap != null) {
-        for (const r of (refs.ssrSsrFpsCapRadios || [])) {
-          r.checked = (Number(r.value) === Number(serverRendering.ssrFpsCap));
-        }
-      }
       if (refs.ssrDetectedEncodersBadge) {
         // Hide x264-software from the badge — it's the universal software
         // fallback that's always present in the availability list and
@@ -124,14 +118,6 @@
     for (const r of (refs.ssrStreamFpsCapRadios || [])) {
       r.addEventListener("change", () => {
         if (r.checked) sendPatch({ streamFpsCap: Number(r.value) });
-      });
-    }
-    // Phase 49 gap-closure-5: SSR FPS cap change handler. Triggers
-    // serverRendering-update → restartKeys → SSR host restart → new
-    // ?ssrFpsCap=N param → in-page RAF re-throttle.
-    for (const r of (refs.ssrSsrFpsCapRadios || [])) {
-      r.addEventListener("change", () => {
-        if (r.checked) sendPatch({ ssrFpsCap: Number(r.value) }, "Restarting render server (SSR FPS cap change)…");
       });
     }
 

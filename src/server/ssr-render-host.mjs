@@ -322,7 +322,6 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   let userResolution = "auto";
   let userFps = null;
   let userStreamFpsCap = 60;
-  let userSsrFpsCap = 60;
   try {
     const raw = await readFile(configPath, "utf8");
     const cfg = JSON.parse(raw);
@@ -335,9 +334,6 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
     if (typeof sr.streamFpsCap === "number" && Number.isFinite(sr.streamFpsCap)) {
       userStreamFpsCap = sr.streamFpsCap;
-    }
-    if (typeof sr.ssrFpsCap === "number" && Number.isFinite(sr.ssrFpsCap)) {
-      userSsrFpsCap = sr.ssrFpsCap;
     }
   } catch (err) {
     if (err && err.code !== "ENOENT") {
@@ -390,7 +386,6 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   logger.info(
     `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap}`,
   );
-  logger.info(`[ssr-host] ssrFpsCap=${userSsrFpsCap} (page RAF throttle)`);
 
   return {
     encoder: chosen,
@@ -404,7 +399,6 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
-    ssrFpsCap: userSsrFpsCap,                 // Phase 49 gap-closure-5 (page RAF cap)
   };
 }
 
@@ -1181,12 +1175,7 @@ export function bootSsrRenderHost({
       } catch {}
       // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
       // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
-      // Phase 49 gap-closure-5: append ?ssrFpsCap=N so the page-side runtime
-      // can throttle requestAnimationFrame to N Hz (default 60, configurable
-      // via System panel). Avoids 280+ Hz render rates in headless=new mode
-      // when stream is sampled at 30/60 — pure waste of CPU/GPU.
-      const ssrFpsCapValue = status?.encoderConfig?.ssrFpsCap ?? 60;
-      await page.goto(`http://127.0.0.1:${port}/ssr?ssrFpsCap=${encodeURIComponent(ssrFpsCapValue)}`, {
+      await page.goto(`http://127.0.0.1:${port}/ssr`, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
@@ -1228,40 +1217,6 @@ export function bootSsrRenderHost({
         } catch (err) {
           logger.warn(`[ssr-host] win32 viewport-adapt failed (desync possible): ${err?.message ?? err}`);
         }
-      }
-      // Phase 49 gap-closure-14 (2026-05-17): SSR FPS cap REVERTED to no-op.
-      // Four consecutive attempts to cap the SSR Chromium tab's render
-      // rate have all failed in headless=new mode:
-      //   - gap-closure-5 setTimeout-throttle: 60 → 43 fps (browser
-      //     setTimeout minimum stacked on native RAF latency)
-      //   - gap-closure-6 re-RAF-throttle: 60 → 0 fps + black /output/
-      //     (multi-chain re-RAF backlog overwhelmed Chrome's RAF queue)
-      //   - gap-closure-13 CDP setCPUThrottlingRate: 60 → 10 fps + slow
-      //     connect (throttled JS uniformly, including WebRTC track
-      //     production + connection signaling)
-      //
-      // No public Chrome flag (`--max-fps` etc.) exists in mainline.
-      // HeadlessExperimental.beginFrame would require re-architecting
-      // the entire render + capture pipeline onto manual frame ticks
-      // (high regression risk, multi-week effort).
-      //
-      // Current state: System-Panel UI knob preserved (radio + config
-      // round-trip works), but it does NOT actually cap the SSR render
-      // rate. The streamFpsCap (separate knob) DOES cap the output
-      // stream framerate via getDisplayMedia constraints — that is
-      // what governs bandwidth + encoder load on the wire.
-      //
-      // The "wasted" extra SSR-internal frames are render-thread
-      // cycles only — they do NOT increase stream output, network
-      // load, or encoder cost. Hardware GPU/CPU idle cycles are
-      // technically "wasted" but not user-visible. Accept as
-      // documented limitation pending a future deep dive.
-      const ssrFpsCapEffective = (status?.encoderConfig?.ssrFpsCap ?? 0);
-      if (ssrFpsCapEffective > 0) {
-        logger.warn(
-          `[ssr-host] ssrFpsCap=${ssrFpsCapEffective} requested but currently NOT enforced (gap-closure-14 documented limitation; ` +
-          `streamFpsCap=${status?.encoderConfig?.streamFpsCap ?? 60} governs actual output)`,
-        );
       }
       status.browserConnected = true;
       status.state = "running";
