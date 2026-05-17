@@ -221,6 +221,23 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     } catch (e) {
       console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
     }
+    // Phase 47 gap-closure-18: try to upgrade the captured track to
+    // 1920x1080 via applyConstraints. The initial getDisplayMedia uses
+    // "ideal" hints which Chromium clamps on headless=new (~800x450 source
+    // cap) and on Win32 headful (~1920x956 due to chrome UI overhead).
+    // applyConstraints can renegotiate the source if Chromium has spare
+    // headroom (e.g. headless surface can grow, or DPR can change).
+    // Non-fatal: if the source genuinely can't go higher, OverconstrainedError
+    // is caught and the existing lower-res track stays in use.
+    try {
+      await videoTrack.applyConstraints({
+        width: { min: 1920, ideal: 1920 },
+        height: { min: 1080, ideal: 1080 },
+      });
+      console.log("[ssr-publisher] applyConstraints upgraded to 1920x1080");
+    } catch (e) {
+      console.warn("[ssr-publisher] applyConstraints 1920x1080 not satisfiable:", e?.message);
+    }
 
     // h18: log effective track settings so the operator can read them
     // in the SSR-tab console when chasing fps issues.

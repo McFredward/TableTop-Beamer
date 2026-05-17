@@ -1148,6 +1148,45 @@ export function bootSsrRenderHost({
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
+      // Phase 47 gap-closure-18 (2026-05-17): on Win32, measure the
+      // ACTUAL content area Chrome gave us and re-set the page viewport
+      // to match. The captured stream resolution equals the content area
+      // (not the layout viewport defaultViewport set), so without this
+      // adjustment the SSR runtime renders at 1920x1080 but the stream
+      // crops to 1920x956 (headful, chrome UI overhead) or 800x450
+      // (headless=new, internal source clamp). Align-mode grid then
+      // sits at SSR-internal coordinates which DON'T match the captured
+      // pixels -> visible desync.
+      //
+      // After this re-set, SSR layout = captured stream = grid
+      // coordinates. No more desync regardless of how much chrome UI
+      // overhead or headless clamping is in effect.
+      //
+      // Linux untouched: Xvfb pins the surface so innerWidth/Height
+      // already match the configured viewport.
+      if (isWin32) {
+        try {
+          const innerDims = await page.evaluate(() => ({
+            iw: window.innerWidth,
+            ih: window.innerHeight,
+          }));
+          if (innerDims.iw > 0 && innerDims.ih > 0) {
+            const dpr = viewport.deviceScaleFactor ?? 1;
+            await page.setViewport({
+              width: innerDims.iw,
+              height: innerDims.ih,
+              deviceScaleFactor: dpr,
+            });
+            logger.info(
+              `[ssr-host] win32 viewport adapted to Chrome's content area ${innerDims.iw}x${innerDims.ih} ` +
+              `(originally requested ${viewport.width}x${viewport.height}; ` +
+              `SSR layout + capture surface + align grid now in lockstep)`,
+            );
+          }
+        } catch (err) {
+          logger.warn(`[ssr-host] win32 viewport-adapt failed (desync possible): ${err?.message ?? err}`);
+        }
+      }
       status.browserConnected = true;
       status.state = "running";
       // Phase 44: publisher injection is always-on (SSR is the only render
