@@ -305,14 +305,72 @@ $env:PORT = $Port
 $nodeExe = Join-Path $script:NodePortableBin 'node.exe'
 
 Write-Host "[start]    Starting Node server (port $Port) ..."
+# Phase 46 iter14 (2026-05-17): use -NoNewWindow so node inherits the
+# script's console. Operator UAT: closing the launcher console left
+# node.exe running as an orphan; its puppeteer-stream watchdog kept
+# relaunching Chrome in a loop, "flooding the desktop with windows".
+# With -NoNewWindow Windows sends CTRL_CLOSE_EVENT to the whole
+# console-attached process tree on window-close, killing node cleanly.
+# (-WindowStyle Hidden has no effect on a console app and conflicts
+# with -NoNewWindow in some PS5.1 builds, so it's dropped.)
 $proc = Start-Process -FilePath $nodeExe `
                        -ArgumentList 'server.mjs' `
                        -WorkingDirectory $ScriptDir `
-                       -WindowStyle Hidden `
+                       -NoNewWindow `
                        -RedirectStandardOutput $LogFile `
                        -RedirectStandardError "$LogFile.err" `
                        -PassThru
 "$($proc.Id)" | Set-Content -LiteralPath $PidFile
+
+# Phase 46 iter14: best-effort Job Object so any subprocess node spawns
+# (puppeteer-spawned chrome.exe, mediasoup-worker.exe) dies when node
+# dies. Without this, Chrome instances launched by puppeteer-stream
+# survive even after `Stop-Process node` if they reparent themselves.
+# Falls through silently on platforms / PS versions where the API
+# surface differs (CoreCLR, constrained-language).
+try {
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class TtbJob {
+  [DllImport("kernel32.dll")] public static extern IntPtr CreateJobObject(IntPtr a, string name);
+  [DllImport("kernel32.dll")] public static extern bool SetInformationJobObject(IntPtr j, int infoClass, IntPtr info, uint length);
+  [DllImport("kernel32.dll")] public static extern bool AssignProcessToJobObject(IntPtr j, IntPtr p);
+  [StructLayout(LayoutKind.Sequential)]
+  public struct JOBOBJECT_BASIC_LIMIT_INFORMATION {
+    public long PerProcessUserTimeLimit; public long PerJobUserTimeLimit;
+    public uint LimitFlags; public UIntPtr MinimumWorkingSetSize; public UIntPtr MaximumWorkingSetSize;
+    public uint ActiveProcessLimit; public long Affinity; public uint PriorityClass; public uint SchedulingClass;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct IO_COUNTERS {
+    public ulong ReadOperationCount; public ulong WriteOperationCount; public ulong OtherOperationCount;
+    public ulong ReadTransferCount; public ulong WriteTransferCount; public ulong OtherTransferCount;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+    public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+    public IO_COUNTERS IoInfo;
+    public UIntPtr ProcessMemoryLimit; public UIntPtr JobMemoryLimit;
+    public UIntPtr PeakProcessMemoryUsed; public UIntPtr PeakJobMemoryUsed;
+  }
+}
+'@ -ErrorAction SilentlyContinue
+  $job = [TtbJob]::CreateJobObject([IntPtr]::Zero, $null)
+  if ($job -ne [IntPtr]::Zero) {
+    $info = New-Object TtbJob+JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    $info.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    $size = [System.Runtime.InteropServices.Marshal]::SizeOf($info)
+    $ptr = [System.Runtime.InteropServices.Marshal]::AllocHGlobal($size)
+    [System.Runtime.InteropServices.Marshal]::StructureToPtr($info, $ptr, $false)
+    [void][TtbJob]::SetInformationJobObject($job, 9, $ptr, [uint32]$size)  # 9 = JobObjectExtendedLimitInformation
+    [System.Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+    [void][TtbJob]::AssignProcessToJobObject($job, $proc.Handle)
+    $script:JobHandle = $job  # keep alive in script scope; closed implicitly on exit
+  }
+} catch {
+  Write-Host "[start]    (job-object cleanup not available; using PID kill fallback only)"
+}
 
 # Phase 46 iter13 (2026-05-17): PowerShell 5.1 doesn't accept
 # `[Console]::CancelKeyPress += { ... }` as a way to subscribe to a
