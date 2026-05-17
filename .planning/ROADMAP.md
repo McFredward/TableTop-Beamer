@@ -1090,7 +1090,7 @@ Carrying forward (LOCKED):
 - Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
 - Connection-stability hard gate (D-08)
 
-## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Waves 1+2+3 closed 2026-05-17, Plan 04 next — operator UAT)
+## Phase 47 - Windows Full-Functional Parity with Linux (CLOSED PASS 2026-05-17 — operator UAT live, all Waves + 14 gap-closure commits landed)
 
 **Plan 47-01 closed 2026-05-17.** Wave 1 pure refactor: extracted
 `buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })`
@@ -1255,18 +1255,16 @@ Plans: 4 plans
 - [x] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
 - [x] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
 - [x] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
-- [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)
+- [x] 47-04-PLAN.md — Wave 4 — Operator UAT closed 2026-05-17 via live sign-off (operator ran start.bat on Win11/RTX-4090, dashboard + /output/ + Ctrl+C all green after 14 gap-closure commits). Formal 14-checkbox runbook not executed line-by-line — superseded by live UAT during gap-closure iteration.
 
-## Backlog
+## Phase 48 - Align-mode exit dashboard hiccup smoothing (PLANNING)
 
-### Phase 999.1: Align-mode exit dashboard hiccup smoothing (BACKLOG)
+Goal: Smooth the ~2-3 s dashboard hiccup after exiting align mode so the UI
+state transitions cleanly without visual desync. Functional state is already
+correct after self-correction — this is a UX-only polish phase, frontend-only,
+applies to both Linux and Win32.
 
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-**Context (operator UAT, 2026-05-17, Phase 47 close):**
-Repro steps:
+Repro steps (operator UAT, 2026-05-17, Phase 47 close):
 1. Enable align mode from the dashboard.
 2. Make a change so the align-dirty flag activates.
 3. Reset / discard so the dirty flag deactivates again.
@@ -1278,17 +1276,38 @@ Observed:
 - After ~2-3 s the dashboard self-corrects: animations reappear, dirty flag clears.
 
 Likely cause: race between align-mode-exit state mutations and the
-live-snapshot-poll re-hydration on dashboard. UX-only — functional state is
-correct after self-correction.
+live-snapshot-poll re-hydration on dashboard.
 
-Possible fix directions:
+Possible fix directions (to be narrowed in /gsd-discuss-phase 48):
 - Hold dashboard rendering until snapshot stabilizes after exit.
 - Synchronize the dirty-flag listener with the exit sequence so the visual
   doesn't lag behind state.
 - Investigate whether the running-animations list is being cleared and
   re-built (avoidable churn).
 
-Frontend-only, applies to both Linux and Win32. No backend changes expected.
+Non-negotiable:
+- Linux must not regress (operator-validated path).
+- No backend changes expected — frontend / runtime state only.
+- Existing align-mode-enter UX stays untouched (only exit path is in scope).
 
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+Exit Criteria:
+- After the align-mode exit sequence (steps 1-4 above), the dashboard shows
+  the clean state (no dirty flag, animations running) within < 250 ms.
+- No regression of align-mode-enter, dirty-flag activation, or
+  reset/discard semantics.
+- npm test stays at baseline (≤ 1 pre-existing fail acceptable).
+- Operator visual sign-off on both Linux and Win32.
+
+Plans: TBD (run /gsd-discuss-phase 48 → /gsd-plan-phase 48)
+
+## Phase 49 - Release-Prep Small-Fixes Sammelphase (BACKLOG-COLLECTING)
+
+Goal: Collect operator-found small issues during pre-release testing into a
+single coordinated polish phase. Items get appended as the operator finds them.
+
+Items so far: TBD — operator will append after Phase 48 closes.
+
+Out of Scope:
+- Anything large enough to warrant its own phase (those become Phase 50+).
+
+Plans: TBD (populate during /gsd-discuss-phase 49)
