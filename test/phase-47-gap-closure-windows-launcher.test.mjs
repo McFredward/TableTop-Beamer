@@ -26,45 +26,34 @@ import { readFile } from "node:fs/promises";
 
 const HOST_PATH = "src/server/ssr-render-host.mjs";
 
-test("gap-closure: launchBrowser uses puppeteer-stream on BOTH platforms (symmetry with Linux)", async () => {
+test("gap-closure-4: launchBrowser splits launcher — puppeteer on Win32, puppeteer-stream on Linux", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // The puppeteer-stream import line.
+  // Re-applied after empirical proof in operator UAT logs (2026-05-17):
+  // puppeteer-stream's `opts.pipe = true` (line 85 of its dist) forces
+  // `--remote-debugging-pipe` transport, which kills Chrome on Win11
+  // headless-new. The puppeteer-core direct path uses WebSocket transport
+  // (`--remote-debugging-port=0`) — empirically alive.
   assert.match(
-    src,
-    /const\s+puppeteerStream\s*=\s*await\s+import\s*\(\s*"puppeteer-stream"\s*\)/,
-    "expect `await import(\"puppeteer-stream\")` in launchBrowser",
-  );
-  // No legacy "launcherPkg" ternary that selected between packages.
-  assert.doesNotMatch(
     src,
     /launcherPkg\s*=\s*isWin32Launcher\s*\?\s*"puppeteer"\s*:\s*"puppeteer-stream"/,
-    "expect the Win32-puppeteer-direct ternary to have been REMOVED",
+    "expect Win32-puppeteer-direct / Linux-puppeteer-stream split",
   );
-});
-
-test("gap-closure: --enable-logging=stderr + --v=0 always-on on Win32 (diagnostics)", async () => {
-  const src = await readFile(HOST_PATH, "utf8");
-  // Win32 chromiumArgs MUST append these two diagnostic flags
-  // unconditionally so Chrome's own errors land in start.log.err.
   assert.match(
     src,
-    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[[\s\S]*?"--enable-logging=stderr"[\s\S]*?"--v=0"/,
-    "expect win32 chromiumArgs append of --enable-logging=stderr + --v=0",
+    /await\s+import\s*\(\s*launcherPkg\s*\)/,
+    "expect `await import(launcherPkg)` (no literal package name in launchBrowser)",
   );
 });
 
-test("gap-closure: --auto-accept-this-tab-capture is NOT manually appended (puppeteer-stream adds it)", async () => {
+test("gap-closure-4: Win32 chromiumArgs append --auto-accept-this-tab-capture (manual; puppeteer-direct path)", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // After reverting to puppeteer-stream on Win32, the explicit append
-  // would duplicate the flag — puppeteer-stream's launch() adds it on
-  // line 87 of its dist. Removing prevents duplicate args on Win32.
-  const explicitAppend = (
-    src.match(/"--auto-accept-this-tab-capture"/g) || []
-  ).length;
-  assert.equal(
-    explicitAppend,
-    0,
-    "expect zero manual mentions of --auto-accept-this-tab-capture in src (puppeteer-stream adds it)",
+  // Since Win32 uses puppeteer-core directly (no puppeteer-stream), we
+  // add this flag manually so getDisplayMedia auto-accepts the tab-
+  // capture prompt instead of hanging.
+  assert.match(
+    src,
+    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[[\s\S]*?"--auto-accept-this-tab-capture"[\s\S]*?"--enable-logging=stderr"[\s\S]*?"--v=0"/,
+    "expect win32 chromiumArgs spread that appends --auto-accept-this-tab-capture + --enable-logging=stderr + --v=0",
   );
 });
 

@@ -619,25 +619,42 @@ export function bootSsrRenderHost({
   }
 
   async function launchBrowser({ browserPath } = {}) {
-    // Phase 47 gap-closure (reverted, 2026-05-17): use puppeteer-stream on
-    // BOTH platforms again. Operator's gap-closure retest #1 proved the
-    // initial hypothesis (puppeteer-stream's MV3 extension + pipe transport
-    // crash Chrome on Win11 headless-new) was WRONG — Chrome continued to
-    // crash with the same ERR_ABORTED pattern even when launched via
-    // puppeteer directly. The actual root cause was the GPU/GL flag stack
-    // (`--use-gl=angle --use-angle=default`) and the `H264HardwareEncode`
-    // feature flag, both addressed in gap-closure-2 (now gated off on
-    // Win32 headless-new). Reverting to puppeteer-stream keeps the
-    // launcher stack symmetric with Linux (which is the operator-validated
-    // gold rail) — fewer Win32-specific divergences, lower future
-    // maintenance burden.
-    const puppeteerStream = await import("puppeteer-stream");
-    const launcher = puppeteerStream.launch ?? puppeteerStream.default?.launch;
-    if (typeof launcher !== "function") {
-      throw new Error("puppeteer-stream did not export a launch() function");
-    }
-    // Kept for the Win32-only dumpio / logging gate below.
+    // Phase 47 gap-closure-4 (2026-05-17): RE-APPLIED Win32 launcher split.
+    //
+    // History: gap-closure-1 split the launcher (puppeteer on Win32,
+    // puppeteer-stream on Linux). gap-closure-3 reverted that under operator
+    // request to align Win32 with Linux. gap-closure-4 RE-APPLIES the split
+    // because the gap-closure-3 retest produced empirical proof that the
+    // pipe-transport IS the failure cause on Win11 headless-new:
+    //
+    //   Chrome args dumped by `--enable-logging=stderr` in gap-closure-2
+    //   (puppeteer direct, Chrome ALIVE): `--remote-debugging-port=0`
+    //   Chrome args dumped in gap-closure-3 (puppeteer-stream, Chrome DIES):
+    //   `--remote-debugging-pipe`  (+ `--enable-unsafe-extension-debugging`)
+    //
+    // puppeteer-stream hard-codes `opts.pipe = true` (see line 85 of
+    // node_modules/puppeteer-stream/dist/PuppeteerStream.js — direct
+    // assignment, not overridable from outside). On Windows headless-new
+    // pipe transport rides on Win32 anonymous pipes (CreatePipe); the
+    // Chrome side closes the pipe shortly after launch, killing the
+    // browser before page.goto can complete. The WebSocket transport
+    // (`--remote-debugging-port=0` — puppeteer-core default when
+    // `pipe: true` is NOT set) does not have this failure mode on Win11.
+    //
+    // Linux + Xvfb (the operator-validated gold rail) keeps puppeteer-stream
+    // — Unix-domain-socket pipes are rock-solid, the MV3 extension is fine,
+    // and the gold rail must not regress.
+    //
+    // The gap-closure-3 "Linux symmetry" goal is preserved at the EVIDENCE-
+    // BASED layer: same `buildChromiumLaunchArgs` body, same default args,
+    // same env. Only the launcher transport (pipe vs port) differs.
     const isWin32Launcher = process.platform === "win32";
+    const launcherPkg = isWin32Launcher ? "puppeteer" : "puppeteer-stream";
+    const launcherMod = await import(launcherPkg);
+    const launcher = launcherMod.launch ?? launcherMod.default?.launch;
+    if (typeof launcher !== "function") {
+      throw new Error(`${launcherPkg} did not export a launch() function`);
+    }
     // h4 hotfix (2026-05-06): app mode (no browser chrome at all — no
     // URL bar, no tabs, no menu) + popup suppression. The user reported
     // the captured stream was leaking the URL bar and tab strip, plus
@@ -803,21 +820,25 @@ export function bootSsrRenderHost({
       useHeadlessNew,
     });
 
-    // Phase 47 gap-closure-2 (2026-05-17): append diagnostic args on Win32.
-    // - `--enable-logging=stderr` + `--v=0`: Chrome writes its own startup /
-    //   GPU / renderer errors to stderr. Combined with the always-on
-    //   `dumpio: true` below, Chrome's failure cause is visible in
-    //   start.log.err without the operator setting any env vars.
-    //
-    // `--auto-accept-this-tab-capture` is NOT added here — puppeteer-stream
-    // adds it implicitly for us on both platforms (line 87 of
-    // node_modules/puppeteer-stream/dist/PuppeteerStream.js).
+    // Phase 47 gap-closure-4 (2026-05-17): on Win32, append three flags
+    // that puppeteer-stream WOULD add for us — we use puppeteer-core
+    // direct now to get WebSocket transport (see launchBrowser top
+    // comment), so we add them manually:
+    //   - `--auto-accept-this-tab-capture`: getDisplayMedia inside the
+    //     SSR page auto-accepts the tab-capture prompt (would hang
+    //     otherwise in headless-new).
+    //   - `--enable-logging=stderr` + `--v=0`: Chrome writes its own
+    //     startup / GPU / renderer errors to stderr. Combined with the
+    //     always-on `dumpio: true` below, Chrome's failure cause is
+    //     visible in start.log.err without the operator setting any
+    //     env vars.
     //
     // Linux LINUX_ITER15_BASELINE byte-identity is preserved (no extra
     // args on the Linux branch).
     const chromiumArgs = isWin32Launcher
       ? [
           ...chromiumArgsBase,
+          "--auto-accept-this-tab-capture",
           "--enable-logging=stderr",
           "--v=0",
         ]
