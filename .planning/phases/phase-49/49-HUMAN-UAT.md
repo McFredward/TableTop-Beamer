@@ -12,10 +12,12 @@ updated: 2026-05-17T15:50:00Z
 
 ## Tests
 
-### 1. Scenario A — Existing-shell ./start.bat + Ctrl+C (49-A core fix)
-expected: From an existing PowerShell session, run `./start.bat`. Wait for the LAN-URL banner. Press Ctrl+C. Within 5 seconds: all node.exe + chrome.exe descendants from this session are gone, AND the operator's PowerShell prompt is alive and ready for the next command (not closed, not frozen, not silently exited).
-verify: `Get-Process node,chrome -ErrorAction SilentlyContinue | Where-Object {$_.Path -like "*ttb-ssr*"}` → empty result.
-result: [pending]
+### 1. Scenario A — Existing-shell ./start.bat self-detach (49-A core fix, gap-closure-1)
+expected: From an existing PowerShell session, run `./start.bat`. start.bat detects non-explorer parent → prints `[start.bat] Detected invocation from "powershell"... Relaunching in a new console window...` → spawns a NEW cmd window via `start "TT-Beamer" cmd /k`. Operator's PowerShell prompt returns IMMEDIATELY (no waiting for server boot). The NEW window then runs the server normally; Ctrl+C INSIDE the new window terminates cleanly (because new cmd is explorer-parented and behaves exactly like double-click).
+verify (in operator's PS, after launch): operator's prompt should be free for next commands. The new cmd window should show the LAN-URL banner.
+verify (in new cmd window, after Ctrl+C): node + chrome from this session gone, window closes cleanly.
+result: [pending — re-test with gap-closure-1]
+result_initial_phase_49: failed ("STRG+C funktioniert immer noch nicht UND ich hab wieder ein desync auf der y-achse" — operator UAT 2026-05-17). Root cause: PS swallows Ctrl+C before reaching child PS; DPI awareness inheritance from PS produces 1920x956 Chrome viewport. Fix: self-detach in start.bat (gap-closure-1).
 
 ### 2. Scenario B — Double-click start.bat + Ctrl+C (Phase 47 non-regression)
 expected: Double-click start.bat from Explorer. Wait for banner. Press Ctrl+C in the cmd window. All node.exe + chrome.exe die. The wegwerf cmd window closes cleanly. There is NO "Terminate batch job (Y/N)?" prompt (Phase 47 gap-closure-13 behavior preserved).
