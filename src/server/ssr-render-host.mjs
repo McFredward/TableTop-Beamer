@@ -411,6 +411,26 @@ const DEFAULT_DISPLAY = process.env.SSR_DISPLAY ?? ":99";
 // fallback was the source of the 2026-05-06 cross-platform issue
 // (Ubuntu snap installs Chromium at /snap/bin/chromium, not /usr/bin/).
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080, deviceScaleFactor: 1 };
+
+// Phase 47 gap-closure-20: map the dashboard's `resolutionPreference`
+// radio ("auto" | "1080p" | "720p") to a concrete viewport. "auto"
+// picks 1080p as the sensible default — the encoder picks bitrate /
+// preset based on hardware separately, so "auto" here just means "use
+// the rail size we ship as default". Both Linux (Xvfb display size)
+// and Win32 (Chrome --window-size + defaultViewport + applyConstraints)
+// consume this so the operator-visible setting actually drives every
+// downstream choice.
+function resolutionPreferenceToViewport(pref) {
+  const dpr = 1;
+  switch (pref) {
+    case "720p":
+      return { width: 1280, height: 720, deviceScaleFactor: dpr };
+    case "1080p":
+    case "auto":
+    default:
+      return { width: 1920, height: 1080, deviceScaleFactor: dpr };
+  }
+}
 const HEALTH_PING_INTERVAL_MS = 5000;
 // Phase 33 iter-4 (2026-05-09): bumped 3→12 ticks (15s→60s tolerance).
 // User's gaming-PC server log showed the watchdog killing healthy tabs
@@ -1074,6 +1094,17 @@ export function bootSsrRenderHost({
         logger,
       });
 
+      // Phase 47 gap-closure-20: honor the operator's resolutionPreference
+      // from the System & Performance panel. Reassign the closure-scope
+      // `viewport` so Xvfb (Linux), Chrome --window-size, puppeteer's
+      // defaultViewport, the post-goto setViewport adapt (Win32), and the
+      // publisher's applyConstraints all use the chosen size in lockstep.
+      // Effective on next host (re)start; UI restart-host flow re-enters
+      // start() and re-reads the config.
+      const pref = status.encoderConfig?.resolutionPreference ?? "auto";
+      viewport = resolutionPreferenceToViewport(pref);
+      logger.info(`[ssr-host] resolution=${pref} -> viewport=${viewport.width}x${viewport.height}`);
+
       // Xvfb only on Linux without DISPLAY. macOS + Windows have native desktops.
       if (status.needsXvfb) {
         xvfbProcess = await spawnXvfb();
@@ -1202,6 +1233,7 @@ export function bootSsrRenderHost({
             logger,
             encoderConfig: status.encoderConfig,
             effectiveStreamFpsCap: status.encoderConfig?.effectiveStreamFpsCap ?? 60,
+            viewport,
           });
           status.producerIds = producers;
         } catch (err) {

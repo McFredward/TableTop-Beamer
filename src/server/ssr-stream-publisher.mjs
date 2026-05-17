@@ -84,10 +84,12 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
  * Phase 32 D-A3: effectiveStreamFpsCap drives getDisplayMedia frameRate
  * constraint (0=native maps to 60 before reaching here via resolveEncoderConfig).
  *
- * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number }} [opts]
+ * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, viewport?: {width:number,height:number} }} [opts]
  */
-export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60 } = {}) {
+export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, viewport = { width: 1920, height: 1080 } } = {}) {
   const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap });
+  const targetWidth = Math.max(1, Math.round(viewport?.width || 1920));
+  const targetHeight = Math.max(1, Math.round(viewport?.height || 1080));
   // h18: pick simulcast vs single-layer based on encoder. x264-software
   // is CPU-bound — running 3 spatial layers triples encode cost and
   // commonly caps the stream around 20 fps on x86_64 workstations. With
@@ -198,8 +200,8 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     // tab itself rendered at 60 fps.
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: ${targetWidth} },
+        height: { ideal: ${targetHeight} },
         // Phase 32 D-A3: frameRate driven by streamFpsCap config.
         // h18 previously hardcoded 60 — now uses effectiveStreamFpsCap so
         // operator-configured cap flows through from config to capture.
@@ -231,12 +233,12 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     // is caught and the existing lower-res track stays in use.
     try {
       await videoTrack.applyConstraints({
-        width: { min: 1920, ideal: 1920 },
-        height: { min: 1080, ideal: 1080 },
+        width: { min: ${targetWidth}, ideal: ${targetWidth} },
+        height: { min: ${targetHeight}, ideal: ${targetHeight} },
       });
-      console.log("[ssr-publisher] applyConstraints upgraded to 1920x1080");
+      console.log("[ssr-publisher] applyConstraints upgraded to ${targetWidth}x${targetHeight}");
     } catch (e) {
-      console.warn("[ssr-publisher] applyConstraints 1920x1080 not satisfiable:", e?.message);
+      console.warn("[ssr-publisher] applyConstraints ${targetWidth}x${targetHeight} not satisfiable:", e?.message);
     }
 
     // h18: log effective track settings so the operator can read them
@@ -423,8 +425,8 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
  * @param {{ logger?: { info: Function, warn: Function, error: Function }, timeoutMs?: number }} [opts]
  * @returns {Promise<{ video: string }>}
  */
-export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null, effectiveStreamFpsCap = 60 } = {}) {
-  const script = buildInPagePublisherScript({ encoderConfig, effectiveStreamFpsCap });
+export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null, effectiveStreamFpsCap = 60, viewport = { width: 1920, height: 1080 } } = {}) {
+  const script = buildInPagePublisherScript({ encoderConfig, effectiveStreamFpsCap, viewport });
   await page.evaluate(script);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
