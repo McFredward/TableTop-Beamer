@@ -324,6 +324,26 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       emit("animationStart", mutation.animation);
     } else if (mt === "stop-animation") {
       emit("animationStop", mutation.animationId ?? mutation.animation?.id);
+    } else if (mt === "trigger-global" || mt === "trigger-room") {
+      // Phase 49 gap-closure-8 (2026-05-17): globally-scoped + room-scoped
+      // animations are dispatched via `trigger-global` / `trigger-room`
+      // mutations from the dashboard, NOT `start-animation`. The dashboard's
+      // runtime-runtime-controls.js (line 292) emits these with payload
+      // `{animationType, action: "start"|"stop", boardId, playSound, animation}`.
+      // /output/'s output-audio-binder needs animationStart events to play
+      // sounds — without translating trigger-* → animationStart/Stop the
+      // audio path was silent for all non-per-room animations (operator
+      // UAT 2026-05-17: "Intruder Alert" scope=global never produced audio).
+      const action = mutation?.action;
+      const anim = mutation?.animation;
+      if (action === "start" && anim) {
+        console.info(`[output-live-sync] ${mt} → animationStart for id=${anim.id ?? "?"} type=${anim.type ?? mutation.animationType} soundAssetRef=${JSON.stringify(anim.soundAssetRef ?? null)}`);
+        emit("animationStart", anim);
+      } else if (action === "stop") {
+        const stopId = anim?.id ?? mutation?.animationId ?? null;
+        console.info(`[output-live-sync] ${mt} → animationStop for id=${stopId ?? "?"}`);
+        if (stopId) emit("animationStop", stopId);
+      }
     } else if (mt === "clear-all") {
       emit("clearAll");
     } else if (mt === "align-grid-snapshot") {
