@@ -405,20 +405,26 @@ if ($portBlockers -and $portBlockers.Count -gt 0) {
   $newPort      = 0
   while ($candidate -le $scanLimit) {
     $candBlockers = Test-PortBlockers -ProbePort $candidate
+    $isFree = $false
     if (-not $candBlockers -or $candBlockers.Count -eq 0) {
-      # Also confirm we can actually bind it (Windows may report free for
-      # some sockets in a transitional state).
+      $isFree = $true
+      $listener = $null
       try {
-        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $candidate)
+        $loopback = [System.Net.IPAddress]::Loopback
+        $listener = New-Object System.Net.Sockets.TcpListener($loopback, $candidate)
         $listener.Start()
-        $listener.Stop()
-        $newPort = $candidate
-        break
       } catch {
-        # Bind probe failed — keep scanning.
+        $isFree = $false
+      }
+      if ($listener -ne $null) {
+        try { $listener.Stop() } catch { }
       }
     }
-    $candidate += 1
+    if ($isFree) {
+      $newPort = $candidate
+      break
+    }
+    $candidate = $candidate + 1
   }
 
   if ($newPort -le 0) {
