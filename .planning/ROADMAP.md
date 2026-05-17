@@ -1257,7 +1257,7 @@ Plans: 4 plans
 - [x] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [x] 47-04-PLAN.md — Wave 4 — Operator UAT closed 2026-05-17 via live sign-off (operator ran start.bat on Win11/RTX-4090, dashboard + /output/ + Ctrl+C all green after 14 gap-closure commits). Formal 14-checkbox runbook not executed line-by-line — superseded by live UAT during gap-closure iteration.
 
-## Phase 48 - Align-mode exit dashboard hiccup smoothing (PLANNING)
+## Phase 48 - Align-mode exit dashboard hiccup smoothing (PLANNED)
 
 Goal: Smooth the ~2-3 s dashboard hiccup after exiting align mode so the UI
 state transitions cleanly without visual desync. Functional state is already
@@ -1298,7 +1298,9 @@ Exit Criteria:
 - npm test stays at baseline (≤ 1 pre-existing fail acceptable).
 - Operator visual sign-off on both Linux and Win32.
 
-Plans: TBD (run /gsd-discuss-phase 48 → /gsd-plan-phase 48)
+Plans: 2 plans
+- [ ] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
+- [ ] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
 
 ## Phase 49 - Release-Prep Small-Fixes Sammelphase (BACKLOG-COLLECTING)
 
