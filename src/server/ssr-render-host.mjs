@@ -322,6 +322,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   let userResolution = "auto";
   let userFps = null;
   let userStreamFpsCap = 60;
+  let userSsrFpsCap = 60;
   try {
     const raw = await readFile(configPath, "utf8");
     const cfg = JSON.parse(raw);
@@ -334,6 +335,9 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
     if (typeof sr.streamFpsCap === "number" && Number.isFinite(sr.streamFpsCap)) {
       userStreamFpsCap = sr.streamFpsCap;
+    }
+    if (typeof sr.ssrFpsCap === "number" && Number.isFinite(sr.ssrFpsCap)) {
+      userSsrFpsCap = sr.ssrFpsCap;
     }
   } catch (err) {
     if (err && err.code !== "ENOENT") {
@@ -386,6 +390,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   logger.info(
     `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap}`,
   );
+  logger.info(`[ssr-host] ssrFpsCap=${userSsrFpsCap} (page RAF throttle)`);
 
   return {
     encoder: chosen,
@@ -399,6 +404,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
+    ssrFpsCap: userSsrFpsCap,                 // Phase 49 gap-closure-5 (page RAF cap)
   };
 }
 
@@ -1175,7 +1181,12 @@ export function bootSsrRenderHost({
       } catch {}
       // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
       // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
-      await page.goto(`http://127.0.0.1:${port}/ssr`, {
+      // Phase 49 gap-closure-5: append ?ssrFpsCap=N so the page-side runtime
+      // can throttle requestAnimationFrame to N Hz (default 60, configurable
+      // via System panel). Avoids 280+ Hz render rates in headless=new mode
+      // when stream is sampled at 30/60 — pure waste of CPU/GPU.
+      const ssrFpsCapValue = status?.encoderConfig?.ssrFpsCap ?? 60;
+      await page.goto(`http://127.0.0.1:${port}/ssr?ssrFpsCap=${encodeURIComponent(ssrFpsCapValue)}`, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });

@@ -21,12 +21,21 @@ export const FPS_VALUES = [30, 24, 15];
 export const STREAM_FPS_CAP_VALUES = [30, 45, 60, 0];
 export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
 
+// Phase 49 gap-closure-5: SSR page RAF cap. Distinct from streamFpsCap
+// (which controls the WebRTC frame rate). ssrFpsCap throttles the SSR
+// Chromium tab's requestAnimationFrame loop so the page doesn't render
+// at 280+ Hz when the stream only samples at 30/60. 0 = native (no cap,
+// hardware-bounded). Default = 60.
+export const SSR_FPS_CAP_VALUES = [30, 45, 60, 0];
+export const SSR_FPS_CAP_DEFAULT = SSR_FPS_CAP_VALUES[2]; // 60
+
 const KNOWN_KEYS = new Set([
   "encoder",
   "qualityPreset",
   "resolutionPreference",
   "fpsTarget",
   "streamFpsCap",
+  "ssrFpsCap",
 ]);
 
 /**
@@ -52,6 +61,7 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
     resolutionPreference: "1080p",
     fpsTarget: 30,
     streamFpsCap: STREAM_FPS_CAP_DEFAULT,
+    ssrFpsCap: SSR_FPS_CAP_DEFAULT,
   };
 }
 
@@ -94,6 +104,15 @@ export function validateServerRenderingPatch(patch) {
     }
     if (!STREAM_FPS_CAP_VALUES.includes(patch.streamFpsCap)) {
       return { valid: false, reason: "streamFpsCap-not-in-enum" };
+    }
+  }
+  // Phase 49 gap-closure-5: ssrFpsCap validation (same shape as streamFpsCap).
+  if ("ssrFpsCap" in patch) {
+    if (typeof patch.ssrFpsCap !== "number" || !Number.isFinite(patch.ssrFpsCap)) {
+      return { valid: false, reason: "ssrFpsCap-wrong-type" };
+    }
+    if (!SSR_FPS_CAP_VALUES.includes(patch.ssrFpsCap)) {
+      return { valid: false, reason: "ssrFpsCap-not-in-enum" };
     }
   }
   return { valid: true };
@@ -154,6 +173,7 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
       resolutionPreference: typeof sr.resolutionPreference === "string" && RESOLUTION_VALUES.includes(sr.resolutionPreference) ? sr.resolutionPreference : defaults.resolutionPreference,
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
       streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,
+      ssrFpsCap: typeof sr.ssrFpsCap === "number" && SSR_FPS_CAP_VALUES.includes(sr.ssrFpsCap) ? sr.ssrFpsCap : defaults.ssrFpsCap,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") return defaults;

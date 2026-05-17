@@ -75,6 +75,45 @@ document.body.dataset.outputRole = outputRole;
     /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
+    // Phase 49 gap-closure-5: throttle requestAnimationFrame to ssrFpsCap.
+    // Without this, Chrome --headless=new has no vsync source and RAF fires
+    // as fast as the hardware allows (operator UAT 2026-05-17 reported
+    // ~280 Hz on Win11 / RTX 4090). That's pure CPU/GPU waste when the
+    // stream is sampled at 30/60 — server passes the cap via ?ssrFpsCap=N
+    // (default 60, configurable in System panel). 0 = native (no throttle).
+    try {
+      const __ttbSsrFpsCap = (() => {
+        const m = /[?&]ssrFpsCap=(\d+)/.exec(__ttbSearch);
+        if (!m) return 60;
+        const n = parseInt(m[1], 10);
+        return Number.isFinite(n) && n >= 0 ? n : 60;
+      })();
+      if (__ttbSsrFpsCap > 0 && __ttbSsrFpsCap < 240) {
+        const __ttbMinFrameMs = 1000 / __ttbSsrFpsCap;
+        const __ttbNativeRaf = window.requestAnimationFrame.bind(window);
+        let __ttbLastFrameTs = 0;
+        window.requestAnimationFrame = function (cb) {
+          return __ttbNativeRaf((ts) => {
+            const elapsed = ts - __ttbLastFrameTs;
+            if (elapsed >= __ttbMinFrameMs || __ttbLastFrameTs === 0) {
+              __ttbLastFrameTs = ts;
+              return cb(ts);
+            }
+            // Defer to the next vsync tick — still cheap, just no-op the callback.
+            const delay = Math.max(0, __ttbMinFrameMs - elapsed);
+            return setTimeout(() => {
+              __ttbLastFrameTs = performance.now();
+              cb(__ttbLastFrameTs);
+            }, delay);
+          });
+        };
+        console.info(`[ssr-runtime] requestAnimationFrame throttled to ${__ttbSsrFpsCap} fps (${__ttbMinFrameMs.toFixed(2)} ms/frame)`);
+      } else {
+        console.info(`[ssr-runtime] requestAnimationFrame uncapped (ssrFpsCap=${__ttbSsrFpsCap})`);
+      }
+    } catch (err) {
+      console.warn("[ssr-runtime] RAF throttle install failed:", err?.message ?? err);
+    }
   }
   // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
   // default per RESEARCH § Q3). Dashboard URL with `?ssr-preview=1` opts
@@ -218,7 +257,7 @@ const {
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
-  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
+  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios, ssrSsrFpsCapRadios,
   ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
@@ -2982,6 +3021,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
   ssrStreamFpsCapRadios,
+  ssrSsrFpsCapRadios,
   ssrServerRenderingStatus,
   // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
   // serverRendering-update mutations directly through the existing

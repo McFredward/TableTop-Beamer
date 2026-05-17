@@ -1309,7 +1309,7 @@ function applyLiveMutation({
         // to be reflected in the encoder, the diagnostic overlay's
         // serverInfo, AND the streamed output. Without this, the user
         // sees "balanced" forever in the chip (h17 reported issue).
-        const restartKeys = ["encoder", "qualityPreset", "fpsTarget", "resolutionPreference"];
+        const restartKeys = ["encoder", "qualityPreset", "fpsTarget", "resolutionPreference", "streamFpsCap", "ssrFpsCap"];
         const needsRestart =
           payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));
