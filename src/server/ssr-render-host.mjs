@@ -1189,9 +1189,19 @@ export function bootSsrRenderHost({
         if (status.lastError) {
           logger.info(`[ssr-host] win32 verdict: FAILED ${status.lastError}`);
         } else {
+          // gap-closure-8: injectInPagePublisher returns { video: <id> }, not
+          // an array. The previous `.join()` call crashed Win32 (Linux is
+          // gated out of this branch, so the bug was platform-isolated).
+          // Normalize to an array regardless of shape: arrays pass through,
+          // objects unwrap via Object.values, null/undefined become [].
+          const idList = Array.isArray(status.producerIds)
+            ? status.producerIds
+            : (status.producerIds && typeof status.producerIds === "object")
+              ? Object.values(status.producerIds)
+              : [];
           logger.info(
             `[ssr-host] win32 verdict: OK browserConnected=${status.browserConnected} ` +
-            `producerIds=[${(status.producerIds ?? []).join(",")}]`,
+            `producerIds=[${idList.join(",")}]`,
           );
         }
       }
