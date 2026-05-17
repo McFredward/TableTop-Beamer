@@ -309,10 +309,18 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     if (envelope.type !== "live-session-update") return;
     const mt = envelope.mutationType;
     const mutation = envelope.mutation ?? {};
+    // Phase 49 gap-closure-6: trace EVERY live-session-update mutationType so
+    // operators can confirm which envelopes /output/ actually receives. Audio
+    // bug investigation 2026-05-17: operator reported no [output-audio] logs
+    // when animations triggered — this log confirms whether start-animation
+    // envelopes are even arriving on the WS, vs the animation propagating
+    // via context-update snapshots (which wouldn't fire animationStart).
+    console.info(`[output-live-sync] mutationType=${mt} (mutation keys: ${Object.keys(mutation).join(",")})`);
     if (mt === "context-update") {
       const snap = envelope?.session?.snapshot;
       if (snap) reconcileSnapshot(snap);
     } else if (mt === "start-animation") {
+      console.info(`[output-live-sync] emit animationStart for id=${mutation.animation?.id ?? "?"} soundAssetRef=${JSON.stringify(mutation.animation?.soundAssetRef ?? null)}`);
       emit("animationStart", mutation.animation);
     } else if (mt === "stop-animation") {
       emit("animationStop", mutation.animationId ?? mutation.animation?.id);

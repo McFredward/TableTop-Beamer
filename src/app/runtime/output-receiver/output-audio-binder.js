@@ -121,8 +121,13 @@ function handleClearAll() {
  * @param {{ logger?: Console, liveSync?: import('./output-live-sync.js').LiveSyncSubscription | null }} [opts]
  */
 export async function bootOutputAudioBinder({ logger = console, liveSync = null } = {}) {
+  // Phase 49 gap-closure-6: lifecycle log so operators can confirm the binder
+  // actually started (operator UAT 2026-05-17 reported "no audio + no logs at
+  // all" — without an entry log we can't tell if the binder ran or not).
+  logger?.info?.(`[output-audio] bootOutputAudioBinder() entered (liveSync=${liveSync ? "shared" : "private"})`);
   const sub = liveSync ?? bootOutputLiveSync({ logger, role: "final-output" });
   const ownsLiveSync = !liveSync;
+  logger?.info?.(`[output-audio] subscribing to liveSync.onAnimationStart/Stop/ClearAll…`);
 
   const offStart = sub.onAnimationStart((animation) => {
     handleStartAnimation(animation, logger);

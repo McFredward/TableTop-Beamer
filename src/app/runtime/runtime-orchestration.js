@@ -89,25 +89,29 @@ document.body.dataset.outputRole = outputRole;
         return Number.isFinite(n) && n >= 0 ? n : 60;
       })();
       if (__ttbSsrFpsCap > 0 && __ttbSsrFpsCap < 240) {
+        // Phase 49 gap-closure-6: re-RAF instead of setTimeout. setTimeout's
+        // browser minimum (4-15 ms depending on tab focus + throttle policy)
+        // stacks on top of native RAF latency and produces an effective rate
+        // well below target (operator UAT: 60-cap → 43 fps observed).
+        // Re-scheduling via native RAF when too early keeps the loop on the
+        // browser's frame-pacing thread with no timer overhead.
         const __ttbMinFrameMs = 1000 / __ttbSsrFpsCap;
         const __ttbNativeRaf = window.requestAnimationFrame.bind(window);
         let __ttbLastFrameTs = 0;
         window.requestAnimationFrame = function (cb) {
-          return __ttbNativeRaf((ts) => {
+          const onFrame = (ts) => {
             const elapsed = ts - __ttbLastFrameTs;
-            if (elapsed >= __ttbMinFrameMs || __ttbLastFrameTs === 0) {
+            // First frame OR enough time elapsed → fire user callback.
+            if (__ttbLastFrameTs === 0 || elapsed >= __ttbMinFrameMs) {
               __ttbLastFrameTs = ts;
               return cb(ts);
             }
-            // Defer to the next vsync tick — still cheap, just no-op the callback.
-            const delay = Math.max(0, __ttbMinFrameMs - elapsed);
-            return setTimeout(() => {
-              __ttbLastFrameTs = performance.now();
-              cb(__ttbLastFrameTs);
-            }, delay);
-          });
+            // Too soon — re-schedule via native RAF (no setTimeout overhead).
+            return __ttbNativeRaf(onFrame);
+          };
+          return __ttbNativeRaf(onFrame);
         };
-        console.info(`[ssr-runtime] requestAnimationFrame throttled to ${__ttbSsrFpsCap} fps (${__ttbMinFrameMs.toFixed(2)} ms/frame)`);
+        console.info(`[ssr-runtime] requestAnimationFrame throttled to ${__ttbSsrFpsCap} fps (${__ttbMinFrameMs.toFixed(2)} ms/frame, re-RAF)`);
       } else {
         console.info(`[ssr-runtime] requestAnimationFrame uncapped (ssrFpsCap=${__ttbSsrFpsCap})`);
       }
