@@ -70,10 +70,17 @@
         }
       }
       if (refs.ssrDetectedEncodersBadge) {
-        const detected = Array.isArray(serverRendering.availableEncoders)
-          && serverRendering.availableEncoders.length > 0
-            ? serverRendering.availableEncoders.join(", ")
-            : "(auto-detection in progress…)";
+        // Hide x264-software from the badge — it's the universal software
+        // fallback that's always present in the availability list and
+        // operators read it as noise (Phase 47 gap-closure-11: operator
+        // feedback "x264-software ausblenden"). The fallback stays
+        // active in pickPreferredEncoder; this is display-only.
+        const hardwareEncoders = Array.isArray(serverRendering.availableEncoders)
+          ? serverRendering.availableEncoders.filter((e) => e !== "x264-software")
+          : [];
+        const detected = hardwareEncoders.length > 0
+          ? hardwareEncoders.join(", ")
+          : "(auto-detection in progress…)";
         refs.ssrDetectedEncodersBadge.textContent = `Detected: ${detected}`;
       }
     }
