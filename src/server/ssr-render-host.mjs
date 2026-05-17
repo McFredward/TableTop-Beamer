@@ -1164,7 +1164,7 @@ export function bootSsrRenderHost({
       //
       // Linux untouched: Xvfb pins the surface so innerWidth/Height
       // already match the configured viewport.
-      if (isWin32) {
+      if (process.platform === "win32") {
         try {
           const innerDims = await page.evaluate(() => ({
             iw: window.innerWidth,
