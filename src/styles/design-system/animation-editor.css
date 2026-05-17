@@ -506,13 +506,18 @@ body[data-animation-editor-open="true"] .anim-editor-list {
 }
 
 /* While a drag is ACTIVE (after long-press armed + finger moved past
- * threshold), nail down the entire viewport so no browser gesture
+ * threshold), nail down the document body so no browser gesture
  * (PTR, swipe-back, two-finger zoom) interferes. Removed in JS on
- * pointerup/cancel. */
-body.anim-editor-dragging,
-body.anim-editor-dragging * {
-  touch-action: none !important;
-  overscroll-behavior: none !important;
+ * pointerup/cancel.
+ *
+ * Phase 49 gap-closure-19: scope changed to body-only (was `body, body *`
+ * which cascaded to every element via !important — mid-touch cascade
+ * was triggering Chrome to reset the in-flight pointer's touch-action
+ * evaluation and release pointer capture). Body-level is enough to
+ * block document-rooted gestures like pull-to-refresh and swipe-back. */
+body.anim-editor-dragging {
+  touch-action: none;
+  overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
 }

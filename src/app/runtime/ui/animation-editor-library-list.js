@@ -146,7 +146,14 @@
     row.style.top = `${activeDrag.row.getBoundingClientRect().top}px`;
     row.style.width = `${activeDrag.width}px`;
     row.style.zIndex = "1000";
-    row.style.pointerEvents = "none";
+    // Phase 49 gap-closure-19 (2026-05-17): do NOT set pointer-events:none
+    // here. Per the PointerEvents spec, setting pointer-events:none on the
+    // capture-target IMPLICITLY releases the capture — the pointer is then
+    // "lost" mid-drag. Operator UAT: "Finger hat den grab verlohren". The
+    // capture is what keeps subsequent pointermove events flowing to our
+    // document-level handlers via the same pointerId match. We don't need
+    // hit-testing through the row (placeholder position is computed from
+    // cursorY against sibling rects, not via elementFromPoint).
     // Move row out of the list to a top-level absolute layer would also
     // work, but fixed + zIndex keeps DOM siblings intact for the
     // placeholder-position search below.
