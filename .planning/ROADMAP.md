@@ -1090,7 +1090,7 @@ Carrying forward (LOCKED):
 - Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
 - Connection-stability hard gate (D-08)
 
-## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Wave 1 closed 2026-05-17, Plan 02 next)
+## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Waves 1+2 closed 2026-05-17, Plan 03 next)
 
 **Plan 47-01 closed 2026-05-17.** Wave 1 pure refactor: extracted
 `buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })`
@@ -1104,6 +1104,24 @@ update both source and baseline in the same commit. npm test 415 / 395 pass /
 1 fail (pre-existing 04-T3) / 19 skipped. Linux dry-run still exit 0.
 Commits: `1c69bc6` (RED test), `547308c` (GREEN refactor). See
 `.planning/phases/phase-47/47-01-SUMMARY.md`.
+
+**Plan 47-02 closed 2026-05-17.** Wave 2 Windows headless-new flip:
+`buildChromiumLaunchArgs` gains `useHeadlessNew` parameter — when true (only
+meaningful on Win32) drops `--app=about:blank` + `--window-position=-32000,-32000`
+(no window/app-chrome to hide under `--headless=new`). `--display=` is now
+Win32-gated UNCONDITIONALLY (orthogonal to useHeadlessNew — cosmetic cleanup;
+Windows Chrome has no X server). `launchBrowser` computes
+`useHeadlessNew = isWin32 && process.env.SSR_WIN_HEADLESS !== "0"` (default ON;
+operator escape hatch via `SSR_WIN_HEADLESS=0`), passes it through, replaces
+`headless: false` with `headless: useHeadlessNew ? "new" : false`, drops DISPLAY
+env on Win32, logs single `[ssr-host] win32 launch: …` INFO line on Win32.
+LINUX_ITER15_BASELINE BYTE-IDENTICAL to Wave 1. WIN32_ITER15_BASELINE in BOTH
+test files updated in same commit as source gate (drops `--display=:99` with
+Wave-2 comments). New `test/phase-47-windows-headless-new.test.mjs` (6 tests
+J-O); `test/phase-47-launch-args.test.mjs` Test C inverted. npm test
+421 / 401 pass / 1 fail (pre-existing 04-T3) / 19 skipped. Linux dry-run still
+exit 0 with and without `SSR_WIN_HEADLESS=0`. Commits: `fee23d3` (RED),
+`7c0fa03` (GREEN). See `.planning/phases/phase-47/47-02-SUMMARY.md`.
 
 Goal: Make TT-Beamer fully functional on Windows with the exact same operator UX
 as Linux. After Phase 46 release prep, fifteen iterations (iter11-iter15) of the
@@ -1212,6 +1230,6 @@ Wave structure (finalized by gsd-planner 2026-05-17):
 
 Plans: 4 plans
 - [x] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
-- [ ] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
+- [x] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
 - [ ] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)

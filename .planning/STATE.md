@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 47
-last_updated: "2026-05-17T07:56:13.317Z"
+last_updated: "2026-05-17T08:07:40.851Z"
 progress:
   total_phases: 45
   completed_phases: 13
   total_plans: 73
-  completed_plans: 164
+  completed_plans: 165
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 47 (executing — Wave 1 of 4 closed, Plan 02 next)
+- Current Phase: 47 (executing — Waves 1+2 of 4 closed, Plan 03 next)
 - Current Phase Key: phase-47
 - Last Prepared: 2026-05-17
-- Execution Readiness: EXECUTING (47-02 next)
+- Execution Readiness: EXECUTING (47-03 next)
 - Previous Phase: 46 (CLOSED — v1.0.0 release prep: version bump, README modernization, mobile light-mode fix, gitignore audit, tag phase-46-closed, 2026-05-16)
-- Last Executed Plan: 47-01 — Wave 1 pure refactor of `src/server/ssr-render-host.mjs#launchBrowser`. Extracted the inline 90-line Chromium-launch arg array (iter15 source lines 558-645) into a new pure exported function `buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })` at the top of the file. `launchBrowser()` now delegates via `args: buildChromiumLaunchArgs({ ... })`. Zero behavior change on either platform (Linux + Windows iter15-byte-identical). Pinned by two new test files: `test/phase-47-launch-args.test.mjs` (6 fingerprint tests) + `test/phase-47-linux-non-regression.test.mjs` (3 byte-identity snapshot tests with hand-pinned LINUX_ITER15_BASELINE / LINUX_ITER15_BASELINE_VAAPI / WIN32_ITER15_BASELINE constants — WIN32 baseline includes --display=:99 because iter15 source line 644 emits it unconditionally; Wave 2 will add the gate). +9 tests / +9 pass; npm test 406/386/1/19 → 415/395/1/19 (only fail = pre-existing 04-T3). Deviation: Rule 3 (blocking) — pre-existing `test/phase-34-chrome-flags.test.mjs` + `test/ssr-chromium-flags-merge.test.mjs` extract launchBrowser body and grep for flag tokens; widened the extract surface to also include buildChromiumLaunchArgs body (concatenated). bash start.sh --dry-run still exit 0. Commits: 1c69bc6 (RED test), 547308c (GREEN refactor).
-- Planned Next Execution: Phase 47 Plan 02 — Wave 2 win32 divergence (flip `headless: "new"`, drop --app=about:blank, drop --window-position=-32000,-32000, drop --start-fullscreen carrying, drop unconditional --display=:99, drop DISPLAY env on Windows). Guarded by the Linux byte-identity rail installed in 47-01.
-- Last Execution Summary: Phase 47 Plan 01 closed 2026-05-17 (Wave 1 — refactor + iter15 baseline rail). Files: src/server/ssr-render-host.mjs (extract args block); test/phase-47-launch-args.test.mjs + test/phase-47-linux-non-regression.test.mjs (created); test/phase-34-chrome-flags.test.mjs + test/ssr-chromium-flags-merge.test.mjs (extract-surface widened — Rule 3 fix). Tests: 415 / 395 pass / 1 pre-existing fail (04-T3 baseline) / 19 skipped. Linux non-regression dry-run still exits 0. Wave 2 (Plan 47-02) now safe to start.
+- Last Executed Plan: 47-02 — Wave 2 win32 divergence. `src/server/ssr-render-host.mjs#buildChromiumLaunchArgs` gains a `useHeadlessNew` parameter — when true (only meaningful on Win32) it drops `--app=about:blank` and `--window-position=-32000,-32000` (no window/app-chrome to hide under `--headless=new`). The `--display=` arg is now Win32-gated UNCONDITIONALLY (orthogonal to useHeadlessNew — cosmetic cleanup, Windows Chrome has no X server). `launchBrowser()` computes `useHeadlessNew = process.platform === "win32" && process.env.SSR_WIN_HEADLESS !== "0"` (default ON; operator escape hatch via `SSR_WIN_HEADLESS=0`), passes it through, replaces `headless: false` with `headless: useHeadlessNew ? "new" : false`, drops the DISPLAY env var on Win32, and logs a single `[ssr-host] win32 launch: headless=<mode>, userDataDir=<path>` INFO line on Win32. iter15 unique-tmp `--user-data-dir` trick retained on both paths (single-instance-attach is independent of headless mode per 47-RESEARCH § Q2). Linux path BYTE-IDENTICAL to Wave 1 (LINUX_ITER15_BASELINE snapshot green, untouched). New test/phase-47-windows-headless-new.test.mjs with 6 tests (J-O) pinning headless-new behavior + escape-hatch baseline. WIN32_ITER15_BASELINE in BOTH test files updated in the same commit as the source gate (drop `--display=:99`, Wave-2 comments added) — eliminates retro-patch contradiction. Updated test/phase-47-launch-args.test.mjs Test C inverted. npm test 415/395/1/19 → 421/401/1/19 (+6 tests / +6 pass; same 1 pre-existing fail 04-T3; same 19 skipped). `bash start.sh --dry-run` exits 0 with and without `SSR_WIN_HEADLESS=0`. Zero deviations — clean RED→GREEN TDD. Commits: fee23d3 (RED), 7c0fa03 (GREEN).
+- Planned Next Execution: Phase 47 Plan 03 — Wave 3 diagnostics + docs (operator-visible `[ssr-host] launch args: …` line for full arg-dump visibility, `docs/INSTALL.md` Windows section update documenting `SSR_WIN_HEADLESS=0` escape hatch). Wave 4 is operator UAT (D-03 empirical proof on operator's Win11 box).
+- Last Execution Summary: Phase 47 Plan 02 closed 2026-05-17 (Wave 2 — Windows headless-new flip + env knob + Win32 --display= cleanup). Files: src/server/ssr-render-host.mjs (buildChromiumLaunchArgs gains useHeadlessNew param; --display= Win32-gated; launchBrowser computes env-knob-driven headless mode + drops DISPLAY env on Win32 + adds INFO log + replaced iter15 comment block with Wave-2 block); test/phase-47-windows-headless-new.test.mjs (created — 6 new tests J-O); test/phase-47-launch-args.test.mjs (Test C inverted); test/phase-47-linux-non-regression.test.mjs (WIN32_ITER15_BASELINE drops --display=:99 + Wave-2 comments; LINUX_ITER15_BASELINE BYTE-IDENTICAL). Tests: 421 / 401 pass / 1 pre-existing fail (04-T3 baseline) / 19 skipped. Linux non-regression dry-run still exits 0 with and without SSR_WIN_HEADLESS=0. Wave 3 (Plan 47-03) now ready.
 
 ## Source Inputs
 
@@ -769,6 +769,8 @@ progress:
 - Phase-7 Plan 7-HF10 ist als priorisierte execute-ready P0-Blocker-Welle vor Plan 7-2 gesetzt.
 - Phase 47 Wave-1-Regel ist bindend: Plan 47-01 ist ein BEHAVIOR-PRESERVING refactor. `buildChromiumLaunchArgs({ platform, opts })` reproduziert iter15 byte-identisch auf BEIDEN Plattformen (Linux + Windows). `--display=${display}` bleibt unconditional emit (kein isWin32-Gate) — exakte iter15-Quelle Zeile 644. Wave 2 (Plan 47-02) ist der einzige autorisierte Pfad, der diese Verhalten ändert; Quelle und WIN32_ITER15_BASELINE werden in einem gemeinsamen Commit aktualisiert.
 - Phase 47 Wave-1-Test-Rail-Regel ist bindend: `test/phase-47-linux-non-regression.test.mjs` ist der primäre Regressionsschutz für Wave 2+3. Hand-pinned LINUX_ITER15_BASELINE / LINUX_ITER15_BASELINE_VAAPI / WIN32_ITER15_BASELINE liegen inline im Test (nicht importiert), damit jeder Drift in `src/server/ssr-render-host.mjs` via deepStrictEqual mit klarer per-Flag-Diff stolpert. Linux-Baseline ist operator-locked (D-02); jede Änderung daran erfordert explizite Freigabe.
+- Phase 47 Wave-2-Umsetzung (Plan 47-02): Windows SSR Chromium startet per Default in `headless: "new"` (Chrome unified-headless, Q1 + Q3 Begründung). Operator-Escape-Hatch via env `SSR_WIN_HEADLESS=0` revertet auf iter15 headful-Verhalten (modulo `--display=` Win32 no-op cleanup). `--display=` ist auf Win32 UNCONDITIONAL gegated (orthogonal zu useHeadlessNew — kosmetische Bereinigung, Windows Chrome hat keinen X server). LINUX_ITER15_BASELINE ist BYTE-IDENTISCH zu Wave 1 (Linux-Gold-Rail Test G + H grün ohne Berührung). WIN32_ITER15_BASELINE in BEIDEN Testdateien (`test/phase-47-linux-non-regression.test.mjs` Test I + `test/phase-47-windows-headless-new.test.mjs` Test O) verliert `--display=:99` im gleichen Commit wie das Source-Gate — kein Retro-Patch-Konflikt mehr. Commits: fee23d3 (RED), 7c0fa03 (GREEN). Tests 421/401/1/19 (+6/+6 ggü. Wave 1; gleicher 1 pre-existing fail, gleiche 19 skipped). `bash start.sh --dry-run` 0 mit und ohne `SSR_WIN_HEADLESS=0`.
+- Phase 47 Wave-2-Orthogonalitäts-Regel ist bindend: das Win32-`--display=`-Gate ist UNCONDITIONAL (außerhalb des `dropOnHeadlessNew` Ternärs) — der Headless-Flip und das `--display=`-Cleanup sind semantisch getrennt, aber atomar im selben Commit (Quelle + WIN32_ITER15_BASELINE in beiden Tests). Künftige Waves dürfen ein Gate ändern ohne das andere zu berühren.
 
 ## Execute-Phase Contract (Phase 1)
 
