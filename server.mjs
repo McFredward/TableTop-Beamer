@@ -773,6 +773,17 @@ function applyGlobalMutationPatch(payload) {
     const incomingOpacity = Number(incomingAnimation?.opacity);
     const incomingMode = normalizeNonEmptyString(incomingAnimation?.mode);
     const incomingDirection = normalizeNonEmptyString(incomingAnimation?.direction);
+    // Phase 49 gap-closure-10 (2026-05-17): preserve soundAssetRef from the
+    // dashboard payload onto the authoritative server snapshot. Without this
+    // the /output/ thin consumer's audio binder (which reads
+    // animation.soundAssetRef from snap.runningAnimations) never sees the
+    // operator's mapping — silent for ALL global animations regardless of
+    // the FX panel save state. Operator UAT 2026-05-17 confirmed: dashboard
+    // sent soundAssetRef in payload, server's broadcast envelope stripped
+    // it, /output/ saw soundAssetRef=undefined for every animation.
+    const incomingSoundAssetRef = typeof incomingAnimation?.soundAssetRef === "string"
+      ? incomingAnimation.soundAssetRef
+      : null;
     const authoritativeAnimation = {
       id: "",
       scope: "global",
@@ -790,6 +801,8 @@ function applyGlobalMutationPatch(payload) {
           ? Math.max(1000, Math.trunc(requestedDurationMs))
           : GLOBAL_ONE_SHOT_DEFAULT_DURATION_MS),
       soundVolume: soundEnabled ? 1 : 0,
+      // Phase 49 gap-closure-10: preserve sound mapping in the snapshot.
+      soundAssetRef: incomingSoundAssetRef ?? "none",
       startedAtEpochMs: serverNowEpochMs,
     };
     if (triggerKey) {
