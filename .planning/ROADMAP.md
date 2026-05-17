@@ -1302,7 +1302,7 @@ Plans: 2 plans
 - [x] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
 - [x] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
 
-## Phase 49 - Release-Prep Small-Fixes Sammelphase (BACKLOG-COLLECTING)
+## Phase 49 - Release-Prep Small-Fixes Sammelphase (PLANNING — 2 items locked: 49-A Ctrl+C in existing shell, 49-B Window-close child cleanup)
 
 Goal: Collect operator-found small issues during pre-release testing into a
 single coordinated polish phase. Items get appended as the operator finds them.
@@ -1347,4 +1347,5 @@ Out of Scope:
 - Anything large enough to warrant its own phase (those become Phase 50+).
 - Linux behavior (start.sh + SIGINT/SIGTERM already work — gold rail).
 
-Plans: TBD (populate during /gsd-plan-phase 49)
+Plans: 1 plan
+- [ ] 49-01-PLAN.md - Wave 1+2+3 - Windows process supervision hardening: register SetConsoleCtrlHandler(CTRL_CLOSE_EVENT) belt-and-suspenders on existing JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (49-B), and add invocation-context detection (fresh-cmd vs existing-shell) that gates the Phase 47 ancestor-cmd-kill so existing-shell Ctrl+C does not nuke the operator working shell (49-A). Single plan, only modifies start.ps1. Operator UAT checkpoint covers 3 Windows scenarios + Linux regression check.
