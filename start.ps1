@@ -527,12 +527,31 @@ $proc = Start-Process -FilePath $nodeExe `
                        -PassThru
 "$($proc.Id)" | Set-Content -LiteralPath $PidFile
 
+# Phase 49 (item 49-B, 2026-05-17): $cleanup defined BEFORE the Job Object
+# / SetConsoleCtrlHandler registration so the CTRL_CLOSE_EVENT delegate
+# below can capture it. Previously this lived just above the
+# add_CancelKeyPress block (line ~587); relocated unchanged.
+$cleanup = {
+  Write-Host ""
+  Write-Host "[start] Shutting down ..."
+  Stop-ServerProcess
+}
+
 # Phase 46 iter14: best-effort Job Object so any subprocess node spawns
 # (puppeteer-spawned chrome.exe, mediasoup-worker.exe) dies when node
 # dies. Without this, Chrome instances launched by puppeteer-stream
 # survive even after `Stop-Process node` if they reparent themselves.
 # Falls through silently on platforms / PS versions where the API
 # surface differs (CoreCLR, constrained-language).
+#
+# Phase 49 (item 49-B, 2026-05-17): TtbJob extended with
+# ConsoleCtrlDelegate + SetConsoleCtrlHandler so CTRL_CLOSE_EVENT
+# (X-button close, taskkill of cmd, log-off, shutdown) can trigger a
+# graceful $cleanup pass BEFORE the kernel-side KILL_ON_JOB_CLOSE belt
+# fires. KILL_ON_JOB_CLOSE (LimitFlags = 0x2000 below) was already shipped
+# in Phase 47; the SetConsoleCtrlHandler addition is the missing
+# user-mode hook that lets us log "[start] Shutting down ..." before the
+# kernel-level reap.
 try {
   Add-Type -TypeDefinition @'
 using System;
@@ -559,6 +578,8 @@ public static class TtbJob {
     public UIntPtr ProcessMemoryLimit; public UIntPtr JobMemoryLimit;
     public UIntPtr PeakProcessMemoryUsed; public UIntPtr PeakJobMemoryUsed;
   }
+  public delegate bool ConsoleCtrlDelegate(uint ctrlType);
+  [DllImport("kernel32.dll")] public static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate handler, bool add);
 }
 '@ -ErrorAction SilentlyContinue
   $job = [TtbJob]::CreateJobObject([IntPtr]::Zero, $null)
@@ -577,6 +598,39 @@ public static class TtbJob {
   Write-Host "[start]    (job-object cleanup not available; using PID kill fallback only)"
 }
 
+# Phase 49 (item 49-B, 2026-05-17): register a SetConsoleCtrlHandler for
+# CTRL_CLOSE_EVENT so the PowerShell-side $cleanup runs BEFORE the kernel
+# hard-kill on window-close. The Job Object already has
+# JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (0x2000, see LimitFlags above), which
+# guarantees node/chrome/mediasoup-worker are reaped on parent handle
+# close - this handler adds a graceful shutdown window (~5 s on Windows)
+# so we get a "[start] Shutting down ..." log line and Stop-ServerProcess
+# gets its taskkill /T pass in. Belt + suspenders, not replacement.
+#
+# Lifetime: $script:CtrlHandlerDelegate keeps the delegate INSTANCE alive
+# while Windows still holds the callback pointer. If we let .NET GC the
+# delegate, the next CTRL_CLOSE_EVENT calls into freed memory and crashes
+# the process. Stored in $script: scope so it survives until natural exit.
+#
+# Return value: return $false so Windows continues its default handler
+# chain - which triggers the kernel-level KILL_ON_JOB_CLOSE on the Job
+# Object as the safety net. Returning $true would stop dispatching and
+# the KILL_ON_JOB_CLOSE belt would not fire.
+try {
+  $script:CtrlHandlerDelegate = [TtbJob+ConsoleCtrlDelegate]{
+    param([uint32]$ctrlType)
+    # 2 = CTRL_CLOSE_EVENT (X-button close, taskkill of cmd, etc.)
+    # 5 = CTRL_LOGOFF_EVENT, 6 = CTRL_SHUTDOWN_EVENT (terminal-ish events)
+    if ($ctrlType -eq 2 -or $ctrlType -eq 5 -or $ctrlType -eq 6) {
+      try { & $cleanup } catch {}
+    }
+    return $false
+  }
+  [void][TtbJob]::SetConsoleCtrlHandler($script:CtrlHandlerDelegate, $true)
+} catch {
+  Write-Host "[start]    (CTRL_CLOSE_EVENT handler unavailable; relying on Job Object KILL_ON_JOB_CLOSE only)"
+}
+
 # Phase 46 iter13 (2026-05-17): PowerShell 5.1 doesn't accept
 # `[Console]::CancelKeyPress += { ... }` as a way to subscribe to a
 # .NET static event - PS rejects it with "The property 'CancelKeyPress'
@@ -584,11 +638,6 @@ public static class TtbJob {
 # add_CancelKeyPress method instead, which works in both PS 5.1 and
 # PS 7+. Falls back to the try/finally at the script bottom if event
 # registration fails for any reason (e.g. constrained-language mode).
-$cleanup = {
-  Write-Host ""
-  Write-Host "[start] Shutting down ..."
-  Stop-ServerProcess
-}
 try {
   [Console]::add_CancelKeyPress({
     param($s,$e)
