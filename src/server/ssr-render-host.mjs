@@ -512,22 +512,56 @@ export function bootSsrRenderHost({
       "TabCaptureFastPath",
     ];
 
+    // Phase 46 iter15 (2026-05-17): Windows-specific launch tweaks.
+    // Operator UAT: on Win11 with their normal Chrome already running,
+    // the SSR launch entered a crash loop — chrome.exe ATTACHED to the
+    // user's existing Chrome (single-instance behaviour), forwarded the
+    // --app=URL there, and the puppeteer-launched process exited. The
+    // dev tools connection failed → ERR_ABORTED → restart loop, with
+    // white "/ssr"-titled tabs piling up in the user's normal browser.
+    //
+    // Defenses (Windows only):
+    //   1. force a unique --user-data-dir under tmp so Chrome can't
+    //      attach to an existing profile (the user-data-dir IS the
+    //      single-instance key)
+    //   2. use --app=about:blank instead of the real /ssr URL — the
+    //      subsequent page.goto navigates the puppeteer-owned tab,
+    //      and about:blank is safe to load if it ever leaks
+    //   3. skip --ozone-platform=x11 (Linux-only; on Windows Chrome
+    //      logs a warning and ignores it but better to be explicit)
+    //   4. skip --start-fullscreen and shove the window off-screen via
+    //      --window-position so it can't pop up over the operator's
+    //      desktop while the SSR pipeline is running
+    const isWin32 = process.platform === "win32";
+    let winUserDataDir = null;
+    if (isWin32) {
+      try {
+        const tmp = (await import("node:os")).tmpdir();
+        const path = await import("node:path");
+        const fsMod = await import("node:fs/promises");
+        winUserDataDir = path.join(tmp, `ttb-ssr-${process.pid}-${Date.now()}`);
+        await fsMod.mkdir(winUserDataDir, { recursive: true });
+      } catch (e) {
+        logger.warn(`[ssr-host] could not create temp user-data-dir: ${e.message}`);
+      }
+    }
+
     return launcher({
       executablePath: browserPath,
       headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
       defaultViewport: viewport,
       ignoreDefaultArgs: ["--enable-automation"],
+      // userDataDir at the Puppeteer-options level so puppeteer-stream
+      // also honors it for its own bookkeeping. Linux path retains
+      // puppeteer's auto-generated temp dir (no-op when undefined).
+      ...(winUserDataDir ? { userDataDir: winUserDataDir } : {}),
       args: [
         "--no-sandbox",
         "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
-        // Phase-31 h19 (2026-05-06): explicit ozone platform = x11.
-        // Chromium's auto-pick under Xvfb sometimes falls through to
-        // headless ozone, which caps the BeginFrameSource at ~20 Hz
-        // (matching the user-reported 21 fps cap). x11 binding routes
-        // frame production through the Xvfb display server's vsync,
-        // which can hit higher rates given the +extension flags h19
-        // also adds.
-        "--ozone-platform=x11",
+        // Linux only: explicit ozone platform = x11 for Xvfb binding.
+        // Phase-31 h19. On Windows Chrome ignores it (different display
+        // backend), but suppress to keep the launch arg list clean.
+        ...(isWin32 ? [] : ["--ozone-platform=x11"]),
         // Chrome 131 ("Chrome for Testing", the bundled puppeteer binary)
         // removed support for --use-gl=egl. Without --use-gl=angle the
         // GPU process crashes at launch and Chromium silently falls back to
@@ -556,10 +590,17 @@ export function bootSsrRenderHost({
         // the constraint says 60; this flag lifts the hard cap so the
         // 60-fps publisher constraint can take effect.
         "--max-gum-fps=60",
-        `--app=${ssrUrl}`,
+        // Phase 46 iter15 Windows fix: --app=about:blank on Win to avoid
+        // single-instance-attach hijack. page.goto navigates the
+        // puppeteer-owned tab to /ssr immediately after launch (line
+        // ~840). On Linux keep the direct app-URL form (works fine).
+        isWin32 ? "--app=about:blank" : `--app=${ssrUrl}`,
         `--window-size=${viewport.width},${viewport.height}`,
-        "--window-position=0,0",
-        "--start-fullscreen",
+        // Windows: shove the window off-screen instead of fullscreen so
+        // it doesn't take over the operator's desktop. Linux fullscreen
+        // under Xvfb is invisible anyway.
+        isWin32 ? "--window-position=-32000,-32000" : "--window-position=0,0",
+        ...(isWin32 ? [] : ["--start-fullscreen"]),
         // Tab-capture, page-only (no chrome surfaces in the stream).
         "--auto-select-tab-capture-source-by-title=TableTop Beamer",
         "--no-first-run",
