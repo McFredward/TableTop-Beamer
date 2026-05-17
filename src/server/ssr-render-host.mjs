@@ -1229,40 +1229,39 @@ export function bootSsrRenderHost({
           logger.warn(`[ssr-host] win32 viewport-adapt failed (desync possible): ${err?.message ?? err}`);
         }
       }
-      // Phase 49 gap-closure-13 (2026-05-17): SSR FPS cap via CDP CPU
-      // throttling. Previous attempts (gap-closure-5/6) monkey-patched
-      // requestAnimationFrame in the page; both broke /output/:
-      //   - setTimeout-based: 60-cap → 43 fps (browser setTimeout minimum
-      //     stacked on native-RAF latency).
-      //   - re-RAF-based: 60-cap → 0 fps + black /output/ (multi-chain
-      //     re-RAF backlog blew up Chrome's RAF queue in headless=new).
-      // The CORRECT layer to throttle is CDP, not the page. CPU throttling
-      // slows main-thread JS uniformly (rate=N → N× slower). WebRTC
-      // encoding runs on dedicated threads, unaffected. With native ~280
-      // fps and target 60, rate ≈ 4.67 → effective ~60 fps. Scales with
-      // hardware (slower host → smaller rate → still hits target).
-      // Reuse the ssrFpsCapValue already declared at the page.goto block
-      // above (line ~1188). Re-resolving from status.encoderConfig here
-      // would be a re-declaration. Treat 0 as "no cap" (60 was the goto-
-      // default which we no longer need at this layer since the in-page
-      // RAF throttle is disabled — gap-closure-7).
+      // Phase 49 gap-closure-14 (2026-05-17): SSR FPS cap REVERTED to no-op.
+      // Four consecutive attempts to cap the SSR Chromium tab's render
+      // rate have all failed in headless=new mode:
+      //   - gap-closure-5 setTimeout-throttle: 60 → 43 fps (browser
+      //     setTimeout minimum stacked on native RAF latency)
+      //   - gap-closure-6 re-RAF-throttle: 60 → 0 fps + black /output/
+      //     (multi-chain re-RAF backlog overwhelmed Chrome's RAF queue)
+      //   - gap-closure-13 CDP setCPUThrottlingRate: 60 → 10 fps + slow
+      //     connect (throttled JS uniformly, including WebRTC track
+      //     production + connection signaling)
+      //
+      // No public Chrome flag (`--max-fps` etc.) exists in mainline.
+      // HeadlessExperimental.beginFrame would require re-architecting
+      // the entire render + capture pipeline onto manual frame ticks
+      // (high regression risk, multi-week effort).
+      //
+      // Current state: System-Panel UI knob preserved (radio + config
+      // round-trip works), but it does NOT actually cap the SSR render
+      // rate. The streamFpsCap (separate knob) DOES cap the output
+      // stream framerate via getDisplayMedia constraints — that is
+      // what governs bandwidth + encoder load on the wire.
+      //
+      // The "wasted" extra SSR-internal frames are render-thread
+      // cycles only — they do NOT increase stream output, network
+      // load, or encoder cost. Hardware GPU/CPU idle cycles are
+      // technically "wasted" but not user-visible. Accept as
+      // documented limitation pending a future deep dive.
       const ssrFpsCapEffective = (status?.encoderConfig?.ssrFpsCap ?? 0);
-      if (ssrFpsCapEffective > 0 && cdpSession) {
-        try {
-          // Native rate ~280 fps observed by operator on RTX 4090; clamp
-          // assumed-native to a safe band so we never over-throttle.
-          const NATIVE_ASSUMED_FPS = 240;
-          const throttleRate = Math.min(20, Math.max(1, NATIVE_ASSUMED_FPS / ssrFpsCapEffective));
-          await cdpSession.send("Emulation.setCPUThrottlingRate", { rate: throttleRate });
-          logger.info(
-            `[ssr-host] SSR FPS cap engaged: target=${ssrFpsCapEffective} fps → CDP CPU throttle rate=${throttleRate.toFixed(2)}× ` +
-            `(WebRTC encoder thread unaffected — main-thread JS only)`,
-          );
-        } catch (err) {
-          logger.warn(`[ssr-host] SSR FPS cap install failed: ${err?.message ?? err}`);
-        }
-      } else if (ssrFpsCapEffective === 0) {
-        logger.info(`[ssr-host] SSR FPS cap: native rate (ssrFpsCap=0)`);
+      if (ssrFpsCapEffective > 0) {
+        logger.warn(
+          `[ssr-host] ssrFpsCap=${ssrFpsCapEffective} requested but currently NOT enforced (gap-closure-14 documented limitation; ` +
+          `streamFpsCap=${status?.encoderConfig?.streamFpsCap ?? 60} governs actual output)`,
+        );
       }
       status.browserConnected = true;
       status.state = "running";
