@@ -140,6 +140,7 @@
     placeholder.style.height = `${activeDrag.height}px`;
     row.parentElement.insertBefore(placeholder, row);
     row.classList.add("is-dragging");
+    row.classList.remove("is-pending-longpress");
     row.style.position = "fixed";
     row.style.left = `${activeDrag.left}px`;
     row.style.top = `${activeDrag.row.getBoundingClientRect().top}px`;
@@ -150,6 +151,12 @@
     // work, but fixed + zIndex keeps DOM siblings intact for the
     // placeholder-position search below.
     activeDrag.placeholder = placeholder;
+    // Phase 49 gap-closure-17: lock down the viewport for the duration
+    // of the drag — `.anim-editor-dragging` class on <body> sets
+    // `touch-action: none` + `overscroll-behavior: none` globally so
+    // Chrome's pull-to-refresh and other browser gestures can't fire.
+    // Removed in _cleanupDrag.
+    try { document.body.classList.add("anim-editor-dragging"); } catch {}
   }
 
   function _updatePlaceholderPosition(cursorY) {
@@ -237,6 +244,10 @@
         setTimeout(() => { try { delete row.dataset.justDropped; } catch {} }, 300);
       }
     }
+    // Phase 49 gap-closure-17: release the viewport lock (pull-to-refresh
+    // suppression). Done last so the gesture-locked styles apply for the
+    // entire drag duration, including the brief drop animation frame.
+    try { document.body.classList.remove("anim-editor-dragging"); } catch {}
     activeDrag = null;
   }
 

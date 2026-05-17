@@ -471,6 +471,33 @@ body[data-output-role="final-output"] #animation-editor-page {
   cursor: grabbing;
 }
 
+/* Phase 49 gap-closure-17 (2026-05-17): suppress Chrome's pull-to-refresh
+ * inside the animation editor. Operator UAT: when dragging an animation
+ * row downward at scroll-top, Chrome's PTR fired instead of moving the
+ * row. overscroll-behavior:contain stops the gesture from propagating
+ * to the document's overscroll handler. We scope to the editor open
+ * state so the rest of the app keeps default browser behavior. */
+body[data-animation-editor-open="true"] {
+  overscroll-behavior: contain;
+}
+body[data-animation-editor-open="true"] #animation-editor-page,
+body[data-animation-editor-open="true"] .anim-editor-library,
+body[data-animation-editor-open="true"] .anim-editor-list {
+  overscroll-behavior: contain;
+}
+
+/* While a drag is ACTIVE (after long-press armed + finger moved past
+ * threshold), nail down the entire viewport so no browser gesture
+ * (PTR, swipe-back, two-finger zoom) interferes. Removed in JS on
+ * pointerup/cancel. */
+body.anim-editor-dragging,
+body.anim-editor-dragging * {
+  touch-action: none !important;
+  overscroll-behavior: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .anim-editor-row-icon {
   width: 32px;
   height: 32px;
