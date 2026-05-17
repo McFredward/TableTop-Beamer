@@ -1190,13 +1190,15 @@ Exit Criteria:
   Ubuntu/Debian/RPi (operator-validated path).
 - npm test stays at the same baseline (1 pre-existing fail acceptable).
 
-Wave structure (TBD by gsd-planner):
-- M1 RESEARCH: validate the SSR rendering strategy on Windows
-  (`--headless=new` + WebRTC + screen capture feasibility check, alt: Win32
-  ShowWindow API integration). Write findings to RESEARCH.md.
-- M2 W0: implement the chosen strategy with `process.platform === "win32"`
-  guards in src/server/ssr-render-host.mjs and any related modules.
-- M3 W1: harden process-supervision (orphan cleanup, taskkill robustness,
-  cmd-window-X-button case).
-- M4 VERIFY: operator runs start.bat on their Win10 box, confirms exit
-  criteria. Linux non-regression: ./start.sh probe + npm test.
+Wave structure (finalized by gsd-planner 2026-05-17):
+- M1 RESEARCH: completed in 47-RESEARCH.md (headless-new + WebRTC empirically
+  validated; system-Chrome + isolation chosen over bundled Chrome-for-Testing).
+- M2 W0: completed via 47-CONTEXT.md decisions D-01..D-09.
+- M3 W1: see Wave 1 + Wave 2 plans below.
+- M4 VERIFY: see Wave 4 plan below (operator UAT runbook + sign-off).
+
+Plans: 4 plans
+- [ ] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
+- [ ] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
+- [ ] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
+- [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)
