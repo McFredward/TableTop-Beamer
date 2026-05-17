@@ -314,17 +314,27 @@ $proc = Start-Process -FilePath $nodeExe `
                        -PassThru
 "$($proc.Id)" | Set-Content -LiteralPath $PidFile
 
-# Register Ctrl+C handler to clean up.
+# Phase 46 iter13 (2026-05-17): PowerShell 5.1 doesn't accept
+# `[Console]::CancelKeyPress += { ... }` as a way to subscribe to a
+# .NET static event - PS rejects it with "The property 'CancelKeyPress'
+# cannot be found on this object." Use the CLR-generated
+# add_CancelKeyPress method instead, which works in both PS 5.1 and
+# PS 7+. Falls back to the try/finally at the script bottom if event
+# registration fails for any reason (e.g. constrained-language mode).
 $cleanup = {
   Write-Host ""
   Write-Host "[start] Shutting down ..."
   Stop-ServerProcess
 }
-[Console]::CancelKeyPress += {
-  param($s,$e)
-  $e.Cancel = $true
-  & $cleanup
-  [System.Environment]::Exit(0)
+try {
+  [Console]::add_CancelKeyPress({
+    param($s,$e)
+    $e.Cancel = $true
+    & $cleanup
+    [System.Environment]::Exit(0)
+  })
+} catch {
+  Write-Host "[start]    (Ctrl+C handler unavailable; close the window to stop the server.)"
 }
 
 # -----------------------------------------------------------------------------
