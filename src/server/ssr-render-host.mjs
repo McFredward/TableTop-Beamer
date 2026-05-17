@@ -729,12 +729,47 @@ export function bootSsrRenderHost({
       }
     }
 
-    // Phase 47 Wave 2: log the resolved Win32 launch mode so operator
-    // logs make clear which path actually fired (headless-new vs
-    // escape-hatch). Single INFO line — detailed args logging is
-    // deferred to Wave 3.
+    // Phase 47 Wave 3: launch banner — stable operator-greppable string at
+    // INFO level so start.log makes clear which Win32 launch mode actually
+    // fired. Replaces the shorter Wave-2 transient log line with the
+    // banner format below.
+    // Format pinned by test/phase-47-diagnostics.test.mjs (Test P) — Wave-4
+    // UAT runbook depends on the literal substring `[ssr-host] launching
+    // headless=`. Linux path emits NO banner (gated on isWin32).
     if (isWin32) {
-      logger.info(`[ssr-host] win32 launch: headless=${headlessMode}, userDataDir=${winUserDataDir ?? "<none>"}`);
+      logger.info(
+        `[ssr-host] launching headless=${useHeadlessNew ? "new" : "false"} on Win32 ` +
+        `(userDataDir=${winUserDataDir ?? "<none>"}${useHeadlessNew ? "" : ", SSR_WIN_HEADLESS=0"})`,
+      );
+    }
+
+    // Phase 47 Wave 2 (2026-05-17): args composition delegated to the
+    // pure, exported `buildChromiumLaunchArgs` helper at the top of
+    // this file. `useHeadlessNew` controls the Win32 divergence:
+    // drops --app=, --window-position= when true. --display= is
+    // gated to non-Win32 unconditionally (orthogonal Wave-2 cleanup).
+    // Linux path remains iter15-byte-identical — guarded by
+    // LINUX_ITER15_BASELINE in test/phase-47-linux-non-regression.
+    //
+    // Phase 47 Wave 3: args are now bound to `chromiumArgs` (named) so the
+    // optional env-gated args dump can log them without re-computing.
+    // Env knob `SSR_LOG_LAUNCH_ARGS=1` triggers a one-line INFO dump of
+    // the full resolved Chromium arg array — useful for bug reports
+    // without the noise of DEBUG=puppeteer:*. Knob is platform-agnostic
+    // (works on Linux too) but documented only for Windows in INSTALL.md.
+    // No env knob set → no log emitted → Linux boot-log surface unchanged.
+    const chromiumArgs = buildChromiumLaunchArgs({
+      platform: process.platform,
+      ssrUrl,
+      viewport,
+      display,
+      disabledFeatures,
+      enabledFeatures,
+      hasVaapiEnabled,
+      useHeadlessNew,
+    });
+    if (process.env.SSR_LOG_LAUNCH_ARGS === "1") {
+      logger.info(`[ssr-host] launch args (${process.platform}): ${chromiumArgs.join(" ")}`);
     }
 
     return launcher({
@@ -750,23 +785,7 @@ export function bootSsrRenderHost({
       // also honors it for its own bookkeeping. Linux path retains
       // puppeteer's auto-generated temp dir (no-op when undefined).
       ...(winUserDataDir ? { userDataDir: winUserDataDir } : {}),
-      // Phase 47 Wave 2 (2026-05-17): args composition delegated to the
-      // pure, exported `buildChromiumLaunchArgs` helper at the top of
-      // this file. `useHeadlessNew` controls the Win32 divergence:
-      // drops --app=, --window-position= when true. --display= is
-      // gated to non-Win32 unconditionally (orthogonal Wave-2 cleanup).
-      // Linux path remains iter15-byte-identical — guarded by
-      // LINUX_ITER15_BASELINE in test/phase-47-linux-non-regression.
-      args: buildChromiumLaunchArgs({
-        platform: process.platform,
-        ssrUrl,
-        viewport,
-        display,
-        disabledFeatures,
-        enabledFeatures,
-        hasVaapiEnabled,
-        useHeadlessNew,
-      }),
+      args: chromiumArgs,
       // Phase 47 Wave 2: drop DISPLAY env on Win32 (no X server anyway —
       // matches the Win32 --display= arg gate above). Linux still passes
       // DISPLAY through so Xvfb-bound Chromium picks up the chosen :NN.
@@ -1031,6 +1050,23 @@ export function bootSsrRenderHost({
           status.lastError = err.message;
           // Do NOT crash the whole host — the tab is still up; let the
           // health-ping decide whether to relaunch.
+        }
+      }
+      // Phase 47 Wave 3: emit a single INFO verdict line on Win32 — exactly
+      // ONE PASS/FAIL string per boot the operator can grep for in start.log.
+      // OK branch fires when status.lastError is null after the publisher
+      // try/catch above; FAILED branch surfaces the lastError reason verbatim.
+      // Linux path emits NO verdict (gated on process.platform === "win32").
+      // Format pinned by test/phase-47-diagnostics.test.mjs (Test Q) — Wave-4
+      // UAT runbook depends on the literal substring `[ssr-host] win32 verdict:`.
+      if (process.platform === "win32") {
+        if (status.lastError) {
+          logger.info(`[ssr-host] win32 verdict: FAILED ${status.lastError}`);
+        } else {
+          logger.info(
+            `[ssr-host] win32 verdict: OK browserConnected=${status.browserConnected} ` +
+            `producerIds=[${(status.producerIds ?? []).join(",")}]`,
+          );
         }
       }
       // Phase 33 Plan 02-T2: clear the latch on a clean start so the next
