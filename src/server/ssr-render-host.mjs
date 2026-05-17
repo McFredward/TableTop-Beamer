@@ -1125,33 +1125,6 @@ export function bootSsrRenderHost({
         try { logger.warn(`[ssr-tab:reqfailed] ${req.url()} :: ${req.failure()?.errorText ?? "?"}`); } catch {}
       });
       cdpSession = await page.target().createCDPSession();
-      // Phase 47 gap-closure-14 (2026-05-17): on Win32 headless=new, the
-      // launch-time --window-size=1920,1080 flag is honored for the inner
-      // window but the TAB CAPTURE SURFACE stays at Chrome's headless
-      // default of 800x600. Puppeteer's `defaultViewport: viewport` only
-      // calls Emulation.setDeviceMetricsOverride (CSS-pixel emulation),
-      // which doesn't move the underlying compositor surface. Result:
-      // getDisplayMedia returns a 800x600 video track on Win32 → operator
-      // sees a pixelated /output/ even though all config says 1080p.
-      //
-      // Fix: explicitly resize the browser window via Browser.setWindowBounds
-      // after the page is created. This DOES move the compositor surface
-      // in headless=new, so the subsequent getDisplayMedia call captures
-      // at the configured viewport size.
-      //
-      // Linux path untouched — Xvfb already pins the surface at viewport.
-      if (isWin32) {
-        try {
-          const { windowId } = await cdpSession.send("Browser.getWindowForTarget");
-          await cdpSession.send("Browser.setWindowBounds", {
-            windowId,
-            bounds: { width: viewport.width, height: viewport.height, windowState: "normal" },
-          });
-          logger.info(`[ssr-host] win32 window resized to ${viewport.width}x${viewport.height} (tab-capture surface)`);
-        } catch (err) {
-          logger.warn(`[ssr-host] win32 setWindowBounds failed (tab-capture may use 800x600): ${err?.message ?? err}`);
-        }
-      }
       // Phase 47 gap-closure-5 (2026-05-17): listen for renderer / target
       // crashes so the operator's start.log.err names the actual failure
       // instead of only the after-the-fact `[ssr-host] browser disconnected
