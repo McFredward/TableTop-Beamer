@@ -2010,7 +2010,14 @@ function getMimeType(filePath) {
 function toSafePath(urlPath) {
   const cleaned = decodeURIComponent(urlPath.split("?")[0] || "/");
   const normalized = path.normalize(cleaned).replace(/^([.][.][/\\])+/, "");
-  const fullPath = path.join(ROOT_DIR, normalized === "/" ? "index.html" : normalized);
+  // Phase 47 gap-closure-9: path.normalize("/") returns "\\" on Windows
+  // and "/" on POSIX. Without the win32 branch, the dashboard request
+  // for "/" fell through to a directory stat and handleStaticFile used
+  // the directory's stat.size as Content-Length, truncating the
+  // index.html response to a fragment with no <!DOCTYPE html> (browser
+  // dropped into Quirks Mode and rendered a blank page).
+  const isRoot = normalized === "/" || normalized === "\\";
+  const fullPath = path.join(ROOT_DIR, isRoot ? "index.html" : normalized);
   if (!fullPath.startsWith(ROOT_DIR)) {
     return null;
   }
@@ -3577,8 +3584,15 @@ async function handleStaticFile(req, res, routePath) {
   }
 
   try {
-    const fileStat = await stat(targetPath);
+    let fileStat = await stat(targetPath);
     const resolvedPath = fileStat.isDirectory() ? path.join(targetPath, "index.html") : targetPath;
+    // gap-closure-9: when targetPath was a directory, fileStat is the
+    // DIRECTORY's stat, but we're about to serve `resolvedPath` (the
+    // index.html inside it). Re-stat so Content-Length and Range bounds
+    // reflect the file we actually stream — not the directory metadata.
+    if (fileStat.isDirectory()) {
+      fileStat = await stat(resolvedPath);
+    }
     const contentType = getMimeType(resolvedPath);
     // Phase-31 h15 (2026-05-06): hardware-agnostic GIF/MP4 fetch fix.
     // Resource paths get Connection: close so HTTP/1.1 clients (Chromium,
