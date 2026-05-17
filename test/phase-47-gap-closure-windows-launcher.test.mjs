@@ -78,7 +78,7 @@ test("gap-closure: --auto-accept-this-tab-capture is appended on win32 only", as
   // getDisplayMedia auto-accepts the tab-capture prompt instead of hanging.
   assert.match(
     src,
-    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[\s*\.\.\.chromiumArgsBase\s*,\s*"--auto-accept-this-tab-capture"\s*\]/,
+    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[\s*\.\.\.chromiumArgsBase\s*,[\s\S]*?"--auto-accept-this-tab-capture"/,
     "expect win32-only spread that appends --auto-accept-this-tab-capture",
   );
   // Linux non-regression: the bare base array is reused — no extra flag.

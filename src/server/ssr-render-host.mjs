@@ -161,8 +161,21 @@ export function buildChromiumLaunchArgs({
     // ~60 fps with mp4 decode working. ignore-gpu-blocklist +
     // enable-gpu-rasterization are appended below only when VAAPI is
     // explicitly enabled (D-06 lock).
-    "--use-gl=angle",
-    "--use-angle=default",
+    // Phase 47 gap-closure-2 (2026-05-17): drop `--use-gl=angle` +
+    // `--use-angle=default` on Win32 headless-new. On Linux+Xvfb these
+    // flags route Chrome's GL through ANGLE→Mesa-llvmpipe at ~60 fps
+    // (Phase 31 h19 + Phase 34 h2 history). On Windows headless-new
+    // Chrome has no platform window / no D3D11 swap-chain; forcing ANGLE
+    // tries D3D11 init, fails, and the GPU process crashes — observed in
+    // operator UAT logs as `[ssr-tab:reqfailed] /ssr :: net::ERR_ABORTED`
+    // followed by `browser disconnected unexpectedly`. In headless-new
+    // Chrome's default GL backend (SwiftShader software) is exactly
+    // what we want. `--enable-unsafe-swiftshader` (below) keeps software
+    // GL allowed for WebGL contexts.
+    //
+    // Linux path (and Win32 escape-hatch path) unchanged — same iter15
+    // flags as before. The headless-new path drops them.
+    ...(dropOnHeadlessNew ? [] : ["--use-gl=angle", "--use-angle=default"]),
     "--enable-unsafe-swiftshader",
     "--disable-dev-shm-usage",
     // Anti-throttling: prevent Chromium from treating the Xvfb-headful
@@ -707,10 +720,19 @@ export function bootSsrRenderHost({
     const hasVaapiEnabled =
       process.env.SSR_ENABLE_VAAPI === "1" && hasIgpuDev;
 
+    // Phase 47 gap-closure-2 (2026-05-17): nvenc is detected on the
+    // operator's Win11 box, which previously added Chrome's
+    // `H264HardwareEncode` feature. In headless-new on Windows that
+    // feature tries to grab a hardware H264 encoder without a GPU
+    // context, which contributes to renderer crash during /ssr load.
+    // Gate the feature off on Win32 (server-side mediasoup encoder
+    // continues to use nvenc — that's a Node-process concern, not
+    // Chrome's WebRTC encoder). Linux unchanged.
+    const isWin32Featured = process.platform === "win32";
     const enabledFeatures = [
       // VAAPI features ONLY when explicitly enabled (D-06 lock).
       ...(hasVaapiEnabled ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
-      ...(status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
+      ...(!isWin32Featured && status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
       ...(status.encoderConfig?.encoder === "videotoolbox" ? ["PlatformHEVCEncoderSupport"] : []),
       // h18: tab-capture fast-path lifts the implicit 30 fps cap on
       // getDisplayMedia tab capture. Pairs with --max-gum-fps=60 below
@@ -803,10 +825,22 @@ export function bootSsrRenderHost({
     // puppeteer-stream), we add it explicitly so getDisplayMedia() inside
     // the SSR page auto-accepts the tab-capture prompt instead of hanging.
     //
+    // Phase 47 gap-closure-2 (2026-05-17): also append --enable-logging=stderr
+    // and --v=0 on Win32 unconditionally so Chrome writes its own startup /
+    // GPU / renderer errors to stderr. Combined with the always-on
+    // `dumpio: true` below, Chrome's death cause is now visible in
+    // start.log.err without requiring the operator to set any env vars.
+    //
     // Linux is unchanged (still uses puppeteer-stream which adds the flag
     // for us). LINUX_ITER15_BASELINE in tests is preserved.
     const chromiumArgs = isWin32Launcher
-      ? [...chromiumArgsBase, "--auto-accept-this-tab-capture"]
+      ? [
+          ...chromiumArgsBase,
+          "--auto-accept-this-tab-capture",
+          // Always-on Win32 diagnostics (operator-env-var-independent):
+          "--enable-logging=stderr",
+          "--v=0",
+        ]
       : chromiumArgsBase;
 
     if (process.env.SSR_LOG_LAUNCH_ARGS === "1") {
@@ -838,12 +872,17 @@ export function bootSsrRenderHost({
       // matches the Win32 --display= arg gate above). Linux still passes
       // DISPLAY through so Xvfb-bound Chromium picks up the chosen :NN.
       env: isWin32 ? { ...process.env } : { ...process.env, DISPLAY: display },
-      // Phase 47 gap-closure: SSR_DEBUG_CHROME=1 forwards Chrome's stdout +
-      // stderr to Node's stdio (puppeteer's `dumpio` option). Verbose but
-      // essential when Chrome dies during launch on Windows — without it
-      // we only see puppeteer's after-the-fact "browser disconnected"
-      // message, never the actual renderer crash log. Opt-in only.
-      ...(process.env.SSR_DEBUG_CHROME === "1" ? { dumpio: true } : {}),
+      // Phase 47 gap-closure-2 (2026-05-17): dumpio ALWAYS-ON on Win32
+      // (operator-env-var-independent). Forwards Chrome's stdout + stderr
+      // to Node's stdio so any renderer/GPU crash on launch surfaces in
+      // start.log.err instead of being swallowed. Operator's earlier UAT
+      // showed the SSR_DEBUG_CHROME env knob didn't reach the running
+      // process — the cmd → start.bat → powershell → node hand-off didn't
+      // pass it through. Always-on removes that fragility.
+      //
+      // Linux keeps the opt-in env knob (puppeteer-stream + Xvfb stack is
+      // stable; verbose Chrome output would just spam start.log).
+      ...(isWin32 || process.env.SSR_DEBUG_CHROME === "1" ? { dumpio: true } : {}),
     });
   }
 
