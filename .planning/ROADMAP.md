@@ -1090,7 +1090,7 @@ Carrying forward (LOCKED):
 - Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
 - Connection-stability hard gate (D-08)
 
-## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Waves 1+2 closed 2026-05-17, Plan 03 next)
+## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Waves 1+2+3 closed 2026-05-17, Plan 04 next — operator UAT)
 
 **Plan 47-01 closed 2026-05-17.** Wave 1 pure refactor: extracted
 `buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })`
@@ -1122,6 +1122,29 @@ J-O); `test/phase-47-launch-args.test.mjs` Test C inverted. npm test
 421 / 401 pass / 1 fail (pre-existing 04-T3) / 19 skipped. Linux dry-run still
 exit 0 with and without `SSR_WIN_HEADLESS=0`. Commits: `fee23d3` (RED),
 `7c0fa03` (GREEN). See `.planning/phases/phase-47/47-02-SUMMARY.md`.
+
+**Plan 47-03 closed 2026-05-17.** Wave 3 Windows operator-facing diagnostics
++ INSTALL/USAGE docs polish: three stable greppable INFO log strings emitted
+on Win32 boot from `src/server/ssr-render-host.mjs` — (1) launch banner
+`[ssr-host] launching headless={new|false} on Win32 (userDataDir=<tmp>[, SSR_WIN_HEADLESS=0])`
+inside `if (isWin32)` (replaces Wave-2 transient `[ssr-host] win32 launch:`);
+(2) Win32 verdict `[ssr-host] win32 verdict: OK browserConnected=<bool> producerIds=[<csv>]`
+OR `[ssr-host] win32 verdict: FAILED <reason>` inside `if (process.platform === "win32")`
+after the in-page publisher try/catch; (3) env-gated args dump (platform-agnostic)
+`[ssr-host] launch args (<platform>): <joined args>` when `SSR_LOG_LAUNCH_ARGS=1`.
+Args composition refactored to named `const chromiumArgs = buildChromiumLaunchArgs({...})`
+single-source-of-truth (dump logs exact array passed to launcher()). New
+`test/phase-47-diagnostics.test.mjs` (3 source-grep tests P/Q/R) pins the
+literal substrings. `docs/INSTALL.md` +4 subsections under "## Windows 10 / 11"
+(Expected behavior, Operator UAT checklist with 6-item sign-off, SSR_WIN_HEADLESS
+escape hatch, SSR_LOG_LAUNCH_ARGS dump). `docs/USAGE.md` +1 top-level
+"## Cross-platform behavior" section + Contents entry — explicit Win+Linux
+parity statement. Linux boot-log surface byte-identical when SSR_LOG_LAUNCH_ARGS
+unset (all new logger.info inside Win32/env-knob gates). npm test
+424 / 404 pass / 1 fail (pre-existing 04-T3) / 19 skipped. Linux dry-run still
+exit 0. logger.info count 13 → 16 (matches plan prediction). Phase-47 suite
+18/18 green. Commits: `485d336` (RED), `60dc5e5` (GREEN), `ac2afb2` (docs).
+See `.planning/phases/phase-47/47-03-SUMMARY.md`.
 
 Goal: Make TT-Beamer fully functional on Windows with the exact same operator UX
 as Linux. After Phase 46 release prep, fifteen iterations (iter11-iter15) of the
@@ -1231,5 +1254,5 @@ Wave structure (finalized by gsd-planner 2026-05-17):
 Plans: 4 plans
 - [x] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
 - [x] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
-- [ ] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
+- [x] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)
