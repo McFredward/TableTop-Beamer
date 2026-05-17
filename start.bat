@@ -1,19 +1,17 @@
 @echo off
-REM start.bat — TT-Beamer click-and-run entry for Windows.
+REM start.bat - TT-Beamer click-and-run entry for Windows.
 REM Thin wrapper that invokes start.ps1 via PowerShell with ExecutionPolicy
 REM bypassed for this single command. (Doesn't change system policy.)
 REM
-REM Phase 47 gap-closure (2026-05-17): stripped the "if EXITCODE != 0 pause"
-REM block. The pause was triggering the cmd.exe "Terminate batch job (Y/N)?"
-REM prompt path on Ctrl+C — operator feedback explicitly rejected that.
-REM start.ps1 handles its own cleanup on Ctrl+C (kills parent cmd before
-REM PowerShell exits, so cmd never reaches a Y/N prompt). Real start errors
-REM stay visible in the cmd window because the window doesn't auto-close
-REM until the user clicks X.
-REM
-REM Originally Phase 45.
+REM Originally Phase 45. See start.ps1 for boot logic and Ctrl+C handling.
 
 setlocal
+
+REM Phase 47 gap-closure-12: switch the console to UTF-8 so multi-byte
+REM characters from Node.js / mediasoup log output (em-dash, arrows,
+REM ellipsis) render correctly instead of as "â€"" / "â†'" / "â€¦". The
+REM redirect silences the "Active code page: 65001" status line.
+chcp 65001 >nul 2>&1
 
 REM Resolve the directory this .bat lives in.
 set "SCRIPTDIR=%~dp0"

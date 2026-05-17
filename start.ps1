@@ -24,6 +24,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Phase 47 gap-closure-12: force UTF-8 output encoding so multi-byte
+# characters in server log lines (em-dash, arrows, ellipsis) render as
+# themselves instead of garbled Win-1252 sequences like "â€"" or "â†'".
+# PS 5.1's [Console]::OutputEncoding defaults to the system codepage
+# (Win-1252 on most en-DE locales). Pair with `chcp 65001` in start.bat.
+try {
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {}
+
 # -----------------------------------------------------------------------------
 # Pre-flight: resolve project root, normalize cwd
 # -----------------------------------------------------------------------------

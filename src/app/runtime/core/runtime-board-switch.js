@@ -169,6 +169,16 @@
     }
 
     const board = ctx.getBoard(boardId);
+    // Phase 47 gap-closure-12: defensive guard. ctx.getBoard returns
+    // undefined when BOARDS is empty (e.g. /api/boards fetch failed or
+    // hasn't finished). Without this guard, line 172 (board.id) threw a
+    // TypeError that aborted bootstrap and left the dashboard blank.
+    // Bail out quietly; the live-snapshot rehydrate path will retry once
+    // boards arrive.
+    if (!board) {
+      console.warn(`[board-switch] aborted: no board found for id="${boardId}" (BOARDS may not be loaded yet)`);
+      return;
+    }
     const isActualSwitch = previousBoardId !== board.id;
     if (isActualSwitch && typeof ctx.clearUndoStack === "function") ctx.clearUndoStack();
     state.boardId = board.id;
