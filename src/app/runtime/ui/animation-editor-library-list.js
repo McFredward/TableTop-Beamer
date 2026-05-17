@@ -63,6 +63,12 @@
   const LONG_PRESS_MS = 500;
   const LONG_PRESS_MOVE_THRESHOLD_PX = 8;
   function _setupRowPointerDrag(row, def, list) {
+    // Phase 49 gap-closure-20: explicitly suppress the browser's own
+    // long-press context-menu so it can't pre-empt our long-press timer
+    // with a pointercancel. Pure precaution on top of the CSS callout
+    // suppression — some Android versions still fire contextmenu even
+    // with -webkit-touch-callout: none.
+    row.addEventListener("contextmenu", (e) => e.preventDefault());
     row.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       if (activeDrag) return;  // one drag at a time
@@ -129,7 +135,69 @@
     // at the same offset within the row as on pointerdown).
     activeDrag.row.style.top = `${e.clientY - activeDrag.offsetY}px`;
     _updatePlaceholderPosition(e.clientY);
+    // Phase 49 gap-closure-20: auto-scroll the list when the cursor is
+    // near the top or bottom edge. Without this, you can't reorder a
+    // row past the visible viewport on a phone where the library is
+    // only ~40 vh tall (≤ 880 px @media).
+    _updateAutoScroll(e.clientY);
   }
+
+  // Phase 49 gap-closure-20: auto-scroll loop. Runs while the cursor
+  // dwells within EDGE_PX of the list's top or bottom edge during an
+  // ACTIVE drag. Stops when cursor leaves the edge zone or drag ends.
+  const AUTO_SCROLL_EDGE_PX = 60;
+  const AUTO_SCROLL_SPEED_PX_PER_FRAME = 8;
+  let _autoScrollRaf = null;
+  let _autoScrollDir = 0;
+  let _autoScrollLastCursorY = 0;
+
+  function _updateAutoScroll(cursorY) {
+    if (!activeDrag?.activated) {
+      _stopAutoScroll();
+      return;
+    }
+    _autoScrollLastCursorY = cursorY;
+    const list = activeDrag.list;
+    const listRect = list.getBoundingClientRect();
+    if (cursorY < listRect.top + AUTO_SCROLL_EDGE_PX) {
+      _autoScrollDir = -1;
+    } else if (cursorY > listRect.bottom - AUTO_SCROLL_EDGE_PX) {
+      _autoScrollDir = 1;
+    } else {
+      _autoScrollDir = 0;
+    }
+    if (_autoScrollDir !== 0 && _autoScrollRaf === null) {
+      _autoScrollRaf = requestAnimationFrame(_autoScrollTick);
+    } else if (_autoScrollDir === 0) {
+      _stopAutoScroll();
+    }
+  }
+
+  function _autoScrollTick() {
+    _autoScrollRaf = null;
+    if (!activeDrag?.activated || _autoScrollDir === 0) return;
+    const list = activeDrag.list;
+    const before = list.scrollTop;
+    list.scrollTop += _autoScrollDir * AUTO_SCROLL_SPEED_PX_PER_FRAME;
+    // If we hit the top/bottom and didn't actually scroll, stop the loop
+    // so we don't churn forever at the boundary.
+    if (list.scrollTop === before) {
+      _autoScrollDir = 0;
+      return;
+    }
+    // Re-evaluate placeholder position because the list contents shifted.
+    _updatePlaceholderPosition(_autoScrollLastCursorY);
+    _autoScrollRaf = requestAnimationFrame(_autoScrollTick);
+  }
+
+  function _stopAutoScroll() {
+    if (_autoScrollRaf !== null) {
+      cancelAnimationFrame(_autoScrollRaf);
+      _autoScrollRaf = null;
+    }
+    _autoScrollDir = 0;
+  }
+
 
   function _activateDrag() {
     activeDrag.activated = true;
@@ -225,6 +293,9 @@
 
   function _cleanupDrag() {
     if (!activeDrag) return;
+    // Phase 49 gap-closure-20: kill auto-scroll RAF loop on cleanup so
+    // the list stops scrolling the moment the operator lifts their finger.
+    _stopAutoScroll();
     const row = activeDrag.row;
     const wasActivated = activeDrag.wasActivated;
     // Phase 49 gap-closure-16: clear long-press timer + visual hint.

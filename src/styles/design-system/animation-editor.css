@@ -411,6 +411,16 @@ body[data-output-role="final-output"] #animation-editor-page {
   background: transparent;
   cursor: pointer;
   text-align: left;
+  /* Phase 49 gap-closure-20 (2026-05-17): suppress browser's own
+   * long-press gestures (image-save callout, text-selection magnifier,
+   * context-menu). Without these, Chrome's native ~500-700 ms hold
+   * detection fires `pointercancel` on our pointer, killing the drag
+   * mid-stroke. Plus disable the gray tap-highlight flash that looks
+   * weird in drag UX. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
   font-family: var(--rd-font-body);
   font-size: 13px;
   color: var(--c-text);
