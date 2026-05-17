@@ -332,14 +332,14 @@ Stop-ServerProcess
 # Symptom (operator UAT, Win11): start.bat hangs at "Waiting for server to
 # come up" forever. Server-side diagnostics proved Node was listening +
 # event-loop alive, but curl http://127.0.0.1:$Port/api/health got no
-# response. netstat revealed TWO LISTEN sockets on $Port — ours on
+# response. netstat revealed TWO LISTEN sockets on $Port - ours on
 # 0.0.0.0 AND a foreign process on 127.0.0.1 (in the reported case:
 # Code.exe / VS Code's port-forwarding feature, $Port=4173 happens to be
 # Vite's default preview port). Windows routes 127.0.0.1 traffic to the
 # more-specific bind, so every probe hit the squatter who accepts TCP
 # but never speaks HTTP.
 #
-# Strategy: when a foreign process holds $Port, leave it alone (no kill —
+# Strategy: when a foreign process holds $Port, leave it alone (no kill;
 # the operator's editor/dev tooling stays running) and auto-shift to the
 # next free port. URLs derived from $Port are recomputed in place.
 function Test-PortBlockers {
@@ -368,7 +368,7 @@ function Test-PortBlockers {
     } catch {}
   }
   # IMPORTANT: filter $null. PowerShell's @($null) is an array of length 1
-  # containing $null — without this filter, every "no blocker found" call
+  # containing $null; without this filter, every "no blocker found" call
   # would falsely report Count=1 and the port-shift scan would never find
   # a free port.
   return @($conns | Where-Object { $null -ne $_ })
@@ -377,7 +377,7 @@ function Test-PortBlockers {
 $portBlockers = Test-PortBlockers -ProbePort $Port
 if ($portBlockers -and $portBlockers.Count -gt 0) {
   Write-Host ""
-  Write-Host "[start] WARNING: port $Port is already in use — shifting to a free port." -ForegroundColor Yellow
+  Write-Host "[start] WARNING: port $Port is already in use - shifting to a free port." -ForegroundColor Yellow
   Write-Host "[start]          (Without this, the dashboard probe would hang silently.)" -ForegroundColor Yellow
   foreach ($conn in $portBlockers) {
     $blockingPid = [int]$conn.OwningProcess
