@@ -303,17 +303,57 @@ function Stop-ServerProcess {
   }
 }
 
-# Phase 47 gap-closure (2026-05-17): capture parent cmd.exe PID so the
-# Ctrl+C handler below can kill it before exit. Without this, cmd.exe
+# Phase 47 gap-closure (2026-05-17): walk the ancestor chain and capture
+# every cmd.exe between us and the user's interactive shell so the Ctrl+C
+# handler below can kill them all before exit. Without this, cmd.exe
 # shows "Terminate batch job (Y/N)?" after PowerShell exits and waits for
 # the operator to type Y. Operator UAT feedback was explicit: "bei STRG+C
-# (abort) sofort beendet und nicht noch nachfragt". Killing the parent
-# cmd before our own Exit(0) eliminates the prompt.
-$script:ParentCmdPid = $null
+# (abort) sofort beendet und nicht noch nachfragt".
+#
+# gap-closure-10: earlier revisions captured only the direct parent via
+# Get-CimInstance, which silently failed on some configs (operator UAT
+# 2026-05-17 confirmed the prompt still appeared). Now we try CIM, WMI,
+# and wmic.exe in order, and we walk the whole chain so a cmd grandparent
+# (e.g. nested cmd -> powershell -> cmd -> powershell) is also killed.
+function Get-ParentProcessId {
+  param([int]$ChildPid)
+  try {
+    $info = Get-CimInstance Win32_Process -Filter "ProcessId=$ChildPid" -ErrorAction Stop
+    if ($info -and $info.ParentProcessId) { return [int]$info.ParentProcessId }
+  } catch {}
+  try {
+    $info = Get-WmiObject Win32_Process -Filter "ProcessId=$ChildPid" -ErrorAction Stop
+    if ($info -and $info.ParentProcessId) { return [int]$info.ParentProcessId }
+  } catch {}
+  try {
+    $out = & wmic.exe process where "ProcessId=$ChildPid" get ParentProcessId 2>$null
+    foreach ($line in $out) {
+      $trimmed = "$line".Trim()
+      if ($trimmed -match '^\d+$') { return [int]$trimmed }
+    }
+  } catch {}
+  return 0
+}
+
+$script:AncestorCmdPids = @()
 try {
-  $parentInfo = Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -ErrorAction SilentlyContinue
-  if ($parentInfo) {
-    $script:ParentCmdPid = $parentInfo.ParentProcessId
+  $cursor = $PID
+  # Cap the walk at 8 hops so a broken parent chain can't infinite-loop.
+  for ($hop = 0; $hop -lt 8; $hop++) {
+    $parent = Get-ParentProcessId -ChildPid $cursor
+    if (-not $parent -or $parent -le 0) { break }
+    $parentProc = Get-Process -Id $parent -ErrorAction SilentlyContinue
+    if (-not $parentProc) { break }
+    $name = $parentProc.ProcessName
+    if ($name -eq 'cmd') {
+      $script:AncestorCmdPids += $parent
+    } elseif ($name -ne 'powershell' -and $name -ne 'pwsh') {
+      # Stop walking once we leave the cmd/powershell chain (e.g. reached
+      # explorer.exe or the user's interactive shell host). Killing those
+      # would close the operator's session.
+      break
+    }
+    $cursor = $parent
   }
 } catch {}
 
@@ -542,16 +582,18 @@ $cleanup = {
 try {
   [Console]::add_CancelKeyPress({
     param($s,$e)
-    # $e.Cancel = $true tells .NET NOT to throw a Cancel exception inside
-    # this PowerShell process. We then run cleanup (taskkill the node tree)
-    # and kill the parent cmd.exe BEFORE Exit(0) so cmd never gets a chance
-    # to show "Terminate batch job (Y/N)?". Operator feedback (Phase 47
-    # UAT 2026-05-17): "bei STRG+C sofort beendet und nicht noch nachfragt".
+    # gap-closure-10: kill ancestor cmd.exe processes BEFORE running our
+    # own cleanup, so cmd is already dead when our PowerShell exits.
+    # If cleanup ran first, the few seconds spent taskkilling the node
+    # tree gave cmd time to print "Terminate batch job (Y/N)?" once
+    # PowerShell finally returned. Order matters: kill cmd, then
+    # cleanup, then Exit.
     $e.Cancel = $true
-    & $cleanup
-    if ($script:ParentCmdPid) {
-      try { & taskkill.exe /F /T /PID $script:ParentCmdPid 2>$null | Out-Null } catch {}
+    foreach ($cmdPid in $script:AncestorCmdPids) {
+      try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
+      try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
     }
+    & $cleanup
     [System.Environment]::Exit(0)
   })
 } catch {

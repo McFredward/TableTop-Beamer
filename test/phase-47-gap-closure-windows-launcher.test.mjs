@@ -49,21 +49,48 @@ test("gap-closure-4: Win32 chromiumArgs append --auto-accept-this-tab-capture (m
   const src = await readFile(HOST_PATH, "utf8");
   // Since Win32 uses puppeteer-core directly (no puppeteer-stream), we
   // add this flag manually so getDisplayMedia auto-accepts the tab-
-  // capture prompt instead of hanging.
+  // capture prompt instead of hanging. This is the FUNCTIONAL flag —
+  // gap-closure-10 moved the diagnostic flags (--enable-logging=stderr,
+  // --v=0) behind SSR_DEBUG_CHROME=1, but --auto-accept-this-tab-capture
+  // must remain unconditional on Win32 or getDisplayMedia hangs.
   assert.match(
     src,
-    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[[\s\S]*?"--auto-accept-this-tab-capture"[\s\S]*?"--enable-logging=stderr"[\s\S]*?"--v=0"/,
-    "expect win32 chromiumArgs spread that appends --auto-accept-this-tab-capture + --enable-logging=stderr + --v=0",
+    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[[\s\S]*?"--auto-accept-this-tab-capture"/,
+    "expect win32 chromiumArgs spread that unconditionally appends --auto-accept-this-tab-capture",
   );
 });
 
-test("gap-closure: dumpio always-on on Win32 (operator-env-var-independent)", async () => {
+test("gap-closure-10: Win32 verbose Chrome diagnostics gated behind SSR_DEBUG_CHROME=1", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // dumpio: true must fire when isWin32 (regardless of env).
+  // After the Win32 path stabilized, the always-on Chrome diagnostics
+  // (--enable-logging=stderr, --v=0, --log-net-log=...) were spamming
+  // start.log with USB/GCM/DXGI noise on every run. They are now
+  // gated behind SSR_DEBUG_CHROME=1 so the operator can opt in if a
+  // future Win32 launch issue needs diagnosis, but default boots are
+  // quiet.
   assert.match(
     src,
+    /wantsChromeDiag\s*\?\s*\[\s*"--enable-logging=stderr"\s*,\s*"--v=0"\s*\]\s*:\s*\[\s*\]/,
+    "expect --enable-logging/--v=0 conditional on wantsChromeDiag (= SSR_DEBUG_CHROME === '1')",
+  );
+});
+
+test("gap-closure-10: dumpio is opt-in via SSR_DEBUG_CHROME=1 on both platforms", async () => {
+  const src = await readFile(HOST_PATH, "utf8");
+  // Earlier gap-closures made dumpio always-on for Win32 to surface
+  // launch crashes. The Win32 path is now stable and the always-on
+  // dumpio was spamming Chrome's USB/GCM/DXGI warnings (none
+  // actionable) into start.log on every run. Move back to opt-in on
+  // both platforms so the operator's default experience is quiet.
+  assert.match(
+    src,
+    /process\.env\.SSR_DEBUG_CHROME\s*===\s*"1"\s*\?\s*\{\s*dumpio:\s*true\s*\}/,
+    "expect dumpio:true gate of the form (process.env.SSR_DEBUG_CHROME === '1')",
+  );
+  assert.doesNotMatch(
+    src,
     /isWin32\s*\|\|\s*process\.env\.SSR_DEBUG_CHROME\s*===\s*"1"\s*\?\s*\{\s*dumpio:\s*true\s*\}/,
-    "expect dumpio:true gate of the form (isWin32 || env === '1')",
+    "the old `isWin32 || env === '1'` always-on Win32 dumpio gate must not be present",
   );
 });
 

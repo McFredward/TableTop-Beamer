@@ -4899,45 +4899,6 @@ try {
   );
 }
 
-// Phase 47 gap-closure-6 (Win32 server-never-responds diagnostic):
-// On Windows the operator reports curl http://127.0.0.1:4173/api/health
-// hangs with no response even though "TT Beamer server listening" prints.
-// These diagnostics distinguish three failure modes:
-//   (a) request never reaches Node  → no [diag req] log appears
-//   (b) request reaches Node but handler hangs → [diag req] but no [diag req done]
-//   (c) event loop dead             → no [diag heartbeat] tick
-// Only emitted on Win32 to keep Linux gold-rail logs unchanged.
-const _isWin32Diag = process.platform === "win32";
-if (_isWin32Diag) {
-  server.on("connection", (sock) => {
-    try {
-      console.log(`[diag conn] new TCP socket ${sock.remoteAddress}:${sock.remotePort} → ${sock.localAddress}:${sock.localPort}`);
-    } catch { /* ignore */ }
-  });
-  server.on("error", (err) => {
-    console.error(`[diag server error] ${err?.code || ""} ${err?.message || err}`);
-  });
-  server.prependListener("request", (req, res) => {
-    const t0 = Date.now();
-    console.log(`[diag req] ${req.method} ${req.url} from ${req.socket?.remoteAddress}:${req.socket?.remotePort}`);
-    res.on("finish", () => {
-      console.log(`[diag req done] ${req.method} ${req.url} → ${res.statusCode} in ${Date.now() - t0}ms`);
-    });
-    res.on("close", () => {
-      if (!res.writableEnded) {
-        console.log(`[diag req aborted] ${req.method} ${req.url} after ${Date.now() - t0}ms (response not finished)`);
-      }
-    });
-  });
-  let _heartbeatN = 0;
-  setInterval(() => {
-    _heartbeatN += 1;
-    if (_heartbeatN <= 30) {
-      console.log(`[diag heartbeat] tick ${_heartbeatN} — event loop alive`);
-    }
-  }, 1000).unref();
-}
-
 server.listen(PORT, HOST, () => {
   logSessionEvent("server-start", {
     host: HOST,
@@ -4945,8 +4906,4 @@ server.listen(PORT, HOST, () => {
     logPath: LIVE_LOG_PATH,
   });
   console.log(`TT Beamer server listening on http://${HOST}:${PORT}`);
-  if (_isWin32Diag) {
-    const addr = server.address();
-    console.log(`[diag listen] server.address() = ${JSON.stringify(addr)}`);
-  }
 });

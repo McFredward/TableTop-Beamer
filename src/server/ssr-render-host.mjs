@@ -827,33 +827,32 @@ export function bootSsrRenderHost({
       useHeadlessNew,
     });
 
-    // Phase 47 gap-closure-4 (2026-05-17): on Win32, append three flags
-    // that puppeteer-stream WOULD add for us — we use puppeteer-core
-    // direct now to get WebSocket transport (see launchBrowser top
-    // comment), so we add them manually:
-    //   - `--auto-accept-this-tab-capture`: getDisplayMedia inside the
-    //     SSR page auto-accepts the tab-capture prompt (would hang
-    //     otherwise in headless-new).
-    //   - `--enable-logging=stderr` + `--v=0`: Chrome writes its own
-    //     startup / GPU / renderer errors to stderr. Combined with the
-    //     always-on `dumpio: true` below, Chrome's failure cause is
-    //     visible in start.log.err without the operator setting any
-    //     env vars.
+    // Phase 47 gap-closure-4 (2026-05-17): on Win32 append the manual
+    // `--auto-accept-this-tab-capture` flag that puppeteer-stream would
+    // have added for us (we use puppeteer-core directly to get WebSocket
+    // transport, see launchBrowser top comment). Without this,
+    // getDisplayMedia inside the SSR page would hang on the tab-capture
+    // prompt in headless-new.
     //
-    // Linux LINUX_ITER15_BASELINE byte-identity is preserved (no extra
-    // args on the Linux branch).
-    // Phase 47 gap-closure-5: Chrome net-log path on Win32. Captures
-    // EVERY network event (DNS, sockets, HTTP, errors) to a JSON file
-    // next to start.log. When page.goto fails, this file shows exactly
-    // why (cert error, DNS, connection-refused, abort reason, etc.) —
-    // far more detailed than the stderr we currently get.
+    // gap-closure-10: the additional diagnostic flags
+    // (`--enable-logging=stderr`, `--v=0`, `--log-net-log=...`,
+    // `--net-log-capture-mode=Default`) are now gated behind
+    // SSR_DEBUG_CHROME=1. They were added during the Win32 launch-crash
+    // hunt and spammed Chrome's USB/GCM/DXGI warnings into start.log.err
+    // on every run plus wrote a multi-MB net-log JSON to %TEMP%. Now
+    // that the Win32 path is stable, keep the diagnostics available as
+    // an opt-in (operator sets SSR_DEBUG_CHROME=1 if the host ever
+    // misbehaves again) but default to quiet output.
+    //
+    // Linux LINUX_ITER15_BASELINE byte-identity preserved.
+    const wantsChromeDiag = process.env.SSR_DEBUG_CHROME === "1";
     let winNetLogPath = null;
-    if (isWin32Launcher) {
+    if (isWin32Launcher && wantsChromeDiag) {
       try {
         const tmp = (await import("node:os")).tmpdir();
         const path = await import("node:path");
         winNetLogPath = path.join(tmp, `ttb-ssr-netlog-${process.pid}-${Date.now()}.json`);
-        logger.info(`[ssr-host] Chrome net-log → ${winNetLogPath}`);
+        logger.info(`[ssr-host] Chrome net-log: ${winNetLogPath}`);
       } catch {}
     }
 
@@ -861,8 +860,7 @@ export function bootSsrRenderHost({
       ? [
           ...chromiumArgsBase,
           "--auto-accept-this-tab-capture",
-          "--enable-logging=stderr",
-          "--v=0",
+          ...(wantsChromeDiag ? ["--enable-logging=stderr", "--v=0"] : []),
           ...(winNetLogPath ? [`--log-net-log=${winNetLogPath}`, "--net-log-capture-mode=Default"] : []),
         ]
       : chromiumArgsBase;
@@ -888,17 +886,13 @@ export function bootSsrRenderHost({
       // matches the Win32 --display= arg gate above). Linux still passes
       // DISPLAY through so Xvfb-bound Chromium picks up the chosen :NN.
       env: isWin32 ? { ...process.env } : { ...process.env, DISPLAY: display },
-      // Phase 47 gap-closure-2 (2026-05-17): dumpio ALWAYS-ON on Win32
-      // (operator-env-var-independent). Forwards Chrome's stdout + stderr
-      // to Node's stdio so any renderer/GPU crash on launch surfaces in
-      // start.log.err instead of being swallowed. Operator's earlier UAT
-      // showed the SSR_DEBUG_CHROME env knob didn't reach the running
-      // process — the cmd → start.bat → powershell → node hand-off didn't
-      // pass it through. Always-on removes that fragility.
-      //
-      // Linux keeps the opt-in env knob (puppeteer-stream + Xvfb stack is
-      // stable; verbose Chrome output would just spam start.log).
-      ...(isWin32 || process.env.SSR_DEBUG_CHROME === "1" ? { dumpio: true } : {}),
+      // gap-closure-10: dumpio is opt-in on BOTH platforms via
+      // SSR_DEBUG_CHROME=1. The earlier "always-on for Win32" mode from
+      // gap-closure-2 dumped Chrome's USB/GCM/DXGI warnings (none
+      // actionable) into start.log on every run. Now that the Win32
+      // launch path is stable, default to quiet; operator opts in when
+      // they need it.
+      ...(process.env.SSR_DEBUG_CHROME === "1" ? { dumpio: true } : {}),
     });
   }
 
