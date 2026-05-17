@@ -450,12 +450,31 @@ body[data-output-role="final-output"] #animation-editor-page {
 }
 .anim-editor-row {
   cursor: grab;
-  /* Phase 49 gap-closure-16 (2026-05-17): allow vertical scroll on
-   * touch devices by default. Previously was `pan-x` which captured
-   * vertical gestures for drag-reorder — but that made the animation
-   * list un-scrollable on phones. Now reorder requires a long-press
-   * first (500 ms hold without moving), then drag. Mouse pointers
-   * still get immediate 6 px-threshold drag (see library-list.js). */
+  /* Phase 49 gap-closure-18 (2026-05-17): revert to `touch-action: none`
+   * on the row itself. gap-closure-16 tried `pan-y` to allow list scroll
+   * via row-swipe, but Chrome's scroll-claim heuristic fires
+   * `pointercancel` on the smallest micro-movement (even held-still
+   * fingers have tremor), killing the long-press timer BEFORE it could
+   * activate drag. Operator UAT: "Zustand des verschiebens ist sofort
+   * wieder weg".
+   *
+   * Trade-off: rows can no longer initiate scroll. To scroll the list
+   * on phone, swipe on the non-row areas (scope tabs above, padding,
+   * 8 px scrollbar on the right) or use the search to filter the list
+   * down so scrolling isn't needed. The list container itself still
+   * supports overflow scroll via the styled scrollbar.
+   *
+   * Once the user lifts their finger (cleanupDrag runs), normal scroll
+   * resumes on the NEXT touch — this only locks the IN-FLIGHT touch. */
+  touch-action: none;
+}
+/* Allow scroll via the area ABOVE the rows: scope tabs, search box,
+ * library head. These elements get explicit pan-y so users can swipe
+ * vertically there to scroll the list past visible rows. */
+.anim-editor-scope-tabs,
+.anim-editor-library-head,
+.anim-editor-library-controls,
+.anim-editor-search {
   touch-action: pan-y;
 }
 .anim-editor-row.is-pending-longpress {
