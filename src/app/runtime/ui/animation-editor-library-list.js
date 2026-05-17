@@ -41,12 +41,32 @@
     // Bind document-level handlers ONCE — pointer events from a captured
     // pointer fire on the captured element, but as a defensive fallback
     // when capture fails we also listen at document level.
+    //
+    // Phase 49 gap-closure-21 (2026-05-17): pointercancel gets its OWN
+    // handler that does NOT commit the drop. Previously pointercancel was
+    // bound to _onDragPointerUp which calls _commitDrop → reorderAnimations
+    // → renderList → list.replaceChildren — that destroys the in-flight
+    // dragged row's DOM mid-stroke, releases pointer capture, and resets
+    // scrollTop to 0 (operator-observed "list zaps back to top"). On
+    // pointercancel we just clean up visuals — no persistence, no render.
     if (!dragHandlersBound) {
       document.addEventListener("pointermove", _onDragPointerMove, { passive: false });
       document.addEventListener("pointerup", _onDragPointerUp);
-      document.addEventListener("pointercancel", _onDragPointerUp);
+      document.addEventListener("pointercancel", _onDragPointerCancel);
       dragHandlersBound = true;
     }
+  }
+
+  // Phase 49 gap-closure-21: dedicated pointercancel handler. Chrome
+  // Android occasionally fires pointercancel mid-drag despite all our
+  // touch-action / overscroll-behavior suppression. We treat it as
+  // "abort gracefully" — drop the drag state, restore the row to its
+  // original list position, but do NOT call _commitDrop (which would
+  // persist a reorder we didn't intend) and do NOT renderList (which
+  // would destroy the captured row's DOM node).
+  function _onDragPointerCancel(e) {
+    if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+    _cleanupDrag();
   }
 
   // Phase 46 iter7: per-row pointer-event hookup. Just records the start
@@ -420,6 +440,13 @@
     if (count) {
       count.textContent = `${all.length} configured`;
     }
+    // Phase 49 gap-closure-21: save scrollTop across the replaceChildren
+    // so any future re-entrant render (whether triggered by drag-commit,
+    // live-sync snapshot, board switch with same scope, etc.) doesn't
+    // dump the operator back to the top of a long list. Defensive only —
+    // a pure replaceChildren resets scrollTop to 0 because the children
+    // are gone for one frame.
+    const _preservedScrollTop = list.scrollTop;
     list.replaceChildren();
     if (filtered.length === 0) {
       if (empty) empty.hidden = false;
@@ -516,6 +543,14 @@
       _setupRowPointerDrag(row, def, list);
 
       list.append(row);
+    }
+    // Phase 49 gap-closure-21: restore scrollTop after the children were
+    // replaced. Browsers clamp scrollTop to 0 during the empty intermediate
+    // state of replaceChildren; we restore it so the operator stays where
+    // they were. Clamped to current scrollHeight in case the list got
+    // shorter (e.g., a filter narrowed it down).
+    if (_preservedScrollTop > 0) {
+      list.scrollTop = Math.min(_preservedScrollTop, list.scrollHeight - list.clientHeight);
     }
     notifySelection();
   }

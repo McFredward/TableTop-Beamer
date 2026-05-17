@@ -531,6 +531,17 @@ body.anim-editor-dragging {
   -webkit-user-select: none;
   user-select: none;
 }
+/* Phase 49 gap-closure-21: also nail down the library + list containers
+ * during drag. The library has `overflow-y: auto` (scroll container);
+ * if the browser sees ANY ancestor with non-`none` touch-action while a
+ * gesture is in flight, it can decide to claim the pointer for that
+ * ancestor's scroll, firing pointercancel on our handler. Preventative —
+ * stops one of the documented causes of mid-drag pointer loss. */
+body.anim-editor-dragging .anim-editor-library,
+body.anim-editor-dragging .anim-editor-list {
+  touch-action: none;
+  overscroll-behavior: none;
+}
 
 .anim-editor-row-icon {
   width: 32px;
