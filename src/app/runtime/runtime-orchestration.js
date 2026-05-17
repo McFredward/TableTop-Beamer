@@ -75,48 +75,49 @@ document.body.dataset.outputRole = outputRole;
     /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
-    // Phase 49 gap-closure-5: throttle requestAnimationFrame to ssrFpsCap.
-    // Without this, Chrome --headless=new has no vsync source and RAF fires
-    // as fast as the hardware allows (operator UAT 2026-05-17 reported
-    // ~280 Hz on Win11 / RTX 4090). That's pure CPU/GPU waste when the
-    // stream is sampled at 30/60 — server passes the cap via ?ssrFpsCap=N
-    // (default 60, configurable in System panel). 0 = native (no throttle).
-    try {
-      const __ttbSsrFpsCap = (() => {
-        const m = /[?&]ssrFpsCap=(\d+)/.exec(__ttbSearch);
-        if (!m) return 60;
-        const n = parseInt(m[1], 10);
-        return Number.isFinite(n) && n >= 0 ? n : 60;
-      })();
-      if (__ttbSsrFpsCap > 0 && __ttbSsrFpsCap < 240) {
-        // Phase 49 gap-closure-6: re-RAF instead of setTimeout. setTimeout's
-        // browser minimum (4-15 ms depending on tab focus + throttle policy)
-        // stacks on top of native RAF latency and produces an effective rate
-        // well below target (operator UAT: 60-cap → 43 fps observed).
-        // Re-scheduling via native RAF when too early keeps the loop on the
-        // browser's frame-pacing thread with no timer overhead.
-        const __ttbMinFrameMs = 1000 / __ttbSsrFpsCap;
+    // Phase 49 gap-closure-7: RAF throttle DISABLED by default (was Phase 49
+    // gap-closure-5/6). Two consecutive throttle attempts (setTimeout-based
+    // and re-RAF-based) broke /output/:
+    //   - setTimeout version: produced 43 fps for a 60-cap (browser
+    //     setTimeout minimum + native RAF latency stacked)
+    //   - re-RAF version: catastrophic feedback loop in Chrome --headless=new
+    //     (operator UAT: SSR 0 fps, stream 1 fps, /output/ black). RAF in
+    //     headless=new is partly tied to tab-capture pull rate; throttling
+    //     RAF starves capture, which starves RAF further. Cascade to 0 fps.
+    //
+    // Opt-in path preserved for future experimentation:
+    //   URL ?ssrFpsCapDebug=N  → install the re-RAF throttle at N fps.
+    //   System panel UI still emits ssrFpsCap (server stores it; this branch
+    //   simply doesn't act on it). Server-side restartKeys still applies.
+    //
+    // Default behavior: native rate (matches pre-Phase-49 stable state).
+    const __ttbSsrFpsCapDebug = (() => {
+      const m = /[?&]ssrFpsCapDebug=(\d+)/.exec(__ttbSearch);
+      if (!m) return 0;
+      const n = parseInt(m[1], 10);
+      return Number.isFinite(n) && n > 0 && n < 240 ? n : 0;
+    })();
+    if (__ttbSsrFpsCapDebug > 0) {
+      try {
+        const __ttbMinFrameMs = 1000 / __ttbSsrFpsCapDebug;
         const __ttbNativeRaf = window.requestAnimationFrame.bind(window);
         let __ttbLastFrameTs = 0;
         window.requestAnimationFrame = function (cb) {
           const onFrame = (ts) => {
-            const elapsed = ts - __ttbLastFrameTs;
-            // First frame OR enough time elapsed → fire user callback.
-            if (__ttbLastFrameTs === 0 || elapsed >= __ttbMinFrameMs) {
+            if (__ttbLastFrameTs === 0 || ts - __ttbLastFrameTs >= __ttbMinFrameMs) {
               __ttbLastFrameTs = ts;
               return cb(ts);
             }
-            // Too soon — re-schedule via native RAF (no setTimeout overhead).
             return __ttbNativeRaf(onFrame);
           };
           return __ttbNativeRaf(onFrame);
         };
-        console.info(`[ssr-runtime] requestAnimationFrame throttled to ${__ttbSsrFpsCap} fps (${__ttbMinFrameMs.toFixed(2)} ms/frame, re-RAF)`);
-      } else {
-        console.info(`[ssr-runtime] requestAnimationFrame uncapped (ssrFpsCap=${__ttbSsrFpsCap})`);
+        console.info(`[ssr-runtime] DEBUG: requestAnimationFrame throttled to ${__ttbSsrFpsCapDebug} fps via ?ssrFpsCapDebug — known unstable in headless=new`);
+      } catch (err) {
+        console.warn("[ssr-runtime] RAF throttle install failed:", err?.message ?? err);
       }
-    } catch (err) {
-      console.warn("[ssr-runtime] RAF throttle install failed:", err?.message ?? err);
+    } else {
+      console.info("[ssr-runtime] RAF native rate (Phase 49 gap-closure-7: throttle disabled, use ?ssrFpsCapDebug=N to opt-in)");
     }
   }
   // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
