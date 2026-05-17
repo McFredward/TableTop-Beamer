@@ -6,6 +6,7 @@ for the high-level overview see the [README](../README.md).
 
 ## Contents
 
+- [Cross-platform behavior](#cross-platform-behavior)
 - [Aligning the projection](#aligning-the-projection)
   - [Profile toolbar](#profile-toolbar)
   - [Handles around the grid](#handles-around-the-grid)
@@ -23,6 +24,20 @@ for the high-level overview see the [README](../README.md).
 - [Boards](#boards)
 - [Export / Import](#export--import)
 - [Data layout (where things live on disk)](#data-layout-where-things-live-on-disk)
+
+---
+
+## Cross-platform behavior
+
+TT-Beamer behaves identically on Linux and Windows from the operator's
+perspective. Both launchers (`./start.sh` on Linux, `start.bat` on
+Windows) print the same LAN URL banner, open the same dashboard, and
+both produce **zero** visible Chrome windows during operation: Linux
+uses Xvfb to host the SSR Chromium tab off-screen; Windows 10/11 uses
+Chromium's `headless: "new"` mode for the same effect. Process cleanup
+on Ctrl+C is reliable on both platforms within 5 seconds. See
+[INSTALL.md](INSTALL.md) for platform-specific install notes and the
+Windows operator UAT checklist.
 
 ---
 

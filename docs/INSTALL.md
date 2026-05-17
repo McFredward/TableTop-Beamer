@@ -103,6 +103,64 @@ command once, then re-run `./start.sh`.
 Just double-click `start.bat` again. Skips all downloads — dashboard
 opens in under 30 seconds.
 
+### Expected behavior
+
+After `start.bat` boots successfully, you should see the LAN URL banner
+in the cmd window — the same banner Linux operators see with
+`./start.sh`. You will **NOT** see a separate Chrome window pop up on
+your desktop: TT-Beamer runs the SSR Chromium tab in headless mode on
+Windows, which is the same parity behavior Linux gets via Xvfb. The
+dashboard auto-opens in your default browser. To stop, press **Ctrl+C**
+in the cmd window — all `node.exe`, `chrome.exe`, and
+`mediasoup-worker.exe` children exit within 5 seconds (the Job Object
+cleanup introduced in Phase 46 iter14 guarantees this on Ctrl+C, on
+cmd-window close, and on Task Manager kill).
+
+### Operator UAT checklist (sign-off)
+
+For first-time Windows installs, run through these six checks before
+declaring the install done:
+
+- [ ] 1. `start.bat` reaches a printed LAN URL banner within 5 minutes
+      on a cold first-run install (~30 seconds on subsequent runs).
+- [ ] 2. No visible Chrome window appears on your desktop during the
+      session — the SSR tab is fully headless.
+- [ ] 3. Dashboard loads from your phone or tablet over LAN at the
+      printed URL.
+- [ ] 4. `/output/` opens on the projector Pi and receives the WebRTC
+      stream within 10 seconds.
+- [ ] 5. Press **Ctrl+C** in the cmd window — run
+      `tasklist | findstr "node.exe chrome.exe mediasoup"` 5 seconds
+      later. Output is empty (no orphan processes).
+- [ ] 6. Close the cmd window via the **X** button — run the same
+      `tasklist | findstr "node.exe chrome.exe mediasoup"` 5 seconds
+      later. Output is still empty.
+
+### Troubleshooting Windows: SSR_WIN_HEADLESS escape hatch
+
+If you see operator-visible Chrome windows on Windows 11 (the headless
+mode misbehaving on an old Chrome build, or your Chrome blocks screen
+capture via group policy), set the environment variable
+`SSR_WIN_HEADLESS=0` before launching:
+
+```cmd
+set SSR_WIN_HEADLESS=0
+start.bat
+```
+
+This reverts to the Phase-46 iter15 headful + off-screen-positioned
+behavior (you may see a brief flicker of a small Chrome window during
+boot). Search `start.log` for the line `[ssr-host] launching headless=`
+to confirm which mode is currently active.
+
+### Troubleshooting Windows: full launch-args dump (bug reports)
+
+Set `SSR_LOG_LAUNCH_ARGS=1` before launching to dump the full resolved
+Chromium command line into `start.log`. Useful when filing a bug — copy
+the `[ssr-host] launch args (win32): ...` line and paste it into your
+bug report. The line appears once at boot, immediately before Chrome is
+spawned.
+
 ### "Windows protected your PC" / SmartScreen popup
 
 Windows Defender SmartScreen may warn that `start.bat` is "unrecognized."
