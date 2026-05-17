@@ -1229,6 +1229,36 @@ export function bootSsrRenderHost({
           logger.warn(`[ssr-host] win32 viewport-adapt failed (desync possible): ${err?.message ?? err}`);
         }
       }
+      // Phase 49 gap-closure-13 (2026-05-17): SSR FPS cap via CDP CPU
+      // throttling. Previous attempts (gap-closure-5/6) monkey-patched
+      // requestAnimationFrame in the page; both broke /output/:
+      //   - setTimeout-based: 60-cap → 43 fps (browser setTimeout minimum
+      //     stacked on native-RAF latency).
+      //   - re-RAF-based: 60-cap → 0 fps + black /output/ (multi-chain
+      //     re-RAF backlog blew up Chrome's RAF queue in headless=new).
+      // The CORRECT layer to throttle is CDP, not the page. CPU throttling
+      // slows main-thread JS uniformly (rate=N → N× slower). WebRTC
+      // encoding runs on dedicated threads, unaffected. With native ~280
+      // fps and target 60, rate ≈ 4.67 → effective ~60 fps. Scales with
+      // hardware (slower host → smaller rate → still hits target).
+      const ssrFpsCapValue = status?.encoderConfig?.ssrFpsCap ?? 0;
+      if (ssrFpsCapValue > 0 && cdpSession) {
+        try {
+          // Native rate ~280 fps observed by operator on RTX 4090; clamp
+          // assumed-native to a safe band so we never over-throttle.
+          const NATIVE_ASSUMED_FPS = 240;
+          const throttleRate = Math.min(20, Math.max(1, NATIVE_ASSUMED_FPS / ssrFpsCapValue));
+          await cdpSession.send("Emulation.setCPUThrottlingRate", { rate: throttleRate });
+          logger.info(
+            `[ssr-host] SSR FPS cap engaged: target=${ssrFpsCapValue} fps → CDP CPU throttle rate=${throttleRate.toFixed(2)}× ` +
+            `(WebRTC encoder thread unaffected — main-thread JS only)`,
+          );
+        } catch (err) {
+          logger.warn(`[ssr-host] SSR FPS cap install failed: ${err?.message ?? err}`);
+        }
+      } else if (ssrFpsCapValue === 0) {
+        logger.info(`[ssr-host] SSR FPS cap: native rate (ssrFpsCap=0)`);
+      }
       status.browserConnected = true;
       status.state = "running";
       // Phase 44: publisher injection is always-on (SSR is the only render
