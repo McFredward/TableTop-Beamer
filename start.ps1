@@ -282,12 +282,33 @@ function Stop-ServerProcess {
       $proc = Get-Process -Id $pidVal -ErrorAction SilentlyContinue
       if ($proc) {
         Write-Host "[start] Stopping server (PID $pidVal) ..."
-        Stop-Process -Id $pidVal -Force -ErrorAction SilentlyContinue
+        # taskkill /T kills the whole process tree (node + its puppeteer-spawned
+        # chrome.exe + mediasoup-worker.exe) in one shot. Belt + suspenders
+        # with the Job Object below; some Windows/PS combos miss one or the
+        # other, so we do both.
+        & taskkill.exe /F /T /PID $pidVal 2>$null | Out-Null
+        if (Get-Process -Id $pidVal -ErrorAction SilentlyContinue) {
+          Stop-Process -Id $pidVal -Force -ErrorAction SilentlyContinue
+        }
       }
     } catch {}
     Remove-Item -Force -LiteralPath $PidFile -ErrorAction SilentlyContinue
   }
 }
+
+# Phase 47 gap-closure (2026-05-17): capture parent cmd.exe PID so the
+# Ctrl+C handler below can kill it before exit. Without this, cmd.exe
+# shows "Terminate batch job (Y/N)?" after PowerShell exits and waits for
+# the operator to type Y. Operator UAT feedback was explicit: "bei STRG+C
+# (abort) sofort beendet und nicht noch nachfragt". Killing the parent
+# cmd before our own Exit(0) eliminates the prompt.
+$script:ParentCmdPid = $null
+try {
+  $parentInfo = Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -ErrorAction SilentlyContinue
+  if ($parentInfo) {
+    $script:ParentCmdPid = $parentInfo.ParentProcessId
+  }
+} catch {}
 
 if ($DryRun) {
   Write-Host "[start]    [dry-run] Would launch: node server.mjs (port $Port)"
@@ -387,8 +408,16 @@ $cleanup = {
 try {
   [Console]::add_CancelKeyPress({
     param($s,$e)
+    # $e.Cancel = $true tells .NET NOT to throw a Cancel exception inside
+    # this PowerShell process. We then run cleanup (taskkill the node tree)
+    # and kill the parent cmd.exe BEFORE Exit(0) so cmd never gets a chance
+    # to show "Terminate batch job (Y/N)?". Operator feedback (Phase 47
+    # UAT 2026-05-17): "bei STRG+C sofort beendet und nicht noch nachfragt".
     $e.Cancel = $true
     & $cleanup
+    if ($script:ParentCmdPid) {
+      try { & taskkill.exe /F /T /PID $script:ParentCmdPid 2>$null | Out-Null } catch {}
+    }
     [System.Environment]::Exit(0)
   })
 } catch {
