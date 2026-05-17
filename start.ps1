@@ -635,7 +635,7 @@ function Probe-Health {
       Write-Host "[start] ERROR: server process died during startup." -ForegroundColor Red
       if (Test-Path -LiteralPath $LogFile) {
         Write-Host "[start]    Last 30 lines of ${LogFile}:" -ForegroundColor Red
-        Get-Content -LiteralPath $LogFile -Tail 30 | ForEach-Object { Write-Host "    $_" }
+        Get-Content -LiteralPath $LogFile -Tail 30 -Encoding UTF8 | ForEach-Object { Write-Host "    $_" }
       }
       return $false
     }
@@ -667,9 +667,28 @@ Write-Host "  -----------------------------------------------------"
 Write-Host "  Press Ctrl+C to stop."
 Write-Host ""
 
+# Phase 47 gap-closure-13: pre-emptively kill the ancestor cmd.exe(s)
+# NOW, before the user can press Ctrl+C. The earlier handler-time kill
+# was a race with cmd's own batch-prompt signal handler (and on some
+# configs the AncestorCmdPids walk returned empty). Once cmd is dead,
+# Ctrl+C goes directly to this PowerShell process — our CancelKeyPress
+# handler runs and exits cleanly, no "Terminate batch job (Y/N)?"
+# prompt because there's no batch job left to terminate.
+#
+# Done AFTER the success banner so the operator sees the dashboard
+# URL/log path before cmd detaches. Done BEFORE Get-Content -Wait so
+# any subsequent Ctrl+C lands in a cmd-free chain.
+foreach ($cmdPid in $script:AncestorCmdPids) {
+  try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
+  try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
+}
+
 # Block the foreground console; tail the log so the user sees server output.
+# -Encoding UTF8 (gap-closure-13): Node writes UTF-8 bytes; PS 5.1's
+# default Get-Content encoding is Win-1252 which renders em-dash /
+# arrows / ellipsis as "â€"" / "â†'" / "â€¦".
 try {
-  Get-Content -LiteralPath $LogFile -Wait -Tail 0
+  Get-Content -LiteralPath $LogFile -Wait -Tail 0 -Encoding UTF8
 } finally {
   & $cleanup
 }
