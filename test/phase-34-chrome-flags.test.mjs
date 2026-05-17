@@ -17,19 +17,44 @@ import { readFileSync } from "node:fs";
 
 const SRC = readFileSync("./src/server/ssr-render-host.mjs", "utf8");
 
-// Extract the launchBrowser function body (same approach as ssr-chromium-flags-merge.test.mjs).
+// Phase 47 Wave 1 (2026-05-17): the args block was extracted from
+// launchBrowser into the top-level exported pure function
+// `buildChromiumLaunchArgs`. The hasIgpuDev / hasVaapiEnabled bindings
+// still live in launchBrowser (they read fs / process.env and are
+// impure), but the arg strings (`--ignore-gpu-blocklist`, `--use-gl=…`
+// etc.) live in buildChromiumLaunchArgs. We extract both function
+// bodies and concatenate so the post-34-A regex assertions below stay
+// accurate regardless of which side of the refactor any given token
+// lives on.
+function extractFunctionBody(marker) {
+  const startIdx = SRC.indexOf(marker);
+  if (startIdx < 0) return "";
+  const tail = SRC.slice(startIdx);
+  const closingTwoSpace = /\n  \}\n/.exec(tail);
+  const closingTopLevel = /\n\}\n/.exec(tail);
+  let endRel = Infinity;
+  if (closingTwoSpace) endRel = Math.min(endRel, closingTwoSpace.index + closingTwoSpace[0].length);
+  if (closingTopLevel) endRel = Math.min(endRel, closingTopLevel.index + closingTopLevel[0].length);
+  if (endRel === Infinity) return tail;
+  return tail.slice(0, endRel);
+}
+
 function extractLaunchBrowserBody() {
   const startMarker = "async function launchBrowser(";
   const startIdx = SRC.indexOf(startMarker);
   assert.ok(startIdx >= 0, "ssr-render-host.mjs must contain `async function launchBrowser(`");
-  const closingPattern = /\n  \}\n/;
-  const tail = SRC.slice(startIdx);
-  const m = closingPattern.exec(tail);
-  assert.ok(m, "ssr-render-host.mjs: closing `  }` for launchBrowser not found");
-  return tail.slice(0, m.index + m[0].length);
+  return extractFunctionBody(startMarker);
 }
 
-const launchBody = extractLaunchBrowserBody();
+function extractBuildChromiumLaunchArgsBody() {
+  const startMarker = "export function buildChromiumLaunchArgs";
+  const startIdx = SRC.indexOf(startMarker);
+  if (startIdx < 0) return "";
+  return extractFunctionBody(startMarker);
+}
+
+// Concatenated: launchBrowser body + buildChromiumLaunchArgs body.
+const launchBody = extractLaunchBrowserBody() + "\n" + extractBuildChromiumLaunchArgsBody();
 
 // Strip line comments so that comment blocks mentioning these tokens don't
 // produce false positives on the regex assertions.

@@ -71,6 +71,156 @@ export function getXvfbArgs({ display, width, height }) {
     "-fakescreenfps", "60",  // Phase 32 D-A4 root-cause + h3: lift Xvfb BeginFrameSource above default ~25Hz; matches publisher's 60-fps cap (was 120; broke mp4 + did not help)
   ];
 }
+
+/**
+ * Build the canonical Chromium command-line argument array for the SSR
+ * render-host browser launch.
+ *
+ * Phase 47 Wave 1 (2026-05-17): EXTRACTED from `launchBrowser()` as a pure
+ * function to install a unit-testable seam (47-RESEARCH § Recommended
+ * Implementation Approach M2 C1). This function is byte-identical to the
+ * inline `args: [ ... ]` block that previously lived at iter15 source
+ * lines 558-645 — NO behavior change in this wave. See
+ * .planning/phases/phase-47/47-RESEARCH.md § Q3 for the flag-by-flag
+ * rationale and 47-01-PLAN.md for the refactor contract.
+ *
+ * Pinned by:
+ *   - test/phase-47-launch-args.test.mjs (fingerprint assertions)
+ *   - test/phase-47-linux-non-regression.test.mjs (byte-identity)
+ *
+ * Note (Wave 1 truth): `--display=${display}` is emitted UNCONDITIONALLY
+ * at the tail (no isWin32 gate) — exactly mirroring iter15 source line
+ * 644. Wave 2 (Plan 47-02) will introduce the win32 gate and update both
+ * source and baseline in the same commit.
+ *
+ * The Linux branch (platform !== "win32") MUST stay byte-identical to
+ * iter15 across all subsequent waves — that's the regression rail Wave 2
+ * leans on (D-02).
+ *
+ * Purity contract: NO process.env reads, NO fs touches, NO module-scope
+ * reads, NO closures over launchBrowser's locals. Only operates on the
+ * explicit parameters below.
+ *
+ * @param {object} opts
+ * @param {string} opts.platform         - process.platform value; only "win32" branches today
+ * @param {string} opts.ssrUrl           - canonical SSR navigation URL (used for --app= on Linux)
+ * @param {{ width: number, height: number }} opts.viewport
+ * @param {string} opts.display          - X11 DISPLAY value (e.g. ":99"); emitted on both platforms in Wave 1
+ * @param {string[]} opts.disabledFeatures - tokens joined into a SINGLE --disable-features=... arg (see iter15 h15 comment in launchBrowser)
+ * @param {string[]} opts.enabledFeatures  - tokens joined into a SINGLE --enable-features=... arg; arg omitted when empty
+ * @param {boolean} opts.hasVaapiEnabled   - gates --ignore-gpu-blocklist + --enable-gpu-rasterization (Phase 34 h2)
+ * @returns {string[]}                     - the args array, in deterministic order
+ */
+export function buildChromiumLaunchArgs({
+  platform,
+  ssrUrl,
+  viewport,
+  display,
+  disabledFeatures,
+  enabledFeatures,
+  hasVaapiEnabled,
+}) {
+  // Phase 46 iter15 (2026-05-17): isWin32 derived from the `platform`
+  // parameter, NOT from process.platform — that's what makes this function
+  // pure and unit-testable. Defenses in launchBrowser (winUserDataDir
+  // creation, env DISPLAY suppression) read process.platform directly.
+  const isWin32 = platform === "win32";
+
+  return [
+    "--no-sandbox",
+    "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
+    // Linux only: explicit ozone platform = x11 for Xvfb binding.
+    // Phase-31 h19. On Windows Chrome ignores it (different display
+    // backend), but suppress to keep the launch arg list clean.
+    ...(isWin32 ? [] : ["--ozone-platform=x11"]),
+    // Chrome 131 ("Chrome for Testing", the bundled puppeteer binary)
+    // removed support for --use-gl=egl. Without --use-gl=angle the
+    // GPU process crashes at launch and Chromium silently falls back to
+    // SwiftShader, which collapses to 2-5 fps compositor output under
+    // animation load — heartbeats stale, consumer reconnects forever.
+    // ANGLE abstraction lands on Mesa llvmpipe under Xvfb and reaches
+    // ~60 fps with mp4 decode working. ignore-gpu-blocklist +
+    // enable-gpu-rasterization are appended below only when VAAPI is
+    // explicitly enabled (D-06 lock).
+    "--use-gl=angle",
+    "--use-angle=default",
+    "--enable-unsafe-swiftshader",
+    "--disable-dev-shm-usage",
+    // Anti-throttling: prevent Chromium from treating the Xvfb-headful
+    // tab as background/occluded.
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-ipc-flooding-protection",
+    // Lift fps cap. Chromium's software BeginFrameSource caps ~20-30 Hz
+    // under Xvfb without these.
+    "--disable-gpu-vsync",
+    "--disable-frame-rate-limit",
+    // Explicit getUserMedia / getDisplayMedia frame-rate cap.
+    // Chromium's MediaStreamVideoSource defaults to 30 fps even when
+    // the constraint says 60; this flag lifts the hard cap so the
+    // 60-fps publisher constraint can take effect.
+    "--max-gum-fps=60",
+    // Phase 46 iter15 Windows fix: --app=about:blank on Win to avoid
+    // single-instance-attach hijack. page.goto navigates the
+    // puppeteer-owned tab to /ssr immediately after launch (line
+    // ~840). On Linux keep the direct app-URL form (works fine).
+    isWin32 ? "--app=about:blank" : `--app=${ssrUrl}`,
+    `--window-size=${viewport.width},${viewport.height}`,
+    // Windows: shove the window off-screen instead of fullscreen so
+    // it doesn't take over the operator's desktop. Linux fullscreen
+    // under Xvfb is invisible anyway.
+    isWin32 ? "--window-position=-32000,-32000" : "--window-position=0,0",
+    ...(isWin32 ? [] : ["--start-fullscreen"]),
+    // Tab-capture, page-only (no chrome surfaces in the stream).
+    "--auto-select-tab-capture-source-by-title=TableTop Beamer",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-default-apps",
+    // h4.1: do NOT --disable-extensions — puppeteer-stream's MV3
+    // extension is required for getDisplayMedia tab capture.
+    "--disable-prompt-on-repost",
+    "--disable-popup-blocking",
+    "--disable-notifications",
+    "--disable-sync",
+    "--mute-audio", // server doesn't play audio (D-D2 reversal — Pi-local)
+    "--hide-crash-restore-bubble",
+    "--disable-session-crashed-bubble",
+    "--disable-infobars",
+    // ONE merged --disable-features arg (multiple instances would be
+    // silently overwritten — see h15 root-cause comment in launchBrowser).
+    `--disable-features=${disabledFeatures.join(",")}`,
+    // ONE merged --enable-features arg, only emit if non-empty.
+    ...(enabledFeatures.length > 0 ? [`--enable-features=${enabledFeatures.join(",")}`] : []),
+    // Phase 34 hotfix h2 (2026-05-10) — REVERT 34-A T1 GL-flag decoupling.
+    //
+    // Track A T1 moved --ignore-gpu-blocklist and --enable-gpu-rasterization
+    // off the VAAPI gate so they fired whenever an iGPU DRI device existed.
+    // The hypothesis was that those flags were the missing piece for GL on
+    // Mesa-llvmpipe under Xvfb. The actual effect on this hardware:
+    // Chrome's GPU process attempts hardware paint paths through Mesa
+    // llvmpipe, which has the SAME synchronous-flush behavior as VAAPI
+    // (Phase 33 root cause) — the SSR-tab JS main thread blocks for 4+s
+    // at a stretch, CDP health-pings time out, the publisher's getDisplay-
+    // Media frame pump stalls, and consumers see "connecting forever"
+    // with no video. User-confirmed regression on /output/ UAT.
+    //
+    // Restore Phase 33 baseline: GL flags gated on VAAPI opt-in, same as
+    // pre-Phase-34. The 2D-fallback / banding visual issue (Track A's
+    // original target) is reverted to its pre-Phase-34 state — that is a
+    // visual quality issue, not a connection-stability blocker. We trade
+    // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
+    // the operator's discretion (same opt-in as VAAPI itself).
+    ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
+    // Phase 47 Wave 1: `--display=${display}` emitted UNCONDITIONALLY —
+    // matches iter15 source line 644 byte-for-byte. On Windows Chrome
+    // this is a no-op (no X server), and Wave 2 will gate it to !isWin32
+    // to remove the cosmetic launch-log noise. Until then this preserves
+    // iter15 behavior exactly.
+    `--display=${display}`,
+  ];
+}
+
 import { probeEnvironment, formatEnvironmentReport } from "./ssr-environment-bootstrap.mjs";
 import path from "node:path";
 import {
@@ -555,94 +705,23 @@ export function bootSsrRenderHost({
       // also honors it for its own bookkeeping. Linux path retains
       // puppeteer's auto-generated temp dir (no-op when undefined).
       ...(winUserDataDir ? { userDataDir: winUserDataDir } : {}),
-      args: [
-        "--no-sandbox",
-        "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
-        // Linux only: explicit ozone platform = x11 for Xvfb binding.
-        // Phase-31 h19. On Windows Chrome ignores it (different display
-        // backend), but suppress to keep the launch arg list clean.
-        ...(isWin32 ? [] : ["--ozone-platform=x11"]),
-        // Chrome 131 ("Chrome for Testing", the bundled puppeteer binary)
-        // removed support for --use-gl=egl. Without --use-gl=angle the
-        // GPU process crashes at launch and Chromium silently falls back to
-        // SwiftShader, which collapses to 2-5 fps compositor output under
-        // animation load — heartbeats stale, consumer reconnects forever.
-        // ANGLE abstraction lands on Mesa llvmpipe under Xvfb and reaches
-        // ~60 fps with mp4 decode working. ignore-gpu-blocklist +
-        // enable-gpu-rasterization are appended below only when VAAPI is
-        // explicitly enabled (D-06 lock).
-        "--use-gl=angle",
-        "--use-angle=default",
-        "--enable-unsafe-swiftshader",
-        "--disable-dev-shm-usage",
-        // Anti-throttling: prevent Chromium from treating the Xvfb-headful
-        // tab as background/occluded.
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-renderer-backgrounding",
-        "--disable-ipc-flooding-protection",
-        // Lift fps cap. Chromium's software BeginFrameSource caps ~20-30 Hz
-        // under Xvfb without these.
-        "--disable-gpu-vsync",
-        "--disable-frame-rate-limit",
-        // Explicit getUserMedia / getDisplayMedia frame-rate cap.
-        // Chromium's MediaStreamVideoSource defaults to 30 fps even when
-        // the constraint says 60; this flag lifts the hard cap so the
-        // 60-fps publisher constraint can take effect.
-        "--max-gum-fps=60",
-        // Phase 46 iter15 Windows fix: --app=about:blank on Win to avoid
-        // single-instance-attach hijack. page.goto navigates the
-        // puppeteer-owned tab to /ssr immediately after launch (line
-        // ~840). On Linux keep the direct app-URL form (works fine).
-        isWin32 ? "--app=about:blank" : `--app=${ssrUrl}`,
-        `--window-size=${viewport.width},${viewport.height}`,
-        // Windows: shove the window off-screen instead of fullscreen so
-        // it doesn't take over the operator's desktop. Linux fullscreen
-        // under Xvfb is invisible anyway.
-        isWin32 ? "--window-position=-32000,-32000" : "--window-position=0,0",
-        ...(isWin32 ? [] : ["--start-fullscreen"]),
-        // Tab-capture, page-only (no chrome surfaces in the stream).
-        "--auto-select-tab-capture-source-by-title=TableTop Beamer",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-default-apps",
-        // h4.1: do NOT --disable-extensions — puppeteer-stream's MV3
-        // extension is required for getDisplayMedia tab capture.
-        "--disable-prompt-on-repost",
-        "--disable-popup-blocking",
-        "--disable-notifications",
-        "--disable-sync",
-        "--mute-audio", // server doesn't play audio (D-D2 reversal — Pi-local)
-        "--hide-crash-restore-bubble",
-        "--disable-session-crashed-bubble",
-        "--disable-infobars",
-        // ONE merged --disable-features arg (multiple instances would be
-        // silently overwritten — see h15 root-cause comment above).
-        `--disable-features=${disabledFeatures.join(",")}`,
-        // ONE merged --enable-features arg, only emit if non-empty.
-        ...(enabledFeatures.length > 0 ? [`--enable-features=${enabledFeatures.join(",")}`] : []),
-        // Phase 34 hotfix h2 (2026-05-10) — REVERT 34-A T1 GL-flag decoupling.
-        //
-        // Track A T1 moved --ignore-gpu-blocklist and --enable-gpu-rasterization
-        // off the VAAPI gate so they fired whenever an iGPU DRI device existed.
-        // The hypothesis was that those flags were the missing piece for GL on
-        // Mesa-llvmpipe under Xvfb. The actual effect on this hardware:
-        // Chrome's GPU process attempts hardware paint paths through Mesa
-        // llvmpipe, which has the SAME synchronous-flush behavior as VAAPI
-        // (Phase 33 root cause) — the SSR-tab JS main thread blocks for 4+s
-        // at a stretch, CDP health-pings time out, the publisher's getDisplay-
-        // Media frame pump stalls, and consumers see "connecting forever"
-        // with no video. User-confirmed regression on /output/ UAT.
-        //
-        // Restore Phase 33 baseline: GL flags gated on VAAPI opt-in, same as
-        // pre-Phase-34. The 2D-fallback / banding visual issue (Track A's
-        // original target) is reverted to its pre-Phase-34 state — that is a
-        // visual quality issue, not a connection-stability blocker. We trade
-        // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
-        // the operator's discretion (same opt-in as VAAPI itself).
-        ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
-        `--display=${display}`,
-      ],
+      // Phase 47 Wave 1 (2026-05-17): args composition delegated to the
+      // pure, exported `buildChromiumLaunchArgs` helper at the top of
+      // this file. Behavior is iter15-byte-identical on BOTH platforms
+      // (Linux + Windows) — Wave 1 is a pure refactor that installs the
+      // unit-test rail in test/phase-47-*.test.mjs. Wave 2 (Plan 47-02)
+      // will diverge the win32 branch (headless: "new", drop --app=,
+      // drop --window-position, drop --display=, etc.) — guarded by the
+      // Linux byte-identity snapshot in test/phase-47-linux-non-regression.
+      args: buildChromiumLaunchArgs({
+        platform: process.platform,
+        ssrUrl,
+        viewport,
+        display,
+        disabledFeatures,
+        enabledFeatures,
+        hasVaapiEnabled,
+      }),
       env: { ...process.env, DISPLAY: display },
     });
   }

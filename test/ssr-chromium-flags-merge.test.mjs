@@ -19,25 +19,56 @@ import { readFileSync } from "node:fs";
 
 const SRC = readFileSync("./src/server/ssr-render-host.mjs", "utf8");
 
-// Extract the entire launchBrowser function body — the disabled/enabled
-// features arrays are declared above the `args: [...]` literal but feed
-// into it via template-literal interpolation. We need both the array
-// declarations AND the args literal in scope to assert feature names.
+// Phase 47 Wave 1 (2026-05-17): the args block was extracted from
+// launchBrowser into the top-level exported pure function
+// `buildChromiumLaunchArgs`. The disabled/enabled feature ARRAYS still
+// live in launchBrowser (they read process.env / status.encoderConfig
+// and are not pure), but the `--disable-features=…`/`--enable-features=…`
+// arg STRINGS live in buildChromiumLaunchArgs. We extract both function
+// bodies and concatenate so the regression greps below stay accurate
+// regardless of which side of the refactor any given token lives on.
+function extractFunctionBody(marker) {
+  const startIdx = SRC.indexOf(marker);
+  if (startIdx < 0) return "";
+  // Function body ends at the next top-level `^}\n` (zero-indent closing
+  // brace for top-level exported functions like buildChromiumLaunchArgs)
+  // OR `^  }\n` (two-space-indent closing brace used for inner async
+  // functions like launchBrowser). Try both, take the earlier match.
+  const tail = SRC.slice(startIdx);
+  const closingTwoSpace = /\n  \}\n/.exec(tail);
+  const closingTopLevel = /\n\}\n/.exec(tail);
+  // Pick the closer one (smaller index). If neither matches, return all.
+  let endRel = Infinity;
+  if (closingTwoSpace) endRel = Math.min(endRel, closingTwoSpace.index + closingTwoSpace[0].length);
+  if (closingTopLevel) endRel = Math.min(endRel, closingTopLevel.index + closingTopLevel[0].length);
+  if (endRel === Infinity) return tail;
+  return tail.slice(0, endRel);
+}
+
 function extractLaunchBrowserBody() {
   const startMarker = "async function launchBrowser(";
   const startIdx = SRC.indexOf(startMarker);
   assert.ok(startIdx >= 0, "ssr-render-host.mjs must contain `async function launchBrowser(`");
-  // Function body ends at the next top-level `^  }$` (two-space indent +
-  // closing brace). That's the indentation pattern used throughout the
-  // file for top-level `async function` declarations.
-  const closingPattern = /\n  \}\n/;
-  const tail = SRC.slice(startIdx);
-  const m = closingPattern.exec(tail);
-  assert.ok(m, "ssr-render-host.mjs: closing `  }` for launchBrowser not found");
-  return tail.slice(0, m.index + m[0].length);
+  return extractFunctionBody(startMarker);
 }
 
-const launchBody = extractLaunchBrowserBody();
+function extractBuildChromiumLaunchArgsBody() {
+  const startMarker = "export function buildChromiumLaunchArgs";
+  const startIdx = SRC.indexOf(startMarker);
+  if (startIdx < 0) {
+    // Pre-Phase-47-Wave-1 master: the function does not exist yet. Tests
+    // fall back to launchBrowser-only behavior in that case.
+    return "";
+  }
+  return extractFunctionBody(startMarker);
+}
+
+// Concatenated: launchBrowser body + buildChromiumLaunchArgs body. This
+// is the surface against which all Phase 31 h15 / Phase 32 h9 / Phase 34
+// h2 regression greps below run. Keeping the search surface unified
+// keeps the contract stable regardless of where in the module any given
+// token physically lives.
+const launchBody = extractLaunchBrowserBody() + "\n" + extractBuildChromiumLaunchArgsBody();
 // `argsLiteral` covers the line range where Chromium-flag arg strings
 // actually appear (so the regression test for "two --disable-features="
 // is precise). For feature-content checks we look at the whole
