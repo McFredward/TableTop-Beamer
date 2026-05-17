@@ -143,12 +143,34 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       emit("projectionProfileChange", profileId);
     }
     // Phase 49 gap-closure-9: diff runningAnimations to emit lifecycle events.
-    // The snapshot's runningAnimations is the source of truth — any animation
-    // present here is currently active. New ids → animationStart. Removed ids
-    // → animationStop. Identity by `id`; the full animation object (incl.
-    // soundAssetRef) is what we pass to subscribers. Handles trigger-global,
-    // trigger-room, start-animation, and any other dispatch path uniformly.
-    const liveAnims = Array.isArray(snap.runningAnimations) ? snap.runningAnimations : [];
+    // Phase 49 gap-closure-11: server nests runningAnimations under
+    // `runtime` (applyGlobalMutationPatch writes nextRuntime.runningAnimations).
+    // Try both paths defensively (snap.runtime.runningAnimations is canonical;
+    // snap.runningAnimations is a legacy/test path). Diagnostic logs surface
+    // exactly what arrived so future structural mismatches don't hide.
+    const liveAnimsRuntime = Array.isArray(snap?.runtime?.runningAnimations)
+      ? snap.runtime.runningAnimations
+      : null;
+    const liveAnimsTop = Array.isArray(snap?.runningAnimations)
+      ? snap.runningAnimations
+      : null;
+    const liveAnims = liveAnimsRuntime ?? liveAnimsTop ?? [];
+    // Aggressive diag — only logs when snapshot actually changed shape vs prev
+    // call. Logs snapshot top-level keys + runtime keys + animation count so
+    // operators see if the structure differs from what we expect.
+    const __ttbSnapKeys = Object.keys(snap || {}).join(",");
+    const __ttbRuntimeKeys = snap?.runtime && typeof snap.runtime === "object"
+      ? Object.keys(snap.runtime).join(",")
+      : "(no runtime)";
+    console.info(
+      `[output-live-sync] reconcileSnapshot: snap keys=[${__ttbSnapKeys}] runtime keys=[${__ttbRuntimeKeys}] `
+      + `runningAnimations: runtime.path=${liveAnimsRuntime ? liveAnimsRuntime.length : "n/a"} top.path=${liveAnimsTop ? liveAnimsTop.length : "n/a"} `
+      + `→ using ${liveAnimsRuntime ? "runtime" : (liveAnimsTop ? "top" : "empty")} (${liveAnims.length} entries)`,
+    );
+    if (liveAnims.length > 0) {
+      // Log the FIRST animation's full shape so we see soundAssetRef etc.
+      console.info(`[output-live-sync] first animation in snapshot:`, JSON.stringify(liveAnims[0]));
+    }
     const seenIds = new Set();
     for (const anim of liveAnims) {
       if (!anim || typeof anim !== "object" || typeof anim.id !== "string") continue;
@@ -353,8 +375,17 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // for backwards compatibility (start-animation/stop-animation/clear-all)
     // but ALL paths now also benefit from the snapshot diff.
     console.info(`[output-live-sync] mutationType=${mt} (mutation keys: ${Object.keys(mutation).join(",")})`);
+    // Phase 49 gap-closure-11: diagnostic — what's actually in the envelope?
+    // Without this we couldn't tell if the snapshot existed at all.
+    const __ttbEnvKeys = Object.keys(envelope || {}).join(",");
+    const __ttbSessKeys = envelope?.session ? Object.keys(envelope.session).join(",") : "(no session)";
+    console.info(`[output-live-sync] envelope keys=[${__ttbEnvKeys}] session keys=[${__ttbSessKeys}]`);
     const liveSessionSnap = envelope?.session?.snapshot;
-    if (liveSessionSnap) reconcileSnapshot(liveSessionSnap);
+    if (!liveSessionSnap) {
+      console.warn(`[output-live-sync] envelope has NO session.snapshot — reconcileSnapshot skipped`);
+    } else {
+      reconcileSnapshot(liveSessionSnap);
+    }
     if (mt === "context-update") {
       const snap = envelope?.session?.snapshot;
       if (snap) reconcileSnapshot(snap);
