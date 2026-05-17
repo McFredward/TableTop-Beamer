@@ -326,6 +326,105 @@ if ($DryRun) {
 # Stop any orphan from a previous run.
 Stop-ServerProcess
 
+# Phase 47 gap-closure-7 (2026-05-17): foreign-process port-blocker preflight.
+#
+# Symptom (operator UAT, Win11): start.bat hangs at "Waiting for server to
+# come up" forever. Server-side diagnostics proved Node was listening +
+# event-loop alive, but curl http://127.0.0.1:$Port/api/health got no
+# response. netstat revealed TWO LISTEN sockets on $Port — ours on
+# 0.0.0.0 AND a foreign process on 127.0.0.1 (in the reported case:
+# Code.exe / VS Code's port-forwarding feature, $Port=4173 happens to be
+# Vite's default preview port). Windows routes 127.0.0.1 traffic to the
+# more-specific bind, so every probe hit the squatter who accepts TCP
+# but never speaks HTTP.
+#
+# This block runs AFTER Stop-ServerProcess (which kills only our own
+# PidFile-recorded PID tree) and detects any remaining foreign listener
+# on $Port. For each one we show the operator PID + image name +
+# bound-address and ask Y/n before killing. Operator opt-out aborts the
+# launch with a clear message — better than silent hang.
+function Test-PortBlockers {
+  param([int]$ProbePort)
+  try {
+    $conns = Get-NetTCPConnection -State Listen -LocalPort $ProbePort -ErrorAction SilentlyContinue
+  } catch {
+    # PS 5.1 on stripped-down Windows installs may lack Get-NetTCPConnection;
+    # fall back to netstat parsing.
+    $conns = $null
+    try {
+      $lines = & netstat.exe -ano 2>$null | Select-String -Pattern "LISTENING" | Select-String -Pattern ":$ProbePort\s"
+      $conns = foreach ($ln in $lines) {
+        $parts = ($ln.ToString() -split '\s+') | Where-Object { $_ -ne '' }
+        # Columns: Proto LocalAddr ForeignAddr State PID
+        if ($parts.Count -ge 5) {
+          $localAddr = $parts[1]
+          $owningPid = [int]$parts[4]
+          [pscustomobject]@{
+            LocalAddress  = ($localAddr -replace ":\d+$","")
+            LocalPort     = $ProbePort
+            OwningProcess = $owningPid
+          }
+        }
+      }
+    } catch {}
+  }
+  return @($conns)
+}
+
+$portBlockers = Test-PortBlockers -ProbePort $Port
+if ($portBlockers -and $portBlockers.Count -gt 0) {
+  Write-Host ""
+  Write-Host "[start] WARNING: port $Port is already in use by another process." -ForegroundColor Yellow
+  Write-Host "[start]          Without freeing it, the dashboard probe will hang silently." -ForegroundColor Yellow
+  Write-Host ""
+  foreach ($conn in $portBlockers) {
+    $blockingPid = [int]$conn.OwningProcess
+    if ($blockingPid -le 0) { continue }
+    $procName = '<unknown>'
+    $procPath = ''
+    try {
+      $p = Get-Process -Id $blockingPid -ErrorAction SilentlyContinue
+      if ($p) {
+        $procName = $p.ProcessName
+        try { $procPath = $p.MainModule.FileName } catch { $procPath = '' }
+      }
+    } catch {}
+    Write-Host ("[start]   Blocker found:")
+    Write-Host ("[start]     PID     : {0}" -f $blockingPid)
+    Write-Host ("[start]     Name    : {0}" -f $procName)
+    if ($procPath) { Write-Host ("[start]     Path    : {0}" -f $procPath) }
+    Write-Host ("[start]     Bound to: {0}:{1}" -f $conn.LocalAddress, $conn.LocalPort)
+    Write-Host ""
+    $answer = Read-Host ("[start]   Kill PID {0} ({1}) now? [Y/n]" -f $blockingPid, $procName)
+    if ($answer -eq '' -or $answer -match '^[Yy]') {
+      try {
+        & taskkill.exe /F /T /PID $blockingPid 2>$null | Out-Null
+        Start-Sleep -Milliseconds 250
+        if (Get-Process -Id $blockingPid -ErrorAction SilentlyContinue) {
+          Stop-Process -Id $blockingPid -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host ("[start]     -> killed PID {0} ({1})" -f $blockingPid, $procName) -ForegroundColor Green
+      } catch {
+        Write-Host ("[start]     -> failed to kill PID {0}: {1}" -f $blockingPid, $_.Exception.Message) -ForegroundColor Red
+        Write-Host "[start] Aborting launch — please free the port manually and retry." -ForegroundColor Red
+        exit 1
+      }
+    } else {
+      Write-Host ("[start]     -> skipped. Port {0} is still blocked; launcher cannot continue." -f $Port) -ForegroundColor Red
+      Write-Host "[start] Aborting launch." -ForegroundColor Red
+      exit 1
+    }
+  }
+  # Re-verify the port is actually free now (handle stragglers).
+  Start-Sleep -Milliseconds 500
+  $portBlockersAfter = Test-PortBlockers -ProbePort $Port
+  if ($portBlockersAfter -and $portBlockersAfter.Count -gt 0) {
+    Write-Host "[start] Port $Port is STILL occupied after cleanup — please reboot or free it manually." -ForegroundColor Red
+    exit 1
+  }
+  Write-Host ("[start]   Port {0} freed; continuing." -f $Port) -ForegroundColor Green
+}
+
 # Truncate log so the user sees only this session's output.
 "" | Set-Content -LiteralPath $LogFile
 
