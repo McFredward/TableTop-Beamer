@@ -1257,7 +1257,7 @@ Plans: 4 plans
 - [x] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [x] 47-04-PLAN.md — Wave 4 — Operator UAT closed 2026-05-17 via live sign-off (operator ran start.bat on Win11/RTX-4090, dashboard + /output/ + Ctrl+C all green after 14 gap-closure commits). Formal 14-checkbox runbook not executed line-by-line — superseded by live UAT during gap-closure iteration.
 
-## Phase 48 - Align-mode exit dashboard hiccup smoothing (PLANNED)
+## Phase 48 - Align-mode exit dashboard hiccup smoothing (CLOSED PASS 2026-05-17 — operator UAT live: "Sehr gut! Das hat es deutlich verbessert.")
 
 Goal: Smooth the ~2-3 s dashboard hiccup after exiting align mode so the UI
 state transitions cleanly without visual desync. Functional state is already
@@ -1299,17 +1299,52 @@ Exit Criteria:
 - Operator visual sign-off on both Linux and Win32.
 
 Plans: 2 plans
-- [ ] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
-- [ ] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
+- [x] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
+- [x] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
 
 ## Phase 49 - Release-Prep Small-Fixes Sammelphase (BACKLOG-COLLECTING)
 
 Goal: Collect operator-found small issues during pre-release testing into a
 single coordinated polish phase. Items get appended as the operator finds them.
+All items are Windows-specific or cross-platform polish — Linux remains the
+operator-validated gold rail.
 
-Items so far: TBD — operator will append after Phase 48 closes.
+Items so far (added 2026-05-17 after Phase 48 close):
+
+### 49-A: Ctrl+C in existing shell session (./start.bat invocation)
+
+Problem: When the operator launches `./start.bat` from an existing PowerShell
+or cmd session (instead of via double-click which spawns a fresh cmd window),
+pressing Ctrl+C does NOT terminate the server cleanly. The Phase 47
+gap-closure-13 fix preemptively kills the ancestor cmd, but in this scenario
+the "ancestor" IS the operator's working shell — which we must NOT kill.
+
+Likely fix: Replace the ancestor-cmd-kill with signal-forwarding (PowerShell
+`Stop-Process` targeting just node.exe + chrome.exe descendants + Job-Object
+termination) without touching the parent shell. Detect invocation context
+(spawned cmd vs operator's existing shell) and pick the right cleanup path.
+
+Files probably touched: start.ps1 (cleanup handler), start.bat (signal-passing
+mode), scripts/win32-job-object.ps1 (if exists).
+
+### 49-B: Window close (X button) → terminate all child processes
+
+Problem: If the operator closes the cmd window (X button) instead of using
+Ctrl+C, child node.exe + chrome.exe processes can be orphaned. The Phase 47
+Job Object setup already exists but does not have
+`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` set, so children survive parent death.
+
+Fix: Set the `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` extended-limit bit on the
+existing Job Object so Windows automatically kills all job members when the
+parent handle dies (covers X-button, taskkill of the cmd, crash, etc.). Add
+a `SetConsoleCtrlHandler` for `CTRL_CLOSE_EVENT` as belt + suspenders so the
+PowerShell cleanup also fires before the kernel does the hard kill.
+
+Files probably touched: start.ps1 (Job Object setup), possibly a tiny
+inline P/Invoke helper for SetConsoleCtrlHandler.
 
 Out of Scope:
 - Anything large enough to warrant its own phase (those become Phase 50+).
+- Linux behavior (start.sh + SIGINT/SIGTERM already work — gold rail).
 
-Plans: TBD (populate during /gsd-discuss-phase 49)
+Plans: TBD (populate during /gsd-plan-phase 49)
