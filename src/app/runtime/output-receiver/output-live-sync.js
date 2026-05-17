@@ -78,11 +78,13 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   // by id so reconcileSnapshot can diff and emit animationStart/Stop. The
   // server's broadcast envelope's `mutationEnvelope` field carries only
   // metadata (mutationId, clientId, etc.) — NOT the animation payload.
-  // The animation lives in `session.snapshot.runningAnimations`, so we
-  // detect lifecycle transitions from snapshot diffs instead of mutation
-  // types. This covers ALL mutation flavors uniformly: start-animation,
-  // trigger-global, trigger-room — and any future variant.
+  // The animation lives in `session.snapshot.runtime.runningAnimations`,
+  // so we detect lifecycle transitions from snapshot diffs instead of
+  // mutation types. This covers ALL mutation flavors uniformly:
+  // start-animation, trigger-global, trigger-room — and any future variant.
   const knownAnimationsById = new Map(); // animationId → animation object
+  let _reconcileShapeLogged = false;
+  let _envelopeShapeLogged = false;
 
   let ws = null;
   let stopped = false;
@@ -158,18 +160,21 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // Aggressive diag — only logs when snapshot actually changed shape vs prev
     // call. Logs snapshot top-level keys + runtime keys + animation count so
     // operators see if the structure differs from what we expect.
-    const __ttbSnapKeys = Object.keys(snap || {}).join(",");
-    const __ttbRuntimeKeys = snap?.runtime && typeof snap.runtime === "object"
-      ? Object.keys(snap.runtime).join(",")
-      : "(no runtime)";
-    console.info(
-      `[output-live-sync] reconcileSnapshot: snap keys=[${__ttbSnapKeys}] runtime keys=[${__ttbRuntimeKeys}] `
-      + `runningAnimations: runtime.path=${liveAnimsRuntime ? liveAnimsRuntime.length : "n/a"} top.path=${liveAnimsTop ? liveAnimsTop.length : "n/a"} `
-      + `→ using ${liveAnimsRuntime ? "runtime" : (liveAnimsTop ? "top" : "empty")} (${liveAnims.length} entries)`,
-    );
-    if (liveAnims.length > 0) {
-      // Log the FIRST animation's full shape so we see soundAssetRef etc.
-      console.info(`[output-live-sync] first animation in snapshot:`, JSON.stringify(liveAnims[0]));
+    // Phase 49 gap-closure-12: only log once per page session to avoid
+    // log flooding. Initial diagnostic confirmed snapshot structure is
+    // `snap.runtime.runningAnimations`; we don't need this log on every
+    // reconcile after that (each broadcast triggers reconcile = spam).
+    if (!_reconcileShapeLogged) {
+      _reconcileShapeLogged = true;
+      const __ttbSnapKeys = Object.keys(snap || {}).join(",");
+      const __ttbRuntimeKeys = snap?.runtime && typeof snap.runtime === "object"
+        ? Object.keys(snap.runtime).join(",")
+        : "(no runtime)";
+      console.info(
+        `[output-live-sync] reconcileSnapshot (first-shape): snap keys=[${__ttbSnapKeys}] runtime keys=[${__ttbRuntimeKeys}] `
+        + `runningAnimations: runtime.path=${liveAnimsRuntime ? liveAnimsRuntime.length : "n/a"} top.path=${liveAnimsTop ? liveAnimsTop.length : "n/a"} `
+        + `→ using ${liveAnimsRuntime ? "runtime" : (liveAnimsTop ? "top" : "empty")}`,
+      );
     }
     const seenIds = new Set();
     for (const anim of liveAnims) {
@@ -378,8 +383,13 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // Phase 49 gap-closure-11: diagnostic — what's actually in the envelope?
     // Without this we couldn't tell if the snapshot existed at all.
     const __ttbEnvKeys = Object.keys(envelope || {}).join(",");
-    const __ttbSessKeys = envelope?.session ? Object.keys(envelope.session).join(",") : "(no session)";
-    console.info(`[output-live-sync] envelope keys=[${__ttbEnvKeys}] session keys=[${__ttbSessKeys}]`);
+    // Phase 49 gap-closure-12: only log the envelope shape once per session
+    // (every broadcast triggers this codepath — was spamming the console).
+    if (!_envelopeShapeLogged) {
+      _envelopeShapeLogged = true;
+      const __ttbSessKeys = envelope?.session ? Object.keys(envelope.session).join(",") : "(no session)";
+      console.info(`[output-live-sync] envelope (first): keys=[${__ttbEnvKeys}] session keys=[${__ttbSessKeys}]`);
+    }
     const liveSessionSnap = envelope?.session?.snapshot;
     if (!liveSessionSnap) {
       console.warn(`[output-live-sync] envelope has NO session.snapshot — reconcileSnapshot skipped`);
