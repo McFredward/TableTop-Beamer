@@ -1256,3 +1256,39 @@ Plans: 4 plans
 - [x] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
 - [x] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)
+
+## Backlog
+
+### Phase 999.1: Align-mode exit dashboard hiccup smoothing (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+**Context (operator UAT, 2026-05-17, Phase 47 close):**
+Repro steps:
+1. Enable align mode from the dashboard.
+2. Make a change so the align-dirty flag activates.
+3. Reset / discard so the dirty flag deactivates again.
+4. Navigate back to the dashboard view.
+
+Observed:
+- Dashboard briefly shows no running animations (~2-3 s).
+- Align-dirty visual stays active during the gap even though state is clean.
+- After ~2-3 s the dashboard self-corrects: animations reappear, dirty flag clears.
+
+Likely cause: race between align-mode-exit state mutations and the
+live-snapshot-poll re-hydration on dashboard. UX-only — functional state is
+correct after self-correction.
+
+Possible fix directions:
+- Hold dashboard rendering until snapshot stabilizes after exit.
+- Synchronize the dirty-flag listener with the exit sequence so the visual
+  doesn't lag behind state.
+- Investigate whether the running-animations list is being cleared and
+  re-built (avoidable churn).
+
+Frontend-only, applies to both Linux and Win32. No backend changes expected.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
