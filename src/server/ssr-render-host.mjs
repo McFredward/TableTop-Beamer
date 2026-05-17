@@ -78,24 +78,35 @@ export function getXvfbArgs({ display, width, height }) {
  *
  * Phase 47 Wave 1 (2026-05-17): EXTRACTED from `launchBrowser()` as a pure
  * function to install a unit-testable seam (47-RESEARCH § Recommended
- * Implementation Approach M2 C1). This function is byte-identical to the
- * inline `args: [ ... ]` block that previously lived at iter15 source
- * lines 558-645 — NO behavior change in this wave. See
- * .planning/phases/phase-47/47-RESEARCH.md § Q3 for the flag-by-flag
- * rationale and 47-01-PLAN.md for the refactor contract.
+ * Implementation Approach M2 C1). The Wave-1 commit kept behavior
+ * iter15-byte-identical on both platforms.
+ *
+ * Phase 47 Wave 2 (2026-05-17): adds the `useHeadlessNew` parameter (only
+ * meaningful when platform === "win32"). When `useHeadlessNew === true`
+ * (the new default, driven by `process.env.SSR_WIN_HEADLESS !== "0"` in
+ * launchBrowser), the Win32 path drops the iter15 off-screen-window hack:
+ *   - DROP `--app=about:blank` (no app-mode chrome to hide under headless-new)
+ *   - DROP `--window-position=-32000,-32000` (no window to position)
+ * `--start-fullscreen` is already iter15-Linux-only — unchanged.
+ *
+ * ALSO Phase 47 Wave 2 (orthogonal to useHeadlessNew): the `--display=`
+ * arg is now Win32-gated UNCONDITIONALLY. Both the default headless-new
+ * path AND the SSR_WIN_HEADLESS=0 escape-hatch path omit `--display=` on
+ * Win32. This is a cosmetic cleanup — Windows Chrome has no X server, the
+ * arg was always inert. The Linux path still emits `--display=${display}`.
+ *
+ * See .planning/phases/phase-47/47-RESEARCH.md § Q1/Q3 for the flag-by-flag
+ * rationale and 47-02-PLAN.md for the Wave-2 contract.
  *
  * Pinned by:
  *   - test/phase-47-launch-args.test.mjs (fingerprint assertions)
  *   - test/phase-47-linux-non-regression.test.mjs (byte-identity)
- *
- * Note (Wave 1 truth): `--display=${display}` is emitted UNCONDITIONALLY
- * at the tail (no isWin32 gate) — exactly mirroring iter15 source line
- * 644. Wave 2 (Plan 47-02) will introduce the win32 gate and update both
- * source and baseline in the same commit.
+ *   - test/phase-47-windows-headless-new.test.mjs (Wave-2 Win32 behavior)
  *
  * The Linux branch (platform !== "win32") MUST stay byte-identical to
  * iter15 across all subsequent waves — that's the regression rail Wave 2
- * leans on (D-02).
+ * leans on (D-02). `useHeadlessNew` is forced false on Linux by the
+ * `isWin32 &&` guard in launchBrowser, so Linux ignores it entirely.
  *
  * Purity contract: NO process.env reads, NO fs touches, NO module-scope
  * reads, NO closures over launchBrowser's locals. Only operates on the
@@ -105,10 +116,11 @@ export function getXvfbArgs({ display, width, height }) {
  * @param {string} opts.platform         - process.platform value; only "win32" branches today
  * @param {string} opts.ssrUrl           - canonical SSR navigation URL (used for --app= on Linux)
  * @param {{ width: number, height: number }} opts.viewport
- * @param {string} opts.display          - X11 DISPLAY value (e.g. ":99"); emitted on both platforms in Wave 1
+ * @param {string} opts.display          - X11 DISPLAY value (e.g. ":99"); emitted ONLY on non-win32 in Wave 2
  * @param {string[]} opts.disabledFeatures - tokens joined into a SINGLE --disable-features=... arg (see iter15 h15 comment in launchBrowser)
  * @param {string[]} opts.enabledFeatures  - tokens joined into a SINGLE --enable-features=... arg; arg omitted when empty
  * @param {boolean} opts.hasVaapiEnabled   - gates --ignore-gpu-blocklist + --enable-gpu-rasterization (Phase 34 h2)
+ * @param {boolean} [opts.useHeadlessNew]  - Wave 2: only meaningful when platform === "win32". When true, drops the iter15 off-screen-window hack (--app=, --window-position=). Default falsy (escape-hatch behavior, but with the unconditional Win32 --display= gate still applied).
  * @returns {string[]}                     - the args array, in deterministic order
  */
 export function buildChromiumLaunchArgs({
@@ -119,12 +131,19 @@ export function buildChromiumLaunchArgs({
   disabledFeatures,
   enabledFeatures,
   hasVaapiEnabled,
+  useHeadlessNew,
 }) {
   // Phase 46 iter15 (2026-05-17): isWin32 derived from the `platform`
   // parameter, NOT from process.platform — that's what makes this function
   // pure and unit-testable. Defenses in launchBrowser (winUserDataDir
   // creation, env DISPLAY suppression) read process.platform directly.
   const isWin32 = platform === "win32";
+  // Phase 47 Wave 2: gate the iter15 off-screen-window hack flags
+  // (--app=about:blank + --window-position=-32000,-32000) to the
+  // headful-only path. When useHeadlessNew is true on Win32 these flags
+  // are irrelevant (no window UI to position, no app-mode chrome to
+  // hide), so we drop them. Non-Win32 ignores useHeadlessNew entirely.
+  const dropOnHeadlessNew = isWin32 && useHeadlessNew === true;
 
   return [
     "--no-sandbox",
@@ -165,12 +184,20 @@ export function buildChromiumLaunchArgs({
     // single-instance-attach hijack. page.goto navigates the
     // puppeteer-owned tab to /ssr immediately after launch (line
     // ~840). On Linux keep the direct app-URL form (works fine).
-    isWin32 ? "--app=about:blank" : `--app=${ssrUrl}`,
+    //
+    // Phase 47 Wave 2: gated by !dropOnHeadlessNew — when Win32 runs
+    // under --headless=new there is no window/app-mode chrome to hide,
+    // so the entire iter15 off-screen-window block is irrelevant and
+    // dropped. The Win32 escape-hatch path (SSR_WIN_HEADLESS=0) keeps
+    // these flags for true iter15 parity (modulo the --display=
+    // cleanup at the tail).
+    ...(dropOnHeadlessNew ? [] : [isWin32 ? "--app=about:blank" : `--app=${ssrUrl}`]),
     `--window-size=${viewport.width},${viewport.height}`,
     // Windows: shove the window off-screen instead of fullscreen so
     // it doesn't take over the operator's desktop. Linux fullscreen
-    // under Xvfb is invisible anyway.
-    isWin32 ? "--window-position=-32000,-32000" : "--window-position=0,0",
+    // under Xvfb is invisible anyway. Wave 2: dropped on Win32
+    // headless-new (no window to position).
+    ...(dropOnHeadlessNew ? [] : [isWin32 ? "--window-position=-32000,-32000" : "--window-position=0,0"]),
     ...(isWin32 ? [] : ["--start-fullscreen"]),
     // Tab-capture, page-only (no chrome surfaces in the stream).
     "--auto-select-tab-capture-source-by-title=TableTop Beamer",
@@ -212,12 +239,13 @@ export function buildChromiumLaunchArgs({
     // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
     // the operator's discretion (same opt-in as VAAPI itself).
     ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
-    // Phase 47 Wave 1: `--display=${display}` emitted UNCONDITIONALLY —
-    // matches iter15 source line 644 byte-for-byte. On Windows Chrome
-    // this is a no-op (no X server), and Wave 2 will gate it to !isWin32
-    // to remove the cosmetic launch-log noise. Until then this preserves
-    // iter15 behavior exactly.
-    `--display=${display}`,
+    // Phase 47 Wave 2 cleanup: --display= dropped on Win32 (no X server —
+    // was a no-op in iter15). Both default headless-new AND
+    // SSR_WIN_HEADLESS=0 escape-hatch paths share this Win32 gate
+    // (UNCONDITIONAL, not gated by useHeadlessNew — see
+    // WIN32_ITER15_BASELINE in test/phase-47-linux-non-regression.test.mjs
+    // and test/phase-47-windows-headless-new.test.mjs).
+    ...(isWin32 ? [] : [`--display=${display}`]),
   ];
 }
 
@@ -662,27 +690,32 @@ export function bootSsrRenderHost({
       "TabCaptureFastPath",
     ];
 
-    // Phase 46 iter15 (2026-05-17): Windows-specific launch tweaks.
-    // Operator UAT: on Win11 with their normal Chrome already running,
-    // the SSR launch entered a crash loop — chrome.exe ATTACHED to the
-    // user's existing Chrome (single-instance behaviour), forwarded the
-    // --app=URL there, and the puppeteer-launched process exited. The
-    // dev tools connection failed → ERR_ABORTED → restart loop, with
-    // white "/ssr"-titled tabs piling up in the user's normal browser.
+    // Phase 47 Wave 2 (2026-05-17): Windows SSR launch flips to
+    // `headless: "new"` by default (Chrome unified-headless — 47-RESEARCH
+    // § Q1: full WebRTC + getDisplayMedia + tab-capture parity with
+    // headful as of Chrome 112+). This removes the iter15 off-screen-
+    // window need entirely: there's no Chrome window to hide, so
+    // `--app=about:blank` + `--window-position=-32000,-32000` are dropped
+    // from the default Win32 path (see buildChromiumLaunchArgs's
+    // dropOnHeadlessNew gate).
     //
-    // Defenses (Windows only):
-    //   1. force a unique --user-data-dir under tmp so Chrome can't
-    //      attach to an existing profile (the user-data-dir IS the
-    //      single-instance key)
-    //   2. use --app=about:blank instead of the real /ssr URL — the
-    //      subsequent page.goto navigates the puppeteer-owned tab,
-    //      and about:blank is safe to load if it ever leaks
-    //   3. skip --ozone-platform=x11 (Linux-only; on Windows Chrome
-    //      logs a warning and ignores it but better to be explicit)
-    //   4. skip --start-fullscreen and shove the window off-screen via
-    //      --window-position so it can't pop up over the operator's
-    //      desktop while the SSR pipeline is running
+    // Operator escape hatch: setting env `SSR_WIN_HEADLESS=0` reverts the
+    // Win32 path to iter15 headful behavior (`--app=about:blank` +
+    // `--window-position=-32000,-32000` return; headless: false). The
+    // ONE difference from pure iter15 is that `--display=` is dropped on
+    // Win32 unconditionally — it was always a no-op on Windows Chrome
+    // (no X server). This Win32 --display= gate is orthogonal to
+    // useHeadlessNew.
+    //
+    // The iter15 unique-tmp --user-data-dir trick (below) is RETAINED on
+    // both paths: chrome.exe's single-instance-attach behavior is a
+    // user-data-dir property, INDEPENDENT of headless mode
+    // (47-RESEARCH § Q2). Keeping the trick is defense-in-depth.
+    //
+    // See 47-RESEARCH.md § Q1 + § Q3 for full rationale.
     const isWin32 = process.platform === "win32";
+    const useHeadlessNew = isWin32 && process.env.SSR_WIN_HEADLESS !== "0";
+    const headlessMode = useHeadlessNew ? "new" : false;
     let winUserDataDir = null;
     if (isWin32) {
       try {
@@ -696,23 +729,34 @@ export function bootSsrRenderHost({
       }
     }
 
+    // Phase 47 Wave 2: log the resolved Win32 launch mode so operator
+    // logs make clear which path actually fired (headless-new vs
+    // escape-hatch). Single INFO line — detailed args logging is
+    // deferred to Wave 3.
+    if (isWin32) {
+      logger.info(`[ssr-host] win32 launch: headless=${headlessMode}, userDataDir=${winUserDataDir ?? "<none>"}`);
+    }
+
     return launcher({
       executablePath: browserPath,
-      headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
+      // Phase 47 Wave 2: Win32 default → `headless: "new"`
+      // (Chrome unified-headless; full WebRTC parity per 47-RESEARCH § Q1).
+      // Linux path unchanged → `headless: false` (Xvfb + headful — gold rail).
+      // Operator can revert Win32 to headful via env `SSR_WIN_HEADLESS=0`.
+      headless: headlessMode,
       defaultViewport: viewport,
       ignoreDefaultArgs: ["--enable-automation"],
       // userDataDir at the Puppeteer-options level so puppeteer-stream
       // also honors it for its own bookkeeping. Linux path retains
       // puppeteer's auto-generated temp dir (no-op when undefined).
       ...(winUserDataDir ? { userDataDir: winUserDataDir } : {}),
-      // Phase 47 Wave 1 (2026-05-17): args composition delegated to the
+      // Phase 47 Wave 2 (2026-05-17): args composition delegated to the
       // pure, exported `buildChromiumLaunchArgs` helper at the top of
-      // this file. Behavior is iter15-byte-identical on BOTH platforms
-      // (Linux + Windows) — Wave 1 is a pure refactor that installs the
-      // unit-test rail in test/phase-47-*.test.mjs. Wave 2 (Plan 47-02)
-      // will diverge the win32 branch (headless: "new", drop --app=,
-      // drop --window-position, drop --display=, etc.) — guarded by the
-      // Linux byte-identity snapshot in test/phase-47-linux-non-regression.
+      // this file. `useHeadlessNew` controls the Win32 divergence:
+      // drops --app=, --window-position= when true. --display= is
+      // gated to non-Win32 unconditionally (orthogonal Wave-2 cleanup).
+      // Linux path remains iter15-byte-identical — guarded by
+      // LINUX_ITER15_BASELINE in test/phase-47-linux-non-regression.
       args: buildChromiumLaunchArgs({
         platform: process.platform,
         ssrUrl,
@@ -721,8 +765,12 @@ export function bootSsrRenderHost({
         disabledFeatures,
         enabledFeatures,
         hasVaapiEnabled,
+        useHeadlessNew,
       }),
-      env: { ...process.env, DISPLAY: display },
+      // Phase 47 Wave 2: drop DISPLAY env on Win32 (no X server anyway —
+      // matches the Win32 --display= arg gate above). Linux still passes
+      // DISPLAY through so Xvfb-bound Chromium picks up the chosen :NN.
+      env: isWin32 ? { ...process.env } : { ...process.env, DISPLAY: display },
     });
   }
 
