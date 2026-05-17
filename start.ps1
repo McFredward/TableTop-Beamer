@@ -374,11 +374,39 @@ function Test-PortBlockers {
   return @($conns | Where-Object { $null -ne $_ })
 }
 
-$portBlockers = Test-PortBlockers -ProbePort $Port
-if ($portBlockers -and $portBlockers.Count -gt 0) {
+# Active bind probe. This is the DEFINITIVE test: try to bind a
+# TcpListener on 127.0.0.1:$ProbePort. If another process is already
+# listening on the same loopback address (e.g. VS Code's port-forwarder
+# squatting 4173), the .Start() call throws EADDRINUSE. Returns $true if
+# we successfully bound (port is free for our use), $false otherwise.
+# Get-NetTCPConnection alone proved unreliable in operator testing
+# (returned empty from start.ps1's context even though VS Code's
+# listener was clearly present in netstat output).
+function Test-PortBindable {
+  param([int]$ProbePort)
+  $listener = $null
+  try {
+    $loopback = [System.Net.IPAddress]::Loopback
+    $listener = New-Object System.Net.Sockets.TcpListener($loopback, $ProbePort)
+    $listener.Start()
+    $listener.Stop()
+    return $true
+  } catch {
+    if ($listener -ne $null) {
+      try { $listener.Stop() } catch { }
+    }
+    return $false
+  }
+}
+
+if (-not (Test-PortBindable -ProbePort $Port)) {
   Write-Host ""
   Write-Host "[start] WARNING: port $Port is already in use - shifting to a free port." -ForegroundColor Yellow
   Write-Host "[start]          (Without this, the dashboard probe would hang silently.)" -ForegroundColor Yellow
+  # Best-effort: enumerate blockers via Get-NetTCPConnection / netstat for
+  # informational display. Failure here is non-fatal because the
+  # bind-probe already proved the port is blocked.
+  $portBlockers = Test-PortBlockers -ProbePort $Port
   foreach ($conn in $portBlockers) {
     $blockingPid = [int]$conn.OwningProcess
     if ($blockingPid -le 0) { continue }
@@ -397,30 +425,15 @@ if ($portBlockers -and $portBlockers.Count -gt 0) {
     Write-Host $blockerLine -ForegroundColor Yellow
   }
 
-  # Probe upward for the next free port. Cap the scan so a fully-blocked
-  # ephemeral range surfaces as an error instead of an infinite loop.
+  # Probe upward for the next free port via the same active bind test.
+  # Cap the scan so a fully-blocked ephemeral range surfaces as an error
+  # instead of an infinite loop.
   $originalPort = [int]$Port
   $candidate    = $originalPort + 1
   $scanLimit    = $originalPort + 50
   $newPort      = 0
   while ($candidate -le $scanLimit) {
-    $candBlockers = Test-PortBlockers -ProbePort $candidate
-    $isFree = $false
-    if (-not $candBlockers -or $candBlockers.Count -eq 0) {
-      $isFree = $true
-      $listener = $null
-      try {
-        $loopback = [System.Net.IPAddress]::Loopback
-        $listener = New-Object System.Net.Sockets.TcpListener($loopback, $candidate)
-        $listener.Start()
-      } catch {
-        $isFree = $false
-      }
-      if ($listener -ne $null) {
-        try { $listener.Stop() } catch { }
-      }
-    }
-    if ($isFree) {
+    if (Test-PortBindable -ProbePort $candidate) {
       $newPort = $candidate
       break
     }
