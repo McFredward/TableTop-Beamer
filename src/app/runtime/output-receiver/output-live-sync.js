@@ -74,6 +74,16 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   let alignMode = false;
   let profileId = null;
   let clientId = null;
+  // Phase 49 gap-closure-9 (2026-05-17): track currently-running animations
+  // by id so reconcileSnapshot can diff and emit animationStart/Stop. The
+  // server's broadcast envelope's `mutationEnvelope` field carries only
+  // metadata (mutationId, clientId, etc.) — NOT the animation payload.
+  // The animation lives in `session.snapshot.runningAnimations`, so we
+  // detect lifecycle transitions from snapshot diffs instead of mutation
+  // types. This covers ALL mutation flavors uniformly: start-animation,
+  // trigger-global, trigger-room — and any future variant.
+  const knownAnimationsById = new Map(); // animationId → animation object
+
   let ws = null;
   let stopped = false;
   let attempt = 0;
@@ -131,6 +141,30 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     if (pid !== profileId) {
       profileId = pid;
       emit("projectionProfileChange", profileId);
+    }
+    // Phase 49 gap-closure-9: diff runningAnimations to emit lifecycle events.
+    // The snapshot's runningAnimations is the source of truth — any animation
+    // present here is currently active. New ids → animationStart. Removed ids
+    // → animationStop. Identity by `id`; the full animation object (incl.
+    // soundAssetRef) is what we pass to subscribers. Handles trigger-global,
+    // trigger-room, start-animation, and any other dispatch path uniformly.
+    const liveAnims = Array.isArray(snap.runningAnimations) ? snap.runningAnimations : [];
+    const seenIds = new Set();
+    for (const anim of liveAnims) {
+      if (!anim || typeof anim !== "object" || typeof anim.id !== "string") continue;
+      seenIds.add(anim.id);
+      if (!knownAnimationsById.has(anim.id)) {
+        knownAnimationsById.set(anim.id, anim);
+        console.info(`[output-live-sync] snapshot-diff → animationStart for id=${anim.id} type=${anim.type ?? "?"} scope=${anim.scope ?? "?"} soundAssetRef=${JSON.stringify(anim.soundAssetRef ?? null)}`);
+        emit("animationStart", anim);
+      }
+    }
+    for (const [id] of knownAnimationsById) {
+      if (!seenIds.has(id)) {
+        knownAnimationsById.delete(id);
+        console.info(`[output-live-sync] snapshot-diff → animationStop for id=${id}`);
+        emit("animationStop", id);
+      }
     }
   }
 
@@ -310,12 +344,17 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     const mt = envelope.mutationType;
     const mutation = envelope.mutation ?? {};
     // Phase 49 gap-closure-6: trace EVERY live-session-update mutationType so
-    // operators can confirm which envelopes /output/ actually receives. Audio
-    // bug investigation 2026-05-17: operator reported no [output-audio] logs
-    // when animations triggered — this log confirms whether start-animation
-    // envelopes are even arriving on the WS, vs the animation propagating
-    // via context-update snapshots (which wouldn't fire animationStart).
+    // operators can confirm which envelopes /output/ actually receives.
+    // Phase 49 gap-closure-9: server's mutationEnvelope carries ONLY metadata —
+    // the animation payload lives in session.snapshot.runningAnimations.
+    // Always reconcile against the broadcast snapshot regardless of mutation
+    // type; reconcileSnapshot does the runningAnimations diff and emits the
+    // animation lifecycle events. mutation-type-specific branches stay below
+    // for backwards compatibility (start-animation/stop-animation/clear-all)
+    // but ALL paths now also benefit from the snapshot diff.
     console.info(`[output-live-sync] mutationType=${mt} (mutation keys: ${Object.keys(mutation).join(",")})`);
+    const liveSessionSnap = envelope?.session?.snapshot;
+    if (liveSessionSnap) reconcileSnapshot(liveSessionSnap);
     if (mt === "context-update") {
       const snap = envelope?.session?.snapshot;
       if (snap) reconcileSnapshot(snap);
