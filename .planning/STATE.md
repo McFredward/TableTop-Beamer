@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-17T07:44:34.738Z"
+status: Executing Phase 47
+last_updated: "2026-05-17T07:56:13.317Z"
 progress:
   total_phases: 45
   completed_phases: 13
   total_plans: 73
-  completed_plans: 163
+  completed_plans: 164
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 47 (next planned)
+- Current Phase: 47 (executing — Wave 1 of 4 closed, Plan 02 next)
 - Current Phase Key: phase-47
-- Last Prepared: 2026-05-16
-- Execution Readiness: PLANNING
+- Last Prepared: 2026-05-17
+- Execution Readiness: EXECUTING (47-02 next)
 - Previous Phase: 46 (CLOSED — v1.0.0 release prep: version bump, README modernization, mobile light-mode fix, gitignore audit, tag phase-46-closed, 2026-05-16)
-- Last Executed Plan: 46 — Release-prep polish for v1.0.0. (1) Fixed mobile light-mode top-nav bug: replaced hardcoded dark gradients on .dashboard-sticky-shell + .primary-view-switch with theme-token-based values so .dir-obsidian-light overrides reach the mobile breakpoint (verified via Playwright). (2) Bumped package.json version 0.31.0-wave0 → 1.0.0 + engines.node >=18 → >=22. (3) Modernized README: new badges (version 1.0.0, Node 22 LTS, Linux/Windows/RPi, double-click install), v1.0 callout at top, Quick-Start now leads with the click-and-run launcher and hides manual setup behind <details>, expanded Performance Tips, updated Project Status with v1.0 milestones. Videos + GIFs preserved verbatim. (4) Gitignore audit: ignored .claude/, __pycache__/, config/projection-profiles.json (untracked via git rm --cached — file remains on operator disk), config/runtime-active-*.json, debug/*.png and phase-debug-dir patterns. Boards + assets + .planning/ all stay tracked.
-- Planned Next Execution: Phase 47 — TBD (operator priorities).
-- Last Execution Summary: Phase 46 closed 2026-05-16. Files changed: .gitignore, README.md, package.json, src/styles.css, config/{asset-manifest,global-defaults}.json (timestamp + diagnosticOverlay default off), config/projection-profiles.json (DELETED from index, kept on disk), 46-CONTEXT.md + 46-PLAN.md + 46-CLOSURE.md, 2 reference PNGs in .planning/debug/. Tests: 404 / 384 pass / 1 pre-existing fail (04-T3 baseline). Visual verification: Playwright probe at 393x852 mobile viewport in .dir-obsidian-light confirms nav strip + buttons render light/white as expected.
+- Last Executed Plan: 47-01 — Wave 1 pure refactor of `src/server/ssr-render-host.mjs#launchBrowser`. Extracted the inline 90-line Chromium-launch arg array (iter15 source lines 558-645) into a new pure exported function `buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })` at the top of the file. `launchBrowser()` now delegates via `args: buildChromiumLaunchArgs({ ... })`. Zero behavior change on either platform (Linux + Windows iter15-byte-identical). Pinned by two new test files: `test/phase-47-launch-args.test.mjs` (6 fingerprint tests) + `test/phase-47-linux-non-regression.test.mjs` (3 byte-identity snapshot tests with hand-pinned LINUX_ITER15_BASELINE / LINUX_ITER15_BASELINE_VAAPI / WIN32_ITER15_BASELINE constants — WIN32 baseline includes --display=:99 because iter15 source line 644 emits it unconditionally; Wave 2 will add the gate). +9 tests / +9 pass; npm test 406/386/1/19 → 415/395/1/19 (only fail = pre-existing 04-T3). Deviation: Rule 3 (blocking) — pre-existing `test/phase-34-chrome-flags.test.mjs` + `test/ssr-chromium-flags-merge.test.mjs` extract launchBrowser body and grep for flag tokens; widened the extract surface to also include buildChromiumLaunchArgs body (concatenated). bash start.sh --dry-run still exit 0. Commits: 1c69bc6 (RED test), 547308c (GREEN refactor).
+- Planned Next Execution: Phase 47 Plan 02 — Wave 2 win32 divergence (flip `headless: "new"`, drop --app=about:blank, drop --window-position=-32000,-32000, drop --start-fullscreen carrying, drop unconditional --display=:99, drop DISPLAY env on Windows). Guarded by the Linux byte-identity rail installed in 47-01.
+- Last Execution Summary: Phase 47 Plan 01 closed 2026-05-17 (Wave 1 — refactor + iter15 baseline rail). Files: src/server/ssr-render-host.mjs (extract args block); test/phase-47-launch-args.test.mjs + test/phase-47-linux-non-regression.test.mjs (created); test/phase-34-chrome-flags.test.mjs + test/ssr-chromium-flags-merge.test.mjs (extract-surface widened — Rule 3 fix). Tests: 415 / 395 pass / 1 pre-existing fail (04-T3 baseline) / 19 skipped. Linux non-regression dry-run still exits 0. Wave 2 (Plan 47-02) now safe to start.
 
 ## Source Inputs
 
@@ -767,6 +767,8 @@ progress:
 - Smoke-Gate-Regel fuer Plan 7-HF10: nach Fix muessen `room`/`global-inside`/`cluster` in der Running-Liste erscheinen und aktiv bleiben bis Timerablauf oder explizitem `stop-animation`/`clear-all`.
 - Evidenz-Regel fuer Plan 7-HF10: Test-/Verify-Artefakte enthalten verpflichtend echte Reproduktion des Blockers plus dokumentierten PASS-Nachweis fuer den Fix.
 - Phase-7 Plan 7-HF10 ist als priorisierte execute-ready P0-Blocker-Welle vor Plan 7-2 gesetzt.
+- Phase 47 Wave-1-Regel ist bindend: Plan 47-01 ist ein BEHAVIOR-PRESERVING refactor. `buildChromiumLaunchArgs({ platform, opts })` reproduziert iter15 byte-identisch auf BEIDEN Plattformen (Linux + Windows). `--display=${display}` bleibt unconditional emit (kein isWin32-Gate) — exakte iter15-Quelle Zeile 644. Wave 2 (Plan 47-02) ist der einzige autorisierte Pfad, der diese Verhalten ändert; Quelle und WIN32_ITER15_BASELINE werden in einem gemeinsamen Commit aktualisiert.
+- Phase 47 Wave-1-Test-Rail-Regel ist bindend: `test/phase-47-linux-non-regression.test.mjs` ist der primäre Regressionsschutz für Wave 2+3. Hand-pinned LINUX_ITER15_BASELINE / LINUX_ITER15_BASELINE_VAAPI / WIN32_ITER15_BASELINE liegen inline im Test (nicht importiert), damit jeder Drift in `src/server/ssr-render-host.mjs` via deepStrictEqual mit klarer per-Flag-Diff stolpert. Linux-Baseline ist operator-locked (D-02); jede Änderung daran erfordert explizite Freigabe.
 
 ## Execute-Phase Contract (Phase 1)
 

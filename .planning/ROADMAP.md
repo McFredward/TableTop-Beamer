@@ -1090,7 +1090,20 @@ Carrying forward (LOCKED):
 - Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
 - Connection-stability hard gate (D-08)
 
-## Phase 47 - Windows Full-Functional Parity with Linux (PLANNING)
+## Phase 47 - Windows Full-Functional Parity with Linux (EXECUTING — Wave 1 closed 2026-05-17, Plan 02 next)
+
+**Plan 47-01 closed 2026-05-17.** Wave 1 pure refactor: extracted
+`buildChromiumLaunchArgs({ platform, ssrUrl, viewport, display, disabledFeatures, enabledFeatures, hasVaapiEnabled })`
+as an exported pure function from `src/server/ssr-render-host.mjs#launchBrowser`.
+Linux + Windows arg lists are iter15-byte-identical (no behavior change).
+Pinned by `test/phase-47-launch-args.test.mjs` (6 fingerprint tests) +
+`test/phase-47-linux-non-regression.test.mjs` (3 byte-identity snapshot tests).
+WIN32_ITER15_BASELINE includes `--display=:99` because iter15 source line 644
+emits it unconditionally — Wave 2 (Plan 47-02) will add the win32 gate and
+update both source and baseline in the same commit. npm test 415 / 395 pass /
+1 fail (pre-existing 04-T3) / 19 skipped. Linux dry-run still exit 0.
+Commits: `1c69bc6` (RED test), `547308c` (GREEN refactor). See
+`.planning/phases/phase-47/47-01-SUMMARY.md`.
 
 Goal: Make TT-Beamer fully functional on Windows with the exact same operator UX
 as Linux. After Phase 46 release prep, fifteen iterations (iter11-iter15) of the
@@ -1198,7 +1211,7 @@ Wave structure (finalized by gsd-planner 2026-05-17):
 - M4 VERIFY: see Wave 4 plan below (operator UAT runbook + sign-off).
 
 Plans: 4 plans
-- [ ] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
+- [x] 47-01-PLAN.md — Wave 1 — Refactor `launchBrowser` into `buildChromiumLaunchArgs(platform, opts)`; pin Linux iter15 args byte-identical and Windows iter15 args via unit-test snapshot rail (D-02, D-08, D-09; no behavior change)
 - [ ] 47-02-PLAN.md — Wave 2 — Flip Win32 default to `headless: "new"`; drop `--app=about:blank`, `--window-position=-32000,-32000`, `--display=`; add `SSR_WIN_HEADLESS=0` operator escape hatch; keep unique tmp `--user-data-dir` + Job Object (D-01, D-03, D-04, D-05)
 - [ ] 47-03-PLAN.md — Wave 3 — Add three operator-facing diagnostic log strings (`[ssr-host] launching headless=`, `[ssr-host] win32 verdict: OK|FAILED`, optional `[ssr-host] launch args (win32):` behind `SSR_LOG_LAUNCH_ARGS=1`); update docs/INSTALL.md Windows section + docs/USAGE.md parity statement (D-04, D-05 hardening)
 - [ ] 47-04-PLAN.md — Wave 4 — Operator UAT runbook + 14-checkbox sign-off form + blocking checkpoint for operator's Win11 hardware verification (D-06)
