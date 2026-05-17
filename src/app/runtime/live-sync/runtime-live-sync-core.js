@@ -340,6 +340,22 @@
   }
 
   function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope = null, mutationType = null } = {}) {
+    // [align-exit-trace] Phase 48 W1 — diagnostic (removed in W2 final task)
+    try {
+      const _r = snapshot?.runtime;
+      console.log(
+        "[align-exit-trace] applyLiveRuntimeSnapshot",
+        "mutationType=" + (mutationType || "?"),
+        "version=" + (version ?? "?"),
+        "snapAlignMode=" + (typeof snapshot?.alignMode === "boolean" ? snapshot.alignMode : "n/a"),
+        "runtimeAlignMode=" + (typeof _r?.alignMode === "boolean" ? _r.alignMode : "n/a"),
+        "stateAlignMode=" + Boolean(ctx?.state?.alignMode),
+        "stateDirty=" + Boolean(ctx?.state?.alignModeDirtyOnOutput),
+        "snapRunningLen=" + (Array.isArray(_r?.runningAnimations) ? _r.runningAnimations.length : "?"),
+        "stateRunningLen=" + (Array.isArray(ctx?.state?.runningAnimations) ? ctx.state.runningAnimations.length : "?"),
+        "t=" + Date.now(),
+      );
+    } catch (_) { /* defensive */ }
     const state = ctx.state;
     const liveSync = ctx.liveSync;
     const numericVersion = Number.isFinite(version) ? Number(version) : null;
