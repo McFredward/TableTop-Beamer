@@ -51,19 +51,49 @@ function pickOrCreateAudio(assetPath) {
   return reused;
 }
 
+// Phase 49 gap-closure-4: resolve sound path from the animation payload.
+// Historical contract (pre-Phase 49) expected the server to pre-resolve
+// `animation.sound` to a URL — but that resolution code was never built,
+// so this binder was effectively dead (no logs, no playback). The real
+// source-of-truth is `animation.soundAssetRef`, which the dashboard's
+// runtime-audio.js (line 267+) reads directly. We mirror that logic here:
+//   - "none" / empty / undefined → no sound (silently skip)
+//   - "/resources/sounds/<file>.{mp3,wav,ogg,m4a}" → direct path
+//   - else → unknown, skip with a warning so operators can diagnose
+function resolveSoundPath(animation) {
+  const ref = typeof animation?.soundAssetRef === "string"
+    ? animation.soundAssetRef.trim()
+    : "";
+  if (!ref || ref === "none") return null;
+  if (/^\/resources\/sounds\/.+\.(mp3|wav|ogg|m4a)$/i.test(ref)) return ref;
+  // Some legacy entries may store a bare filename — try prefixing.
+  if (/^[^/]+\.(mp3|wav|ogg|m4a)$/i.test(ref)) return `/resources/sounds/${ref}`;
+  return null;
+}
+
 function handleStartAnimation(animation, logger) {
   if (!animation || typeof animation !== "object") return;
-  const sound = (typeof animation.sound === "string") ? animation.sound : null;
-  if (!sound) return; // no sound mapped — skip silently
+  // Phase 49 gap-closure-4: unconditional diagnostic log so operators can
+  // see WHAT the live-sync delivered. Without this, "no audio" had no
+  // observability — empty sound refs silently no-op'd before. Remove
+  // after audio path is operator-validated on Win11 + Pi.
+  const ref = (typeof animation?.soundAssetRef === "string") ? animation.soundAssetRef : "(no soundAssetRef)";
+  logger?.info?.(`[output-audio] start animation id=${animation.id ?? "?"} soundAssetRef=${JSON.stringify(ref)}`);
+  const sound = resolveSoundPath(animation);
+  if (!sound) {
+    logger?.info?.(`[output-audio] skip: no resolved sound path for soundAssetRef=${JSON.stringify(ref)} (set a sound via the FX panel)`);
+    return;
+  }
   try {
     const audio = pickOrCreateAudio(sound);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === "function") {
       playPromise.catch((e) => {
-        logger?.warn?.(`[output-audio] play() rejected: ${e?.message}`);
+        logger?.warn?.(`[output-audio] play() rejected for ${sound}: ${e?.message} (autoplay policy: click anywhere on /output/ once)`);
       });
     }
     if (animation.id) activeAudioByAnimationId.set(animation.id, audio);
+    logger?.info?.(`[output-audio] play() invoked for ${sound}`);
   } catch (e) {
     logger?.warn?.(`[output-audio] start failed: ${e?.message}`);
   }
