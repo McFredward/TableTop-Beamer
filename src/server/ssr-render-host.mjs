@@ -856,40 +856,14 @@ export function bootSsrRenderHost({
       } catch {}
     }
 
-    // Phase 47 gap-closure-17: on Win32 headful (SSR_WIN_HEADLESS=0, the
-    // iter15 escape hatch), the --window-size=1920,1080 from the base args
-    // sets the OUTER window to 1920x1080 but Chrome's title bar + minor
-    // chrome UI in --app= mode eat ~140 vertical pixels of CONTENT area.
-    // Operator UAT measured captured stream = 1920x940, which caused
-    // align-mode grid desync (grid assumes 1920x1080, source is 1920x940).
-    //
-    // Fix: on Win32 headful, REPLACE the --window-size= entry with a
-    // larger value that compensates for chrome overhead. Default buffer is
-    // 140 (operator-measured on Win11 100% DPI Chrome 137 app mode).
-    // SSR_WIN_HEADFUL_UI_OVERHEAD_H lets operators on different DPI or
-    // Chrome versions adjust without code changes. Linux untouched.
-    const winHeadfulUiOverheadH = Math.max(0, Number(process.env.SSR_WIN_HEADFUL_UI_OVERHEAD_H ?? 140));
-    const winHeadfulNeedsBuffer = isWin32 && !useHeadlessNew && winHeadfulUiOverheadH > 0;
-    const chromiumArgsBaseAdjusted = winHeadfulNeedsBuffer
-      ? chromiumArgsBase.map((arg) => arg.startsWith("--window-size=")
-          ? `--window-size=${viewport.width},${viewport.height + winHeadfulUiOverheadH}`
-          : arg)
-      : chromiumArgsBase;
-    if (winHeadfulNeedsBuffer) {
-      logger.info(
-        `[ssr-host] win32 headful: --window-size grown to ${viewport.width}x${viewport.height + winHeadfulUiOverheadH} ` +
-        `(viewport ${viewport.width}x${viewport.height} + ${winHeadfulUiOverheadH}px chrome-UI buffer; ` +
-        `set SSR_WIN_HEADFUL_UI_OVERHEAD_H to override)`,
-      );
-    }
     const chromiumArgs = isWin32Launcher
       ? [
-          ...chromiumArgsBaseAdjusted,
+          ...chromiumArgsBase,
           "--auto-accept-this-tab-capture",
           ...(wantsChromeDiag ? ["--enable-logging=stderr", "--v=0"] : []),
           ...(winNetLogPath ? [`--log-net-log=${winNetLogPath}`, "--net-log-capture-mode=Default"] : []),
         ]
-      : chromiumArgsBaseAdjusted;
+      : chromiumArgsBase;
 
     if (process.env.SSR_LOG_LAUNCH_ARGS === "1") {
       logger.info(`[ssr-host] launch args (${process.platform}): ${chromiumArgs.join(" ")}`);
