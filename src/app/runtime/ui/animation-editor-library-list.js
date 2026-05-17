@@ -52,17 +52,29 @@
   // Phase 46 iter7: per-row pointer-event hookup. Just records the start
   // state on pointerdown; activation + movement happens at document level
   // so the drag continues even when the cursor leaves the row.
+  //
+  // Phase 49 gap-closure-16 (2026-05-17): for touch pointers, drag requires
+  // a LONG-PRESS first (500 ms hold without moving > 8 px). Mouse pointers
+  // get immediate 6 px-threshold drag (unchanged behavior). The long-press
+  // gate is necessary because the previous `touch-action: pan-x` CSS made
+  // the animation list un-scrollable on phones — every vertical swipe was
+  // captured as drag intent. Now `touch-action: pan-y` lets the list
+  // scroll naturally; reorder is opt-in via hold-then-drag.
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_MOVE_THRESHOLD_PX = 8;
   function _setupRowPointerDrag(row, def, list) {
     row.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       if (activeDrag) return;  // one drag at a time
       const rect = row.getBoundingClientRect();
+      const isTouch = e.pointerType === "touch" || e.pointerType === "pen";
       activeDrag = {
         pointerId: e.pointerId,
         defId: def.id,
         row,
         list,
         startY: e.clientY,
+        startX: e.clientX,
         offsetY: e.clientY - rect.top,
         width: rect.width,
         left: rect.left,
@@ -70,14 +82,44 @@
         activated: false,
         placeholder: null,
         wasActivated: false,  // sticks after activate, used to suppress click
+        isTouch,
+        // Touch: drag is gated behind a long-press timer. Mouse: drag arms
+        // immediately and activates after the 6 px movement threshold.
+        longPressArmed: isTouch ? false : true,
+        longPressTimer: null,
+        cancelled: false,
       };
       try { row.setPointerCapture(e.pointerId); } catch {}
+      if (isTouch) {
+        row.classList.add("is-pending-longpress");
+        activeDrag.longPressTimer = setTimeout(() => {
+          if (!activeDrag || activeDrag.cancelled) return;
+          activeDrag.longPressArmed = true;
+          // Haptic feedback to confirm hold registered (where supported).
+          try { if (navigator.vibrate) navigator.vibrate(15); } catch {}
+        }, LONG_PRESS_MS);
+      }
     });
   }
 
   function _onDragPointerMove(e) {
     if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
     const dy = e.clientY - activeDrag.startY;
+    const dx = e.clientX - activeDrag.startX;
+    // Touch path: if the user moves before the long-press timer fires,
+    // CANCEL the pending drag — treat the gesture as a scroll/swipe.
+    if (activeDrag.isTouch && !activeDrag.longPressArmed) {
+      if (Math.abs(dy) > LONG_PRESS_MOVE_THRESHOLD_PX || Math.abs(dx) > LONG_PRESS_MOVE_THRESHOLD_PX) {
+        // Cancel the long-press: clear timer, release the captured pointer,
+        // remove the visual hint. The list keeps native scroll.
+        activeDrag.cancelled = true;
+        if (activeDrag.longPressTimer) clearTimeout(activeDrag.longPressTimer);
+        activeDrag.row.classList.remove("is-pending-longpress");
+        try { activeDrag.row.releasePointerCapture(activeDrag.pointerId); } catch {}
+        activeDrag = null;
+      }
+      return;
+    }
     if (!activeDrag.activated) {
       if (Math.abs(dy) < 6) return;
       _activateDrag();
@@ -171,11 +213,16 @@
     if (!activeDrag) return;
     const row = activeDrag.row;
     const wasActivated = activeDrag.wasActivated;
+    // Phase 49 gap-closure-16: clear long-press timer + visual hint.
+    if (activeDrag.longPressTimer) {
+      clearTimeout(activeDrag.longPressTimer);
+    }
     if (activeDrag.placeholder?.parentElement) {
       activeDrag.placeholder.remove();
     }
     if (row) {
       row.classList.remove("is-dragging");
+      row.classList.remove("is-pending-longpress");
       row.style.position = "";
       row.style.left = "";
       row.style.top = "";

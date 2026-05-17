@@ -70,22 +70,62 @@ body[data-output-role="final-output"] #animation-editor-page {
     border-right: none;
     border-bottom: 1px solid var(--c-border);
   }
+  /* Phase 49 gap-closure-16 (2026-05-17): deterministic mobile topbar.
+   * Previous flex+order:-1 was unpredictable across viewports — operator
+   * UAT reported "Back button over Animations heading". Replaced with
+   * CSS Grid with named rows: row 1 = [back-icon | title | board-picker]
+   * (single line); row 2 = dirty-bar full-width when present. Back
+   * shrinks to icon-only on small screens to save horizontal space. */
   .anim-editor-topbar {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "back  title  picker"
+      "dirty dirty  dirty";
+    flex-wrap: unset;
     gap: 8px;
     padding: 8px 12px;
+    align-items: center;
+  }
+  .anim-editor-back {
+    grid-area: back;
+    padding: 6px 8px;
+    min-width: 0;
+  }
+  .anim-editor-back > span {
+    /* hide the "Back" word on mobile — leave just the arrow icon */
+    display: none;
   }
   .anim-editor-topbar-title {
-    order: -1;
-    flex: 0 0 100%;
+    grid-area: title;
+    text-align: center;
+    min-width: 0;
+    flex: unset;
+    order: 0;
+  }
+  .anim-editor-topbar-title .rd-eyebrow {
+    font-size: 10px;
+  }
+  .anim-editor-topbar-title .rd-h1 {
+    font-size: 18px;
+    line-height: 1.2;
+    margin: 0;
   }
   .anim-editor-board-picker {
-    min-width: 140px;
-    flex: 1;
+    grid-area: picker;
+    min-width: 0;
+    max-width: 140px;
+    flex: unset;
+  }
+  .anim-editor-board-picker .rd-caption {
+    display: none;  /* save vertical space — the select itself is self-evident */
   }
   .anim-editor-dirty-bar {
-    flex: 1;
+    grid-area: dirty;
+    flex: unset;
     justify-content: space-between;
+    width: 100%;
   }
 }
 
@@ -410,7 +450,22 @@ body[data-output-role="final-output"] #animation-editor-page {
 }
 .anim-editor-row {
   cursor: grab;
-  touch-action: pan-x;  /* allow horizontal pan (scope tabs) but capture vertical for drag */
+  /* Phase 49 gap-closure-16 (2026-05-17): allow vertical scroll on
+   * touch devices by default. Previously was `pan-x` which captured
+   * vertical gestures for drag-reorder — but that made the animation
+   * list un-scrollable on phones. Now reorder requires a long-press
+   * first (500 ms hold without moving), then drag. Mouse pointers
+   * still get immediate 6 px-threshold drag (see library-list.js). */
+  touch-action: pan-y;
+}
+.anim-editor-row.is-pending-longpress {
+  /* visual hint that long-press is in progress (subtle) */
+  background: var(--c-surface);
+}
+.anim-editor-row.is-dragging {
+  /* Once drag is active we want NO scrolling at all (the row follows
+   * the finger). Page scroll is also suppressed by JS preventDefault. */
+  touch-action: none;
 }
 .anim-editor-row:active {
   cursor: grabbing;
@@ -587,16 +642,19 @@ body[data-output-role="final-output"] #animation-editor-page {
 
 #animation-editor-page .rd-icon-picker {
   border-radius: 6px;
-  /* W3b-3 (revised): compact picker — 32-px tracks in 10 columns so
-   * the whole grid stays small inside the Identity card (feedback:
-   * "Kasten für die Iconauswahl ist zu groß"). Tiles remain sharp
-   * squares; scroll handles overflow when more icons than a single
-   * row fit. */
-  grid-template-columns: repeat(10, 32px);
+  /* Phase 49 gap-closure-16 (2026-05-17): auto-fill instead of fixed
+   * 10-column track. Was overflowing horizontally on phones (~360 px
+   * viewport vs 386 px grid width). auto-fill wraps tiles based on
+   * available width while keeping each tile a sharp 32 × 32 square.
+   * max-width still caps at 520 px on wide monitors (line ~621). */
+  grid-template-columns: repeat(auto-fill, 32px);
   grid-auto-rows: 32px;
   gap: 6px;
   padding: 6px;
   max-height: 180px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .anim-editor-pane-name .rd-eyebrow { margin-bottom: 2px; }
