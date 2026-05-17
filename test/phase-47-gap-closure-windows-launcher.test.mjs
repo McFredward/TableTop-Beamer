@@ -1,26 +1,24 @@
 // test/phase-47-gap-closure-windows-launcher.test.mjs
 //
-// Phase 47 gap-closure (2026-05-17): pin the source-level changes that
-// flipped the Win32 SSR launcher off puppeteer-stream and onto puppeteer
-// direct (no MV3 extension, no pipe-transport).
+// Phase 47 gap-closure (2026-05-17): pin the Win32 SSR launcher hardening
+// that closed the operator UAT failure.
 //
-// Why: operator UAT against the Wave-1-2-3 build still saw
-//   [ssr-tab:reqfailed] http://127.0.0.1:4173/ssr :: net::ERR_ABORTED
-//   [ssr-host] browser disconnected unexpectedly
-// after switching to `headless: "new"`. Diagnosis (see 47-CLOSURE.md
-// § Gap Closure): puppeteer-stream's launch() forces `opts.pipe = true`
-// (stdio DevTools transport — flaky on Win11 headless-new builds) AND
-// auto-injects an MV3 extension via `--load-extension=`, then opens a
-// second page to `chrome-extension://<id>/options.html` AFTER launch.
-// Chrome headless-new on Windows races the extension-page navigation,
-// killing the renderer mid-`page.goto(/ssr)`.
+// History:
+// - Initial gap-closure suspected puppeteer-stream as the root cause and
+//   switched Win32 to puppeteer-core direct. Operator retest proved this
+//   was NOT the fix — Chrome continued to crash with the same ERR_ABORTED
+//   pattern. The puppeteer-direct switch was REVERTED to keep the launcher
+//   stack symmetric with Linux (operator-validated gold rail).
+// - The actual fix lives in `buildChromiumLaunchArgs`: gate
+//   `--use-gl=angle` + `--use-angle=default` off on Win32 headless-new
+//   (ANGLE→D3D11 init crashes without a platform window) and drop the
+//   `H264HardwareEncode` Chrome feature on Win32 (Chrome WebRTC HW H264
+//   without GPU context crashes during /ssr navigation).
+// - Diagnostics retained from gap-closure-1: always-on `dumpio: true` on
+//   Win32 and unconditional `--enable-logging=stderr --v=0` so any future
+//   Chrome failure surfaces in start.log.err.
 //
-// Our publisher uses `navigator.mediaDevices.getDisplayMedia` (NOT
-// chrome.tabCapture) and never calls puppeteer-stream's getStream, so
-// the MV3 extension is entirely unnecessary on our code path.
-//
-// Linux path (puppeteer-stream + Xvfb) is the operator-validated gold
-// rail through Phase 31-46 — DO NOT regress.
+// Both platforms use puppeteer-stream. Linux byte-identity preserved.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -28,96 +26,77 @@ import { readFile } from "node:fs/promises";
 
 const HOST_PATH = "src/server/ssr-render-host.mjs";
 
-test("gap-closure: launchBrowser selects puppeteer on win32, puppeteer-stream on linux", async () => {
+test("gap-closure: launchBrowser uses puppeteer-stream on BOTH platforms (symmetry with Linux)", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-
-  // The branching constant must exist and use process.platform.
+  // The puppeteer-stream import line.
   assert.match(
     src,
-    /isWin32Launcher\s*=\s*process\.platform\s*===\s*"win32"/,
-    "expect `isWin32Launcher = process.platform === \"win32\"` switch",
+    /const\s+puppeteerStream\s*=\s*await\s+import\s*\(\s*"puppeteer-stream"\s*\)/,
+    "expect `await import(\"puppeteer-stream\")` in launchBrowser",
   );
-
-  // The package selection must be conditional.
-  assert.match(
+  // No legacy "launcherPkg" ternary that selected between packages.
+  assert.doesNotMatch(
     src,
     /launcherPkg\s*=\s*isWin32Launcher\s*\?\s*"puppeteer"\s*:\s*"puppeteer-stream"/,
-    "expect `launcherPkg = isWin32Launcher ? \"puppeteer\" : \"puppeteer-stream\"`",
+    "expect the Win32-puppeteer-direct ternary to have been REMOVED",
   );
+});
 
-  // Dynamic import must use the conditional variable, not a literal.
+test("gap-closure: --enable-logging=stderr + --v=0 always-on on Win32 (diagnostics)", async () => {
+  const src = await readFile(HOST_PATH, "utf8");
+  // Win32 chromiumArgs MUST append these two diagnostic flags
+  // unconditionally so Chrome's own errors land in start.log.err.
   assert.match(
     src,
-    /await\s+import\s*\(\s*launcherPkg\s*\)/,
-    "expect `await import(launcherPkg)` (no literal package name)",
+    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[[\s\S]*?"--enable-logging=stderr"[\s\S]*?"--v=0"/,
+    "expect win32 chromiumArgs append of --enable-logging=stderr + --v=0",
   );
+});
 
-  // The Linux import literal "puppeteer-stream" should appear ONLY in the
-  // launcherPkg ternary above. There must NOT be a separate hard-coded
-  // `await import("puppeteer-stream")` anywhere in launchBrowser.
-  const launchBrowserBody = src.split("async function launchBrowser")[1] ?? "";
-  // First close-brace ends the function (approximate, defensive).
-  const launchBrowserBodyTrimmed = launchBrowserBody.slice(
-    0,
-    launchBrowserBody.indexOf("\n  async function "),
-  );
-  const literalStreamImports = (
-    launchBrowserBodyTrimmed.match(/import\s*\(\s*"puppeteer-stream"\s*\)/g) || []
+test("gap-closure: --auto-accept-this-tab-capture is NOT manually appended (puppeteer-stream adds it)", async () => {
+  const src = await readFile(HOST_PATH, "utf8");
+  // After reverting to puppeteer-stream on Win32, the explicit append
+  // would duplicate the flag — puppeteer-stream's launch() adds it on
+  // line 87 of its dist. Removing prevents duplicate args on Win32.
+  const explicitAppend = (
+    src.match(/"--auto-accept-this-tab-capture"/g) || []
   ).length;
   assert.equal(
-    literalStreamImports,
+    explicitAppend,
     0,
-    "launchBrowser body must not import('puppeteer-stream') by literal — use launcherPkg",
+    "expect zero manual mentions of --auto-accept-this-tab-capture in src (puppeteer-stream adds it)",
   );
 });
 
-test("gap-closure: --auto-accept-this-tab-capture is appended on win32 only", async () => {
+test("gap-closure: dumpio always-on on Win32 (operator-env-var-independent)", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // The puppeteer-stream library implicitly adds this flag at launch time;
-  // when we use puppeteer directly on Win32 we must add it ourselves so
-  // getDisplayMedia auto-accepts the tab-capture prompt instead of hanging.
+  // dumpio: true must fire when isWin32 (regardless of env).
   assert.match(
     src,
-    /chromiumArgs\s*=\s*isWin32Launcher\s*\?\s*\[\s*\.\.\.chromiumArgsBase\s*,[\s\S]*?"--auto-accept-this-tab-capture"/,
-    "expect win32-only spread that appends --auto-accept-this-tab-capture",
-  );
-  // Linux non-regression: the bare base array is reused — no extra flag.
-  assert.match(
-    src,
-    /:\s*chromiumArgsBase/,
-    "Linux fallback must keep chromiumArgsBase unchanged (no extra flag)",
+    /isWin32\s*\|\|\s*process\.env\.SSR_DEBUG_CHROME\s*===\s*"1"\s*\?\s*\{\s*dumpio:\s*true\s*\}/,
+    "expect dumpio:true gate of the form (isWin32 || env === '1')",
   );
 });
 
-test("gap-closure: operator-greppable INFO line names the launcher path", async () => {
+test("gap-closure: --use-gl=angle + --use-angle=default dropped on Win32 headless-new", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // The operator UAT runbook (47-UAT-RUNBOOK.md) greps start.log for this
-  // string to disambiguate which launcher actually ran.
+  // buildChromiumLaunchArgs must spread these flags conditional on
+  // !dropOnHeadlessNew (i.e. they DROP when Win32 is in headless-new).
+  // On Linux + Xvfb (gold rail) they remain.
   assert.match(
     src,
-    /\[ssr-host\] using puppeteer direct \(no MV3 extension\) on Win32/,
-    "expect operator-greppable INFO line for Win32 launcher path",
+    /dropOnHeadlessNew\s*\?\s*\[\]\s*:\s*\[\s*"--use-gl=angle"\s*,\s*"--use-angle=default"\s*\]/,
+    "expect Win32-headless-new gate dropping --use-gl=angle + --use-angle=default",
   );
 });
 
-test("gap-closure: SSR_DEBUG_CHROME=1 enables puppeteer dumpio", async () => {
+test("gap-closure: H264HardwareEncode feature gated off on Win32", async () => {
   const src = await readFile(HOST_PATH, "utf8");
-  // Diagnostic-only env knob: forwards Chrome's stdout+stderr so a renderer
-  // crash on launch surfaces in start.log instead of being swallowed.
+  // The enabledFeatures array adds H264HardwareEncode only when NOT win32.
+  // (mediasoup's Node-side nvenc encoder is unaffected — different layer.)
   assert.match(
     src,
-    /SSR_DEBUG_CHROME\s*===\s*"1".*dumpio:\s*true/s,
-    "expect SSR_DEBUG_CHROME=1 → dumpio: true gate on launcher options",
-  );
-});
-
-test("gap-closure: Linux path still uses puppeteer-stream (gold rail intact)", async () => {
-  const src = await readFile(HOST_PATH, "utf8");
-  // The ternary's false branch must be exactly "puppeteer-stream" — Linux
-  // is operator-validated; do not silently drop the dep.
-  assert.match(
-    src,
-    /isWin32Launcher\s*\?\s*"puppeteer"\s*:\s*"puppeteer-stream"/,
-    "Linux launcher branch must remain `puppeteer-stream`",
+    /!isWin32Featured\s*&&\s*status\.encoderConfig\?\.encoder\s*===\s*"nvenc"\s*\?\s*\["H264HardwareEncode"\]/,
+    "expect !isWin32Featured guard on H264HardwareEncode feature flag",
   );
 });

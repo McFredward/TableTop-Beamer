@@ -31,9 +31,16 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location -LiteralPath $ScriptDir
 
 $Port          = if ($env:PORT) { $env:PORT } else { '4173' }
-# Health probe + browser auto-open use localhost (this machine, no DNS).
-$HealthUrl         = "http://localhost:$Port/api/health"
-$DashboardUrlLocal = "http://localhost:$Port/"
+# Health probe + browser auto-open use 127.0.0.1 (explicit IPv4).
+# Phase 47 gap-closure-2 (2026-05-17): on Windows, `localhost` resolves
+# to `::1` (IPv6) FIRST (dual-stack default). Node's HTTP listener binds
+# to `0.0.0.0` (IPv4-only — that's `HOST` in server.mjs line 41), so
+# Invoke-WebRequest against `localhost` hangs / connection-refuses, making
+# the "Waiting for server to come up" probe in start.ps1 never succeed
+# even though the server IS up. Operator UAT 2026-05-17 reproduced this
+# verbatim. Explicit `127.0.0.1` bypasses the DNS-resolution-order issue.
+$HealthUrl         = "http://127.0.0.1:$Port/api/health"
+$DashboardUrlLocal = "http://127.0.0.1:$Port/"
 
 # LAN IP for the post-boot banner - dashboard/output are typically opened
 # from a phone/tablet/Pi on the LAN, not on the server itself.

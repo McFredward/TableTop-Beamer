@@ -619,41 +619,25 @@ export function bootSsrRenderHost({
   }
 
   async function launchBrowser({ browserPath } = {}) {
-    // Phase 47 gap-closure (2026-05-17): SPLIT launcher by platform.
-    //
-    // Root cause of the Wave-4 UAT failure on Win11: puppeteer-stream's
-    // launch() is incompatible with Chrome `--headless=new` on Windows:
-    //   1. It forces `opts.pipe = true` (stdio-based DevTools transport;
-    //      flakier than the default WebSocket transport on Windows 10/11
-    //      headless-new builds — Chrome's pipe handler dies during the
-    //      page.goto navigation, producing the observed
-    //      `net::ERR_ABORTED` + `browser disconnected unexpectedly`).
-    //   2. It auto-injects an MV3 extension via `--load-extension=` and
-    //      opens a second page to `chrome-extension://<id>/options.html`
-    //      AFTER launch. Chrome headless-new on Windows races on this
-    //      extension page navigation, often crashing the renderer.
-    //   3. Our publisher (src/server/ssr-stream-publisher.mjs) uses
-    //      `navigator.mediaDevices.getDisplayMedia` from inside the SSR
-    //      page — we do NOT use `chrome.tabCapture` and we never call
-    //      puppeteer-stream's `getStream()` helper. The MV3 extension is
-    //      therefore entirely unnecessary on our code path.
-    //
-    // Fix: on Win32, launch via `puppeteer` directly (WebSocket transport
-    // by default, no extension loading, no extension-page race). The Linux
-    // path keeps using puppeteer-stream + Xvfb (operator-validated gold
-    // rail through Phase 31-46 — do not regress).
-    //
-    // The one puppeteer-stream-added flag our code DID rely on,
-    // `--auto-accept-this-tab-capture`, is added explicitly to the Win32
-    // arg list below. `--autoplay-policy=no-user-gesture-required` is
-    // already in chromiumArgs from buildChromiumLaunchArgs.
-    const isWin32Launcher = process.platform === "win32";
-    const launcherPkg = isWin32Launcher ? "puppeteer" : "puppeteer-stream";
-    const launcherMod = await import(launcherPkg);
-    const launcher = launcherMod.launch ?? launcherMod.default?.launch;
+    // Phase 47 gap-closure (reverted, 2026-05-17): use puppeteer-stream on
+    // BOTH platforms again. Operator's gap-closure retest #1 proved the
+    // initial hypothesis (puppeteer-stream's MV3 extension + pipe transport
+    // crash Chrome on Win11 headless-new) was WRONG — Chrome continued to
+    // crash with the same ERR_ABORTED pattern even when launched via
+    // puppeteer directly. The actual root cause was the GPU/GL flag stack
+    // (`--use-gl=angle --use-angle=default`) and the `H264HardwareEncode`
+    // feature flag, both addressed in gap-closure-2 (now gated off on
+    // Win32 headless-new). Reverting to puppeteer-stream keeps the
+    // launcher stack symmetric with Linux (which is the operator-validated
+    // gold rail) — fewer Win32-specific divergences, lower future
+    // maintenance burden.
+    const puppeteerStream = await import("puppeteer-stream");
+    const launcher = puppeteerStream.launch ?? puppeteerStream.default?.launch;
     if (typeof launcher !== "function") {
-      throw new Error(`${launcherPkg} did not export a launch() function`);
+      throw new Error("puppeteer-stream did not export a launch() function");
     }
+    // Kept for the Win32-only dumpio / logging gate below.
+    const isWin32Launcher = process.platform === "win32";
     // h4 hotfix (2026-05-06): app mode (no browser chrome at all — no
     // URL bar, no tabs, no menu) + popup suppression. The user reported
     // the captured stream was leaking the URL bar and tab strip, plus
@@ -819,25 +803,21 @@ export function bootSsrRenderHost({
       useHeadlessNew,
     });
 
-    // Phase 47 gap-closure: on Win32, append `--auto-accept-this-tab-capture`.
-    // Pre-gap-closure, puppeteer-stream's launch() added this flag implicitly
-    // (its source line 87). Now that Win32 uses puppeteer directly (no
-    // puppeteer-stream), we add it explicitly so getDisplayMedia() inside
-    // the SSR page auto-accepts the tab-capture prompt instead of hanging.
+    // Phase 47 gap-closure-2 (2026-05-17): append diagnostic args on Win32.
+    // - `--enable-logging=stderr` + `--v=0`: Chrome writes its own startup /
+    //   GPU / renderer errors to stderr. Combined with the always-on
+    //   `dumpio: true` below, Chrome's failure cause is visible in
+    //   start.log.err without the operator setting any env vars.
     //
-    // Phase 47 gap-closure-2 (2026-05-17): also append --enable-logging=stderr
-    // and --v=0 on Win32 unconditionally so Chrome writes its own startup /
-    // GPU / renderer errors to stderr. Combined with the always-on
-    // `dumpio: true` below, Chrome's death cause is now visible in
-    // start.log.err without requiring the operator to set any env vars.
+    // `--auto-accept-this-tab-capture` is NOT added here — puppeteer-stream
+    // adds it implicitly for us on both platforms (line 87 of
+    // node_modules/puppeteer-stream/dist/PuppeteerStream.js).
     //
-    // Linux is unchanged (still uses puppeteer-stream which adds the flag
-    // for us). LINUX_ITER15_BASELINE in tests is preserved.
+    // Linux LINUX_ITER15_BASELINE byte-identity is preserved (no extra
+    // args on the Linux branch).
     const chromiumArgs = isWin32Launcher
       ? [
           ...chromiumArgsBase,
-          "--auto-accept-this-tab-capture",
-          // Always-on Win32 diagnostics (operator-env-var-independent):
           "--enable-logging=stderr",
           "--v=0",
         ]
@@ -845,14 +825,6 @@ export function bootSsrRenderHost({
 
     if (process.env.SSR_LOG_LAUNCH_ARGS === "1") {
       logger.info(`[ssr-host] launch args (${process.platform}): ${chromiumArgs.join(" ")}`);
-    }
-
-    // Phase 47 gap-closure: log which launcher path we chose so operator
-    // bug reports immediately disambiguate puppeteer (Win32) from
-    // puppeteer-stream (Linux). Same operator-greppable INFO format as
-    // the other Wave-3 banners.
-    if (isWin32Launcher) {
-      logger.info(`[ssr-host] using puppeteer direct (no MV3 extension) on Win32`);
     }
 
     return launcher({
