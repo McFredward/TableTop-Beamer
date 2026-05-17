@@ -46,6 +46,16 @@
   let _lastAlignModeState = null;
 
   function syncAlignModeDirtyDashboardState() {
+    // [align-exit-trace] Phase 48 W1 — diagnostic (removed in W2 final task)
+    try {
+      console.log(
+        "[align-exit-trace] dirty-dashboard-state",
+        "alignModeDirtyOnOutput=" + Boolean(ctx?.state?.alignModeDirtyOnOutput),
+        "alignMode=" + Boolean(ctx?.state?.alignMode),
+        "outputRole=" + (ctx?.outputRole || "?"),
+        "t=" + Date.now(),
+      );
+    } catch (_) { /* defensive */ }
     // Phase 27 (B5/D-05): when /output/ is dirty, disable the dashboard align-mode toggle
     // with the locked hint copy. Only the dashboard (control role) shows this state.
     if (!ctx || ctx.outputRole === ctx.OUTPUT_ROLE_FINAL) return;
@@ -164,6 +174,18 @@
   }
 
   function setAlignMode(enabled, { emit = true } = {}) {
+    // [align-exit-trace] Phase 48 W1 — diagnostic (removed in W2 final task)
+    try {
+      console.log(
+        "[align-exit-trace] setAlignMode-emit",
+        "enabled=" + Boolean(enabled),
+        "emit=" + Boolean(emit),
+        "outputRole=" + (ctx?.outputRole || "?"),
+        "currentAlignMode=" + Boolean(ctx?.state?.alignMode),
+        "currentDirty=" + Boolean(ctx?.state?.alignModeDirtyOnOutput),
+        "t=" + Date.now(),
+      );
+    } catch (_) { /* defensive */ }
     const state = ctx.state;
     const nextAlignMode = Boolean(enabled);
     if (emit && ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL) {
