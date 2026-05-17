@@ -367,7 +367,11 @@ function Test-PortBlockers {
       }
     } catch {}
   }
-  return @($conns)
+  # IMPORTANT: filter $null. PowerShell's @($null) is an array of length 1
+  # containing $null — without this filter, every "no blocker found" call
+  # would falsely report Count=1 and the port-shift scan would never find
+  # a free port.
+  return @($conns | Where-Object { $null -ne $_ })
 }
 
 $portBlockers = Test-PortBlockers -ProbePort $Port
@@ -387,9 +391,10 @@ if ($portBlockers -and $portBlockers.Count -gt 0) {
         try { $procPath = $p.MainModule.FileName } catch { $procPath = '' }
       }
     } catch {}
-    Write-Host ("[start]   Blocker on {0}:{1}  PID={2}  Name={3}{4}" -f `
-      $conn.LocalAddress, $conn.LocalPort, $blockingPid, $procName, `
-      $(if ($procPath) { "  Path=$procPath" } else { '' })) -ForegroundColor Yellow
+    $pathSuffix = ''
+    if ($procPath) { $pathSuffix = "  Path=$procPath" }
+    $blockerLine = "[start]   Blocker on " + $conn.LocalAddress + ":" + $conn.LocalPort + "  PID=" + $blockingPid + "  Name=" + $procName + $pathSuffix
+    Write-Host $blockerLine -ForegroundColor Yellow
   }
 
   # Probe upward for the next free port. Cap the scan so a fully-blocked
