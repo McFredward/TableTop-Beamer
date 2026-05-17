@@ -1241,22 +1241,27 @@ export function bootSsrRenderHost({
       // encoding runs on dedicated threads, unaffected. With native ~280
       // fps and target 60, rate ≈ 4.67 → effective ~60 fps. Scales with
       // hardware (slower host → smaller rate → still hits target).
-      const ssrFpsCapValue = status?.encoderConfig?.ssrFpsCap ?? 0;
-      if (ssrFpsCapValue > 0 && cdpSession) {
+      // Reuse the ssrFpsCapValue already declared at the page.goto block
+      // above (line ~1188). Re-resolving from status.encoderConfig here
+      // would be a re-declaration. Treat 0 as "no cap" (60 was the goto-
+      // default which we no longer need at this layer since the in-page
+      // RAF throttle is disabled — gap-closure-7).
+      const ssrFpsCapEffective = (status?.encoderConfig?.ssrFpsCap ?? 0);
+      if (ssrFpsCapEffective > 0 && cdpSession) {
         try {
           // Native rate ~280 fps observed by operator on RTX 4090; clamp
           // assumed-native to a safe band so we never over-throttle.
           const NATIVE_ASSUMED_FPS = 240;
-          const throttleRate = Math.min(20, Math.max(1, NATIVE_ASSUMED_FPS / ssrFpsCapValue));
+          const throttleRate = Math.min(20, Math.max(1, NATIVE_ASSUMED_FPS / ssrFpsCapEffective));
           await cdpSession.send("Emulation.setCPUThrottlingRate", { rate: throttleRate });
           logger.info(
-            `[ssr-host] SSR FPS cap engaged: target=${ssrFpsCapValue} fps → CDP CPU throttle rate=${throttleRate.toFixed(2)}× ` +
+            `[ssr-host] SSR FPS cap engaged: target=${ssrFpsCapEffective} fps → CDP CPU throttle rate=${throttleRate.toFixed(2)}× ` +
             `(WebRTC encoder thread unaffected — main-thread JS only)`,
           );
         } catch (err) {
           logger.warn(`[ssr-host] SSR FPS cap install failed: ${err?.message ?? err}`);
         }
-      } else if (ssrFpsCapValue === 0) {
+      } else if (ssrFpsCapEffective === 0) {
         logger.info(`[ssr-host] SSR FPS cap: native rate (ssrFpsCap=0)`);
       }
       status.browserConnected = true;
