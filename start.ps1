@@ -391,22 +391,47 @@ try {
 # cost = operator's working shell gets force-killed (data loss). Always
 # lean safe.
 $script:InvocationContext = 'existing-shell'
-try {
-  if ($script:AncestorCmdPids.Count -gt 0) {
-    # Topmost cmd in our captured ancestor chain.
-    $topCmdPid = $script:AncestorCmdPids[-1]
-    $topCmdParent = Get-ParentProcessId -ChildPid $topCmdPid
-    if ($topCmdParent -gt 0) {
-      $topCmdParentProc = Get-Process -Id $topCmdParent -ErrorAction SilentlyContinue
-      if ($topCmdParentProc -and $topCmdParentProc.ProcessName -eq 'explorer') {
-        $script:InvocationContext = 'fresh-cmd'
+
+# Phase 49 gap-closure-2: if start.bat self-detached us into a new cmd
+# window, the _TTB_SELF_SPAWNED env var is set. In that case the new
+# cmd IS a wegwerf-window by design (operator's original shell stayed
+# free), so treat it as 'fresh-cmd' unconditionally. This bypasses the
+# ancestor-walk heuristic which would otherwise incorrectly detect
+# 'existing-shell' because the topmost cmd's parent (the now-dead
+# original cmd) was itself spawned by PowerShell. Without this guard
+# Ctrl+C in the self-detached window would skip ancestor-cmd-kill and
+# cmd's batch interpreter would prompt "Terminate batch job (Y/N)?".
+if ($env:_TTB_SELF_SPAWNED -eq '1') {
+  $script:InvocationContext = 'fresh-cmd'
+} else {
+  try {
+    if ($script:AncestorCmdPids.Count -gt 0) {
+      # Topmost cmd in our captured ancestor chain.
+      $topCmdPid = $script:AncestorCmdPids[-1]
+      $topCmdParent = Get-ParentProcessId -ChildPid $topCmdPid
+      if ($topCmdParent -gt 0) {
+        $topCmdParentProc = Get-Process -Id $topCmdParent -ErrorAction SilentlyContinue
+        if ($topCmdParentProc -and $topCmdParentProc.ProcessName -eq 'explorer') {
+          $script:InvocationContext = 'fresh-cmd'
+        }
       }
     }
+  } catch {
+    # Stay 'existing-shell' on any error - safer.
   }
-} catch {
-  # Stay 'existing-shell' on any error - safer.
 }
-Write-Host "[start]    Invocation context: $script:InvocationContext (ancestor cmds: $($script:AncestorCmdPids.Count))"
+
+# Phase 49 gap-closure-2: belt-and-suspenders unset of $env:SSR_WIN_HEADLESS
+# if it was inherited from the operator's PS session set to "0" (which would
+# force headful Chrome and produce y-axis desync). start.bat clears it at
+# its top, but a paranoid second clear here in case start.ps1 was launched
+# directly (e.g. powershell -File start.ps1 from a custom invocation).
+if ($env:SSR_WIN_HEADLESS -eq '0') {
+  Write-Host "[start]    Note: \$env:SSR_WIN_HEADLESS='0' detected and cleared (use [Environment]::SetEnvironmentVariable for persistent escape-hatch)."
+  $env:SSR_WIN_HEADLESS = $null
+}
+
+Write-Host "[start]    Invocation context: $script:InvocationContext (ancestor cmds: $($script:AncestorCmdPids.Count); _TTB_SELF_SPAWNED=$($env:_TTB_SELF_SPAWNED))"
 
 if ($DryRun) {
   Write-Host "[start]    [dry-run] Would launch: node server.mjs (port $Port)"
