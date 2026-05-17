@@ -1089,3 +1089,114 @@ Carrying forward (LOCKED):
 - Phase 35-iter2 h3 banding fix (Bayer dither + drawImage clip)
 - Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
 - Connection-stability hard gate (D-08)
+
+## Phase 47 - Windows Full-Functional Parity with Linux (PLANNING)
+
+Goal: Make TT-Beamer fully functional on Windows with the exact same operator UX
+as Linux. After Phase 46 release prep, fifteen iterations (iter11-iter15) of the
+Windows launcher failed to produce a working SSR stream. The current state on
+Windows: server boots, but the SSR Chromium tab opens a visible white window
+(instead of running invisibly like Xvfb on Linux), then loops indefinitely with
+`net::ERR_ABORTED` on `http://127.0.0.1:4173/ssr` and
+`browser disconnected unexpectedly`. Operators see a runaway chrome.exe spawning
+behavior, never reach a working dashboard, and have to taskkill /F /IM node.exe.
+
+Non-negotiable: Linux must NOT regress. The Linux path (start.sh +
+Xvfb-virtual-display + puppeteer-stream → mediasoup → /output/) is operator-
+validated as working in Phase 45/46. Every Windows fix is conditional on
+`process.platform === "win32"` or lives in `start.ps1`/`start.bat` /
+`scripts/*.ps1`. Linux code paths are LOCKED.
+
+Operator UX target (must match Linux exactly):
+- Double-click start.bat → cmd window opens
+- ~30s on first run (or ~2-5 min if Node/Chrome/deps need download)
+- Server prints LAN-URL banner showing `http://192.168.x.x:4173/` and
+  `http://192.168.x.x:4173/output/`
+- NO visible chrome.exe window pops up on operator's desktop
+- NO orphan node.exe / chrome.exe lingers after Ctrl+C in cmd
+- Dashboard loads from any LAN device, board geometry + stream both working
+- /output/ on Pi (or any LAN device) receives the WebRTC stream
+
+Root cause analysis (from iter11-iter15 commits + operator-shared logs):
+
+1. **No equivalent of Xvfb on Windows** — Linux runs Chromium headfully inside
+   an Xvfb virtual display (X11 server with no monitor), so the SSR tab renders
+   off any real screen. Windows has no portable equivalent (DummyMon / IDD Sample
+   Driver require admin / driver install — incompatible with click-and-run).
+   iter15 attempted `--window-position=-32000,-32000` to push the window
+   off-screen but Chrome on Windows still creates a real window that flickers
+   visible and can interact with the user's desktop.
+
+2. **Single-instance-attach race** — Windows Chrome.exe uses `--user-data-dir`
+   as a singleton key. If the operator has Chrome already running (with the
+   default profile dir), puppeteer's `chrome.exe --app=URL` attaches to the
+   existing instance, forwards `--app=URL` to it (opening a real tab in the
+   operator's browser), and the puppeteer-spawned process exits → puppeteer's
+   DevTools handshake fails → `net::ERR_ABORTED` → restart loop. iter15
+   addressed this with `userDataDir: <tmp>/ttb-ssr-<pid>-<ts>`,
+   `--app=about:blank` + page.goto, but the underlying premise — that we want a
+   real Chrome window at all on Windows — remains questionable.
+
+3. **Orphan process cleanup** — iter14 introduced a Win32 Job Object via
+   P/Invoke from PowerShell to kill the node child + chromium grandchild on
+   Ctrl+C. This works for the documented cmd path but may leak in edge cases
+   (cmd window force-closed via X button, Task Manager kill).
+
+Carrying forward from Phase 45/46 (LOCKED):
+- Linux start.sh — works, do not touch
+- Linux Xvfb integration in src/server/ssr-render-host.mjs — works, do not touch
+- mediasoup worker.exe prebuilt for win-x64 — works
+- ffmpeg-portable bootstrap in start.ps1 — works
+- Portable Node 22.x bootstrap in scripts/bootstrap-node.ps1 — works
+- npm ci on Windows — works
+- Server itself boots on Windows — works (operator log line 1-12 prove this)
+
+Discuss-Phase Gray Areas (zu klären, nicht hier festgelegt):
+- **SSR rendering strategy on Windows**: (a) `--headless=new` with WebRTC
+  (cleanest; requires verifying WebRTC + screen capture work in headless mode),
+  (b) Win32 ShowWindow(SW_HIDE) on the chrome.exe HWND after launch (window
+  exists but is invisible), (c) keep off-screen-positioning (current iter15)
+  but harden it, or (d) bundle a virtual-display driver (operator pain, admin
+  required — likely rejected).
+- **Browser dependency on Windows**: do we bundle Chrome-for-Testing
+  (predictable version, no single-instance-attach interaction with operator's
+  Chrome) or keep relying on system Chrome (smaller download, but unpredictable
+  version drift)?
+- **Process supervision on Windows**: stay with PowerShell Job Object
+  (current), switch to a tiny Rust/Go supervisor binary, use `winsw`-style
+  service wrapper, or use Node's own child-process tree-kill primitives?
+- **Windows-specific tests**: do we add CI for Windows (GitHub Actions
+  windows-latest runner) or rely solely on operator UAT?
+
+Out of Scope (Phase 47):
+- Linux changes of any kind (LOCKED)
+- macOS launcher (separate future phase)
+- WSL detection / WSL-specific handling
+- Mediasoup ARM64 Windows (no upstream prebuilt — Phase 46 already documents
+  the bail message)
+
+Exit Criteria:
+- Operator double-clicks start.bat on a clean Win10/Win11 machine; within 2-5
+  min on first boot (depending on Node/Chrome/deps download), the cmd window
+  shows the LAN-URL banner. No chrome.exe window is visible on the operator's
+  desktop.
+- Dashboard at `http://<lan-ip>:4173/` loads and shows board geometry from
+  any LAN device (phone, tablet, laptop).
+- /output/ at `http://<lan-ip>:4173/output/` on the Pi (or any LAN browser)
+  receives the WebRTC SSR stream within 10s of the dashboard going live.
+- Operator presses Ctrl+C in the cmd window → all node.exe + chrome.exe
+  children exit within 5s. No orphan processes.
+- Linux non-regression: `./start.sh` still boots cleanly on
+  Ubuntu/Debian/RPi (operator-validated path).
+- npm test stays at the same baseline (1 pre-existing fail acceptable).
+
+Wave structure (TBD by gsd-planner):
+- M1 RESEARCH: validate the SSR rendering strategy on Windows
+  (`--headless=new` + WebRTC + screen capture feasibility check, alt: Win32
+  ShowWindow API integration). Write findings to RESEARCH.md.
+- M2 W0: implement the chosen strategy with `process.platform === "win32"`
+  guards in src/server/ssr-render-host.mjs and any related modules.
+- M3 W1: harden process-supervision (orphan cleanup, taskkill robustness,
+  cmd-window-X-button case).
+- M4 VERIFY: operator runs start.bat on their Win10 box, confirms exit
+  criteria. Linux non-regression: ./start.sh probe + npm test.
