@@ -367,6 +367,47 @@ try {
   }
 } catch {}
 
+# Phase 49 (item 49-A, 2026-05-17): detect invocation context to decide
+# whether the Ctrl+C handler is allowed to kill ancestor cmd.exe.
+#
+# Two operator workflows:
+#   (a) Double-click start.bat from Explorer  -> parent is a wegwerf
+#       cmd.exe spawned BY explorer.exe. We WANT to kill that cmd on Ctrl+C
+#       (Phase 47 gap-closure-13 behavior — otherwise cmd shows
+#       "Terminate batch job (Y/N)?" and waits for user input).
+#   (b) Operator types ./start.bat in an existing PowerShell/cmd session
+#       -> parent is the operator's WORKING shell (or a cmd transient that
+#       ultimately reports back to that working shell). Killing it would
+#       close the operator's session and lose unsaved work in their other
+#       editor tabs / consoles.
+#
+# Detection: walk the topmost contiguous cmd ancestor and look at ITS
+# parent. If that grandparent is explorer.exe -> 'fresh-cmd'. Anything
+# else (powershell.exe, pwsh.exe, WindowsTerminal.exe, conhost.exe with no
+# explorer above, walk truncates, CIM/WMI all fail) -> 'existing-shell'.
+#
+# Safety bias: default to 'existing-shell' on any uncertainty. False-negative
+# cost = one batch-prompt on a wegwerf window (recoverable). False-positive
+# cost = operator's working shell gets force-killed (data loss). Always
+# lean safe.
+$script:InvocationContext = 'existing-shell'
+try {
+  if ($script:AncestorCmdPids.Count -gt 0) {
+    # Topmost cmd in our captured ancestor chain.
+    $topCmdPid = $script:AncestorCmdPids[-1]
+    $topCmdParent = Get-ParentProcessId -ChildPid $topCmdPid
+    if ($topCmdParent -gt 0) {
+      $topCmdParentProc = Get-Process -Id $topCmdParent -ErrorAction SilentlyContinue
+      if ($topCmdParentProc -and $topCmdParentProc.ProcessName -eq 'explorer') {
+        $script:InvocationContext = 'fresh-cmd'
+      }
+    }
+  }
+} catch {
+  # Stay 'existing-shell' on any error - safer.
+}
+Write-Host "[start]    Invocation context: $script:InvocationContext (ancestor cmds: $($script:AncestorCmdPids.Count))"
+
 if ($DryRun) {
   Write-Host "[start]    [dry-run] Would launch: node server.mjs (port $Port)"
   Write-Host "[start]    [dry-run] All probes passed. Re-run without -DryRun to start."
@@ -647,10 +688,19 @@ try {
     # tree gave cmd time to print "Terminate batch job (Y/N)?" once
     # PowerShell finally returned. Order matters: kill cmd, then
     # cleanup, then Exit.
+    #
+    # Phase 49 (item 49-A, 2026-05-17): only kill ancestor cmd in the
+    # double-click path. In 'existing-shell' invocation the "ancestor"
+    # IS the operator's working shell - killing it would close their
+    # session and lose unsaved work in their other tabs. The Stop-
+    # ServerProcess taskkill /T pass + Job Object KILL_ON_JOB_CLOSE
+    # still reap node + descendants without touching the parent.
     $e.Cancel = $true
-    foreach ($cmdPid in $script:AncestorCmdPids) {
-      try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
-      try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
+    if ($script:InvocationContext -eq 'fresh-cmd') {
+      foreach ($cmdPid in $script:AncestorCmdPids) {
+        try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
+        try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
+      }
     }
     & $cleanup
     [System.Environment]::Exit(0)
@@ -727,9 +777,18 @@ Write-Host ""
 # Done AFTER the success banner so the operator sees the dashboard
 # URL/log path before cmd detaches. Done BEFORE Get-Content -Wait so
 # any subsequent Ctrl+C lands in a cmd-free chain.
-foreach ($cmdPid in $script:AncestorCmdPids) {
-  try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
-  try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
+#
+# Phase 49 (item 49-A, 2026-05-17): gated on $script:InvocationContext
+# - only runs in 'fresh-cmd' (double-click) mode. In 'existing-shell'
+# mode (./start.bat from a working PS/cmd session), we leave the parent
+# shell ALONE and rely on Stop-ServerProcess + Job Object
+# KILL_ON_JOB_CLOSE to reap node + descendants without touching the
+# operator's session.
+if ($script:InvocationContext -eq 'fresh-cmd') {
+  foreach ($cmdPid in $script:AncestorCmdPids) {
+    try { Stop-Process -Id $cmdPid -Force -ErrorAction SilentlyContinue } catch {}
+    try { & taskkill.exe /F /PID $cmdPid 2>$null | Out-Null } catch {}
+  }
 }
 
 # Block the foreground console; tail the log so the user sees server output.
