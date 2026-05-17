@@ -1,4 +1,4 @@
-# start.ps1 — TT-Beamer click-and-run entry point (Windows 10/11 x64).
+# start.ps1 - TT-Beamer click-and-run entry point (Windows 10/11 x64).
 #
 # Phase 45.
 #
@@ -11,9 +11,9 @@
 #   1. Resolves a portable Node.js into .node-portable\ (no admin needed).
 #   2. Detects Chrome or Edge for the SSR tab. Bails clearly if neither found.
 #   3. Resolves portable ffmpeg into ffmpeg-portable\ (no admin needed).
-#   4. Runs `npm ci` if node_modules is stale. mediasoup ≥ 3.12 auto-pulls
-#      a prebuilt mediasoup-worker.exe — no Visual Studio Build Tools needed.
-#   5. Boots the server, waits for /api/health → 200, opens dashboard.
+#   4. Runs `npm ci` if node_modules is stale. mediasoup >= 3.12 auto-pulls
+#      a prebuilt mediasoup-worker.exe - no Visual Studio Build Tools needed.
+#   5. Boots the server, waits for /api/health -> 200, opens dashboard.
 #
 # Stability principles: idempotent, defensive probes, no system mutation.
 
@@ -35,7 +35,7 @@ $Port          = if ($env:PORT) { $env:PORT } else { '4173' }
 $HealthUrl         = "http://localhost:$Port/api/health"
 $DashboardUrlLocal = "http://localhost:$Port/"
 
-# LAN IP for the post-boot banner — dashboard/output are typically opened
+# LAN IP for the post-boot banner - dashboard/output are typically opened
 # from a phone/tablet/Pi on the LAN, not on the server itself.
 function Get-LanIp {
   try {
@@ -90,9 +90,9 @@ if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64') {
 }
 
 # -----------------------------------------------------------------------------
-# Step 1 — portable Node.js
+# Step 1 - portable Node.js
 # -----------------------------------------------------------------------------
-Write-Host "[start] (1/6) Portable Node.js …"
+Write-Host "[start] (1/6) Portable Node.js ..."
 . (Join-Path $ScriptDir 'scripts\bootstrap-node.ps1')
 
 if ($DryRun) {
@@ -110,13 +110,13 @@ if ($DryRun) {
 }
 
 # -----------------------------------------------------------------------------
-# Step 2 — chromium (system Chrome or Edge)
+# Step 2 - chromium (system Chrome or Edge)
 # -----------------------------------------------------------------------------
-Write-Host "[start] (2/6) Detecting Chromium …"
+Write-Host "[start] (2/6) Detecting Chromium ..."
 
 function Resolve-Chromium {
   # Phase 46 iter11 (2026-05-17): WinPS 5.1 parser chokes on
-  # ${env:ProgramFiles(x86)} inside double-quoted strings — the (x86)
+  # ${env:ProgramFiles(x86)} inside double-quoted strings - the (x86)
   # parentheses get misinterpreted and the function body fails to
   # close, producing a cascading "Missing closing '}'" parser error
   # later in the file. Use Environment.GetEnvironmentVariable so the
@@ -142,7 +142,7 @@ if (-not $chromiumPath) {
   Write-Host "[start]   Install one of these and re-run start.bat:" -ForegroundColor Red
   Write-Host "[start]     Chrome:  https://www.google.com/chrome/" -ForegroundColor Red
   Write-Host "[start]     Edge:    https://www.microsoft.com/edge" -ForegroundColor Red
-  Write-Host "[start]   (Edge ships with Windows 10/11 by default — try reinstalling it" -ForegroundColor Red
+  Write-Host "[start]   (Edge ships with Windows 10/11 by default - try reinstalling it" -ForegroundColor Red
   Write-Host "[start]    from the Microsoft Store if you've uninstalled it.)" -ForegroundColor Red
   exit 1
 }
@@ -151,14 +151,14 @@ Write-Host "[start]    Using: $chromiumPath"
 # (priority 1 in detectChromiumBinary). Lets us skip Puppeteer's bundled
 # Chromium and use the system browser instead.
 $env:SSR_BROWSER_BIN = $chromiumPath
-# Skip puppeteer's ~500 MB Chromium download during `npm ci` — we use
+# Skip puppeteer's ~500 MB Chromium download during `npm ci` - we use
 # system Chrome/Edge via SSR_BROWSER_BIN. Saves disk + first-run time.
 $env:PUPPETEER_SKIP_DOWNLOAD = 'true'
 
 # -----------------------------------------------------------------------------
-# Step 3 — portable ffmpeg
+# Step 3 - portable ffmpeg
 # -----------------------------------------------------------------------------
-Write-Host "[start] (3/6) Portable ffmpeg …"
+Write-Host "[start] (3/6) Portable ffmpeg ..."
 
 $FfmpegPortableDir = Join-Path $ScriptDir 'ffmpeg-portable'
 $FfmpegExe = Join-Path $FfmpegPortableDir 'bin\ffmpeg.exe'
@@ -174,7 +174,7 @@ function Ensure-PortableFfmpeg {
   New-Item -ItemType Directory -Force -Path $dl | Out-Null
   $zip = Join-Path $dl 'ffmpeg.zip'
 
-  Write-Host "[start]    Downloading ffmpeg (~92 MB) from BtbN/FFmpeg-Builds …"
+  Write-Host "[start]    Downloading ffmpeg (~92 MB) from BtbN/FFmpeg-Builds ..."
   try {
     Invoke-WebRequest -Uri $FfmpegZipUrl -OutFile $zip -UseBasicParsing
   } catch {
@@ -184,7 +184,7 @@ function Ensure-PortableFfmpeg {
     return $false
   }
 
-  Write-Host "[start]    Extracting …"
+  Write-Host "[start]    Extracting ..."
   $extract = Join-Path $dl 'extract'
   Remove-Item -Recurse -Force -LiteralPath $extract -ErrorAction SilentlyContinue
   Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
@@ -224,9 +224,9 @@ $env:PATH = "$ffmpegBin;$env:PATH"
 $env:FFMPEG_PATH = $FfmpegExe
 
 # -----------------------------------------------------------------------------
-# Step 4 — node_modules / npm ci
+# Step 4 - node_modules / npm ci
 # -----------------------------------------------------------------------------
-Write-Host "[start] (4/6) node_modules …"
+Write-Host "[start] (4/6) node_modules ..."
 
 $InstallMarker = Join-Path $ScriptDir 'node_modules\.start-ps1-installed-snapshot'
 
@@ -245,7 +245,7 @@ if (Test-NodeModulesStale) {
   if ($DryRun) {
     Write-Host "[start]    [dry-run] Would run: npm ci"
   } else {
-    Write-Host "[start]    Running 'npm ci' (first run takes 1-2 minutes; mediasoup downloads prebuilt worker) …"
+    Write-Host "[start]    Running 'npm ci' (first run takes 1-2 minutes; mediasoup downloads prebuilt worker) ..."
     $env:PUPPETEER_SKIP_DOWNLOAD = 'true'
     $npmCmd = Join-Path $script:NodePortableBin 'npm.cmd'
     & $npmCmd ci
@@ -258,7 +258,7 @@ if (Test-NodeModulesStale) {
       Write-Host "[start]        https://github.com/versatica/mediasoup/releases" -ForegroundColor Red
       Write-Host "[start]        and set MEDIASOUP_WORKER_BIN to its path." -ForegroundColor Red
       Write-Host "[start]" -ForegroundColor Red
-      Write-Host "[start]   See docs/INSTALL.md → 'Windows troubleshooting' for details." -ForegroundColor Red
+      Write-Host "[start]   See docs/INSTALL.md -> 'Windows troubleshooting' for details." -ForegroundColor Red
       exit 1
     }
     # Record which package-lock.json hash this node_modules was built from.
@@ -271,9 +271,9 @@ if (Test-NodeModulesStale) {
 }
 
 # -----------------------------------------------------------------------------
-# Step 5 — boot server
+# Step 5 - boot server
 # -----------------------------------------------------------------------------
-Write-Host "[start] (5/6) Boot server …"
+Write-Host "[start] (5/6) Boot server ..."
 
 function Stop-ServerProcess {
   if (Test-Path -LiteralPath $PidFile) {
@@ -281,7 +281,7 @@ function Stop-ServerProcess {
       $pidVal = [int](Get-Content -LiteralPath $PidFile)
       $proc = Get-Process -Id $pidVal -ErrorAction SilentlyContinue
       if ($proc) {
-        Write-Host "[start] Stopping server (PID $pidVal) …"
+        Write-Host "[start] Stopping server (PID $pidVal) ..."
         Stop-Process -Id $pidVal -Force -ErrorAction SilentlyContinue
       }
     } catch {}
@@ -304,7 +304,7 @@ Stop-ServerProcess
 $env:PORT = $Port
 $nodeExe = Join-Path $script:NodePortableBin 'node.exe'
 
-Write-Host "[start]    Starting Node server (port $Port) …"
+Write-Host "[start]    Starting Node server (port $Port) ..."
 $proc = Start-Process -FilePath $nodeExe `
                        -ArgumentList 'server.mjs' `
                        -WorkingDirectory $ScriptDir `
@@ -317,7 +317,7 @@ $proc = Start-Process -FilePath $nodeExe `
 # Register Ctrl+C handler to clean up.
 $cleanup = {
   Write-Host ""
-  Write-Host "[start] Shutting down …"
+  Write-Host "[start] Shutting down ..."
   Stop-ServerProcess
 }
 [Console]::CancelKeyPress += {
@@ -328,9 +328,9 @@ $cleanup = {
 }
 
 # -----------------------------------------------------------------------------
-# Step 6 — health probe + open browser
+# Step 6 - health probe + open browser
 # -----------------------------------------------------------------------------
-Write-Host "[start] (6/6) Waiting for server to come up …"
+Write-Host "[start] (6/6) Waiting for server to come up ..."
 
 function Probe-Health {
   param([int]$TimeoutSec = 90)
@@ -357,7 +357,7 @@ function Probe-Health {
       return $false
     }
     $i = ($i + 1) % 4
-    Write-Host -NoNewline ("`r[start]    {0} waiting … {1}s" -f $spinner[$i], $elapsed)
+    Write-Host -NoNewline ("`r[start]    {0} waiting ... {1}s" -f $spinner[$i], $elapsed)
     Start-Sleep -Seconds 1
     $elapsed++
   }
@@ -371,16 +371,16 @@ if (-not (Probe-Health -TimeoutSec 90)) {
   exit 1
 }
 
-Write-Host "[start]    Opening dashboard …"
+Write-Host "[start]    Opening dashboard ..."
 Start-Process $DashboardUrlLocal
 
 Write-Host ""
-Write-Host "  ─────────────────────────────────────────────────────"
+Write-Host "  -----------------------------------------------------"
 Write-Host "  TT-Beamer is running."
 Write-Host "    Dashboard (open on phone/tablet):  $DashboardUrl"
 Write-Host "    Output view (open on the Pi):      $OutputUrl"
 Write-Host "    Log:                                $LogFile"
-Write-Host "  ─────────────────────────────────────────────────────"
+Write-Host "  -----------------------------------------------------"
 Write-Host "  Press Ctrl+C to stop."
 Write-Host ""
 

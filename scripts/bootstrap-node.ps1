@@ -1,8 +1,8 @@
 # Portable Node.js bootstrap for TT-Beamer click-and-run scripts (Phase 45).
 #
 # Dot-source this file from start.ps1 to pull in:
-#   Ensure-PortableNode      — idempotent: install/verify .node-portable\
-#   $script:NodePortableBin  — absolute path to .node-portable\ (set on success)
+#   Ensure-PortableNode      - idempotent: install/verify .node-portable\
+#   $script:NodePortableBin  - absolute path to .node-portable\ (set on success)
 #
 # Strategy: download the latest Node 22.x LTS Windows zip from nodejs.org
 # to .node-portable\, verified by SHA256 against the official SHASUMS256.txt.
@@ -36,7 +36,7 @@ function Ensure-PortableNode {
   }
   $nodeArch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { "win-arm64" } else { "win-x64" }
 
-  Write-Host "[bootstrap-node] Resolving latest Node v$script:PortableNodeMajor.x from nodejs.org …"
+  Write-Host "[bootstrap-node] Resolving latest Node v$script:PortableNodeMajor.x from nodejs.org ..."
   try {
     $shasums = (Invoke-WebRequest -Uri "$script:PortableNodeDist/SHASUMS256.txt" -UseBasicParsing).Content
   } catch {
@@ -59,7 +59,7 @@ function Ensure-PortableNode {
   $zipPath = Join-Path $dlDir $zipName
   New-Item -ItemType Directory -Force -Path $dlDir | Out-Null
 
-  Write-Host "[bootstrap-node] Downloading $zipName …"
+  Write-Host "[bootstrap-node] Downloading $zipName ..."
   try {
     Invoke-WebRequest -Uri "$script:PortableNodeDist/$zipName" -OutFile $zipPath -UseBasicParsing
   } catch {
@@ -69,7 +69,7 @@ function Ensure-PortableNode {
     return $false
   }
 
-  Write-Host "[bootstrap-node] Verifying SHA256 …"
+  Write-Host "[bootstrap-node] Verifying SHA256 ..."
   $actualSha = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($actualSha -ne $expectedSha.ToLowerInvariant()) {
     Write-Host "[bootstrap-node] ERROR: SHA256 mismatch for $zipName" -ForegroundColor Red
@@ -79,7 +79,7 @@ function Ensure-PortableNode {
     return $false
   }
 
-  Write-Host "[bootstrap-node] Extracting …"
+  Write-Host "[bootstrap-node] Extracting ..."
   $extractDir = Join-Path $dlDir "extract"
   Remove-Item -Recurse -Force -LiteralPath $extractDir -ErrorAction SilentlyContinue
   Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force
