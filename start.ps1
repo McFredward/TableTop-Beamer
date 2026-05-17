@@ -326,7 +326,8 @@ if ($DryRun) {
 # Stop any orphan from a previous run.
 Stop-ServerProcess
 
-# Phase 47 gap-closure-7 (2026-05-17): foreign-process port-blocker preflight.
+# Phase 47 gap-closure-7 (2026-05-17): foreign-process port-blocker preflight
+# with automatic port-shift.
 #
 # Symptom (operator UAT, Win11): start.bat hangs at "Waiting for server to
 # come up" forever. Server-side diagnostics proved Node was listening +
@@ -338,11 +339,9 @@ Stop-ServerProcess
 # more-specific bind, so every probe hit the squatter who accepts TCP
 # but never speaks HTTP.
 #
-# This block runs AFTER Stop-ServerProcess (which kills only our own
-# PidFile-recorded PID tree) and detects any remaining foreign listener
-# on $Port. For each one we show the operator PID + image name +
-# bound-address and ask Y/n before killing. Operator opt-out aborts the
-# launch with a clear message — better than silent hang.
+# Strategy: when a foreign process holds $Port, leave it alone (no kill —
+# the operator's editor/dev tooling stays running) and auto-shift to the
+# next free port. URLs derived from $Port are recomputed in place.
 function Test-PortBlockers {
   param([int]$ProbePort)
   try {
@@ -374,9 +373,8 @@ function Test-PortBlockers {
 $portBlockers = Test-PortBlockers -ProbePort $Port
 if ($portBlockers -and $portBlockers.Count -gt 0) {
   Write-Host ""
-  Write-Host "[start] WARNING: port $Port is already in use by another process." -ForegroundColor Yellow
-  Write-Host "[start]          Without freeing it, the dashboard probe will hang silently." -ForegroundColor Yellow
-  Write-Host ""
+  Write-Host "[start] WARNING: port $Port is already in use — shifting to a free port." -ForegroundColor Yellow
+  Write-Host "[start]          (Without this, the dashboard probe would hang silently.)" -ForegroundColor Yellow
   foreach ($conn in $portBlockers) {
     $blockingPid = [int]$conn.OwningProcess
     if ($blockingPid -le 0) { continue }
@@ -389,40 +387,46 @@ if ($portBlockers -and $portBlockers.Count -gt 0) {
         try { $procPath = $p.MainModule.FileName } catch { $procPath = '' }
       }
     } catch {}
-    Write-Host ("[start]   Blocker found:")
-    Write-Host ("[start]     PID     : {0}" -f $blockingPid)
-    Write-Host ("[start]     Name    : {0}" -f $procName)
-    if ($procPath) { Write-Host ("[start]     Path    : {0}" -f $procPath) }
-    Write-Host ("[start]     Bound to: {0}:{1}" -f $conn.LocalAddress, $conn.LocalPort)
-    Write-Host ""
-    $answer = Read-Host ("[start]   Kill PID {0} ({1}) now? [Y/n]" -f $blockingPid, $procName)
-    if ($answer -eq '' -or $answer -match '^[Yy]') {
-      try {
-        & taskkill.exe /F /T /PID $blockingPid 2>$null | Out-Null
-        Start-Sleep -Milliseconds 250
-        if (Get-Process -Id $blockingPid -ErrorAction SilentlyContinue) {
-          Stop-Process -Id $blockingPid -Force -ErrorAction SilentlyContinue
-        }
-        Write-Host ("[start]     -> killed PID {0} ({1})" -f $blockingPid, $procName) -ForegroundColor Green
-      } catch {
-        Write-Host ("[start]     -> failed to kill PID {0}: {1}" -f $blockingPid, $_.Exception.Message) -ForegroundColor Red
-        Write-Host "[start] Aborting launch — please free the port manually and retry." -ForegroundColor Red
-        exit 1
-      }
-    } else {
-      Write-Host ("[start]     -> skipped. Port {0} is still blocked; launcher cannot continue." -f $Port) -ForegroundColor Red
-      Write-Host "[start] Aborting launch." -ForegroundColor Red
-      exit 1
-    }
+    Write-Host ("[start]   Blocker on {0}:{1}  PID={2}  Name={3}{4}" -f `
+      $conn.LocalAddress, $conn.LocalPort, $blockingPid, $procName, `
+      $(if ($procPath) { "  Path=$procPath" } else { '' })) -ForegroundColor Yellow
   }
-  # Re-verify the port is actually free now (handle stragglers).
-  Start-Sleep -Milliseconds 500
-  $portBlockersAfter = Test-PortBlockers -ProbePort $Port
-  if ($portBlockersAfter -and $portBlockersAfter.Count -gt 0) {
-    Write-Host "[start] Port $Port is STILL occupied after cleanup — please reboot or free it manually." -ForegroundColor Red
+
+  # Probe upward for the next free port. Cap the scan so a fully-blocked
+  # ephemeral range surfaces as an error instead of an infinite loop.
+  $originalPort = [int]$Port
+  $candidate    = $originalPort + 1
+  $scanLimit    = $originalPort + 50
+  $newPort      = 0
+  while ($candidate -le $scanLimit) {
+    $candBlockers = Test-PortBlockers -ProbePort $candidate
+    if (-not $candBlockers -or $candBlockers.Count -eq 0) {
+      # Also confirm we can actually bind it (Windows may report free for
+      # some sockets in a transitional state).
+      try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $candidate)
+        $listener.Start()
+        $listener.Stop()
+        $newPort = $candidate
+        break
+      } catch {
+        # Bind probe failed — keep scanning.
+      }
+    }
+    $candidate += 1
+  }
+
+  if ($newPort -le 0) {
+    Write-Host ("[start] FATAL: no free port found in range {0}-{1}. Aborting." -f ($originalPort + 1), $scanLimit) -ForegroundColor Red
     exit 1
   }
-  Write-Host ("[start]   Port {0} freed; continuing." -f $Port) -ForegroundColor Green
+
+  $Port              = [string]$newPort
+  $HealthUrl         = "http://127.0.0.1:$Port/api/health"
+  $DashboardUrlLocal = "http://127.0.0.1:$Port/"
+  $DashboardUrl      = "http://${LanIp}:$Port/"
+  $OutputUrl         = "http://${LanIp}:$Port/output/"
+  Write-Host ("[start]   -> shifted to free port {0}. Dashboard URLs updated." -f $Port) -ForegroundColor Green
 }
 
 # Truncate log so the user sees only this session's output.
