@@ -1,25 +1,30 @@
-// Phase 47 Wave 1 — Unit tests for buildChromiumLaunchArgs (Task 1 RED).
+// Phase 47 Wave 1 (originally) / Wave 2 (updated) — Unit tests for buildChromiumLaunchArgs.
 //
 // This file pins the platform-branch FINGERPRINTS of the Chromium launch arg
 // array constructed by `buildChromiumLaunchArgs({ platform, opts })` in
 // src/server/ssr-render-host.mjs.
 //
-// On RED (master, before Task 2 refactor) every test in this file will fail
-// with an import error because `buildChromiumLaunchArgs` is not yet exported.
-// That failure is the explicit signal that the unit-test rail is wired —
-// Task 2's refactor flips them GREEN.
+// Wave 2 update (2026-05-17): Test C is INVERTED — now asserts the post-Wave-2
+// Win32 default-path behavior. The new default on Win32 is `useHeadlessNew=true`
+// (driven by `process.env.SSR_WIN_HEADLESS !== "0"` in launchBrowser), which
+// drops the iter15 off-screen-window hack (`--app=about:blank` +
+// `--window-position=-32000,-32000`). The Win32 `--display=` gate is unconditional
+// (Wave 2 cosmetic cleanup — Windows Chrome has no X server). All other Wave-1
+// tests (A, B, D, E, F) are unchanged.
 //
 // Test scope:
 //   - Test A: export presence
-//   - Test B: Linux fingerprint flags
-//   - Test C: Windows fingerprint flags (iter15 — `--display=:99` IS present
-//             because iter15 source line 644 emits it unconditionally; this
-//             is byte-identity to iter15. Wave 2 will gate it on isWin32.)
-//   - Test D: --auto-select-tab-capture-source-by-title on win32 (D-D2)
-//   - Test E: VAAPI-gated GL flags present when hasVaapiEnabled=true
-//   - Test F: VAAPI-gated GL flags absent when hasVaapiEnabled=false
+//   - Test B: Linux fingerprint flags (unchanged)
+//   - Test C (UPDATED): Windows fingerprint flags — post-Wave-2 headless-new path
+//             drops --app=, --window-position=, --display= (Wave 2: headless-new
+//             drops the iter15 off-screen-window hack; --display= dropped on
+//             Win32 regardless via the unconditional isWin32 gate).
+//   - Test D: --auto-select-tab-capture-source-by-title on win32 (D-D2, unchanged)
+//   - Test E: VAAPI-gated GL flags present when hasVaapiEnabled=true (unchanged)
+//   - Test F: VAAPI-gated GL flags absent when hasVaapiEnabled=false (unchanged)
 //
-// Pairs with test/phase-47-linux-non-regression.test.mjs (byte-identity).
+// Pairs with test/phase-47-linux-non-regression.test.mjs (byte-identity) and
+// test/phase-47-windows-headless-new.test.mjs (Wave-2 Tests J-O).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -75,10 +80,19 @@ test("Test B: platform='linux' returns Linux iter15 fingerprint", () => {
   );
 });
 
-test("Test C: platform='win32' returns Windows iter15 fingerprint (with --display=:99 — iter15 unconditional)", () => {
-  const args = buildChromiumLaunchArgs({ platform: "win32", ...BASE_OPTS });
+test("Test C (UPDATED Wave 2): platform='win32' + useHeadlessNew=true drops --app=, --window-position=, --display= (headless-new + Wave-2 Win32 --display= cleanup)", () => {
+  // Wave 2: headless-new drops the iter15 off-screen-window hack
+  // (--app=about:blank + --window-position=-32000,-32000). The Win32
+  // --display= gate is unconditional (orthogonal to useHeadlessNew) — it's
+  // a cosmetic no-op cleanup; Windows Chrome has no X server so iter15's
+  // --display=:99 emit on Win32 was always inert.
+  const args = buildChromiumLaunchArgs({
+    platform: "win32",
+    useHeadlessNew: true,
+    ...BASE_OPTS,
+  });
   assert.ok(Array.isArray(args), "args must be an array");
-  // iter15 win32 EXCLUSIONS (Linux-gated flags):
+  // iter15 win32 EXCLUSIONS (Linux-gated flags) — unchanged from Wave 1:
   assert.ok(
     !args.includes("--ozone-platform=x11"),
     "win32 args must NOT include --ozone-platform=x11 (iter15-gated to Linux)",
@@ -93,22 +107,20 @@ test("Test C: platform='win32' returns Windows iter15 fingerprint (with --displa
   );
   assert.ok(
     !args.includes("--app=http://127.0.0.1:4173/ssr"),
-    "win32 args must NOT include --app=<ssrUrl> (uses --app=about:blank instead per iter15)",
+    "win32 args must NOT include --app=<ssrUrl>",
   );
-  // iter15 win32 INCLUSIONS:
+  // Wave 2 NEW EXCLUSIONS (post-headless-new + Win32 --display= cleanup):
   assert.ok(
-    args.includes("--window-position=-32000,-32000"),
-    "win32 args must include --window-position=-32000,-32000 (iter15 off-screen hack)",
+    !args.some((a) => a.startsWith("--window-position=")),
+    "Wave 2: win32 headless-new must NOT include any --window-position= flag (drops iter15 off-screen-window hack — no window under headless-new)",
   );
   assert.ok(
-    args.includes("--app=about:blank"),
-    "win32 args must include --app=about:blank (iter15 single-instance-attach defense)",
+    !args.some((a) => a.startsWith("--app=")),
+    "Wave 2: win32 headless-new must NOT include any --app= flag (drops iter15 --app=about:blank hack — no app-mode chrome to hide under headless-new)",
   );
-  // iter15 LINE 644 — `--display=${display}` is emitted UNCONDITIONALLY.
-  // No isWin32 gate. Wave 1 preserves this; Wave 2 will add the gate.
   assert.ok(
-    args.includes("--display=:99"),
-    "win32 args MUST include --display=:99 in Wave 1 (iter15 source line 644 emits it unconditionally; Wave 2 will gate it)",
+    !args.some((a) => a.startsWith("--display=")),
+    "Wave 2: win32 args must NOT include any --display= flag (unconditional Win32 gate — cosmetic cleanup, Windows Chrome has no X server)",
   );
 });
 

@@ -137,7 +137,16 @@ const LINUX_ITER15_BASELINE_VAAPI = [
 //   - DROP `--start-fullscreen`                    (iter15 line 603 gates to Linux)
 //   - REPLACE `--app=...ssr` with `--app=about:blank` (iter15 line 597)
 //   - REPLACE `--window-position=0,0` with `--window-position=-32000,-32000` (iter15 line 602)
-//   - KEEP `--display=:99` at the tail            (iter15 line 644 — NO isWin32 gate; Wave 1 byte-identity to iter15)
+//
+// Wave 2: --display=:99 dropped on Win32 (cosmetic no-op cleanup — Windows
+// Chrome has no X server, the arg was always inert). This is the ONE
+// documented Wave-2 edit to the Wave-1 WIN32_ITER15_BASELINE; committed in
+// the same atomic change as the `isWin32` gate on `--display=` in
+// `buildChromiumLaunchArgs`. The Win32 --display= gate is UNCONDITIONAL
+// (orthogonal to useHeadlessNew) — both the default headless-new path AND
+// the SSR_WIN_HEADLESS=0 escape-hatch path use this baseline. The matching
+// constant in test/phase-47-windows-headless-new.test.mjs has the same
+// shape and the same comment.
 // ---------------------------------------------------------------------
 const WIN32_ITER15_BASELINE = [
   "--no-sandbox",
@@ -172,7 +181,9 @@ const WIN32_ITER15_BASELINE = [
   "--disable-infobars",
   "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,BackForwardCache,Translate,TranslateUI,PasswordManagerOnboarding,InterestFeedV2,AutofillServerCommunication",
   "--enable-features=TabCaptureFastPath",
-  "--display=:99", // iter15 source line 644 — emitted unconditionally; Wave 2 will gate to !isWin32 and remove from this baseline
+  // Wave 2: --display=:99 dropped on Win32 (no-op cleanup — Windows Chrome
+  // has no X server). Both default headless-new AND SSR_WIN_HEADLESS=0
+  // escape-hatch share this Win32 gate. See comment above the constant.
 ];
 
 // ---------------------------------------------------------------------
@@ -205,7 +216,13 @@ test("Test H: platform='linux' arg list with hasVaapiEnabled=true includes VAAPI
   );
 });
 
-test("Test I: platform='win32' arg list is byte-identical to iter15 (incl. --display=:99 per iter15 source line 644)", () => {
+test("Test I (UPDATED Wave 2): platform='win32' arg list matches post-Wave-2 WIN32_ITER15_BASELINE (drops --display=:99 — cosmetic Win32 no-op cleanup)", () => {
+  // Wave 2: WIN32_ITER15_BASELINE drops --display= (see constant comment above).
+  // The win32 path emits the same arg list regardless of useHeadlessNew when
+  // we look at the headful (escape-hatch) flags; this test asserts the
+  // implicit Wave-2 default behavior of buildChromiumLaunchArgs (no
+  // useHeadlessNew param → falsy → behaves like escape-hatch, but with the
+  // unconditional Win32 --display= gate already applied).
   const args = buildChromiumLaunchArgs({
     platform: "win32",
     ...BASE_OPTS,
@@ -214,6 +231,6 @@ test("Test I: platform='win32' arg list is byte-identical to iter15 (incl. --dis
   assert.deepStrictEqual(
     args,
     WIN32_ITER15_BASELINE,
-    "win32 arg list drifted from iter15 baseline — Wave 1 must be byte-identical to iter15, INCLUDING --display=:99 at the tail. Wave 2 will introduce the isWin32 gate and update this baseline in the same commit.",
+    "win32 arg list drifted from post-Wave-2 WIN32_ITER15_BASELINE — Wave 2 dropped --display=:99 on Win32 (unconditional cleanup; the arg was always a no-op on Windows Chrome). If the diff includes any OTHER change, that's a Wave-2 contract violation.",
   );
 });
