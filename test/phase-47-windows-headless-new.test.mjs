@@ -61,8 +61,9 @@ const BASE_OPTS = {
 // the SSR_WIN_HEADLESS=0 escape-hatch path emit the same Win32-shape arg
 // list MINUS `--display=`. This is "iter15 modulo --display= no-op cleanup".
 // ---------------------------------------------------------------------
+// gap-closure-5 (2026-05-17): --no-sandbox is gated to non-Win32.
 const WIN32_ITER15_BASELINE = [
-  "--no-sandbox",
+  // (no --no-sandbox — gap-closure-5 gates it to Linux)
   "--autoplay-policy=no-user-gesture-required",
   // (no --ozone-platform=x11 — iter15-gated to Linux)
   "--use-gl=angle",

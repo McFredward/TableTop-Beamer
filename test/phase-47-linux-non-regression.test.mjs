@@ -148,8 +148,14 @@ const LINUX_ITER15_BASELINE_VAAPI = [
 // constant in test/phase-47-windows-headless-new.test.mjs has the same
 // shape and the same comment.
 // ---------------------------------------------------------------------
+// gap-closure-5 (2026-05-17): --no-sandbox is gated to non-Win32. Windows
+// Chrome's sandbox is enabled by default and headless-new on Win11 needs
+// the sandbox active — disabling it caused observed renderer-process
+// crashes during page.goto (ERR_ABORTED + browser disconnect). Linux
+// still emits --no-sandbox (Xvfb path runs Chromium with default sandbox
+// disabled to avoid root/UID issues across CI + dev environments).
 const WIN32_ITER15_BASELINE = [
-  "--no-sandbox",
+  // (no --no-sandbox — gap-closure-5 gates it to Linux)
   "--autoplay-policy=no-user-gesture-required",
   // (no --ozone-platform=x11 — iter15-gated to Linux)
   "--use-gl=angle",

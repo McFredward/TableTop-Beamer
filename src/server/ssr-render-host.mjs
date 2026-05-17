@@ -146,7 +146,14 @@ export function buildChromiumLaunchArgs({
   const dropOnHeadlessNew = isWin32 && useHeadlessNew === true;
 
   return [
-    "--no-sandbox",
+    // Phase 47 gap-closure-5 (2026-05-17): gate --no-sandbox to non-Win32.
+    // On Linux we need it (Chrome inside Xvfb, sometimes as root in CI
+    // setups). On Windows the sandbox is supported and ENABLED by default;
+    // disabling it has been observed to cause renderer-process crashes
+    // during navigation in Chrome headless-new on Win11 — exactly the
+    // symptom from operator UAT (page.goto → net::ERR_ABORTED + browser
+    // disconnect). Letting Chrome use its default sandbox should fix that.
+    ...(isWin32 ? [] : ["--no-sandbox"]),
     "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
     // Linux only: explicit ozone platform = x11 for Xvfb binding.
     // Phase-31 h19. On Windows Chrome ignores it (different display
@@ -835,12 +842,28 @@ export function bootSsrRenderHost({
     //
     // Linux LINUX_ITER15_BASELINE byte-identity is preserved (no extra
     // args on the Linux branch).
+    // Phase 47 gap-closure-5: Chrome net-log path on Win32. Captures
+    // EVERY network event (DNS, sockets, HTTP, errors) to a JSON file
+    // next to start.log. When page.goto fails, this file shows exactly
+    // why (cert error, DNS, connection-refused, abort reason, etc.) —
+    // far more detailed than the stderr we currently get.
+    let winNetLogPath = null;
+    if (isWin32Launcher) {
+      try {
+        const tmp = (await import("node:os")).tmpdir();
+        const path = await import("node:path");
+        winNetLogPath = path.join(tmp, `ttb-ssr-netlog-${process.pid}-${Date.now()}.json`);
+        logger.info(`[ssr-host] Chrome net-log → ${winNetLogPath}`);
+      } catch {}
+    }
+
     const chromiumArgs = isWin32Launcher
       ? [
           ...chromiumArgsBase,
           "--auto-accept-this-tab-capture",
           "--enable-logging=stderr",
           "--v=0",
+          ...(winNetLogPath ? [`--log-net-log=${winNetLogPath}`, "--net-log-capture-mode=Default"] : []),
         ]
       : chromiumArgsBase;
 
@@ -1108,6 +1131,23 @@ export function bootSsrRenderHost({
         try { logger.warn(`[ssr-tab:reqfailed] ${req.url()} :: ${req.failure()?.errorText ?? "?"}`); } catch {}
       });
       cdpSession = await page.target().createCDPSession();
+      // Phase 47 gap-closure-5 (2026-05-17): listen for renderer / target
+      // crashes so the operator's start.log.err names the actual failure
+      // instead of only the after-the-fact `[ssr-host] browser disconnected
+      // unexpectedly`. CDP fires these synchronously when Chrome's
+      // renderer or target process dies (e.g. sandbox failure, OOM,
+      // GPU-process crash propagation). Non-fatal: we just log them; the
+      // outer browser.on("disconnected") still owns the restart trigger.
+      try {
+        cdpSession.on("Inspector.targetCrashed", (e) => {
+          logger.error(`[ssr-tab:targetCrashed] ${JSON.stringify(e ?? {})}`);
+        });
+      } catch {}
+      try {
+        cdpSession.on("Target.targetCrashed", (e) => {
+          logger.error(`[ssr-host:targetCrashed] ${JSON.stringify(e ?? {})}`);
+        });
+      } catch {}
       // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
       // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
       await page.goto(`http://127.0.0.1:${port}/ssr`, {
