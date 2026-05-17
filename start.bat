@@ -21,41 +21,60 @@ REM ---------------------------------------------------------------
 set "SSR_WIN_HEADLESS="
 
 REM ---------------------------------------------------------------
-REM Phase 49 gap-closure-1 + gap-closure-2: self-detach into a fresh
-REM explorer-parented cmd window when invoked from a non-explorer
-REM shell (PowerShell, Windows Terminal, an existing cmd, etc.).
+REM Phase 49 gap-closure-3: self-detach into a fresh explorer-parented
+REM cmd window when invoked from a non-explorer shell, via a temp
+REM dispatcher .bat. Direct cross-shell quoting through cmd-batch ->
+REM PowerShell -> Start-Process -> cmd /k breaks for non-trivial
+REM command strings (carets stripped, backslash-escapes mis-parsed by
+REM cmd /k). The dispatcher side-steps quoting entirely: we write a
+REM tiny one-shot .bat to %TEMP%, then Start-Process invokes cmd /k
+REM with just the dispatcher path. The dispatcher sets env vars and
+REM calls back into start.bat with _TTB_SELF_SPAWNED=1, then deletes
+REM itself.
 REM
-REM IMPORTANT — use PowerShell Start-Process (not cmd's `start`) to
-REM truly detach. In modern ConPTY environments (Windows Terminal,
-REM VS Code terminal), `start cmd /k` does NOT actually create
-REM independent stdio handles — the spawned cmd's stdout still pipes
-REM back to the parent ConPTY, so the original shell sees ALL output
-REM duplicated. PowerShell's Start-Process creates a process with
-REM fresh handles and an isolated console.
+REM Why PowerShell Start-Process (not cmd's `start`): under modern
+REM ConPTY hosts (Windows Terminal, VS Code terminal), `start cmd /k`
+REM does NOT actually create independent stdio. Spawned cmd's stdout
+REM still pipes back to the parent ConPTY -> output duplicated in
+REM both windows. PS Start-Process creates a process with truly fresh
+REM handles and an isolated console.
 REM ---------------------------------------------------------------
 
 if defined _TTB_SELF_SPAWNED goto :ttb_main
 
 REM Walk one level: my parent is cmd (running this .bat). I want cmd's
-REM PARENT to decide invocation context (grandparent of the powershell
-REM oneliner). If grandparent == "explorer" -> double-click path,
-REM continue inline. Otherwise self-detach.
+REM PARENT (grandparent of the powershell oneliner) to decide invocation
+REM context. If grandparent == "explorer" -> double-click path, continue
+REM inline. Otherwise self-detach.
 for /f "tokens=*" %%P in ('powershell.exe -NoProfile -Command "try { $myProc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $PID); $cmdParentId = $myProc.ParentProcessId; $grandProc = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $cmdParentId); $grandPid = $grandProc.ParentProcessId; (Get-Process -Id $grandPid -ErrorAction SilentlyContinue).ProcessName } catch { 'unknown' }"') do set "_TTB_CMD_GRANDPARENT=%%P"
 
 if /i "%_TTB_CMD_GRANDPARENT%"=="explorer" goto :ttb_main
 
-REM Non-explorer shell detected — self-detach using PowerShell
-REM Start-Process so the new console has truly independent handles.
+REM Non-explorer shell detected — write temp dispatcher then detach.
+set "_TTB_DISPATCHER=%TEMP%\ttb-spawn-%RANDOM%%RANDOM%.bat"
+set "_TTB_ORIG_BAT=%~dpnx0"
+
+(
+  echo @echo off
+  echo set _TTB_SELF_SPAWNED=1
+  echo set SSR_WIN_HEADLESS=
+  echo call "%_TTB_ORIG_BAT%" %*
+  echo set _RC=%%ERRORLEVEL%%
+  echo del "%%~f0" ^>nul 2^>^&1
+  echo exit /b %%_RC%%
+) > "%_TTB_DISPATCHER%"
+
 echo.
 echo [start.bat] Detected invocation from "%_TTB_CMD_GRANDPARENT%".
 echo [start.bat] Launching detached console window (your shell stays free).
 echo [start.bat] Server output will appear ONLY in the new window.
 echo.
 
-REM Use Start-Process with explicit -WindowStyle Normal and the
-REM _TTB_SELF_SPAWNED env var threaded through a cmd /k preamble.
-REM The child has no stdio inheritance from this cmd.
-powershell.exe -NoProfile -Command "Start-Process -FilePath cmd.exe -ArgumentList '/k', 'set _TTB_SELF_SPAWNED=1 ^&^& set SSR_WIN_HEADLESS= ^&^& \"%~dpnx0\" %*' -WorkingDirectory '%~dp0' -WindowStyle Normal"
+REM Detach via PowerShell Start-Process so stdio is truly independent
+REM from the calling ConPTY. cmd /k receives a single quoted path arg
+REM (the dispatcher) — no nested quoting, no caret-escape gymnastics.
+powershell.exe -NoProfile -Command "Start-Process -FilePath cmd.exe -ArgumentList '/k','%_TTB_DISPATCHER%' -WorkingDirectory '%~dp0' -WindowStyle Normal"
+
 endlocal & exit /b 0
 
 :ttb_main
