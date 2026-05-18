@@ -421,6 +421,13 @@
       if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
       _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
+      // Phase 49 gap-closure-28 (2026-05-18): broadcast the new-profile
+      // baseline so SSR + other clients adopt the default geometry
+      // immediately. Without this, clicking "New" mutated the local grid
+      // but never pushed to SSR — the operator saw the toolbar chip flip
+      // to the new profile name while the streamed board kept the
+      // previous geometry until the next gesture broadcast.
+      try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
       return { ok: true, name };
     } catch (err) {
       _showAlignErrorToast("Create failed: " + (err?.message || err));
