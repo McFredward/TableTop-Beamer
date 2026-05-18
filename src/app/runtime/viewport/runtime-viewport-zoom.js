@@ -69,33 +69,55 @@
   // cluster rail (position:fixed at translateX(-100%) of the stage's
   // left edge) docks just past the LEFT side of the viewport when the
   // stage is at scale 1.0 — operator has to swipe horizontally to see
-  // the cluster pads. Operator UAT: "Am Handy skalliere per default
-  // das board so, dass auch die cluster links zu sehen sind. Aktuell
-  // sieht man sie nicht und muss dort erst hinswpien." Default-zoom
-  // out a bit on portrait phones so the stage's left edge lands far
-  // enough into the viewport for the rail to be visible. 0.75 keeps
-  // the board readable (still ~75% size) and pulls stage.left ~50px
-  // off the viewport edge — enough that the ~92px rail's right edge
-  // sits in-bounds. Predecessor commit (the CSS padding-left approach
-  // in gap-closure-33) broke zoom math; this scale-only approach
-  // leaves the layout alone.
-  function _getInitialBoardZoomScale() {
+  // the cluster pads. Default-zoom out a bit on portrait phones so the
+  // stage's left edge lands far enough into the viewport for the rail
+  // to be visible.
+  //
+  // Phase 49 gap-closure-33c (2026-05-18): refinement. Operator UAT:
+  // "Jetzt sieht man zwar die cluster aber sehr viel platz ist
+  // verschwendet - das ganze board inkl. den fake-room clsuters kann
+  // jetzt ein wenig nach recxhts verschoben werden versuch es zu
+  // zentrieren inklusive der fake räume der clsuter, sofern welche
+  // existieren ansonsten lass es wie es zuvor war."
+  //
+  // Rules:
+  //   - Mobile portrait + board HAS clusters → scale 0.75 + panX +55
+  //     (centers the rail+board combo visually; +55px ≈ half of the
+  //     ~110px rail width on the 720-920 breakpoint).
+  //   - Mobile portrait + board has NO clusters → original behavior
+  //     (scale 1.0, panX 0). No reason to shrink the board if there's
+  //     no rail to make room for.
+  //   - Desktop / landscape → unchanged.
+  function _hasClustersForBoard(board) {
     try {
-      const isMobilePortrait =
-        typeof window !== "undefined"
+      if (typeof ctx.getBoardRoomClusters === "function") {
+        const clusters = ctx.getBoardRoomClusters(board?.id);
+        return Array.isArray(clusters) && clusters.length > 0;
+      }
+    } catch { /* fall through */ }
+    return false;
+  }
+
+  function _isMobilePortraitViewport() {
+    try {
+      return typeof window !== "undefined"
         && typeof window.matchMedia === "function"
         && window.matchMedia("(max-width: 920px) and (orientation: portrait)").matches;
-      if (isMobilePortrait) return 0.75;
-    } catch { /* defensive — fall through to default */ }
-    return ctx.BOARD_ZOOM_DEFAULT.scale;
+    } catch { return false; }
   }
 
   function createDefaultBoardZoomByBoard() {
-    const initialScale = _getInitialBoardZoomScale();
-    return Object.fromEntries(ctx.getBoards().map((board) => [board.id, {
-      ...ctx.BOARD_ZOOM_DEFAULT,
-      scale: initialScale,
-    }]));
+    const isMobilePortrait = _isMobilePortraitViewport();
+    return Object.fromEntries(ctx.getBoards().map((board) => {
+      // Only shrink + shift when there's actually a cluster rail to
+      // make room for. Otherwise leave the legacy scale=1 / panX=0
+      // default in place (operator request — gap-closure-33c).
+      const applyClusterFraming = isMobilePortrait && _hasClustersForBoard(board);
+      const profile = applyClusterFraming
+        ? { ...ctx.BOARD_ZOOM_DEFAULT, scale: 0.75, panX: 55 }
+        : { ...ctx.BOARD_ZOOM_DEFAULT };
+      return [board.id, profile];
+    }));
   }
 
   function getBoardZoom(boardId) {
