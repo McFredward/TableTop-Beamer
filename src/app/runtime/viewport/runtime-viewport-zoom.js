@@ -106,25 +106,57 @@
     } catch { return false; }
   }
 
+  // Phase 49 gap-closure-35 (2026-05-19): compute the mobile-portrait
+  // default zoom-out so the cluster rail's left edge sits flush with
+  // the viewport's left edge AND the board's right edge sits flush
+  // with the viewport's right edge — using the full available width.
+  // The previous hardcoded (scale 0.75, panX +55) left a visible gap
+  // on the left ("links eine lücke bis die fake räume anfangen") and
+  // wasted space.
+  //
+  // Math (viewport-relative):
+  //   combo_visual_width = (railLayoutWidth + stageLayoutWidth) * scale = vw
+  //   → scale = vw / (railLayoutWidth + stageLayoutWidth)
+  //   Want rail flush left → stage_visual_left = railLayoutWidth * scale
+  //   stage natural visual left (centered, panX=0) = (vw - stageLayoutWidth*scale) / 2
+  //   panX = stage_visual_left_target − natural_left
+  function _computeMobilePortraitDefault() {
+    if (typeof window === "undefined") return { scale: 0.75, panX: 55 };
+    const vw = window.innerWidth || 0;
+    if (vw <= 0) return { scale: 0.75, panX: 55 };
+    // Match the .cluster-pads CSS width at each mobile breakpoint.
+    const railLayoutWidth = vw <= 720 ? 92 : (vw <= 980 ? 110 : 130);
+    // Read the stage's actual layout width (resolves the CSS min()
+    // against the current viewport). At the call site (boot,
+    // _initApplicationSetupBoardState) the .stage element exists in
+    // the static HTML so clientWidth is available.
+    const stage = document.getElementById("stage");
+    const stageLayoutWidth = (stage && stage.clientWidth)
+      || Math.max(1, vw - 16); // fallback: viewport minus rough padding
+    const denom = railLayoutWidth + stageLayoutWidth;
+    if (denom <= 0) return { scale: 0.75, panX: 55 };
+    // Clamp scale to BOARD_ZOOM_SCALE_MIN..1; never zoom IN by default.
+    const rawScale = vw / denom;
+    const minScale = Number(ctx?.BOARD_ZOOM_SCALE_MIN) || 0.25;
+    const scale = Math.min(1, Math.max(minScale, rawScale));
+    const railVisual = railLayoutWidth * scale;
+    const naturalLeft = (vw - stageLayoutWidth * scale) / 2;
+    const panX = railVisual - naturalLeft;
+    return { scale, panX };
+  }
+
   function createDefaultBoardZoomByBoard() {
-    // Phase 49 gap-closure-34 (2026-05-18): the gap-closure-33c
-    // cluster-existence check (`_hasClustersForBoard`) was unreliable
-    // at this boot-time call site — `state.clusterDefinitionsByBoard`
-    // isn't populated yet when `_initApplicationSetupBoardState`
-    // builds the per-board zoom defaults, so the check returned false
-    // for every board and the zoom-out fix silently regressed.
-    // Operator UAT: "Jetzt ist das board wieder so groß das die
-    // cluster per default gar nicht sichtbar sind."
-    //
-    // Pragmatic restore: apply the mobile-portrait zoom-out + panX
-    // shift UNCONDITIONALLY on portrait phones. Boards without
-    // clusters get a slightly smaller default board too, which is a
-    // minor cosmetic cost compared to clusters being invisible on
-    // boards that have them — and most operator boards do.
+    // Phase 49 gap-closure-34 (2026-05-18): apply mobile-portrait
+    // zoom-out unconditionally (boot-time cluster-existence check is
+    // unreliable — state.clusterDefinitionsByBoard not populated yet).
+    // gap-closure-35 (2026-05-19): replace hardcoded (0.75, +55) with
+    // viewport-aware computation so the rail+board combo fills the
+    // available width edge-to-edge instead of leaving a visible left gap.
     const isMobilePortrait = _isMobilePortraitViewport();
+    const mobileProfile = isMobilePortrait ? _computeMobilePortraitDefault() : null;
     return Object.fromEntries(ctx.getBoards().map((board) => {
-      const profile = isMobilePortrait
-        ? { ...ctx.BOARD_ZOOM_DEFAULT, scale: 0.75, panX: 55 }
+      const profile = mobileProfile
+        ? { ...ctx.BOARD_ZOOM_DEFAULT, scale: mobileProfile.scale, panX: mobileProfile.panX }
         : { ...ctx.BOARD_ZOOM_DEFAULT };
       return [board.id, profile];
     }));
@@ -177,17 +209,34 @@
     // Cluster rail position:fixed mirror needs to
     // re-sync to the stage's new bounding rect on every pan/zoom
     // tick. Read on next frame so the transform CSS has settled.
+    // gap-closure-35: clip rail-top + rail-height to .projection-area
+    // bounding rect so the rail doesn't overlay the dashboard controls
+    // when the user pans the board past the projection-area's edges.
     if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
       window.requestAnimationFrame(() => {
         const rail = document.getElementById("cluster-pads");
         if (!rail) return;
         const rect = ctx.stage.getBoundingClientRect();
         if (rect.width <= 0) return;
-        rail.style.setProperty("--rail-left", `${rect.left}px`);
-        rail.style.setProperty("--rail-top", `${rect.top}px`);
-        rail.style.setProperty("--rail-height", `${rect.height}px`);
         const layoutWidth = ctx.stage.clientWidth || rect.width;
-        rail.style.setProperty("--rail-scale", String(rect.width / Math.max(1, layoutWidth)));
+        const scale = rect.width / Math.max(1, layoutWidth);
+        let railTop = rect.top;
+        let railHeight = rect.height;
+        const projArea = document.querySelector(".projection-area");
+        if (projArea && scale > 0) {
+          const paRect = projArea.getBoundingClientRect();
+          const origVisualTop = rect.top;
+          const origVisualBottom = rect.top + rect.height * scale;
+          const effVisualTop = Math.max(origVisualTop, paRect.top);
+          const effVisualBottom = Math.min(origVisualBottom, paRect.bottom);
+          const effVisualHeight = Math.max(0, effVisualBottom - effVisualTop);
+          railTop = effVisualTop;
+          railHeight = effVisualHeight / scale;
+        }
+        rail.style.setProperty("--rail-left", `${rect.left}px`);
+        rail.style.setProperty("--rail-top", `${railTop}px`);
+        rail.style.setProperty("--rail-height", `${railHeight}px`);
+        rail.style.setProperty("--rail-scale", String(scale));
       });
     }
   }

@@ -20,6 +20,29 @@
   // Cross-module callback injected at init time.
   let stopAnimation = null;
 
+  // Phase 49 gap-closure-35: shared helper for the two rail-position
+  // writers (the rAF tracker here + the post-zoom rAF in
+  // runtime-viewport-zoom.js → syncStageZoomTransform). Returns the
+  // rail-top + rail-height CSS-var values, clipped so the rail's visual
+  // extent stays inside the .projection-area's bounding rect.
+  function _computeClippedRail(rect, scale) {
+    let railTop = rect.top;
+    let railHeight = rect.height;
+    if (scale <= 0) return { railTop, railHeight };
+    const projArea = document.querySelector(".projection-area");
+    if (!projArea) return { railTop, railHeight };
+    const paRect = projArea.getBoundingClientRect();
+    const origVisualTop = rect.top;
+    const origVisualBottom = rect.top + rect.height * scale;
+    const effVisualTop = Math.max(origVisualTop, paRect.top);
+    const effVisualBottom = Math.min(origVisualBottom, paRect.bottom);
+    const effVisualHeight = Math.max(0, effVisualBottom - effVisualTop);
+    return {
+      railTop: effVisualTop,
+      railHeight: effVisualHeight / scale,
+    };
+  }
+
   function init(dependencies) {
     ctx = dependencies?.ctx ?? dependencies;
     stopAnimation = dependencies?.stopAnimation ?? null;
@@ -41,12 +64,26 @@
         if (rect.width > 0) {
           const layoutWidth = stage.clientWidth || rect.width;
           const scale = rect.width / Math.max(1, layoutWidth);
-          const key = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.height.toFixed(1)}|${scale.toFixed(4)}`;
+          // Phase 49 gap-closure-35 (2026-05-19): clip the rail's vertical
+          // extent to the intersection with .projection-area's bounding
+          // rect. The rail is position:fixed so it escapes the
+          // projection-area's overflow:hidden — when the user pans the
+          // board down the cluster pads overlay the dashboard controls
+          // below (TableTop Beamer logo, Settings button, etc.).
+          // The board itself stays clipped by projection-area's
+          // overflow:hidden; the rail must behave the same way.
+          //
+          // CSS rail uses transform-origin: 100% 0 + scale(rail-scale),
+          // so visual_top = rail-top, visual_bottom = rail-top + rail-height * rail-scale.
+          // To clip to [paRect.top, paRect.bottom], new rail-height =
+          // clippedVisualHeight / rail-scale.
+          const { railTop, railHeight } = _computeClippedRail(rect, scale);
+          const key = `${rect.left.toFixed(1)}|${railTop.toFixed(1)}|${railHeight.toFixed(1)}|${scale.toFixed(4)}`;
           if (key !== lastRailKey) {
             lastRailKey = key;
             rail.style.setProperty("--rail-left", `${rect.left}px`);
-            rail.style.setProperty("--rail-top", `${rect.top}px`);
-            rail.style.setProperty("--rail-height", `${rect.height}px`);
+            rail.style.setProperty("--rail-top", `${railTop}px`);
+            rail.style.setProperty("--rail-height", `${railHeight}px`);
             rail.style.setProperty("--rail-scale", String(scale));
           }
         }
@@ -73,12 +110,13 @@
     // pulls it leftward by its own width (so its right edge aligns
     // with --rail-left, i.e. stage's left edge), and scales by the
     // current stage scale so pan + zoom track together.
-    container.style.setProperty("--rail-left", `${rect.left}px`);
-    container.style.setProperty("--rail-top", `${rect.top}px`);
-    container.style.setProperty("--rail-height", `${rect.height}px`);
-    // Approximate stage scale from rect width vs layout width.
+    // gap-closure-35: rail-top + rail-height clipped to projection-area.
     const layoutWidth = stage.clientWidth || rect.width;
     const scale = rect.width / Math.max(1, layoutWidth);
+    const { railTop, railHeight } = _computeClippedRail(rect, scale);
+    container.style.setProperty("--rail-left", `${rect.left}px`);
+    container.style.setProperty("--rail-top", `${railTop}px`);
+    container.style.setProperty("--rail-height", `${railHeight}px`);
     container.style.setProperty("--rail-scale", String(scale));
   }
 
