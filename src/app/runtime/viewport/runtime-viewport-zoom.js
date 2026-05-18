@@ -65,8 +65,37 @@
     return clampPanToBounds({ scale, panX: rawPanX, panY: rawPanY });
   }
 
+  // Phase 49 gap-closure-33b (2026-05-18): on portrait phones the
+  // cluster rail (position:fixed at translateX(-100%) of the stage's
+  // left edge) docks just past the LEFT side of the viewport when the
+  // stage is at scale 1.0 — operator has to swipe horizontally to see
+  // the cluster pads. Operator UAT: "Am Handy skalliere per default
+  // das board so, dass auch die cluster links zu sehen sind. Aktuell
+  // sieht man sie nicht und muss dort erst hinswpien." Default-zoom
+  // out a bit on portrait phones so the stage's left edge lands far
+  // enough into the viewport for the rail to be visible. 0.75 keeps
+  // the board readable (still ~75% size) and pulls stage.left ~50px
+  // off the viewport edge — enough that the ~92px rail's right edge
+  // sits in-bounds. Predecessor commit (the CSS padding-left approach
+  // in gap-closure-33) broke zoom math; this scale-only approach
+  // leaves the layout alone.
+  function _getInitialBoardZoomScale() {
+    try {
+      const isMobilePortrait =
+        typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(max-width: 920px) and (orientation: portrait)").matches;
+      if (isMobilePortrait) return 0.75;
+    } catch { /* defensive — fall through to default */ }
+    return ctx.BOARD_ZOOM_DEFAULT.scale;
+  }
+
   function createDefaultBoardZoomByBoard() {
-    return Object.fromEntries(ctx.getBoards().map((board) => [board.id, { ...ctx.BOARD_ZOOM_DEFAULT }]));
+    const initialScale = _getInitialBoardZoomScale();
+    return Object.fromEntries(ctx.getBoards().map((board) => [board.id, {
+      ...ctx.BOARD_ZOOM_DEFAULT,
+      scale: initialScale,
+    }]));
   }
 
   function getBoardZoom(boardId) {
