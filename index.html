@@ -392,11 +392,29 @@
             Delete
           </button>
         </div>
-        <p id="zones-status" class="status-line" aria-live="polite"></p>
-        <p id="api-diagnose-status" class="status-line" aria-live="polite"></p>
+        <!-- Phase 49 gap-closure-31 (2026-05-18): visibility toggles grouped
+             at the top of Board Setup per operator UAT. Moved from
+             "Room Editor" + "Play Area" panels. IDs preserved so existing
+             wire binders + state mirrors keep working unchanged. -->
+        <label class="inline-checkbox">
+          <input id="show-play-area-vertices" type="checkbox" checked />
+          Show Play Area Vertices
+        </label>
+        <label class="inline-checkbox">
+          <input id="show-room-vertices" type="checkbox" checked />
+          Show Room Vertices
+        </label>
+        <label class="inline-checkbox">
+          <input id="show-room-names" type="checkbox" checked />
+          Show Room Names
+        </label>
         <label>
           Polygon handle size <span id="polygon-handle-size-value">100%</span>
           <input id="polygon-handle-size" type="range" min="10" max="100" step="1" value="100" />
+        </label>
+        <label>
+          Vertex transparency <span id="polygon-handle-opacity-value">100%</span>
+          <input id="polygon-handle-opacity" type="range" min="0" max="100" step="1" value="100" />
         </label>
         <div class="button-grid button-grid-2">
           <button id="board-zoom-fit" type="button">Fit to selected room</button>
@@ -508,18 +526,8 @@
             <button id="room-delete" type="button">Delete room</button>
           </div>
         </div>
-        <label class="inline-checkbox">
-          <input id="show-room-vertices" type="checkbox" checked />
-          Show Room Vertices
-        </label>
-        <label class="inline-checkbox">
-          <input id="show-room-names" type="checkbox" checked />
-          Show Room Names
-        </label>
-        <label>
-          Vertex transparency <span id="polygon-handle-opacity-value">100%</span>
-          <input id="polygon-handle-opacity" type="range" min="0" max="100" step="1" value="100" />
-        </label>
+        <!-- Phase 49 gap-closure-31: Show Room Vertices / Show Room Names /
+             Vertex transparency moved up to Board Setup. IDs unchanged. -->
         <label>
           Room
           <select id="polygon-room-select"></select>
@@ -589,10 +597,8 @@
           </label>
           <button id="play-area-delete" type="button">Delete selected</button>
         </div>
-        <label class="inline-checkbox">
-          <input id="show-play-area-vertices" type="checkbox" checked />
-          Show Play Area Vertices
-        </label>
+        <!-- Phase 49 gap-closure-31: Show Play Area Vertices moved up to
+             Board Setup. ID unchanged. -->
         <label>
           Active vertex
           <select id="ship-polygon-vertex-select"></select>
