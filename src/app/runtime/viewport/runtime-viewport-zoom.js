@@ -107,13 +107,23 @@
   }
 
   function createDefaultBoardZoomByBoard() {
+    // Phase 49 gap-closure-34 (2026-05-18): the gap-closure-33c
+    // cluster-existence check (`_hasClustersForBoard`) was unreliable
+    // at this boot-time call site — `state.clusterDefinitionsByBoard`
+    // isn't populated yet when `_initApplicationSetupBoardState`
+    // builds the per-board zoom defaults, so the check returned false
+    // for every board and the zoom-out fix silently regressed.
+    // Operator UAT: "Jetzt ist das board wieder so groß das die
+    // cluster per default gar nicht sichtbar sind."
+    //
+    // Pragmatic restore: apply the mobile-portrait zoom-out + panX
+    // shift UNCONDITIONALLY on portrait phones. Boards without
+    // clusters get a slightly smaller default board too, which is a
+    // minor cosmetic cost compared to clusters being invisible on
+    // boards that have them — and most operator boards do.
     const isMobilePortrait = _isMobilePortraitViewport();
     return Object.fromEntries(ctx.getBoards().map((board) => {
-      // Only shrink + shift when there's actually a cluster rail to
-      // make room for. Otherwise leave the legacy scale=1 / panX=0
-      // default in place (operator request — gap-closure-33c).
-      const applyClusterFraming = isMobilePortrait && _hasClustersForBoard(board);
-      const profile = applyClusterFraming
+      const profile = isMobilePortrait
         ? { ...ctx.BOARD_ZOOM_DEFAULT, scale: 0.75, panX: 55 }
         : { ...ctx.BOARD_ZOOM_DEFAULT };
       return [board.id, profile];
