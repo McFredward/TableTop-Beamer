@@ -1211,7 +1211,6 @@
             }
           }
           if (payload?.type === "state-dirty" || payload?.wake === true) {
-            liveSync.dirtyHintUntil = Date.now() + 1500;
             // Phase 49 gap-closure-29 (2026-05-18): mirror gap-closure-27
             // gate. Server fires `state-dirty` alongside `live-session-update`
             // for every mutation (server.mjs ~1726). gap-closure-27 stopped
@@ -1220,11 +1219,27 @@
             // ungated — back-dooring `applyLiveRuntimeSnapshot` (with full
             // polygon hydration, FX normalizers, runningAnimations
             // reconcile, control-role panel rebuilds) via the polling path.
-            // Empirical measurement under a 30-mutation/1s align-corner-drag
-            // burst: ~53 `/api/live/snapshot` fetches in 4 s on the
-            // dashboard tab (vs 0 expected). Skip the poll re-arm for align
-            // mutations on non-FINAL roles too — dashboard isn't the
-            // renderer, so its grid drift during remote drag is acceptable.
+            //
+            // Phase 49 gap-closure-32 (2026-05-18): the dirtyHintUntil
+            // bump ALSO had to move inside the role gate. gap-closure-29
+            // only skipped the immediate setTimeout(0) re-arm; the
+            // `dirtyHintUntil = now + 1500` line still fired ungated, so
+            // every state-dirty during a 30-Hz Pi /output/ drag extended
+            // the dirty-hint window 1.5s into the future. That, combined
+            // with the pre-fix `documentVisible` fast-mode trigger,
+            // kept the dashboard pinned at LIVE_POLL_FAST_MS = 120 ms
+            // for the entire drag. gap-closure-32 (companion in
+            // runtime-snapshot-helpers.js getAdaptivePollingIntervalMs)
+            // gated `documentVisible` to FINAL, but `dirtyHintUntil` is
+            // a separate fast-mode trigger that's still ungated. Move
+            // the bump inside the same `(!isAlign || isFinal)` gate so
+            // remote align bursts no longer accelerate the dashboard's
+            // poll cadence at all. Together with the helper-side gate,
+            // a foreground dashboard now sits at the idle 250 ms cadence
+            // (4 Hz) regardless of remote drags, and only escalates to
+            // fast-mode when LOCAL state actually justifies it
+            // (pendingMutations / preferFastPollingUntil for tab-back-in
+            // catchup).
             const dirtyMutationType =
               typeof payload?.mutationType === "string" ? payload.mutationType : null;
             const dirtyIsAlignMutation =
@@ -1232,6 +1247,7 @@
               || dirtyMutationType === "align-grid-snapshot";
             const dirtyIsFinalRole = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
             if (!dirtyIsAlignMutation || dirtyIsFinalRole) {
+              liveSync.dirtyHintUntil = Date.now() + 1500;
               ctx.scheduleNextLiveSnapshotPoll(0);
             }
           }

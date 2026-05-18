@@ -45,11 +45,37 @@
     const liveSync = ctx.liveSync;
     const now = Date.now();
     const documentVisible = document.visibilityState === "visible";
+    // Phase 49 gap-closure-32 (2026-05-18): role-aware fast-mode.
+    // Pre-fix, foreground visibility alone forced LIVE_POLL_FAST_MS
+    // (120 ms = ~8 Hz) on every client, including the dashboard
+    // (role=control). The dashboard then ran a self-perpetuating 8 Hz
+    // poll-and-apply loop the entire time the tab was in focus —
+    // completely independent of whether any state had changed. During
+    // a Pi /output/ align-drag burst the server's snapshot version
+    // advances ~30×/s, so every poll saw `changed:true` and ran the
+    // full heavy `applyLiveRuntimeSnapshot` (polygon hydration, FX
+    // normalizers, runningAnimations reconcile, control-role panel
+    // rebuilds, room-overlay redraw) at 8 Hz. That was the CPU drain
+    // the operator's animations were starving against. gap-closure-27
+    // + gap-closure-29 plugged the immediate-re-arm back-doors but
+    // left the steady-state baseline cadence at 8 Hz on every visible
+    // dashboard tab — same end result.
+    //
+    // Fix: restrict the `documentVisible → fastMode` shortcut to FINAL
+    // role (SSR Chromium tab + Pi /output/) where snapshot freshness
+    // IS load-bearing for rendering. role=control falls back to
+    // LIVE_POLL_IDLE_MS = 250 ms (4 Hz) baseline. The other fast-mode
+    // triggers (pendingMutations, dirtyHintUntil, preferFastPollingUntil)
+    // still escalate to fast cadence when there's actual local user
+    // intent — e.g. button click → pending ack, visibility-regain → 2s
+    // catch-up bump.
+    const role = typeof ctx.getOutputRole === "function" ? ctx.getOutputRole() : null;
+    const isFinalRole = role === ctx.OUTPUT_ROLE_FINAL;
     const fastMode =
-      liveSync.pendingMutations.size > 0 ||
-      liveSync.dirtyHintUntil > now ||
-      liveSync.preferFastPollingUntil > now ||
-      documentVisible;
+      liveSync.pendingMutations.size > 0
+      || liveSync.dirtyHintUntil > now
+      || liveSync.preferFastPollingUntil > now
+      || (documentVisible && isFinalRole);
     return fastMode ? ctx.LIVE_POLL_FAST_MS : ctx.LIVE_POLL_IDLE_MS;
   }
 
