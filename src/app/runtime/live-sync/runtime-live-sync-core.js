@@ -1249,8 +1249,38 @@
               // through the port-fallback gauntlet (which under heavy
               // GIF decoding reliably times out → spammy
               // [global-config] broadcast refetch failed errors).
+              //
+              // Phase 49 gap-closure-23 (2026-05-18): the h24 assumption
+              // is WRONG for the `config/global-defaults.json` target.
+              // The session.snapshot envelope only carries the runtime
+              // session state (alignMode, runningAnimations, runtime.*) —
+              // it does NOT carry board configs (room polygons, ship
+              // polygon, play areas). Those live in global-defaults.json
+              // and are only available via /api/global-defaults. When the
+              // operator edits a room polygon on the dashboard and saves,
+              // SSR was applying the snapshot (no board fields) and
+              // silently dropping the polygon update. Even a page reload
+              // didn't help because the SSR tab kept rendering against
+              // its stale boards state until something else triggered a
+              // refetch. Operator UAT 2026-05-18: "Wenn im dashboard ein
+              // polygon (room oder play area) geändert wird und gespeichert
+              // wird, soll es nach dem Speichern SOFORT in /output/
+              // sichtbar sein. Aktuell ist sogar nach einer Seiten-
+              // aktualisierung noch nicht im SSR sichtbar."
+              //
+              // Fix: for the `config/global-defaults.json` target, fall
+              // through to the regular refetch path (same as dashboard).
+              // SSR is on the same origin as the server, so the first
+              // fetch attempt resolves on `/api/global-defaults` directly
+              // — the port-fallback gauntlet only kicks in if that
+              // primary attempt fails. The h24 GIF-decoding-timeout
+              // concern remains real but is the lesser evil compared to
+              // permanently silent polygon drops. For non-global-defaults
+              // targets (e.g. asset-manifest, handled above already) the
+              // h24 short-circuit still applies.
               ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
               && payload?.session?.snapshot
+              && payload?.target !== "config/global-defaults.json"
             ) {
               try {
                 const runtimeExtras = payload.session.snapshot;
