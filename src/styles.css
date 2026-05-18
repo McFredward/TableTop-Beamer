@@ -1794,6 +1794,29 @@ button.danger.is-armed {
   #control-panel[data-mobile-orientation="portrait"] [data-dashboard-zone="trigger"] button {
     min-height: 3rem;
   }
+
+  /* Phase 49 gap-closure-33 (2026-05-18): reserve left-margin on the
+     projection-area so the cluster rail (position:fixed,
+     translateX(-100%) of the stage's left edge) lands inside the
+     viewport by default on portrait phones. Pre-fix, the stage filled
+     100% of the viewport width (place-items:center keeps it centered
+     in projection-area), so the rail at translateX(-100%) docked
+     ~92-110px LEFT of the viewport edge and the operator had to swipe
+     horizontally to see it — some users would miss the clusters
+     entirely. Operator UAT: "Am Handy skalliere per default das board
+     so, dass auch die cluster links zu sehen sind. Aktuell sieht man
+     sie nicht und muss dort erst hinswpien, machne user könnten das
+     dann übersehen."
+
+     The rail width is `width: 92px` at max-width:720, `110px` between
+     720-980, with `padding-right` of 6-8px. Reserve 110px on the
+     projection-area's left so the rail fits at the widest configured
+     mobile size; the stage shrinks to (100% - 110px) which is fine
+     because the board image is still legible at that width
+     (~270-280px on a 380-420px phone viewport). */
+  .projection-area {
+    padding-left: 110px;
+  }
 }
 
 @media (max-width: 920px) and (orientation: landscape) {
