@@ -125,51 +125,81 @@
     }
   }
 
+  // Phase 49 gap-closure-26 (2026-05-18): when no remembered profile
+  // name exists for the target board, fall back to the FIRST available
+  // saved profile (via /api/projection-profiles?boardId=...) before
+  // resorting to the 80%-inset default. Operator UAT: "wird beim
+  // board wechsel immer das 80% default geladen - allerdings soll das
+  // NUR der Fall sein, wenn das entsprechende board noch gar keine
+  // Profile hat. Hat es Profile soll das zuletzt offene Profil wieder
+  // geladen werden." We don't have a per-board "zuletzt offen" history
+  // beyond `lastUsedProfileNameByBoard` (which is what `remembered`
+  // already covers); the next-best deterministic pick is "the first
+  // profile the server returns" — server orders alphabetically, so
+  // this is stable across reboots.
+  async function _autoLoadFallbackForBoard(boardId, persist) {
+    if (!persist) return;
+    try {
+      const r = await fetch(`/api/projection-profiles?boardId=${encodeURIComponent(boardId)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const body = await r.json();
+      const names = Array.isArray(body?.names) ? body.names : [];
+      if (names.length === 0) {
+        // No profiles for this board at all → clean 80%-inset default.
+        persist.applyDefaultAndCaptureSnapshot?.();
+        return;
+      }
+      // Load the first profile.
+      const firstName = names[0];
+      const loadResp = await fetch(
+        `/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}`
+        + `&name=${encodeURIComponent(firstName)}`,
+      );
+      if (!loadResp.ok) throw new Error(`load HTTP ${loadResp.status}`);
+      const loadBody = await loadResp.json();
+      if (!loadBody?.data) throw new Error("no data");
+      persist.applyAndCaptureSnapshot?.(loadBody.data, firstName);
+    } catch (_err) {
+      // Network/HTTP failure → safest is the default. Logging here is
+      // intentionally console-only; the operator's visual cue is the
+      // grid resetting to identity-80%.
+      console.warn("[autoLoad] fallback failed:", _err?.message || _err);
+      persist.applyDefaultAndCaptureSnapshot?.();
+    }
+  }
+
   async function autoLoadRememberedProjectionProfile(boardId) {
     const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
     if (!persist || !ctx?.state) return;
     const remembered = ctx.state.lastUsedProfileNameByBoard?.[boardId] ?? null;
-    // Phase 49 gap-closure-24 (2026-05-18): on board switch with no
-    // remembered profile, apply DEFAULT geometry — NOT the cross-board
-    // _tryApplyDiskRestoredGrid (which reads runtime.lastAlignGridSnapshot,
-    // a GLOBAL field that holds the most recent broadcast grid from ANY
-    // board). Operator UAT: "Profile sind PRO BOARD. D.h. wenn das board
-    // gewechselt wird, dann wird auch zwangsweise das zuletzt genutzte
-    // Profil des boards genutzt. Aktuell ist das ein wohl ein Bug, denn
-    // beim wechsel des boards bleibt das aktuelle geladenene Profil
-    // erhalten."
-    //
-    // Why the h5 disk-restored grid is wrong on board switch: this fn
-    // only fires from switchBoard(...) when isActualSwitch=true, i.e. a
-    // real board change initiated by the operator (dropdown change,
-    // board import, animation-editor switch). Cold-boot goes via the
-    // live-hello eager-apply path in runtime-live-sync-core.js, not via
-    // this function. The h5 author claimed the disk-restored grid
-    // applied on cold boot, but the cold-boot panels-controller call
-    // `switchBoard(state.boardId)` has previousBoardId === board.id →
-    // isActualSwitch=false → autoLoad never fires. So _tryApplyDiskRestoredGrid
-    // in this fn was always cross-board cross-talk.
+    // Phase 49 gap-closure-24 (2026-05-18): on board switch we used to
+    // fall back to `_tryApplyDiskRestoredGrid` (cross-board), which
+    // bled the previously loaded board's geometry into the new board.
+    // gap-closure-24 replaced that with `applyDefaultAndCaptureSnapshot`,
+    // but operator follow-up (gap-closure-26): only use the default
+    // when the board has zero saved profiles; otherwise auto-load the
+    // first existing profile so the operator doesn't lose calibration
+    // every time they switch boards. `_autoLoadFallbackForBoard` does
+    // the projection-profiles list + first-load + safe default chain.
     if (!remembered) {
-      if (typeof persist.applyDefaultAndCaptureSnapshot === "function") {
-        persist.applyDefaultAndCaptureSnapshot();
-      }
+      await _autoLoadFallbackForBoard(boardId, persist);
       return;
     }
     try {
       const url = `/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(remembered)}`;
       const resp = await fetch(url);
       if (!resp.ok) {
-        persist.applyDefaultAndCaptureSnapshot();
+        await _autoLoadFallbackForBoard(boardId, persist);
         return;
       }
       const body = await resp.json();
       if (!body?.data) {
-        persist.applyDefaultAndCaptureSnapshot();
+        await _autoLoadFallbackForBoard(boardId, persist);
         return;
       }
       persist.applyAndCaptureSnapshot(body.data, remembered);
     } catch (_err) {
-      persist.applyDefaultAndCaptureSnapshot();
+      await _autoLoadFallbackForBoard(boardId, persist);
     }
   }
 
