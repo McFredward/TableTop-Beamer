@@ -1212,7 +1212,28 @@
           }
           if (payload?.type === "state-dirty" || payload?.wake === true) {
             liveSync.dirtyHintUntil = Date.now() + 1500;
-            ctx.scheduleNextLiveSnapshotPoll(0);
+            // Phase 49 gap-closure-29 (2026-05-18): mirror gap-closure-27
+            // gate. Server fires `state-dirty` alongside `live-session-update`
+            // for every mutation (server.mjs ~1726). gap-closure-27 stopped
+            // the `live-session-update` heavy-apply on dashboard during align
+            // drags, but the `state-dirty` branch ran `scheduleNextLiveSnapshotPoll(0)`
+            // ungated — back-dooring `applyLiveRuntimeSnapshot` (with full
+            // polygon hydration, FX normalizers, runningAnimations
+            // reconcile, control-role panel rebuilds) via the polling path.
+            // Empirical measurement under a 30-mutation/1s align-corner-drag
+            // burst: ~53 `/api/live/snapshot` fetches in 4 s on the
+            // dashboard tab (vs 0 expected). Skip the poll re-arm for align
+            // mutations on non-FINAL roles too — dashboard isn't the
+            // renderer, so its grid drift during remote drag is acceptable.
+            const dirtyMutationType =
+              typeof payload?.mutationType === "string" ? payload.mutationType : null;
+            const dirtyIsAlignMutation =
+              dirtyMutationType === "align-corner-drag"
+              || dirtyMutationType === "align-grid-snapshot";
+            const dirtyIsFinalRole = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
+            if (!dirtyIsAlignMutation || dirtyIsFinalRole) {
+              ctx.scheduleNextLiveSnapshotPoll(0);
+            }
           }
           if (payload?.type === "global-config-update") {
             // Phase 28 B5: when the broadcast target is the asset manifest,
