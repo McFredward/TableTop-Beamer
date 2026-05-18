@@ -960,24 +960,41 @@
           if (payload?.type === "live-session-update") {
             const sessionVersion = Number(payload?.session?.version ?? 0);
             const mutationType = typeof payload?.mutationType === "string" ? payload.mutationType : null;
+            // Phase 49 gap-closure-27 (2026-05-18): the align mutations
+            // (`align-corner-drag` + `align-grid-snapshot`) are pure
+            // renderer concerns — the SSR Chromium tab consumes them to
+            // update its mesh-warp; nobody else needs to react. Pre-fix,
+            // dashboard ran the full applyLiveRuntimeSnapshot (200+ lines
+            // of polygon hydration / FX normalizers / animation
+            // reconciliation) at 30–120 Hz during the operator's /output/
+            // drag, pegging dashboard CPU and starving the local
+            // animation render loop. Operator UAT: "Wenn ich im align
+            // mode in /output/ auf dem pi das board transformiere, hängt
+            // das dashboard bzw. die animationen dort und mein Rechner
+            // … fängt mit dem Lüfter extrem an. Aber für was? Das
+            // Dashboard hat zwischen dem Zusammenspiel von SSR und
+            // /output/ nichts zu tun und sollte daher hier auch
+            // überhaupt nicht beeinflusst werden."
+            //
+            // Fix: gate the align-mutation immediate-apply to FINAL role
+            // (SSR Chromium tab). Dashboard (CONTROL) skips both the
+            // heavy applyLiveRuntimeSnapshot AND the cascading poll
+            // schedule. The dashboard's grid stays out of sync during
+            // remote drag — that's fine because the dashboard isn't the
+            // renderer; when the dashboard later enters align-mode
+            // itself, its grid resyncs from the next snapshot apply
+            // (poll-driven via state-dirty / other mutations).
+            const isFinalRole = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
+            const isAlignMutation =
+              mutationType === "align-corner-drag"
+              || mutationType === "align-grid-snapshot";
             const shouldApplyImmediateStopSnapshot =
               mutationType === ctx.STOP_ANIMATION_MUTATION_TYPE
               || mutationType === "clear-all"
               || mutationType === "edit-room"
               || mutationType === "trigger-room"
-              // Phase-31 h19 (2026-05-06): align-corner-drag must apply
-              // IMMEDIATELY on the SSR tab — anything else makes the drag
-              // feel like 1+ second of input lag (snapshot poll cadence).
-              // Pi sends drag events at native pointermove rate (~120 Hz);
-              // they hit the SSR tab via this path so the streamed warp
-              // updates within the next captured frame.
-              || mutationType === "align-corner-drag"
-              // Phase-31 h30 (2026-05-06): align-grid-snapshot carries
-              // the full grid for non-corner gestures (rotate/scale/line/
-              // squish/inner-point drag). Same low-latency requirement as
-              // align-corner-drag — apply immediately so the stream
-              // reflects the gesture within the next encoded frame.
-              || mutationType === "align-grid-snapshot"
+              // align mutations apply ONLY on the SSR renderer tab.
+              || (isAlignMutation && isFinalRole)
               // Phase-31 h46 (2026-05-06): context-update carries the
               // alignMode toggle (and other context fields). Without
               // it in this fast-path, align-toggle DISABLE goes via
@@ -1002,7 +1019,13 @@
               // Mark that the first server-driven snapshot has been applied
               ctx.liveSync.firstServerSnapshotApplied = true;
             }
-            ctx.scheduleNextLiveSnapshotPoll(0);
+            // gap-closure-27: only re-poll for non-align mutations on
+            // non-FINAL roles. Re-polling on every align-corner-drag
+            // would just re-trigger the heavy apply through the polling
+            // path — same CPU hit, slightly delayed.
+            if (!isAlignMutation || isFinalRole) {
+              ctx.scheduleNextLiveSnapshotPoll(0);
+            }
           }
           // Phase-31 h30 (2026-05-06): direct fast-path for align-grid-snapshot.
           // Mirrors the align-corner-drag fast-path but operates on the
