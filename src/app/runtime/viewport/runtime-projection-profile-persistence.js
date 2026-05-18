@@ -291,8 +291,35 @@
     // unconditionally on /output/ so the dashboard hint reflects ANY
     // operator action — per Phase 36 D-06 contract verified by T9.
     // The 100ms server rate-limit (T-27-03) prevents POST flooding.
+    //
+    // Phase 49 gap-closure-30 (2026-05-18): the original Phase 36 logic
+    // POSTed `dirty=true` UNCONDITIONALLY on every gesture. That breaks
+    // the undo-to-baseline path: operator drags a handle, then Ctrl+Z
+    // back to the original state. `isDirty()` correctly returns false
+    // (current grid matches the loaded profile snapshot), local _dirty
+    // flips false (Discard button disabled correctly on /output/), but
+    // the unconditional POST(true) keeps the SERVER's
+    // `alignModeDirtyOnOutput` flag at true → dashboard's
+    // "Unsaved on /output/" chip stays stuck → operator can't exit
+    // align mode from the dashboard. Operator UAT: "Beim Ursprungszustand
+    // endet das dirty flag und mann nicht mehr auf discard drücken,
+    // ALLERDINGS nicht im dashboard, dort wird nicht erkannt das man
+    // wieder beim ursprungszustand ist und es wird daher auch nicht
+    // beendet das man wegen 'Unsaved output' nicht den align mode
+    // beendet kann."
+    //
+    // Fix: POST `isDirty()` only when a profile is loaded — meaning
+    // we have a real baseline to diff against. Without a profile loaded,
+    // Phase 29 h3 says isDirty() is permanently false, but Phase 36 M5
+    // still wants every gesture to signal "operator is interacting" so
+    // the dashboard locks. Keep that path: with no loaded profile,
+    // unconditional POST(true). With a loaded profile, POST(isDirty())
+    // — accurate to the current divergence state, including
+    // undo-to-baseline (→ false → dashboard unlocks).
     if (ctx?.outputRole === ctx?.OUTPUT_ROLE_FINAL) {
-      void _postAlignModeDirtyToServer(true);
+      const hasLoadedProfile = _loadedProfileSnapshot !== null;
+      const nextDirty = hasLoadedProfile ? isDirty() : true;
+      void _postAlignModeDirtyToServer(nextDirty);
     }
     _recomputeAndNotifyDirty();
   }
