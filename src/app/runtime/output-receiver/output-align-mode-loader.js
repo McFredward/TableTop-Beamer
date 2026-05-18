@@ -288,9 +288,20 @@ function _buildNormalizersStub() {
       return { x: nx, y: ny };
     },
     hasGridDisplacements: () => {
+      // Phase 49 gap-closure-22 (2026-05-18): typo fix. The mapping module
+      // exposes `hasGridDisplacements` (matching the polygon-editor's ctx
+      // API). The pre-fix `hasDisplacements` was always undefined → this
+      // stub always returned false → polygon-editor's `useGridRemap` gate
+      // (runtime-polygon-editor.js:386) stayed false → room polygons on
+      // /output/ rendered at un-warped (full-screen) coordinates while the
+      // SSR stream content rendered at the warped 80%-inset positions, so
+      // the operator saw the room hexagon outlines offset from the
+      // streamed board's room outlines. The desync only became visually
+      // obvious on cold boot with a non-identity profile loaded (the
+      // recurring "lines don't match stream" UAT report).
       const M = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
       try {
-        return Boolean(M?.hasDisplacements?.());
+        return Boolean(M?.hasGridDisplacements?.());
       } catch { return false; }
     },
   };
