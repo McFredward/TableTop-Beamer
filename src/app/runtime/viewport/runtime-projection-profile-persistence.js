@@ -677,6 +677,124 @@
     showContextMenu(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), items);
   }
 
+  // Phase 49 gap-closure-25 (2026-05-18): "Import from other board" flow.
+  // Toolbar button → board picker (excluding current) → profile picker for
+  // chosen source board → fetch profile data → POST to save under CURRENT
+  // boardId (same profile name; confirm overwrite on conflict) → apply as
+  // if loaded normally (becomes _loadedProfileName, lastUsedProfileNameByBoard
+  // entry, isBaseline broadcast to SSR). Operator UAT: "ich hätte gernen
+  // einen button in /output/ … mit dem man explizit ein Profil eines
+  // anderen Boards laden kann. … in dem moment in dem man das 'Fremdprofil'
+  // importiert hat, ist es auch ein gültiges Profil für das board und soll
+  // auch vollumfänglich so behandelt werden."
+  async function importProfileFromOtherBoardFlow() {
+    const currentBoardId = getCurrentBoardId();
+    if (!currentBoardId) { _showAlignErrorToast("No board selected."); return; }
+    // Fetch list of all boards
+    let allBoards = [];
+    try {
+      const r = await fetch("/api/boards");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const body = await r.json();
+      const list = Array.isArray(body?.runtimeBoards) ? body.runtimeBoards : [];
+      allBoards = list.filter((b) => b?.id && b.id !== currentBoardId);
+    } catch (err) {
+      _showAlignErrorToast("Could not fetch boards: " + (err?.message || err));
+      return;
+    }
+    if (allBoards.length === 0) {
+      _showAlignErrorToast("No other boards available to import from.");
+      return;
+    }
+    // Show board picker
+    const boardItems = allBoards.map((b) => ({
+      label: b.label || b.name || b.id,
+      action: () => _continueImportPickProfile(currentBoardId, b.id, b.label || b.name || b.id),
+    }));
+    boardItems.push({ label: "Cancel", action: () => {} });
+    showContextMenu(
+      Math.round(window.innerWidth / 2),
+      Math.round(window.innerHeight / 2),
+      boardItems,
+    );
+  }
+
+  async function _continueImportPickProfile(currentBoardId, sourceBoardId, sourceBoardLabel) {
+    // Fetch profile list for source board
+    let names = [];
+    try { names = await fetchProfileList(sourceBoardId); }
+    catch (err) { _showAlignErrorToast("Could not fetch profiles: " + (err?.message || err)); return; }
+    if (names.length === 0) {
+      _showAlignErrorToast(`No profiles on "${sourceBoardLabel}".`);
+      return;
+    }
+    showProfilePickerMenu(names, async (sourceName) => {
+      await _continueImportFetchAndSave(currentBoardId, sourceBoardId, sourceName);
+    });
+  }
+
+  async function _continueImportFetchAndSave(currentBoardId, sourceBoardId, sourceName) {
+    // Fetch profile data from source
+    let payload;
+    try {
+      const r = await fetch(
+        `/api/projection-profiles/load?boardId=${encodeURIComponent(sourceBoardId)}`
+        + `&name=${encodeURIComponent(sourceName)}`,
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      payload = await r.json();
+    } catch (err) {
+      _showAlignErrorToast("Could not fetch source profile: " + (err?.message || err));
+      return;
+    }
+    const validation = _validateGridPayloadSchema(payload?.data);
+    if (!validation.ok) {
+      _showAlignErrorToast(`Source profile invalid: ${validation.reason}`);
+      return;
+    }
+    // Check for name conflict on current board
+    let existingNames = [];
+    try { existingNames = await fetchProfileList(currentBoardId); }
+    catch (_) { /* non-fatal — proceed without conflict-check */ }
+    if (existingNames.includes(sourceName)) {
+      const overwrite = window.confirm(
+        `A profile named "${sourceName}" already exists on the current board. Overwrite it?`,
+      );
+      if (!overwrite) return;
+    }
+    // POST to save under current board (same profile name)
+    try {
+      const r = await fetch("/api/projection-profiles", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ boardId: currentBoardId, name: sourceName, data: payload.data }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch (err) {
+      _showAlignErrorToast("Save failed: " + (err?.message || err));
+      return;
+    }
+    // Apply as loaded — same sequence as profileLoadFlow's onPick path so
+    // _loadedProfileName, _loadedProfileSnapshot, lastUsedProfileNameByBoard,
+    // and the isBaseline broadcast all match an explicit load.
+    pushUndo();
+    applyGridPayload(payload.data);
+    _loadedProfileName = sourceName;
+    _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    if (ctx?.state) {
+      (ctx.state.lastUsedProfileNameByBoard ??= {})[currentBoardId] = _loadedProfileName;
+    }
+    if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
+    _persistLoadedProfileToLs();
+    saveToLocalStorage();
+    if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _recomputeAndNotifyDirty();
+    _notifyChipRefresh();
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
+  }
+
   async function _postAlignModeDirtyToServer(nextDirty) {
     if (_alignModeDirtyPostInflight) return;
     _alignModeDirtyPostInflight = true;
@@ -836,5 +954,7 @@
     // autoLoadRememberedProjectionProfile().
     applyAndCaptureSnapshot,
     applyDefaultAndCaptureSnapshot,
+    // Phase 49 gap-closure-25: import-from-other-board flow.
+    importProfileFromOtherBoardFlow,
   };
 })();

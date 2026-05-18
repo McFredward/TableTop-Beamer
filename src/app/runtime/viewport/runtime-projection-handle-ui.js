@@ -801,6 +801,21 @@
     loadBtn.textContent = "Load profile…";
     loadBtn.style.cssText = saveBtn.style.cssText;
 
+    // Phase 49 gap-closure-25 (2026-05-18): Import-from-other-board button.
+    // Operator UAT: "ich hätte gernen einen button in /output/ (wenn der
+    // align mode an ist, in der selben Leiste wie 'Save' und 'Load', mit
+    // dem man explizit ein Profil eines anderen Boards laden kann."
+    // After import the geometry is saved under current board's profile
+    // collection with the same name (with overwrite-confirm on conflict);
+    // the profile is then loaded normally (same _loadedProfileName/snapshot
+    // state and isBaseline broadcast as profileLoadFlow).
+    const importBtn = document.createElement("button");
+    importBtn.className = "projection-align-action-btn projection-align-action-import";
+    importBtn.type = "button";
+    importBtn.textContent = "Import…";
+    importBtn.title = "Import a profile from another board into this board";
+    importBtn.style.cssText = saveBtn.style.cssText;
+
     // Discard
     const discardBtn = document.createElement("button");
     discardBtn.className = "projection-align-action-btn projection-align-action-discard";
@@ -826,12 +841,14 @@
     saveBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveLoadedProfileFlow(); _refreshAlignToolbarVisual(); });
     saveAsBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.createNewProfileFlow(); _refreshAlignToolbarVisual(); });
     loadBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.profileLoadFlow(); _refreshAlignToolbarVisual(); });
+    importBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api && typeof api.importProfileFromOtherBoardFlow === "function") await api.importProfileFromOtherBoardFlow(); _refreshAlignToolbarVisual(); });
     discardBtn.addEventListener("click", (e) => { e.preventDefault(); if (api) api.discardChanges(); _refreshAlignToolbarVisual(); });
 
     root.appendChild(chip);
     root.appendChild(saveBtn);
     root.appendChild(saveAsBtn);
     root.appendChild(loadBtn);
+    root.appendChild(importBtn);
     root.appendChild(discardBtn);
     document.body.appendChild(root);
 
