@@ -129,11 +129,28 @@
     const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
     if (!persist || !ctx?.state) return;
     const remembered = ctx.state.lastUsedProfileNameByBoard?.[boardId] ?? null;
+    // Phase 49 gap-closure-24 (2026-05-18): on board switch with no
+    // remembered profile, apply DEFAULT geometry — NOT the cross-board
+    // _tryApplyDiskRestoredGrid (which reads runtime.lastAlignGridSnapshot,
+    // a GLOBAL field that holds the most recent broadcast grid from ANY
+    // board). Operator UAT: "Profile sind PRO BOARD. D.h. wenn das board
+    // gewechselt wird, dann wird auch zwangsweise das zuletzt genutzte
+    // Profil des boards genutzt. Aktuell ist das ein wohl ein Bug, denn
+    // beim wechsel des boards bleibt das aktuelle geladenene Profil
+    // erhalten."
+    //
+    // Why the h5 disk-restored grid is wrong on board switch: this fn
+    // only fires from switchBoard(...) when isActualSwitch=true, i.e. a
+    // real board change initiated by the operator (dropdown change,
+    // board import, animation-editor switch). Cold-boot goes via the
+    // live-hello eager-apply path in runtime-live-sync-core.js, not via
+    // this function. The h5 author claimed the disk-restored grid
+    // applied on cold boot, but the cold-boot panels-controller call
+    // `switchBoard(state.boardId)` has previousBoardId === board.id →
+    // isActualSwitch=false → autoLoad never fires. So _tryApplyDiskRestoredGrid
+    // in this fn was always cross-board cross-talk.
     if (!remembered) {
-      // h5: try disk-restored runtime.lastAlignGridSnapshot first; only
-      // fall back to identity-default if that's empty.
-      const applied = await _tryApplyDiskRestoredGrid();
-      if (!applied && typeof persist.applyDefaultAndCaptureSnapshot === "function") {
+      if (typeof persist.applyDefaultAndCaptureSnapshot === "function") {
         persist.applyDefaultAndCaptureSnapshot();
       }
       return;
@@ -142,20 +159,17 @@
       const url = `/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(remembered)}`;
       const resp = await fetch(url);
       if (!resp.ok) {
-        const applied = await _tryApplyDiskRestoredGrid();
-        if (!applied) persist.applyDefaultAndCaptureSnapshot();
+        persist.applyDefaultAndCaptureSnapshot();
         return;
       }
       const body = await resp.json();
       if (!body?.data) {
-        const applied = await _tryApplyDiskRestoredGrid();
-        if (!applied) persist.applyDefaultAndCaptureSnapshot();
+        persist.applyDefaultAndCaptureSnapshot();
         return;
       }
       persist.applyAndCaptureSnapshot(body.data, remembered);
     } catch (_err) {
-      const applied = await _tryApplyDiskRestoredGrid();
-      if (!applied) persist.applyDefaultAndCaptureSnapshot();
+      persist.applyDefaultAndCaptureSnapshot();
     }
   }
 
