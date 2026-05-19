@@ -1302,7 +1302,7 @@ Plans: 2 plans
 - [x] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
 - [x] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
 
-## Phase 49 - Release-Prep Small-Fixes Sammelphase (PLANNING — 2 items locked: 49-A Ctrl+C in existing shell, 49-B Window-close child cleanup)
+## Phase 49 - Release-Prep Small-Fixes Sammelphase (CLOSED — 2026-05-19, original Windows hardening + 28 operator-UAT gap-closures across align-mode desync, dashboard CPU, mobile drag-reorder, mobile zoom/cluster rail, dirty-bar UX, board-switch profile fallback, import-from-other-board feature)
 
 Goal: Collect operator-found small issues during pre-release testing into a
 single coordinated polish phase. Items get appended as the operator finds them.
