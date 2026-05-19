@@ -116,43 +116,6 @@ in the cmd window — all `node.exe`, `chrome.exe`, and
 cleanup introduced in Phase 46 iter14 guarantees this on Ctrl+C, on
 cmd-window close, and on Task Manager kill).
 
-### Operator UAT checklist (sign-off)
-
-For first-time Windows installs, run through these six checks before
-declaring the install done:
-
-- [ ] 1. `start.bat` reaches a printed LAN URL banner within 5 minutes
-      on a cold first-run install (~30 seconds on subsequent runs).
-- [ ] 2. No visible Chrome window appears on your desktop during the
-      session — the SSR tab is fully headless.
-- [ ] 3. Dashboard loads from your phone or tablet over LAN at the
-      printed URL.
-- [ ] 4. `/output/` opens on the projector Pi and receives the WebRTC
-      stream within 10 seconds.
-- [ ] 5. Press **Ctrl+C** in the cmd window — run
-      `tasklist | findstr "node.exe chrome.exe mediasoup"` 5 seconds
-      later. Output is empty (no orphan processes).
-- [ ] 6. Close the cmd window via the **X** button — run the same
-      `tasklist | findstr "node.exe chrome.exe mediasoup"` 5 seconds
-      later. Output is still empty.
-
-### Troubleshooting Windows: SSR_WIN_HEADLESS escape hatch
-
-If you see operator-visible Chrome windows on Windows 11 (the headless
-mode misbehaving on an old Chrome build, or your Chrome blocks screen
-capture via group policy), set the environment variable
-`SSR_WIN_HEADLESS=0` before launching:
-
-```cmd
-set SSR_WIN_HEADLESS=0
-start.bat
-```
-
-This reverts to the Phase-46 iter15 headful + off-screen-positioned
-behavior (you may see a brief flicker of a small Chrome window during
-boot). Search `start.log` for the line `[ssr-host] launching headless=`
-to confirm which mode is currently active.
-
 ### Troubleshooting Windows: full launch-args dump (bug reports)
 
 Set `SSR_LOG_LAUNCH_ARGS=1` before launching to dump the full resolved
@@ -250,14 +213,6 @@ Check `start.log` in the project folder. The last 30 lines are also
 printed to the console when this happens.
 
 ---
-
-## Uninstall / clean reset
-
-Just delete the project folder. The portable Node, ffmpeg, and
-`node_modules` all live inside it — there's nothing installed
-system-wide (except whatever apt installed during the first Linux run,
-which you can `sudo apt remove` if you really want to).
-
 ---
 
 ## Advanced: skip the script
