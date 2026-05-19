@@ -259,3 +259,215 @@ Edge cases to spot-check (all should still work):
   nothing scroll-wise (this is the gap-closure-18 trade-off, unchanged).
 - Pull-to-refresh attempt -> still suppressed by `overscroll-behavior: contain`.
 - Two-finger pinch -> still suppressed by `touch-action: none`.
+
+---
+
+# Update 2026-05-19 — gap-closure-23 (DOUBLE REGRESSION RECOVERY)
+
+## TL;DR (new)
+
+After gap-closure-22 (`c162bef`) was deployed, operator tested on real
+Android Chrome and reported BOTH regressions:
+
+1. **Scroll dead**: "Nach deinen Änderungen kann ich nicht mehr scrollen in
+   der Leiste" — vertical swipes on the list do nothing. (Predicted side
+   effect of unconditional `touch-action: none`.)
+2. **Drag also dead, different failure mode**: "bei gedrückt halten kommt
+   zwar die Vibration und das Element bleibt highlightet aber es verschiebt
+   sich nicht" — long-press timer fires (vibration + highlight visible),
+   but the dragged row does NOT follow the finger. This is a DIFFERENT
+   failure from the original snap-back; here the row never moves at all.
+
+In addition, the operator added a new hard constraint:
+- **Scroll must work even WHILE dragging.** Editor window is small; user
+  must be able to drag a row from the top to the bottom by scrolling the
+  list (with the element still grabbed). So auto-scroll-during-drag is
+  now a hard requirement, not optional.
+
+## Why gap-closure-22 broke both behaviors
+
+**Scroll regression is expected**: `touch-action: none` on `.anim-editor-list`
+turns the `<ul>` into a non-scrollable area for touch input. This was the
+documented trade-off in gap-closure-22, but the operator now rejects it.
+
+**Drag regression on real Android — root cause investigation**:
+Chrome on real Android Chrome has a documented interaction between
+`touch-action: none` on an ancestor and `setPointerCapture()` on a
+descendant:
+
+- MDN content issue [#38468](https://github.com/mdn/content/issues/38468)
+  notes that the `setPointerCapture` MDN example requires `touch-action:
+  none` *on the captured element itself* — when only the ancestor has it,
+  Android Chrome's synthesized-pointer-events path silently stops
+  dispatching pointermove events for the captured pointer.
+- W3C Pointer Events spec, section 8.4: "If the user agent has
+  determined the touch is not for scrolling/zooming (e.g. due to
+  `touch-action: none`), it may still synthesize the pointermove
+  events" — but the wording "may" leaves room for implementations to
+  not, and in practice Android Chrome doesn't in some versions.
+
+In our code path:
+1. `pointerdown` fires on the row (works fine — `touch-action` on
+   ancestor doesn't gate dispatch of `pointerdown`).
+2. `row.setPointerCapture(e.pointerId)` is called (likely succeeds, but
+   capture target's behavior is contingent on the row's own touch-action,
+   which was effectively `auto` due to `all: unset` winning specificity).
+3. Long-press timer fires after 500 ms → `vibrate()` runs → operator
+   feels the haptic and sees the `is-pending-longpress` class.
+4. User starts to move finger → on real Android, the synthesized
+   `pointermove` events DO NOT FIRE for the captured pointer (because
+   the ancestor `touch-action: none` causes Chrome to suppress
+   synthesized pointer movements that would normally be derived from
+   touchmove deltas).
+5. Without `pointermove`, `_onDragPointerMove` never runs, the row's
+   inline `top` style never updates, `_activateDrag` never runs (since
+   it's called from inside `_onDragPointerMove`), and the row stays
+   pinned at its initial location.
+
+Why the Playwright differential matrix in gap-closure-22 missed this:
+Playwright's chromium engine, even with `is_mobile=True, has_touch=True`
+and CDP `Input.dispatchTouchEvent`, follows the desktop pointermove
+synthesis path more aggressively than real Android Chrome. The desktop
+behavior was used as the proxy and showed drag working with `touch-action:
+none`. Real device showed it doesn't.
+
+## New fix (gap-closure-23): JS-dynamic touchmove.preventDefault()
+
+The standard pattern used by Sortable.js and react-beautiful-dnd:
+- Keep native scroll enabled via CSS (`touch-action: pan-y` on rows).
+- Attach a document-level `touchmove` listener with `{ passive: false }`.
+- Once long-press timer has fired (`activeDrag.longPressArmed === true`),
+  call `e.preventDefault()` on each subsequent touchmove. This cancels
+  native scroll for the rest of the touch sequence per W3C spec.
+- During the 500 ms long-press hold, no touchmove fires (finger held
+  still), so Chrome hasn't started a scroll-claim yet. When the first
+  post-hold touchmove arrives, it IS still cancellable. preventDefault
+  works.
+
+Key insight on the spec: `preventDefault()` on `pointermove` does NOT
+cancel native scroll. The W3C-defined hook for cancelling native scroll
+is `touchmove.preventDefault()`. The existing code preventDefaulted the
+wrong event family — that's why gap-closure-22 needed `touch-action:
+none` as a CSS fallback in the first place.
+
+### CSS changes (animation-editor.css)
+
+```css
+/* gap-closure-23: was `touch-action: none` (gap-closure-18) */
+#animation-editor-page .anim-editor-row,
+.anim-editor-row {
+  cursor: grab;
+  touch-action: pan-y;
+}
+```
+
+The `#animation-editor-page` prefix gives this rule specificity (1,1,0)
+so it beats the `all: unset` declaration at line 399 (also (1,1,0), but
+later source order means equal specificity → later wins for the
+`touch-action` property re-statement).
+
+The unconditional `.anim-editor-library, .anim-editor-list { touch-action:
+none }` rule from gap-closure-22 has been REMOVED. Library and list
+inherit `touch-action: auto` (default), which is what we want for
+pre-long-press scrolling.
+
+### JS changes (animation-editor-library-list.js)
+
+```javascript
+document.addEventListener("touchmove", _onDragTouchMove, { passive: false });
+
+function _onDragTouchMove(e) {
+  if (!activeDrag || !activeDrag.longPressArmed) return;
+  if (e.cancelable) e.preventDefault();
+}
+```
+
+`_updateAutoScroll` (gap-closure-20) is unchanged. It still
+programmatically updates `list.scrollTop` when the finger nears the
+list's top/bottom edge during an ACTIVE drag. Programmatic scroll is
+independent of touch-action, so it continues to work alongside the
+JS-prevented native scroll.
+
+## Verification Matrix (Playwright, real raw touch events via CDP)
+
+Tested via `Input.dispatchTouchEvent` (not pointer events) to better
+match real Android behavior. Five tests, all passing:
+
+| Test | Setup | Expected | Result |
+|---|---|---|---|
+| 1. Quick swipe scrolls list | touchstart → 10 quick touchmoves up (150 px in 150 ms) → touchend | `list.scrollTop` advances; no `is-dragging` class; row order unchanged | **PASS** scrollTop 0 → 135 |
+| 2. Long-press + drag moves row | touchstart → hold 700 ms → 20 touchmoves down (80 px) → touchend | Mid-drag has `is-dragging`; on release, row order changes | **PASS** reorder committed |
+| 3. Drag to edge auto-scrolls | touchstart → hold 700 ms → drag to within 30 px of bottom → HOLD 1 sec | `list.scrollTop` keeps advancing during the dwell without further finger motion | **PASS** scrollTop 72 → 149 over 1 sec dwell |
+| 4. Touch outside list (search) | touchstart on `.anim-editor-search input` → touchend | No drag triggered | **PASS** |
+| 5. Active drag in MIDDLE blocks native scroll | touchstart → hold 700 ms → move to middle of list (NOT edge) → pan up/down 10 px alternating × 20 | `list.scrollTop` does NOT advance via native pan (drag JS handles motion; auto-scroll inactive in middle zone) | **PASS** delta = 0 px |
+
+Reproduction script: `/tmp/repro_mobile_regression_v3.py` (matrix) +
+`/tmp/repro_mobile_regression_v1.py` (single-shot).
+
+## Reasoning: Why this should work on real Android
+
+This fix removes the gap-closure-22 mechanism (touch-action: none on
+ancestor) that we believe caused the real-Android-only drag failure. In
+its place we use a pattern (touchmove.preventDefault from passive-false
+listener) that is used by every major drag library (Sortable.js,
+react-beautiful-dnd, dnd-kit) on real Android Chrome with the same
+viewport-locked-list use case.
+
+The mechanism for cancelling native scroll while keeping
+setPointerCapture functional:
+- Row's `touch-action: pan-y` means Chrome WILL dispatch synthesized
+  pointermove events for the captured pointer (synthesis is gated by
+  the captured element's own touch-action, not its ancestor's).
+- During the 500 ms hold, no movement = no scroll-claim by Chrome.
+- When user begins to move post-hold, `_onDragTouchMove` fires before
+  any layout-pan begins (touchmove listeners run in capture phase
+  before Chromium commits to a gesture interpretation), `e.cancelable`
+  is `true` (no scroll yet), and `preventDefault()` cancels native
+  scroll for the rest of the sequence.
+
+Caveat: If the operator's specific Android Chrome version has an even
+more aggressive gesture-claim than we've accounted for here, this fix
+may still fail. In that case the fallback is to ALSO add a
+`document.addEventListener("touchstart", ...)` with `{ passive: false }`
+that calls `e.preventDefault()` when the touch target is a
+`.anim-editor-row` — that would force-cancel any scroll-claim at the
+earliest possible moment. We'd rather avoid it because it disables all
+default browser behavior on the row including any tap-related haptics,
+but it's a known escape hatch.
+
+## Files Changed (gap-closure-23)
+
+- `src/styles/design-system/animation-editor.css`
+  - Removed the unconditional `.anim-editor-library, .anim-editor-list
+    { touch-action: none }` block (gap-closure-22).
+  - Changed the row's `touch-action` from `none` (gap-closure-18) to
+    `pan-y` (gap-closure-23), via a higher-specificity
+    `#animation-editor-page .anim-editor-row` selector list.
+- `src/app/runtime/ui/animation-editor-library-list.js`
+  - Added a `document.addEventListener("touchmove", ...)` with
+    `{ passive: false }` and a new `_onDragTouchMove` handler that
+    calls `e.preventDefault()` once `activeDrag.longPressArmed` is true.
+  - No other JS logic changed. `_onDragPointerMove`, `_activateDrag`,
+    `_updateAutoScroll`, `_onDragPointerUp`, `_onDragPointerCancel`,
+    `_commitDrop`, `_cleanupDrag` all unchanged.
+
+## Recommended Operator Re-Test (gap-closure-23)
+
+Hard-reload Chrome Android. In the Animation Editor:
+
+1. Quick vertical swipe on a row (without holding) — the list should
+   scroll smoothly. (REGRESSION FIXED.)
+2. Long-press a row until vibration confirms. Then drag up or down —
+   row should now follow your finger. (REGRESSION FIXED.)
+3. While dragging, move your finger close to the top or bottom edge of
+   the list (~60 px) and hold — the list should auto-scroll so you can
+   drop the row in a far-off position. (NEW REQUIREMENT.)
+4. Drop. Confirm the row settles in the new position and the order
+   persists.
+
+Edge cases:
+- Tap (no hold) → row selects.
+- Hold then release without moving → row selects (cleanup runs, no
+  reorder).
+- Pull-to-refresh attempt → still suppressed.
+- Mouse drag (desktop) → unchanged, immediate 6 px threshold drag.

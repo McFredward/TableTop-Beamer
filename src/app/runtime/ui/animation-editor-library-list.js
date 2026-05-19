@@ -53,8 +53,34 @@
       document.addEventListener("pointermove", _onDragPointerMove, { passive: false });
       document.addEventListener("pointerup", _onDragPointerUp);
       document.addEventListener("pointercancel", _onDragPointerCancel);
+      // Phase 49 gap-closure-23 (2026-05-19): document-level touchmove listener
+      // with { passive: false } so we can `e.preventDefault()` once the long-
+      // press timer has armed. This cancels native scroll for the rest of the
+      // touch sequence per W3C TouchEvents spec. We can't do this via
+      // `pointermove.preventDefault()` because preventDefault on POINTERMOVE
+      // events does NOT cancel native scroll (it only suppresses the click
+      // synthesized after pointerup) — the spec-defined "cancel native scroll"
+      // hook is specifically on touchmove. This is the same pattern used by
+      // Sortable.js and react-beautiful-dnd: native scroll is the default,
+      // and JS preventDefault overrides it once drag intent is confirmed via
+      // the 500 ms long-press hold. See animation-editor.css gap-closure-23
+      // block for the full CSS-side rationale.
+      document.addEventListener("touchmove", _onDragTouchMove, { passive: false });
       dragHandlersBound = true;
     }
+  }
+
+  // Phase 49 gap-closure-23: cancel native scroll once the long-press timer
+  // has fired AND a drag is active. We DON'T preventDefault during the
+  // pre-long-press window because the user may be swiping to scroll — in
+  // that case `_onDragPointerMove` will cancel the activeDrag when movement
+  // exceeds LONG_PRESS_MOVE_THRESHOLD_PX, and native scroll continues. Once
+  // `longPressArmed === true`, the user has committed to a drag and any
+  // subsequent touchmove must NOT scroll the list (JS auto-scroll handles
+  // that programmatically when the finger nears the list edges).
+  function _onDragTouchMove(e) {
+    if (!activeDrag || !activeDrag.longPressArmed) return;
+    if (e.cancelable) e.preventDefault();
   }
 
   // Phase 49 gap-closure-21: dedicated pointercancel handler. Chrome
