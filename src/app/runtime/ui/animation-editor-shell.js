@@ -143,13 +143,40 @@
       ctx.animEditorDiscardButton.addEventListener("pointerdown", _blurFocusedInput);
       ctx.animEditorDiscardButton.addEventListener("click", () => {
         if (typeof ctx.discardLocalConfigAndReloadFromServer === "function") {
-          ctx.discardLocalConfigAndReloadFromServer();
-          // Wait a tick for the reload to flush through, then
-          // re-render + refresh the dirty bar.
-          setTimeout(() => {
-            clearPaneCache();
-            render();
-          }, 50);
+          // Phase 49 gap-closure-28 (2026-05-19): wait for the async
+          // discard to RESOLVE before re-rendering. The previous
+          // implementation used `setTimeout(50, render)` which fired
+          // BEFORE the /api/global-defaults fetch completed on real
+          // devices — render() calls syncDirtyBar() which reads
+          // state.localConfigDirty, and that flag was still TRUE at
+          // +50ms because the fetch was still in flight. Once the
+          // fetch eventually resolved, clearLocalConfigDirty() flipped
+          // the flag to false but NOTHING called syncDirtyBar() again,
+          // leaving the dirty bar visible on screen even though the
+          // local state was clean. The user perceived "first tap did
+          // nothing" and tapped again. On the second tap, the fetch is
+          // a no-op (already clean) and render() at +50ms finally sees
+          // dirty=false → bar hides → looks like "second tap worked".
+          // Switching to .then(render) mirrors Apply's pattern and
+          // guarantees the bar-visibility sync happens AFTER the dirty
+          // flag has been cleared. Empirically reproduced in Playwright
+          // with a 300 ms artificial network delay: timeline showed
+          // bar_hidden=False persisting from tap dispatch until end of
+          // poll window. Verification after fix below. */
+          Promise.resolve(ctx.discardLocalConfigAndReloadFromServer())
+            .then(() => {
+              clearPaneCache();
+              render();
+            })
+            .catch(() => {
+              // Even on failure, re-render so the UI reflects whatever
+              // state actually ended up in `state`. clearLocalConfigDirty
+              // is not called on failure, so the bar will correctly stay
+              // visible — but we still want the rest of the editor in
+              // sync with current state.
+              clearPaneCache();
+              render();
+            });
         }
       });
       ctx.animEditorDiscardButton._ttBeamerBound = true;

@@ -661,3 +661,220 @@ headless** (no soft keyboard, no visualViewport resize). The fix is
 justified by the empirical chain of evidence (activeElement trace,
 event-order analysis, CSS audit) but the proof-of-fix must be
 confirmed by the operator on the actual Android device.
+
+---
+
+# gap-closure-28 — Discord double-tap + bar overflow (2026-05-19)
+
+## Operator Report (4th UAT round after gap-closure-27)
+
+> "Ich muss es immer noch zwei mal tippen. UND zwar sind die buttons
+> jetzt voll im Bildschirm aber die Leiste geht noch viel weiter als
+> die buttons sind und somit offen rechts aus dem Bildschirm raus,
+> das sieht doof aus."
+
+Two distinct bugs:
+- **Bug A (DISCORD-specific):** Discord button still requires double-tap
+  on real Android. Apply works first-tap.
+- **Bug B (visual overflow):** Buttons are now fully inside the
+  viewport (good), but the bar's colored chrome (background + pulsing
+  border) extends way past the right edge of the buttons and overflows
+  the viewport on the right.
+
+## Empirical Investigation (Playwright Pixel-7 emulation, 360×800, isMobile=true, hasTouch=true)
+
+### Bug B — observed rect data + computed style
+
+Diagnostic script `.planning/debug/scripts/dirty_bar_diagnostic.py`
+opens the editor, calls `markDirty()` + `syncDirtyBar()`, dumps every
+relevant element's `getBoundingClientRect()` and computed style,
+saves a full-page screenshot to `.planning/debug/bar-overflow-after-fix.png`.
+
+Pre-fix observed values on 360 × 800 viewport:
+- Viewport width = 360
+- Topbar `display = "flex"` (expected `display = "grid"` on mobile!)
+- Topbar `padding = "16px 20px"` (expected `padding = "8px 12px"` on mobile!)
+- Dirty bar `x=86, w=320, right=406` — **overflows viewport by 46 px**
+- Bar's right edge sits **136.9 px** past the Apply button's right edge
+
+### Bug B — root cause via CSS cascade audit (`.planning/debug/scripts/css_diag.py`)
+
+`window.matchMedia("(max-width: 880px)").matches === true`. The
+mobile media query IS being evaluated. So WHY isn't `display: grid`
+winning?
+
+Two `CSSStyleRule`s target `.anim-editor-topbar`:
+1. Inside `@media (max-width: 880px)` at line 79: `display: grid; padding: 8px 12px; ...`
+2. Outside the media query at line 163: `display: flex; padding: var(--rd-s-4) var(--rd-s-5); ...`
+
+**Both rules have selector specificity `(0,0,1,0)`** — one class. CSS
+cascade rules: when specificity ties, the rule that appears LATER in
+source order wins. Rule #2 is at line 163, rule #1 is at line 79.
+Therefore rule #2 wins **even on mobile viewports** where the media
+query matches.
+
+Same defect for `.anim-editor-dirty-bar`: mobile @media block has
+bare class selector (line 124), desktop rule (line 203) has bare
+class selector → desktop's `display: flex; flex: 0 0 auto;` wins
+over mobile's `width: 100%; grid-area: dirty;`.
+
+The bar ended up `display: flex` (correct — both rules said flex)
+with `width: 100%` of its parent (the flex topbar), and the topbar
+itself is `display: flex` not grid → its children stack horizontally
+→ total inner width (back + title + boardPicker + dirtyBar) ≈ 600 px
+on a 360 px viewport → the dirtyBar's `width: 100%` resolved to
+~320 px starting at x=86 → right edge at 406 → overflows by 46 px.
+
+### Bug A — observed event sequence + state trace
+
+Diagnostic instruments both buttons with capture+bubble listeners for
+EVERY pointer/touch/mouse/click/focus event, simulates a single
+`Input.dispatchTouchEvent` touchStart → touchEnd via raw CDP, then
+polls `bar.hidden`, `state.localConfigDirty`, and handler call counts.
+
+Result on first tap with default (instant) Playwright network:
+```
+Discord tap #1: discard_called=1, bar_hidden=True, dirty=False
+Apply   tap #1: apply_called=1,   bar_hidden=True, dirty=False
+```
+
+Both handlers fire. Both clear the dirty flag. Both hide the bar.
+So WHY does the operator report Discord needing a double tap?
+
+Hypothesis: race between the async fetch and the `setTimeout(50)`
+render. Test by adding a 300 ms artificial route delay on `/api/**`:
+
+```
+discard_async_repro.py output (PRE-fix):
+  Bar visible BEFORE tap? True
+  Tap dispatched
+  +50ms onwards: bar_hidden=False (visible!), dirty=False
+  bar STAYED VISIBLE forever, even after dirty was cleared
+```
+
+**Confirmed**: the bar stays visible after the discard fetch resolves
+because `syncDirtyBar()` is never called against the post-resolve
+state.
+
+## Root Cause
+
+### Bug B
+The mobile `@media (max-width: 880px)` block in
+`src/styles/design-system/animation-editor.css` uses bare class
+selectors (specificity `(0,0,1,0)`) for `.anim-editor-topbar`,
+`.anim-editor-dirty-bar`, etc. The desktop rules for the same
+classes appear LATER in source order (lines 163-216). On equal
+specificity, source-order wins → desktop rules override mobile
+rules even when the media query matches. Result: at 360 px the
+topbar layout is desktop-flex, not mobile-grid; the dirty bar is
+sized via the desktop flex layout, ending up wider than viewport
+because the flex topbar children overflow horizontally.
+
+### Bug A
+The Discord click handler at `src/app/runtime/ui/animation-editor-shell.js`
+line ~144 does:
+```js
+ctx.discardLocalConfigAndReloadFromServer();   // async — fetches /api
+setTimeout(() => { clearPaneCache(); render(); }, 50);
+```
+
+The `setTimeout(50, render)` fires `render()` → `syncDirtyBar()` at
++50 ms while the discard fetch is still in flight. At that moment
+`state.localConfigDirty` is still `true` (the fetch hasn't resolved
+yet) → bar stays visible. When the fetch eventually resolves (real
+device: 200-500 ms),  `clearLocalConfigDirty()` flips the flag to
+false but NOTHING calls `syncDirtyBar()` again. The bar stays
+visible on screen even though local state is clean. The user
+perceives "first tap did nothing" and taps again. On the second tap
+the discard is a no-op (already clean) but the `setTimeout(50,
+render)` fires against the now-clean state → bar finally hides.
+
+Apply does NOT have this bug because its handler uses
+`.then(syncDirtyBar)` — the syncDirtyBar call is chained to the
+fetch's resolve, so it always runs against the post-resolve state.
+
+## Applied Fix
+
+### Bug B — `src/styles/design-system/animation-editor.css`
+
+Every selector inside the `@media (max-width: 880px)` block is now
+prefixed with `#animation-editor-page`, boosting specificity from
+`(0,0,1,0)` to `(0,1,1,0)` — wins regardless of source order.
+
+Additionally, the mobile `.anim-editor-dirty-bar` rule switches from
+`width: 100%` to `width: auto + justify-self: start + max-width:
+100%`. Shrink-wraps the bar to its actual content (dot + Discard +
+Apply + padding) on mobile rather than spanning the full grid
+track, addressing the operator's "Leiste geht noch viel weiter als
+die buttons sind" complaint. The max-width 100% cap still prevents
+future translations or longer labels from pushing the bar off-screen.
+
+### Bug A — `src/app/runtime/ui/animation-editor-shell.js`
+
+Discord click handler rewritten to mirror Apply's pattern:
+```js
+Promise.resolve(ctx.discardLocalConfigAndReloadFromServer())
+  .then(() => { clearPaneCache(); render(); })
+  .catch(() => { clearPaneCache(); render(); });
+```
+
+Eliminates the `setTimeout(50)` race. `render()` (and therefore
+`syncDirtyBar()`) now runs ONLY after the fetch resolves, guaranteed
+to see the post-clearLocalConfigDirty clean state. Catch branch
+ensures we still re-render on failure so the UI stays in sync with
+whatever state actually ended up in `state`.
+
+## Verification Matrix
+
+| Test | Pre-fix | Post-fix |
+|------|---------|----------|
+| Mobile (360×800) topbar `display` | `flex` (wrong) | `grid` (correct) |
+| Mobile topbar `padding` | `16px 20px` | `8px 12px` |
+| Mobile dirty-bar width | 320 px (full track) | 172 px (shrink-wrapped) |
+| Mobile dirty-bar right edge vs viewport | 406 > 360 (overflows by 46 px) | 184 < 360 (within viewport) |
+| Mobile dirty-bar right edge vs Apply button right | +137 px (huge gap) | +9 px (natural padding) |
+| Discord tap → bar hides (300 ms slow fetch) | NEVER hides | Hides at +830 ms (after fetch resolve) |
+| Apply tap → bar hides | Always hides | Always hides (unchanged) |
+| Discord/Apply click handler call count on single tap | 1 / 1 | 1 / 1 |
+| Desktop (1280×800) topbar display | `flex` | `flex` (unchanged) |
+| Desktop dirty-bar width | 383 px (content-sized) | 383 px (unchanged) |
+| `test/asset-delete-modal.test.mjs` | 3 pass | 3 pass |
+| `test/asset-picker-dirty-gate.test.mjs` | 5 pass | 5 pass |
+
+Screenshots (Playwright Pixel-7 emulation):
+- `.planning/debug/bar-overflow-after-fix.png` — post-fix view shows
+  the dirty bar shrink-wrapped tightly around Discard + Apply buttons
+  with no overflow.
+
+## Empirical Proof Limitation
+
+Bug A's real-Android-Chrome manifestation (the "first tap eaten"
+feeling) is hard to reproduce in Playwright headless because the
+slow-fetch race is timing-dependent on real-network round-trip
+latency. We reproduced the equivalent via a 300 ms route stub and
+confirmed the fix eliminates the bar-stays-visible-after-clean state.
+The operator's perception of "double-tap needed" is downstream of
+that visible state mismatch — fixing the state mismatch should fix
+the perception.
+
+## Files Changed (gap-closure-28)
+
+- `src/styles/design-system/animation-editor.css` — mobile @media
+  selectors prefixed with `#animation-editor-page`; dirty-bar
+  width changed to shrink-wrap.
+- `src/app/runtime/ui/animation-editor-shell.js` — Discord click
+  handler uses `Promise.resolve().then()` instead of
+  `setTimeout(50)` to ensure syncDirtyBar runs against post-resolve
+  state.
+
+## Recommended Operator Re-Test
+
+1. Open Animation Editor on Android Chrome.
+2. Long-press-drag to reorder an animation (sets the dirty flag).
+3. Confirm the dirty bar now shrink-wraps to fit Discord + Apply
+   (no chrome extending past the buttons or off the viewport edge).
+4. Tap Discord ONCE. Bar should disappear immediately (or within
+   the natural network round-trip — typically <500 ms). Should NOT
+   require a second tap.
+5. Repeat with Apply.
+

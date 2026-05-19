@@ -75,8 +75,20 @@ body[data-output-role="final-output"] #animation-editor-page {
    * UAT reported "Back button over Animations heading". Replaced with
    * CSS Grid with named rows: row 1 = [back-icon | title | board-picker]
    * (single line); row 2 = dirty-bar full-width when present. Back
-   * shrinks to icon-only on small screens to save horizontal space. */
-  .anim-editor-topbar {
+   * shrinks to icon-only on small screens to save horizontal space.
+   *
+   * Phase 49 gap-closure-28 (2026-05-19): every selector in this @media
+   * block is now prefixed with `#animation-editor-page` to boost
+   * specificity above the desktop rules at line ~205. Previously the
+   * mobile rules used bare class selectors (e.g. `.anim-editor-topbar`)
+   * with the same specificity (0,0,1,0) as the desktop rules — and
+   * because the desktop rules appear LATER in source order, they won
+   * the cascade, leaving the topbar in `display: flex` even at 360px
+   * viewport. Empirically observed (Playwright Pixel-7 emulation): bar
+   * overflowed viewport by 46 px on the right because flex children
+   * stacked horizontally past viewport width. The id-class prefix bumps
+   * specificity to (0,1,1,0) which wins regardless of source order. */
+  #animation-editor-page .anim-editor-topbar {
     display: grid;
     grid-template-columns: auto 1fr auto;
     grid-template-rows: auto auto;
@@ -88,51 +100,62 @@ body[data-output-role="final-output"] #animation-editor-page {
     padding: 8px 12px;
     align-items: center;
   }
-  .anim-editor-back {
+  #animation-editor-page .anim-editor-back {
     grid-area: back;
     padding: 6px 8px;
     min-width: 0;
   }
-  .anim-editor-back > span {
+  #animation-editor-page .anim-editor-back > span {
     /* hide the "Back" word on mobile — leave just the arrow icon */
     display: none;
   }
-  .anim-editor-topbar-title {
+  #animation-editor-page .anim-editor-topbar-title {
     grid-area: title;
     text-align: center;
     min-width: 0;
     flex: unset;
     order: 0;
   }
-  .anim-editor-topbar-title .rd-eyebrow {
+  #animation-editor-page .anim-editor-topbar-title .rd-eyebrow {
     font-size: 10px;
   }
-  .anim-editor-topbar-title .rd-h1 {
+  #animation-editor-page .anim-editor-topbar-title .rd-h1 {
     font-size: 18px;
     line-height: 1.2;
     margin: 0;
   }
-  .anim-editor-board-picker {
+  #animation-editor-page .anim-editor-board-picker {
     grid-area: picker;
     min-width: 0;
     max-width: 140px;
     flex: unset;
   }
-  .anim-editor-board-picker .rd-caption {
+  #animation-editor-page .anim-editor-board-picker .rd-caption {
     display: none;  /* save vertical space — the select itself is self-evident */
   }
-  .anim-editor-dirty-bar {
+  #animation-editor-page .anim-editor-dirty-bar {
     grid-area: dirty;
     flex: unset;
-    /* gap-closure-27: flex-start (was flex-end in gap-closure-26).
-     * flex-end pushed Apply (rightmost button) further off-screen
-     * when the bar overflowed the viewport. flex-start lets any
-     * overflow happen on the right where it's clipped by viewport,
-     * but Discard + Apply remain fully visible on the left side. */
+    /* gap-closure-28 (2026-05-19): shrink-wrap to content on mobile.
+     * gap-closure-27 used `width: 100%` which made the bar span the
+     * full grid track (the entire viewport minus padding); the
+     * pulsing chrome then extended ~170 px past the right edge of
+     * the Apply button, which the operator (correctly) reported as
+     * looking broken: "die Leiste geht noch viel weiter als die
+     * buttons sind und somit offen rechts aus dem Bildschirm raus,
+     * das sieht doof aus".
+     *
+     * Switching to `width: auto + justify-self: start + max-width:
+     * 100%` makes the bar size to its actual content (dot + Discard
+     * + Apply + padding + gap) on mobile, while still being capped
+     * at the viewport width so a future translation or longer button
+     * label can't push the bar off-screen. justify-self places the
+     * shrink-wrapped bar at the left edge of the grid row's full-
+     * width track so it visually attaches to the Back button column
+     * below. */
     justify-content: flex-start;
-    /* Use max-width so the bar can never exceed the viewport, even if
-     * the parent grid track is somehow wider. */
-    width: 100%;
+    justify-self: start;
+    width: auto;
     max-width: 100%;
     box-sizing: border-box;
     /* Tighten horizontal padding + gap on mobile so Discard + Apply
@@ -145,13 +168,13 @@ body[data-output-role="final-output"] #animation-editor-page {
   /* Hide the "Unsaved changes" word label on mobile — the pulsing
    * dot + the two action buttons already communicate the dirty state.
    * Frees ~150px so both buttons fit fully inside the viewport. */
-  .anim-editor-dirty-bar .anim-editor-dirty-label {
+  #animation-editor-page .anim-editor-dirty-bar .anim-editor-dirty-label {
     display: none;
   }
   /* Compact the buttons themselves so they don't take the full
    * line-height padding from .rd-btn (height 40px). Discard + Apply
    * each shrink to ~32px tall + tighter horizontal padding. */
-  .anim-editor-dirty-bar .rd-btn {
+  #animation-editor-page .anim-editor-dirty-bar .rd-btn {
     height: auto;
     min-height: 32px;
     padding: 6px 12px;
