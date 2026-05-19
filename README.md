@@ -22,7 +22,7 @@ room, in real time.
 </div>
 
 > [!NOTE]
-> Hobby project I built for myself, not a perfectly polished product. AI was
+> Hobby project, not a perfectly polished product. AI was
 > used heavily during development. Bugs exist 🕷️ — suggestions and PRs welcome.
 
 ---
@@ -35,19 +35,13 @@ interactive atmosphere layer for board games. You define <b>rooms</b>
 fires, scanners, intruders, MP4 loops…), group rooms into <b>clusters</b>,
 and trigger everything from your phone during play.
 
-<table>
-  <tr>
-    <td align="center">
-      <video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video>
-    </td>
-    <td align="center">
-      <video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video>
-    </td>
-    <td align="center">
-      <img src="./readme-assets/example_board.gif" width=""/>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img
+    src="readme-assets/example_board.gif"
+    width="250"
+    alt="TableTop Beamer overview"
+  />
+</p>
 
 Two browsers run side-by-side:
 
@@ -123,7 +117,6 @@ cd TableTop-Beamer
 
 The launcher downloads a portable Node 22, installs system deps (with one
 `sudo`/UAC prompt), runs `npm ci`, boots the server, and opens the dashboard.
-~2–5 min on first run, under 30 s after.
 
 The console prints the LAN URLs to open from your phone + Pi:
 
@@ -163,8 +156,7 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
 - Mediasoup ships **no prebuilt worker for ARM64 Windows** — the click-and-run
   launcher bails fast on ARM64 Windows with a clear message. AMD64
   (Intel/AMD 64-bit) is fully supported.
-- Audio / sound have not been tested much (I mainly play without sound
-  effects, expect bugs).
+- The board of `Nemesis Lockdown B` is too big - you can compress the too large margins in the align mode to fit the board.
 
 ---
 
@@ -175,18 +167,13 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
 - **Computer-vision-driven automation** — train local CV models that watch the
   board state and trigger animations automatically (no manual taps).
 - Per-cluster live editor (long-press a cluster pad to open it).
-- Cleaner audio routing.
 
 ---
 ---
-
-**v1.0.0** — first laypeople-friendly public release. Click-and-run launchers
-for Linux + Windows, server-side-rendered projector stream, drag-and-drop
-animation reorder.
 
 If you want to fork or extend, the full architecture + decision history is
 documented under `.planning/phases/`. Open a
 [GitHub issue](https://github.com/McFredward/TableTop-Beamer/issues) for
 suggestions, or reach me as **McFredward** on Discord.
 
-[GNU General Public License v3.0](LICENCE) © McFredward
+[GNU General Public License v3.0](LICENCE)

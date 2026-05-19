@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-05-16T23:51:36.669Z",
+  "savedAt": "2026-05-19T19:52:46.519Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
@@ -11,20 +11,20 @@
   "projectionMapping": {
     "corners": {
       "topLeft": {
-        "x": 10,
-        "y": 10
+        "x": 19.348958333333332,
+        "y": 15.277777777777779
       },
       "topRight": {
-        "x": 90,
-        "y": 10
+        "x": 76.484375,
+        "y": 15.277777777777779
       },
       "bottomRight": {
-        "x": 90,
-        "y": 90
+        "x": 76.484375,
+        "y": 85.37037037037038
       },
       "bottomLeft": {
-        "x": 10,
-        "y": 90
+        "x": 19.348958333333332,
+        "y": 85.37037037037038
       }
     }
   },

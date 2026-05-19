@@ -6636,26 +6636,6 @@
       "selectedAnimationId": "kaputt",
       "animations": [
         {
-          "id": "flicker",
-          "name": "Light Flicker",
-          "assetType": "coded",
-          "assetRef": "hull-flicker",
-          "soundAssetRef": "none",
-          "rotationDeg": 0,
-          "stretchToPolygon": true,
-          "widthScale": 1,
-          "heightScale": 1,
-          "offsetXScale": 0,
-          "offsetYScale": 0,
-          "opacity": 0.9,
-          "intensity": 0.8,
-          "speed": 1,
-          "soundVolume": 1,
-          "colorHex": "#ff0000",
-          "breaksSolidColor": false,
-          "icon": null
-        },
-        {
           "id": "room-moj3thu0-2",
           "name": "Power Outage",
           "assetType": "coded",
@@ -6674,6 +6654,26 @@
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
           "icon": "power"
+        },
+        {
+          "id": "flicker",
+          "name": "Light Flicker",
+          "assetType": "coded",
+          "assetRef": "hull-flicker",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "icon": null
         },
         {
           "id": "alarm",
