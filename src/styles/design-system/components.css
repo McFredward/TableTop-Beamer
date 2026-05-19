@@ -40,7 +40,6 @@
               border-color var(--rd-t-quick);
   -webkit-tap-highlight-color: transparent;
 }
-.rd-btn:hover:not(:disabled) { background: var(--c-surface-2); }
 .rd-btn:active:not(:disabled) { transform: scale(0.97); }
 .rd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .rd-btn[aria-pressed="true"] {
@@ -54,10 +53,6 @@
   border-color: transparent;
   color: var(--c-accent-fg);
   font-weight: 600;
-}
-.rd-btn-primary:hover:not(:disabled) {
-  background: var(--c-accent);
-  filter: brightness(1.06);
 }
 .rd-btn-primary:disabled {
   background: var(--c-accent);
@@ -73,19 +68,38 @@
   border-color: transparent;
   color: var(--c-text-2);
 }
-.rd-btn-ghost:hover:not(:disabled) {
-  background: var(--c-surface);
-  color: var(--c-text);
-}
 
 .rd-btn-danger {
   background: var(--c-danger-bg);
   color: var(--c-danger);
   border-color: transparent;
 }
-.rd-btn-danger:hover:not(:disabled) {
-  background: var(--c-danger-bg);
-  filter: brightness(1.1);
+
+/* Phase 49 gap-closure-26 (2026-05-19): gate ALL `:hover` styles to
+ * real-hover devices via `@media (hover: hover)` (CSS MQ Level 4). On
+ * touch-only devices (Android, iOS) the first tap on a ghost-style
+ * button activates the "sticky hover" state — Chrome considers that
+ * first tap consumed by the hover transition and does NOT synthesize
+ * the click event. Second tap = real click. Operator UAT: "muss man
+ * immer den Discard-Knopf zwei mal antippen". Apply (primary) was less
+ * affected because its hover only changes filter, not background.
+ * Gating hover here means hover styles only apply when the user has a
+ * real cursor (mouse/trackpad) AND prevents the first-tap-eaten
+ * pathology on every rd-btn variant site-wide. */
+@media (hover: hover) {
+  .rd-btn:hover:not(:disabled) { background: var(--c-surface-2); }
+  .rd-btn-primary:hover:not(:disabled) {
+    background: var(--c-accent);
+    filter: brightness(1.06);
+  }
+  .rd-btn-ghost:hover:not(:disabled) {
+    background: var(--c-surface);
+    color: var(--c-text);
+  }
+  .rd-btn-danger:hover:not(:disabled) {
+    background: var(--c-danger-bg);
+    filter: brightness(1.1);
+  }
 }
 
 .rd-icon-btn {

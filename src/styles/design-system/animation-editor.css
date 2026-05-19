@@ -124,8 +124,30 @@ body[data-output-role="final-output"] #animation-editor-page {
   .anim-editor-dirty-bar {
     grid-area: dirty;
     flex: unset;
-    justify-content: space-between;
+    justify-content: flex-end;
     width: 100%;
+    box-sizing: border-box;
+    /* Phase 49 gap-closure-26 (2026-05-19): tighten horizontal padding +
+     * gap on mobile so Discard + Apply both fit fully visible. Previous
+     * desktop values (12-16px padding + s-3 gap) plus the "Unsaved
+     * changes" label pushed Apply partly off-screen on narrow phones. */
+    padding: 6px 8px;
+    gap: 8px;
+  }
+  /* Hide the "Unsaved changes" word label on mobile — the pulsing
+   * dot + the two action buttons already communicate the dirty state.
+   * Frees ~150px so both buttons fit fully inside the viewport. */
+  .anim-editor-dirty-bar .anim-editor-dirty-label {
+    display: none;
+  }
+  /* Compact the buttons themselves so they don't take the full
+   * line-height padding from .rd-btn (height 40px). Discard + Apply
+   * each shrink to ~32px tall + tighter horizontal padding. */
+  .anim-editor-dirty-bar .rd-btn {
+    height: auto;
+    min-height: 32px;
+    padding: 6px 12px;
+    font-size: 13px;
   }
 }
 
