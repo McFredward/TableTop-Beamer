@@ -956,6 +956,7 @@ const {
   discardLocalConfigAndReloadFromServer,
   renderServerUnreachableOverlay,
   captureCleanBaseline,
+  recomputeDirtyFromBaseline,
   saveAndCaptureCleanBaseline,
   shouldSuppressBroadcastReapply,
 } = window.TT_BEAMER_RUNTIME_CONFIG_SYNC;
@@ -2113,6 +2114,7 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
     setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
     persistBoardProfiles: () => persistBoardProfiles(),
+    recomputeDirtyFromBaseline: () => recomputeDirtyFromBaseline(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
     getRoomCodedAssetKeys: () => getRoomCodedAssetKeys(),

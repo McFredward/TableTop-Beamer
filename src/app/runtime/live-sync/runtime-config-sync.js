@@ -77,6 +77,33 @@
     cleanBaselineJson = buildDirtyComparisonSnapshot();
   }
 
+  // Phase 49 gap-closure-24 (2026-05-19): force-recompute the dirty flag
+  // against the clean baseline, ignoring the persistBoardProfiles()
+  // fast-path that skips the comparison when state is already dirty.
+  //
+  // Use case: the operator reorders an animation in the editor (dirty
+  // becomes true), then reorders it back to its original position. The
+  // net state is identical to the baseline, so the dirty flag SHOULD
+  // auto-clear — there's nothing to apply or discard. But the
+  // persistBoardProfiles fast-path (designed to avoid expensive
+  // stringification during high-frequency vertex drag) keeps dirty
+  // pinned at true.
+  //
+  // Specific callers (reorder, single discrete edits) opt into the
+  // full comparison via this function. High-frequency callers keep
+  // using persistBoardProfiles to stay cheap.
+  function recomputeDirtyFromBaseline() {
+    if (cleanBaselineJson === null) return;
+    const currentJson = buildDirtyComparisonSnapshot();
+    if (currentJson === null) return;
+    const matchesBaseline = currentJson === cleanBaselineJson;
+    if (matchesBaseline && ctx.state.localConfigDirty) {
+      clearLocalConfigDirty("Global config: reverted to baseline, no unsaved changes");
+    } else if (!matchesBaseline && !ctx.state.localConfigDirty) {
+      markLocalConfigDirty("baseline-recheck");
+    }
+  }
+
   // Dirty flag only fires when state actually differs from
   // the clean baseline. Before this, every dropdown change that merely
   // re-selected the current value was incorrectly marking the config
@@ -323,6 +350,7 @@
     discardLocalConfigAndReloadFromServer,
     renderServerUnreachableOverlay,
     captureCleanBaseline,
+    recomputeDirtyFromBaseline,
     saveAndCaptureCleanBaseline,
     shouldSuppressBroadcastReapply,
   };

@@ -71,6 +71,21 @@
     }
   }
 
+  // Phase 49 gap-closure-24 (2026-05-19): blur whatever input currently
+  // has focus + the soft keyboard. Wired to pointerdown on the Apply /
+  // Discard buttons so the FIRST tap on a button doesn't get eaten by
+  // the browser's "first tap dismisses keyboard" behavior on mobile.
+  function _blurFocusedInput() {
+    try {
+      const el = document.activeElement;
+      if (el && typeof el.blur === "function" && el !== document.body) {
+        el.blur();
+      }
+    } catch {
+      // ignore — defensive only
+    }
+  }
+
   function init(dependencies) {
     ctx = dependencies;
     if (typeof dependencies.render === "function") render = dependencies.render;
@@ -88,7 +103,16 @@
       back.addEventListener("click", handleBack);
       back._ttBeamerBound = true;
     }
+    // Phase 49 gap-closure-24 (2026-05-19): on mobile the Apply/Discard
+    // buttons required a double-tap when the dirty bar was visible. The
+    // editor's `open()` auto-focuses the search input (line ~323), which
+    // brings up the soft keyboard on touch devices. On a focused-input +
+    // keyboard-up state, the first tap on a button dismisses the
+    // keyboard, the second tap fires the click. Blurring the focused
+    // element on pointerdown of the Apply/Discard buttons ensures the
+    // synthetic click fires on the FIRST tap.
     if (ctx.animEditorApplyButton && !ctx.animEditorApplyButton._ttBeamerBound) {
+      ctx.animEditorApplyButton.addEventListener("pointerdown", _blurFocusedInput);
       ctx.animEditorApplyButton.addEventListener("click", () => {
         if (typeof ctx.applyLocalConfigToServer === "function") {
           Promise.resolve(ctx.applyLocalConfigToServer()).then(() => {
@@ -99,6 +123,7 @@
       ctx.animEditorApplyButton._ttBeamerBound = true;
     }
     if (ctx.animEditorDiscardButton && !ctx.animEditorDiscardButton._ttBeamerBound) {
+      ctx.animEditorDiscardButton.addEventListener("pointerdown", _blurFocusedInput);
       ctx.animEditorDiscardButton.addEventListener("click", () => {
         if (typeof ctx.discardLocalConfigAndReloadFromServer === "function") {
           ctx.discardLocalConfigAndReloadFromServer();

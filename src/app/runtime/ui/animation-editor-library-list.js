@@ -435,6 +435,12 @@
     arr.splice(toIdx, 0, moved);
     setter(boardId, { ...profile, animations: arr });
     if (typeof ctx.persistBoardProfiles === "function") ctx.persistBoardProfiles();
+    // Phase 49 gap-closure-24 (2026-05-19): reordering back to the baseline
+    // order should auto-clear the dirty flag — there's nothing to apply or
+    // discard if the net state matches the clean baseline. persistBoardProfiles
+    // skips the comparison once dirty=true (fast-path for vertex drag), so
+    // we explicitly re-check from baseline here.
+    if (typeof ctx.recomputeDirtyFromBaseline === "function") ctx.recomputeDirtyFromBaseline();
     if (typeof ctx.refreshGlobalButtons === "function") ctx.refreshGlobalButtons();
     if (typeof syncDirtyBar === "function") syncDirtyBar();
     renderList();
