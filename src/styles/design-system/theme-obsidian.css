@@ -268,11 +268,20 @@ body[data-output-role="final-output"].dir-obsidian {
     color var(--rd-t-quick);
 }
 
-.dir-obsidian button:hover:not(:disabled) {
-  background: var(--c-surface-2);
-  transform: none;
-  box-shadow: none;
-  border-color: var(--c-border);
+/* Phase 49 gap-closure-27 (2026-05-19): gate the global hover rule to
+ * real-hover devices. This rule has higher specificity (0,1,2,1) than
+ * the gated components.css rules (0,1,2,0), so on touch devices it was
+ * still triggering the sticky-hover transition and eating the first
+ * tap on Discard (.rd-btn-ghost). Apply (.rd-btn-primary) was less
+ * visibly affected, but the sticky-hover state was still being applied
+ * — gating fixes both consistently and prevents future drift. */
+@media (hover: hover) {
+  .dir-obsidian button:hover:not(:disabled) {
+    background: var(--c-surface-2);
+    transform: none;
+    box-shadow: none;
+    border-color: var(--c-border);
+  }
 }
 
 .dir-obsidian button:active:not(:disabled) {

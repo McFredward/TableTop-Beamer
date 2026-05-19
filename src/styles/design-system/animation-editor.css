@@ -124,15 +124,23 @@ body[data-output-role="final-output"] #animation-editor-page {
   .anim-editor-dirty-bar {
     grid-area: dirty;
     flex: unset;
-    justify-content: flex-end;
+    /* gap-closure-27: flex-start (was flex-end in gap-closure-26).
+     * flex-end pushed Apply (rightmost button) further off-screen
+     * when the bar overflowed the viewport. flex-start lets any
+     * overflow happen on the right where it's clipped by viewport,
+     * but Discard + Apply remain fully visible on the left side. */
+    justify-content: flex-start;
+    /* Use max-width so the bar can never exceed the viewport, even if
+     * the parent grid track is somehow wider. */
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    /* Phase 49 gap-closure-26 (2026-05-19): tighten horizontal padding +
-     * gap on mobile so Discard + Apply both fit fully visible. Previous
-     * desktop values (12-16px padding + s-3 gap) plus the "Unsaved
-     * changes" label pushed Apply partly off-screen on narrow phones. */
+    /* Tighten horizontal padding + gap on mobile so Discard + Apply
+     * both fit. Desktop values pushed Apply partly off-screen. */
     padding: 6px 8px;
-    gap: 8px;
+    gap: 6px;
+    /* Defensive: don't let inner content push the bar wider than 100%. */
+    overflow: hidden;
   }
   /* Hide the "Unsaved changes" word label on mobile — the pulsing
    * dot + the two action buttons already communicate the dirty state.
