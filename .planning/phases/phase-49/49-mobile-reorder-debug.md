@@ -471,3 +471,193 @@ Edge cases:
   reorder).
 - Pull-to-refresh attempt → still suppressed.
 - Mouse drag (desktop) → unchanged, immediate 6 px threshold drag.
+
+---
+
+# Phase 49 gap-closure-25 (2026-05-19): Dirty-bar Double-Tap on Mobile
+
+## Bug
+
+After gap-closure-24 attempted a fix for the operator's report —
+"muss man immer wenn die dirty flag gesetzt wurde und man einen der
+Buttons 'Discord' oder 'Save' am Handy drücken will zwei mal drauf
+tippen, damit es reagiert" — the operator confirmed the bug PERSISTED.
+First tap on `#anim-editor-discard` or `#anim-editor-apply` on Android
+Chrome did nothing; second tap fired the click handler.
+
+gap-closure-24's hypothesis was that the editor's `open()` auto-
+focuses the search input, raising the soft keyboard, and the first tap
+on a button is consumed by the browser dismissing the keyboard.
+gap-closure-24 added a `pointerdown` listener on Apply/Discard that
+calls `document.activeElement.blur()`. The hypothesis was directionally
+correct but the FIX did not work.
+
+## Empirical Investigation
+
+Reproduction attempted in Playwright Pixel-7 emulation with raw CDP
+`Input.dispatchTouchEvent` (NOT `page.touchscreen.tap()`, which
+bypasses the natural touch-to-click pipeline). Three repro scripts at
+`/tmp/anim-debug/repro.py`, `/tmp/anim-debug/repro2.py`,
+`/tmp/anim-debug/repro3.py`.
+
+### Event timeline on FIRST tap (Playwright, headless Chromium)
+
+```
+t=2188.2  pointerdown   trusted=true hover=false active=anim-editor-search
+t=2188.6  touchstart    trusted=true hover=false active=BODY     # blur fired
+t=2255.8  pointerup     trusted=true hover=false active=BODY
+t=2256.1  touchend      trusted=true hover=false active=BODY
+t=2268.8  mouseover     trusted=true hover=true  active=BODY
+t=2268.9  mouseenter    trusted=true hover=true  active=BODY
+t=2269.0  mousedown     trusted=true hover=true  active=BODY
+t=2269.2  focus         trusted=true hover=true  active=anim-editor-discard
+t=2269.2  mouseup       trusted=true hover=true  active=anim-editor-discard
+t=2269.2  click         trusted=true hover=true  active=anim-editor-discard
+t=2270.1  HANDLER_FIRED
+```
+
+**The bug DOES NOT REPRODUCE in Playwright** — single tap fires the
+click handler reliably across all six tap-pattern variants
+(10/30/80 ms hold, with/without pre-focus on search). This indicates
+the bug is specific to real Android Chrome behavior that headless
+Chromium does not exhibit: the actual soft keyboard and
+visualViewport resize.
+
+### activeElement trace through the operator's full flow
+
+Simulated: `open()` → long-press row 0 (touchstart, 600 ms hold,
+touchmove to row 1, touchend) → settle.
+
+```
+[active@after-open]               id=anim-editor-search
+[active@after-touchstart-row]     id=anim-editor-search
+[active@after-longpress-armed]    id=anim-editor-search
+[active@after-touchend-drop]      id=anim-editor-search
+[active@after-settle]             id=anim-editor-search
+```
+
+**`document.activeElement` NEVER changes**. The drag flow uses
+`setPointerCapture` + `e.preventDefault()` on pointermove, neither of
+which transfers focus away from the input. On real Android, this means
+the soft keyboard remains UP for the entire flow up to the moment the
+user taps Apply/Discard.
+
+### CSS hover-rule audit
+
+Hypothesis #1 from the task brief ("iOS-style hover-capture from
+layout-shifting `:hover`") was eliminated empirically:
+- `.rd-btn:hover` only changes `background`.
+- `.rd-btn:active` applies `transform: scale(0.97)` — but on `:active`,
+  not `:hover`, so it can't be the first-tap consumer.
+- `.dir-obsidian button:hover` explicitly sets `transform: none`.
+
+No layout-shifting `:hover` rule exists on the Apply/Discard buttons.
+
+## Root Cause
+
+`open()` auto-focuses `#anim-editor-search`, raising the Android soft
+keyboard. The keyboard remains up throughout the editor session
+because no flow blurs the input (the long-press-drag reorder uses
+`setPointerCapture` + `preventDefault`, neither of which moves focus).
+
+When the dirty flag becomes true (via reorder, name edit, slider, etc.)
+and the user taps Apply or Discard, this is the first touch event
+outside the focused input. Android Chrome's touch pipeline interprets
+this as a signal to dismiss the keyboard. The dismissal triggers a
+`visualViewport` resize animation between `touchstart` and `touchend`;
+Chrome's click-synthesis at `touchend` cancels (or never fires) the
+synthetic click because the visual layout has shifted mid-tap. The
+second tap finds the keyboard already down, layout stable, and the
+click fires normally.
+
+gap-closure-24's `pointerdown.blur()` was too late in the event chain:
+on real Android, `touchstart` precedes `pointerdown`, so by the time
+the blur executes the keyboard-dismiss pathway has already begun.
+Even if blur fires before touchstart, the dismissal animation is async
+and the visualViewport resize still races with click synthesis.
+
+## Why Playwright Cannot Reproduce
+
+There is no real soft keyboard in headless Chromium. `visualViewport`
+remains stable across the synthetic touch sequence. Click synthesis
+runs unhindered. The bug is purely a real-device pathology driven by
+the keyboard dismissal interaction with the click-synthesis layout
+check.
+
+## Fix Applied (gap-closure-25)
+
+`src/app/runtime/ui/animation-editor-shell.js` — two changes:
+
+**1. Skip open()-time auto-focus on touch devices**
+
+```js
+function _isTouchOnly() {
+  try {
+    return typeof window.matchMedia === "function"
+      && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  } catch { return false; }
+}
+
+// inside open():
+if (ctx.animEditorSearchInput && !_isTouchOnly()) {
+  try { ctx.animEditorSearchInput.focus(); } catch {}
+}
+```
+
+The `(hover: none) and (pointer: coarse)` compound query is the CSS
+Media Queries Level 4 standard for identifying finger-driven
+touchscreens (Android, iOS) and excluding hybrid laptops /
+tablets-with-trackpad where the soft keyboard is not a concern.
+
+**2. Defense-in-depth: blur focused input when dirty becomes true**
+
+```js
+// in syncDirtyBar(), after the bar visibility / Back-disabled toggles:
+if (dirty) {
+  const focused = document.activeElement;
+  if (focused
+      && focused !== document.body
+      && (focused.tagName === "INPUT" || focused.tagName === "TEXTAREA" || focused.tagName === "SELECT")
+      && typeof focused.blur === "function") {
+    try { focused.blur(); } catch {}
+  }
+}
+```
+
+This catches the case where the user manually focused a text field
+later in the session (e.g., editing an animation's Name) before
+mutating something that flips the dirty flag — the same Android
+keyboard-dismiss-eats-first-tap race would otherwise apply.
+Idempotent: blurring an already-blurred element is a no-op.
+
+gap-closure-24's `pointerdown.blur()` listeners on Apply/Discard are
+kept as a last-line defense for any transient focus state.
+
+## Verification
+
+Playwright assertions (`/tmp/anim-debug/verify_fix.py`):
+
+**Touch device (Pixel-7 emulation):**
+- `matchMedia('(hover: none) and (pointer: coarse)')` → `true`
+- `activeElement` after `open()` → `BODY` (search input NOT focused)
+- After manual focus on search → `markDirty()` → `syncDirtyBar()`:
+  `activeElement` → `BODY` (blur fired)
+- Dirty bar visible: true
+- Apply click handler fires on a single raw CDP touchStart→touchEnd
+
+**Desktop device (1280×800, no touch emulation):**
+- Touch query → `false`
+- `activeElement` after `open()` → `anim-editor-search` (unchanged
+  desktop behavior preserved)
+- Click handler fires normally
+
+**Existing tests:** All 8 tests in `test/asset-delete-modal.test.mjs`
+and `test/asset-picker-dirty-gate.test.mjs` still pass.
+
+## Empirical Proof Limitation
+
+The real Android Chrome bug **cannot be reproduced in Playwright
+headless** (no soft keyboard, no visualViewport resize). The fix is
+justified by the empirical chain of evidence (activeElement trace,
+event-order analysis, CSS audit) but the proof-of-fix must be
+confirmed by the operator on the actual Android device.

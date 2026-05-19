@@ -86,6 +86,23 @@
     }
   }
 
+  // Phase 49 gap-closure-25 (2026-05-19): true touch-device detection.
+  // `(hover: none) and (pointer: coarse)` is the CSS Media Queries Level 4
+  // compound query that uniquely identifies finger-driven touchscreens
+  // (Android, iOS) and excludes hybrid laptops / tablets-with-trackpad
+  // where the soft keyboard is not a concern. Used to gate the open()
+  // auto-focus so phones never get the search input pre-focused (which
+  // raises the Android soft keyboard and triggers the dirty-bar
+  // double-tap pathology — see _isTouchOnly comments below).
+  function _isTouchOnly() {
+    try {
+      return typeof window.matchMedia === "function"
+        && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    } catch {
+      return false;
+    }
+  }
+
   function init(dependencies) {
     ctx = dependencies;
     if (typeof dependencies.render === "function") render = dependencies.render;
@@ -344,8 +361,24 @@
     document.body.setAttribute("data-animation-editor-open", "true");
     populateBoardSelect();
     render();
-    if (ctx.animEditorSearchInput) {
-      // Drop focus into the search box; it's the primary affordance.
+    if (ctx.animEditorSearchInput && !_isTouchOnly()) {
+      // Drop focus into the search box; it's the primary affordance on
+      // desktop. SKIP on touch-only devices (phones / Android Chrome):
+      // auto-focusing a text input raises the soft keyboard, which
+      // remains up throughout the session (the long-press-drag reorder
+      // never blurs it). When the dirty bar then appears and the user
+      // taps Apply/Discard, Android Chrome routes the first touchend to
+      // its "tap outside focused input → dismiss keyboard" pathway —
+      // the visualViewport resize between touchstart and touchend
+      // causes click synthesis to be cancelled, eating the first tap.
+      // Operator UAT (Phase 49 gap-closure-25, 2026-05-19): "muss man
+      // immer wenn die dirty flag gesetzt wurde und man einen der
+      // Buttons 'Discord' oder 'Save' am Handy drücken will zwei mal
+      // drauf tippen, damit es reagiert". gap-closure-24's
+      // pointerdown.blur() did not fix this — by the time pointerdown
+      // executes the touchstart has already entered the keyboard-
+      // dismiss pipeline. The robust fix is to never raise the
+      // keyboard in the first place on touch devices.
       try { ctx.animEditorSearchInput.focus(); } catch {}
     }
   }
@@ -400,6 +433,30 @@
       ctx.animEditorBackButton.classList.toggle("anim-editor-back--dirty", dirty);
       ctx.animEditorBackButton.disabled = dirty;
       ctx.animEditorBackButton.setAttribute("aria-disabled", dirty ? "true" : "false");
+    }
+    // Phase 49 gap-closure-25 (2026-05-19): defense-in-depth for the
+    // Android-Chrome dirty-bar double-tap pathology. Even with the
+    // open()-time auto-focus skipped on touch devices, the user might
+    // have focused a text input later in the session (e.g., edited an
+    // animation's Name field) before mutating something that flips the
+    // dirty flag. If a text input has focus when the dirty bar appears,
+    // the FIRST tap on Apply/Discard would still be eaten by Android
+    // Chrome's keyboard-dismiss-on-tap-outside pipeline. Blurring HERE
+    // — synchronously, at the moment the dirty bar transitions to
+    // visible — ensures the soft keyboard is already down BEFORE the
+    // user reaches for either button. This is the only point in the
+    // codebase that reliably runs when dirty becomes true, regardless
+    // of which mutation triggered it (drag-reorder, name edit, slider,
+    // toggle, color picker, etc.). Idempotent: blurring an already-
+    // blurred element is a no-op.
+    if (dirty) {
+      const focused = document.activeElement;
+      if (focused
+          && focused !== document.body
+          && (focused.tagName === "INPUT" || focused.tagName === "TEXTAREA" || focused.tagName === "SELECT")
+          && typeof focused.blur === "function") {
+        try { focused.blur(); } catch {}
+      }
     }
   }
 
