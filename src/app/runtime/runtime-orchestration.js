@@ -1933,6 +1933,11 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   ROOM_GEOMETRY_DEFAULT,
   canvas,
   canvasCtx: ctx,
+  // Phase 50 (2026-05-21): stage element passed so the aspect-ratio
+  // handler in runtime-board-switch.js can write CSS custom properties
+  // (--board-aspect, --board-aspect-num) from the loaded board image's
+  // naturalWidth/naturalHeight.
+  stage,
   boardImage,
   boardSelect,
   boardStatus,

@@ -11,6 +11,62 @@
 
   function init(dependencies) {
     ctx = dependencies;
+    // Phase 50 (2026-05-21): wire the boot-time image-load handler too
+    // so the very first board image (loaded by switchBoard at boot, or
+    // by the static `src` attribute in index.html if any) sets the
+    // stage's aspect-ratio CSS variables. Without this, the boot
+    // image renders with the hardcoded 7978:5456 defaults until the
+    // user manually switches boards.
+    if (ctx?.boardImage && !ctx.boardImage._ttBeamerAspectBound) {
+      ctx.boardImage.addEventListener("load", _writeStageAspectVarsFromImage);
+      ctx.boardImage._ttBeamerAspectBound = true;
+      // If the image has already loaded (cached / quick boot), apply
+      // immediately — the load event won't fire again.
+      if (ctx.boardImage.complete && ctx.boardImage.naturalWidth > 0) {
+        _writeStageAspectVarsFromImage();
+      }
+    }
+  }
+
+  // Phase 50 (2026-05-21): read the active board image's naturalWidth /
+  // naturalHeight and write them to the stage's CSS custom properties
+  // (`--board-aspect` and `--board-aspect-num`). These drive the
+  // `.stage { aspect-ratio: var(--board-aspect); width: calc(... *
+  // var(--board-aspect-num)); }` rules in styles.css so the stage
+  // size matches the imported image's natural aspect — no more
+  // top-and-bottom crop of square boards by `object-fit: cover`.
+  function _writeStageAspectVarsFromImage() {
+    const img = ctx?.boardImage;
+    const stage = ctx?.stage;
+    if (!img || !stage) return;
+    const w = Number(img.naturalWidth) || 0;
+    const h = Number(img.naturalHeight) || 0;
+    if (w <= 0 || h <= 0) return;
+    stage.style.setProperty("--board-aspect", `${w} / ${h}`);
+    stage.style.setProperty("--board-aspect-num", String(w / h));
+    // After the aspect ratio settles, the stage's bounding rect
+    // changes — the cluster rail's position:fixed mirror tracks
+    // stage.getBoundingClientRect() via its rAF tracker (see
+    // runtime-lifecycle-cluster-pads.js), so the rail re-syncs on
+    // the next frame automatically. The zoom panel + status line
+    // are also read-only against the stage rect so they refresh on
+    // their own.
+  }
+
+  // Trigger from switchBoard after the image src is updated. Attaches
+  // a one-shot load listener AND also runs immediately for the
+  // already-loaded case (browser-cached image switch).
+  function _applyBoardAspectRatioFromImage() {
+    const img = ctx?.boardImage;
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) {
+      // Image already in cache → load event won't fire. Apply now.
+      _writeStageAspectVarsFromImage();
+    }
+    // Always ALSO wait for load — `complete` can be true for a previous
+    // image that was just replaced via `src =`. The actual new image
+    // resolves on the next load event. The persistent listener bound
+    // in init() handles this.
   }
 
   function emitBoardLayoutContextMutation(boardId = ctx.state.boardId, reason = "board-select") {
@@ -235,6 +291,14 @@
       window.localStorage?.setItem("tt-beamer.last-board-id.v1", board.id);
     } catch { /* private mode / quota — ignore */ }
     ctx.boardImage.src = board.src;
+    // Phase 50 (2026-05-21): apply the new board image's natural
+    // aspect ratio to the stage so square / portrait / wide imports
+    // display without `object-fit: cover` cropping the visible
+    // playfield. Runs after the image's load event so naturalWidth /
+    // naturalHeight are populated. Falls back to the default
+    // 7978:5456 (the CSS defaults on `.stage`) if the image fails
+    // to load or has zero dimensions.
+    _applyBoardAspectRatioFromImage();
     ctx.boardSelect.value = board.id;
     ctx.boardStatus.textContent = `Active board: ${board.label}`;
     // Mirror the label into the topbar brand sub-line.

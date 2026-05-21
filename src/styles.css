@@ -232,9 +232,20 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   --stage-zoom-scale: 1;
   --stage-pan-x: 0px;
   --stage-pan-y: 0px;
+  /* Phase 50 (2026-05-21): board aspect ratio is dynamic, derived from
+   * the currently-loaded board image's natural width/height at runtime.
+   * Defaults below match the original Nemesis board (7978:5456 ≈ 1.462)
+   * so existing boards work without any metadata. JS in
+   * `runtime-board-switch.js` updates both vars on every board switch
+   * and on the initial boot image-load. `--board-aspect-num` is the
+   * numeric ratio (single number, used in calc() multiplications);
+   * `--board-aspect` is the slash form for the `aspect-ratio` CSS
+   * property. */
+  --board-aspect-num: 1.462;
+  --board-aspect: 7978 / 5456;
   position: relative;
-  width: min(95vw, calc((100vh - 2rem) * (7978 / 5456)), 1280px);
-  aspect-ratio: 7978 / 5456;
+  width: min(95vw, calc((100vh - 2rem) * var(--board-aspect-num)), 1280px);
+  aspect-ratio: var(--board-aspect);
   border-radius: 1rem;
   overflow: hidden;
   border: 1px solid #3d4d66;
@@ -1643,7 +1654,7 @@ button.danger.is-armed {
   }
 
   .stage {
-    width: min(100%, calc((100vh - 2rem) * (7978 / 5456)));
+    width: min(100%, calc((100vh - 2rem) * var(--board-aspect-num, 1.462)));
     border-radius: 0.65rem;
   }
 
@@ -1824,8 +1835,11 @@ button.danger.is-armed {
 
   .stage {
     /* in landscape sidebar layout, available width = viewport - 300px sidebar.
-       Fit the board to whichever dimension is more constrained. */
-    width: min(calc(100vw - 300px - 1rem), calc((100vh - 1rem) * (7978 / 5456)));
+       Fit the board to whichever dimension is more constrained.
+       Phase 50: aspect ratio is dynamic — uses --board-aspect-num custom
+       property set by JS from the active board image's naturalWidth /
+       naturalHeight. */
+    width: min(calc(100vw - 300px - 1rem), calc((100vh - 1rem) * var(--board-aspect-num, 1.462)));
   }
 
   .dashboard {
