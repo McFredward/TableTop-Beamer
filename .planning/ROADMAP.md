@@ -1302,7 +1302,43 @@ Plans: 2 plans
 - [x] 48-01-PLAN.md — Wave 1 — Install `[align-exit-trace]` diagnostic logs at 3 call sites (syncAlignModeDirtyDashboardState, setAlignMode, applyLiveRuntimeSnapshot) + source-grep regression rail; operator captures a real-world repro trace and saves to 48-W1-TRACE.md. Zero behavior change.
 - [x] 48-02-PLAN.md — Wave 2 — Apply optimistic dashboard-side `state.alignMode` mutation + sync in setAlignMode (Direction B from ROADMAP), with contingent empty-list-suppression guard in applyLiveRuntimeSnapshot (Direction A hybrid) IFF the W1 trace shows the snapRunningLen=0 pattern. Strip W1 traces; W2 regression rail. Operator UAT checkpoint on Linux + Win32 for sub-250ms click-to-clean timing.
 
-## Phase 49 - Release-Prep Small-Fixes Sammelphase (CLOSED — 2026-05-19, original Windows hardening + 28 operator-UAT gap-closures across align-mode desync, dashboard CPU, mobile drag-reorder, mobile zoom/cluster rail, dirty-bar UX, board-switch profile fallback, import-from-other-board feature)
+## Phase 49 - Release-Prep Small-Fixes Sammelphase (CLOSED — 2026-05-19, Released as v1.0.0, original Windows hardening + 28 operator-UAT gap-closures across align-mode desync, dashboard CPU, mobile drag-reorder, mobile zoom/cluster rail, dirty-bar UX, board-switch profile fallback, import-from-other-board feature)
+
+## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.1.0)
+
+Goal: Allow operators to import boards of arbitrary aspect ratio (square,
+portrait, wide-landscape, ultrawide, etc.) and have the stage size to match
+the imported image's natural aspect ratio. Currently the stage is hardcoded
+to `7978:5456` (the original Nemesis board ratio, ~1.46:1) in three CSS
+locations, and the board image uses `object-fit: cover` — so a roughly-square
+board gets its top + bottom cropped on display. Operator UAT
+(2026-05-21): "wenn ich ein eher viereckiges board importiere, wird es
+trotzdem auf die selbe höhe/länge gemapped und dann etwas rangezoomed - so
+sind manche bereiche des boards gar nicht sichtbar".
+
+Requirements:
+- Stage aspect-ratio derives from the loaded board image's `naturalWidth /
+  naturalHeight` (no server-side processing required — the operator's
+  client already loads the image and has natural dimensions available).
+- Default fallback `7978/5456` so existing Nemesis boards work without
+  metadata backfill.
+- Polygon coordinates are already 0..1 normalized (per the codebase
+  audit) — no coordinate rescaling needed. New polygons drawn on a new
+  aspect-ratio board automatically fit because they're normalized.
+- Works on dashboard + SSR + /output/ (the projection target reads the
+  same image, so its rendering must also respect the dynamic aspect).
+- Works on mobile portrait viewport (gap-closure-35's `_computeMobilePortraitDefault`
+  reads stage.clientWidth at boot — needs to be re-evaluated after
+  aspect-ratio settles, or be tolerant of mid-flight aspect changes).
+
+Out of Scope:
+- Server-side image dimension processing / metadata persistence
+  (client-side runtime detection is sufficient for v1).
+- Coordinate-system migration for existing boards drawn against 7978/5456.
+
+Plans: 1 plan (TBD)
+
+Released as: TBD (minor bump — new user-facing feature support → v1.1.0)
 
 Goal: Collect operator-found small issues during pre-release testing into a
 single coordinated polish phase. Items get appended as the operator finds them.
