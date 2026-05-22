@@ -195,16 +195,20 @@
     animations: createDefaultOutsideAnimationDefinitions(),
   };
 
-  // App version. Cadence (post-v1.0 / 2026-05-21 onward): each closed
-  // phase ships a version. Patch (e.g. 1.0.0 → 1.0.1) for small-fix
-  // phases; minor (1.0.x → 1.1.0) for new user-facing features; major
-  // (1.x → 2.0) only for big architectural shifts. Bump on phase
-  // closure, in TWO places — this constant AND `package.json` — both
-  // must stay in lockstep or the topbar chip drifts from the actual
-  // build. Surfaced to the user via the small chip in the topbar
-  // (index.html #app-version, populated at parse time by the inline
-  // script next to the topbar).
-  const APP_VERSION = "1.2.0";
+  // App version. Cadence (operator-confirmed 2026-05-22, post-v1.0):
+  // every closed phase ships a PATCH bump (1.0.0 → 1.0.1 → 1.0.2 → …)
+  // regardless of whether the phase shipped a fix or a new feature.
+  // MINOR bumps (e.g. 1.0.x → 1.1.0) only happen when the operator
+  // explicitly calls a release milestone — multiple PATCH entries get
+  // rolled up into one MINOR release section at cut-time. MAJOR bumps
+  // (1.x → 2.0) only for big architectural shifts, explicit operator
+  // request required.
+  //
+  // Bump on phase closure, in TWO places — this constant AND
+  // `package.json` — both must stay in lockstep or the topbar chip
+  // drifts from the actual build (surfaced via the small chip in the
+  // topbar, index.html #app-version + inline script).
+  const APP_VERSION = "1.0.3";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,

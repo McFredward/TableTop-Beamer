@@ -3,13 +3,14 @@
 All notable user-facing changes to TT-Beamer are documented in this file.
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-The project ships a new version with every closed phase (see
-`.planning/ROADMAP.md`). Patch bumps for small-fix phases, minor for new
-user-facing features, major for big architectural shifts.
+Cadence (operator-confirmed 2026-05-22): every closed phase ships a PATCH bump
+(1.0.0 → 1.0.1 → 1.0.2 → …). MINOR bumps (e.g. 1.0.x → 1.1.0) are reserved
+for operator-cut release milestones — multiple PATCH entries may be rolled
+up into one MINOR release section at cut-time.
 
 ---
 
-## [1.2.0] — 2026-05-22
+## [1.0.3] — 2026-05-22
 
 Phase 52: Per-animation transform editing + temporary-vs-permanent
 distinction in the live editor.
@@ -22,25 +23,25 @@ distinction in the live editor.
   to polygon, width scale, height scale, X / Y offset. Changes
   persist directly to the animation definition — no need to start the
   animation first to tune its placement. Hidden for scopes that don't
-  support transforms (inside / outside, room coded effects). (Phase 52)
+  support transforms (inside / outside, room coded effects).
+  (`8e8d1aa`, Phase 52)
 - **"Save as default for this animation" button** in the live editor,
   below Done / Discard. Commits the running animation's current
   live-editor values (opacity, intensity, speed, volume, color, mode,
   direction, transform) back to the animation definition so every
   future manual trigger applies those values. The button is the
-  explicit-commit path. (Phase 52)
+  explicit-commit path. (`8e8d1aa`, Phase 52)
 
 ### Changed
 - **Live editor "Done"** no longer silently persists transform values
   to the animation definition. Done now means "keep these tweaks on
   the running instance only — next manual trigger uses the un-tweaked
-  defaults". This matches the operator's mental model and the new
-  "Save as default" button is the path that overrides the definition.
-  (Phase 52)
+  defaults". The new "Save as default" button is the path that
+  overrides the definition. (`8e8d1aa`, Phase 52)
 
 ---
 
-## [1.1.1] — 2026-05-22
+## [1.0.2] — 2026-05-22
 
 Phase 51: Animation Name input keystroke focus loss.
 
@@ -54,11 +55,11 @@ Phase 51: Animation Name input keystroke focus loss.
   inside `syncDirtyBar()` (to dismiss the keyboard when the dirty bar
   first appears) — but the blur fired on every syncDirtyBar call,
   including the ~one per keystroke during a Name edit. Now gated to
-  the false→true dirty-flag transition only. (`<sha>`, Phase 51)
+  the false→true dirty-flag transition only. (`91ac380`, Phase 51)
 
 ---
 
-## [1.1.0] — 2026-05-21
+## [1.0.1] — 2026-05-21
 
 Phase 50: Aspect-ratio-aware board import.
 
@@ -67,16 +68,21 @@ Phase 50: Aspect-ratio-aware board import.
   now display at their **natural aspect ratio** instead of being forced
   into the Nemesis-specific 7978 × 5456 (~1.46:1) frame. Roughly-square
   imports like Frostpunk (1172 × 1080, ~1.085:1) used to be cropped at
-  the top and bottom by `object-fit: cover`; they now show the full
-  image. Polygons drawn on the board scale automatically because their
-  coordinates are normalized to 0..1. (`9072b22`, Phase 50)
+  the top and bottom by `object-fit: cover` on the dashboard; they now
+  show the full image. Polygons drawn on the board scale automatically
+  because their coordinates are normalized to 0..1. (`9072b22`, Phase 50)
 
 ### Changed
 - The stage element's `aspect-ratio` and width calculations now read
   from two CSS custom properties (`--board-aspect`, `--board-aspect-num`)
   that the runtime sets from the loaded board image's natural
   dimensions. Default fallbacks preserve the previous Nemesis ratio so
-  existing boards display identically to v1.0.0. (`9072b22`, Phase 50)
+  existing boards display identically to v1.0.0. The `/output/` (Pi
+  projection target) + SSR Chromium tab use the existing
+  `body[data-output-role="final-output"] .stage { aspect-ratio: auto;
+  width: 100%; height: 100%; }` override, so the projection stream is
+  unaffected — the change is scoped to the operator-facing dashboard
+  preview. (`9072b22`, Phase 50)
 
 ---
 

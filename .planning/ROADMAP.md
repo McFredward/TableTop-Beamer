@@ -1304,9 +1304,9 @@ Plans: 2 plans
 
 ## Phase 49 - Release-Prep Small-Fixes Sammelphase (CLOSED — 2026-05-19, Released as v1.0.0, original Windows hardening + 28 operator-UAT gap-closures across align-mode desync, dashboard CPU, mobile drag-reorder, mobile zoom/cluster rail, dirty-bar UX, board-switch profile fallback, import-from-other-board feature)
 
-## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.1.0)
+## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
-## Phase 52 - Per-animation transforms + live-editor temporary/permanent distinction (CLOSED — 2026-05-22, Released as v1.2.0)
+## Phase 52 - Per-animation transforms + live-editor temporary/permanent distinction (CLOSED — 2026-05-22, Released as v1.0.3)
 
 Operator request 2026-05-22: "auch im Animationsmenu optional transformationen
 direkt für die Animation anpassen können — NICHT nur für beim editieren wie es
@@ -1335,7 +1335,7 @@ Two changes:
 
 Plans: 0 (single feature, no breakdown needed)
 
-## Phase 51 - Animation Name input loses focus per keystroke (CLOSED — 2026-05-22, Released as v1.1.1)
+## Phase 51 - Animation Name input loses focus per keystroke (CLOSED — 2026-05-22, Released as v1.0.2)
 
 Operator UAT 2026-05-22: "Nach jedem Tastendruck im Namenfeld einer Animation
 endet die Eingabe sofort und ich muss nach dem Buchstaben aufwendig wieder
