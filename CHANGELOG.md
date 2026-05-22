@@ -9,6 +9,24 @@ user-facing features, major for big architectural shifts.
 
 ---
 
+## [1.1.1] — 2026-05-22
+
+Phase 51: Animation Name input keystroke focus loss.
+
+### Fixed
+- Typing in the animation **Name** field no longer ends the input
+  session after every keystroke. On desktop the caret stayed inside
+  the input but the field was being blurred + re-focused on each
+  letter; on mobile this dismissed the soft keyboard after each
+  letter, making the field effectively unusable. Root cause: Phase 49
+  gap-closure-25 added a defensive `document.activeElement.blur()`
+  inside `syncDirtyBar()` (to dismiss the keyboard when the dirty bar
+  first appears) — but the blur fired on every syncDirtyBar call,
+  including the ~one per keystroke during a Name edit. Now gated to
+  the false→true dirty-flag transition only. (`<sha>`, Phase 51)
+
+---
+
 ## [1.1.0] — 2026-05-21
 
 Phase 50: Aspect-ratio-aware board import.

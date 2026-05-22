@@ -1306,6 +1306,26 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.1.0)
 
+## Phase 51 - Animation Name input loses focus per keystroke (CLOSED — 2026-05-22, Released as v1.1.1)
+
+Operator UAT 2026-05-22: "Nach jedem Tastendruck im Namenfeld einer Animation
+endet die Eingabe sofort und ich muss nach dem Buchstaben aufwendig wieder
+reindrücken. Auf dem Handy verschwindet die Tastatur nach jedem Buchstaben."
+
+Root cause: gap-closure-25 (Phase 49) added a defensive `document.activeElement.blur()`
+inside `syncDirtyBar()` to dismiss the soft keyboard the moment the dirty
+bar appears, preventing the Discard/Apply double-tap pathology on
+Android. The intent was a one-shot dismissal on the false→true transition,
+but the implementation blurred on EVERY syncDirtyBar() call where dirty
+was true — including the ~80 calls fired during a 20-character name edit,
+since patchAnimation runs syncDirtyBar after every input event.
+
+Fix: gate the blur to fire only on the false→true transition by tracking
+`_lastDirtyState` at module scope. Once the bar is visible and the user
+is editing, syncDirtyBar leaves focus alone.
+
+Plans: 0 (single-file 4-line change in `animation-editor-shell.js`)
+
 Goal: Allow operators to import boards of arbitrary aspect ratio (square,
 portrait, wide-landscape, ultrawide, etc.) and have the stage size to match
 the imported image's natural aspect ratio. Currently the stage is hardcoded

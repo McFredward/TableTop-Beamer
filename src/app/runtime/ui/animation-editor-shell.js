@@ -50,6 +50,14 @@
   let clearPaneCache = null;
   let stopCodedPreview = null;
 
+  // Phase 51 (2026-05-22): track the previous dirty-flag value so
+  // syncDirtyBar() only blurs the focused input on the false→true
+  // transition (when the bar first appears), not on every subsequent
+  // call. Without this gating, every keystroke in the animation Name
+  // field — which marks dirty + fires syncDirtyBar — would blur the
+  // input and dismiss the mobile soft keyboard.
+  let _lastDirtyState = false;
+
   function getState() {
     return state;
   }
@@ -461,22 +469,19 @@
       ctx.animEditorBackButton.disabled = dirty;
       ctx.animEditorBackButton.setAttribute("aria-disabled", dirty ? "true" : "false");
     }
-    // Phase 49 gap-closure-25 (2026-05-19): defense-in-depth for the
-    // Android-Chrome dirty-bar double-tap pathology. Even with the
-    // open()-time auto-focus skipped on touch devices, the user might
-    // have focused a text input later in the session (e.g., edited an
-    // animation's Name field) before mutating something that flips the
-    // dirty flag. If a text input has focus when the dirty bar appears,
-    // the FIRST tap on Apply/Discard would still be eaten by Android
-    // Chrome's keyboard-dismiss-on-tap-outside pipeline. Blurring HERE
-    // — synchronously, at the moment the dirty bar transitions to
-    // visible — ensures the soft keyboard is already down BEFORE the
-    // user reaches for either button. This is the only point in the
-    // codebase that reliably runs when dirty becomes true, regardless
-    // of which mutation triggered it (drag-reorder, name edit, slider,
-    // toggle, color picker, etc.). Idempotent: blurring an already-
-    // blurred element is a no-op.
-    if (dirty) {
+    // Phase 51 (2026-05-22): blur input ONLY on the false→true transition.
+    // gap-closure-25 (Phase 49) blurred on every syncDirtyBar() call where
+    // dirty was true — but syncDirtyBar fires after EVERY mutation
+    // (patchAnimation runs it on every keystroke in the Name field), so
+    // typing one letter dirtied the flag, fired syncDirtyBar, blurred the
+    // input, dismissed the soft keyboard. Operator UAT (2026-05-22): "nach
+    // jedem Tastendruck im Namenfeld einer Animation endet die Eingabe
+    // sofort". The original gap-closure-25 intent was only to dismiss the
+    // keyboard the moment the bar APPEARS (so the operator's next tap on
+    // Apply/Discard isn't eaten by the keyboard-dismiss pipeline). Once
+    // the bar is already visible and the user is editing, we must NOT
+    // touch focus.
+    if (dirty && !_lastDirtyState) {
       const focused = document.activeElement;
       if (focused
           && focused !== document.body
@@ -485,6 +490,7 @@
         try { focused.blur(); } catch {}
       }
     }
+    _lastDirtyState = dirty;
   }
 
   function getSelection() {

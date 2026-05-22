@@ -204,7 +204,7 @@
   // build. Surfaced to the user via the small chip in the topbar
   // (index.html #app-version, populated at parse time by the inline
   // script next to the topbar).
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.1.1";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,
