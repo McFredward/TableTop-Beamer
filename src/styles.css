@@ -1374,6 +1374,31 @@ input[type="range"]::-moz-range-thumb:hover {
   gap: 0.65rem;
 }
 
+/* Phase 52 (2026-05-22): live editor "Save as default" — visually
+ * distinct primary commit action that sits below the Done/Discard
+ * pair. Full width + accent fill so it's clear this is the path that
+ * persists the running animation's tweaks back to the definition
+ * (vs Done = temporary; Discard = revert). */
+.live-editor-save-default {
+  width: 100%;
+  margin-top: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: var(--c-accent, #4cc2ff);
+  color: var(--c-accent-fg, #0b0d10);
+  font-weight: 600;
+  cursor: pointer;
+}
+.live-editor-save-default:active:not(:disabled) {
+  transform: scale(0.98);
+}
+@media (hover: hover) {
+  .live-editor-save-default:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+}
+
 .button-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

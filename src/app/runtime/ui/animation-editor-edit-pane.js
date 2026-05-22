@@ -122,7 +122,64 @@
     const colorCard = buildColorCard(sel.scope, def, boardId);
     if (colorCard) pane.append(colorCard);
     pane.append(buildDefaultsCard(sel.scope, def, boardId));
+    // Phase 52 (2026-05-22): collapsible Transform card per animation
+    // (rotation / stretch / scale / offset). Mirrors the live-editor's
+    // transform sliders, but persists to the definition directly so
+    // operators can configure transforms WITHOUT having to start the
+    // animation first. Returns null for scopes / asset types that
+    // don't support transforms (inside, outside, room non-media).
+    const transformCard = buildTransformCard(sel.scope, def, boardId);
+    if (transformCard) pane.append(transformCard);
     pane.append(buildSoundCard(sel.scope, def, boardId));
+  }
+
+  // Phase 52: per-animation Transform card. Same fields/clamps as the
+  // live-editor transform fieldset (HTML #live-editor-transform). Wraps
+  // in a <details> element so the card is collapsed by default —
+  // transforms are an "advanced" tweak and shouldn't clutter the pane
+  // when not in use ("Ausklappmenu" per operator UAT 2026-05-22).
+  function buildTransformCard(scope, def, boardId) {
+    // Live editor only shows transform for room (incl. cluster) +
+    // mp4/gif asset type. Mirror that gate here so the edit pane
+    // matches.
+    if (scope !== "room") return null;
+    const assetType = String(def.assetType ?? "").toLowerCase();
+    if (assetType !== "mp4" && assetType !== "gif") return null;
+
+    const card = document.createElement("details");
+    card.className = "anim-editor-card anim-editor-card-collapsible";
+    const summary = document.createElement("summary");
+    summary.className = "anim-editor-card-summary";
+    summary.textContent = "Transform";
+    card.append(summary);
+
+    const fields = [
+      { kind: "slider", key: "rotationDeg", label: "Rotation",
+        min: -180, max: 180, step: 1,
+        format: (v) => `${Math.round(v)}°` },
+      { kind: "toggle", key: "stretchToPolygon", label: "Stretch to polygon",
+        sub: "Fit the media to the room polygon shape." },
+      { kind: "slider", key: "widthScale", label: "Width scale",
+        min: 0.1, max: 10, step: 0.01,
+        format: (v) => v.toFixed(2) },
+      { kind: "slider", key: "heightScale", label: "Height scale",
+        min: 0.1, max: 10, step: 0.01,
+        format: (v) => v.toFixed(2) },
+      { kind: "slider", key: "offsetXScale", label: "X offset",
+        min: -1, max: 1, step: 0.01,
+        format: (v) => v.toFixed(2) },
+      { kind: "slider", key: "offsetYScale", label: "Y offset",
+        min: -1, max: 1, step: 0.01,
+        format: (v) => v.toFixed(2) },
+    ];
+    for (const f of fields) {
+      if (f.kind === "slider") {
+        card.append(buildSliderRow(scope, def, boardId, f));
+      } else if (f.kind === "toggle") {
+        card.append(buildToggleRow(scope, def, boardId, f));
+      }
+    }
+    return card;
   }
 
   function buildHeader(scope, def) {

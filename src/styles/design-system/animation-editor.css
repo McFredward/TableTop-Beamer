@@ -851,6 +851,53 @@ body.anim-editor-dragging .anim-editor-list {
   margin: 0;
 }
 
+/* Phase 52 (2026-05-22): collapsible Transform card. Built as a
+ * <details> so it folds away by default — transforms are an advanced
+ * tweak that shouldn't clutter the edit pane when not in use. The
+ * <summary> looks like the static `.anim-editor-card-eyebrow` label
+ * but with a chevron indicator. */
+details.anim-editor-card-collapsible {
+  /* Override `display: grid` from .anim-editor-card — <details> needs
+   * default block display for the open/closed toggle to animate the
+   * child gap correctly. */
+  display: block;
+}
+details.anim-editor-card-collapsible[open] {
+  display: grid;
+}
+.anim-editor-card-summary {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-text-3);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding-right: 18px;
+  position: relative;
+  /* Add a chevron via ::after that rotates when the card is open. */
+}
+.anim-editor-card-summary::-webkit-details-marker {
+  display: none;
+}
+.anim-editor-card-summary::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform 150ms ease;
+}
+details.anim-editor-card-collapsible[open] .anim-editor-card-summary::after {
+  transform: translateY(-30%) rotate(-135deg);
+}
+
 .anim-editor-field-label {
   display: grid;
   gap: 6px;

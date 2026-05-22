@@ -116,6 +116,9 @@
       liveEditorOffsetYValue: document.querySelector("#live-editor-offset-y-value"),
       liveEditorDiscard: document.querySelector("#live-editor-discard"),
       liveEditorDefault: document.querySelector("#live-editor-default"),
+      // Phase 52: "Save as default" button — commits the current
+      // live-editor field values back to the animation definition.
+      liveEditorSaveDefault: document.querySelector("#live-editor-save-default"),
       dashboardDefaultAnimation: document.querySelector("#dashboard-default-animation"),
       audioEnabledInput: document.querySelector("#audio-enabled"),
       audioVolumeInput: document.querySelector("#audio-volume"),

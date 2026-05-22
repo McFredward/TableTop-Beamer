@@ -1306,6 +1306,35 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.1.0)
 
+## Phase 52 - Per-animation transforms + live-editor temporary/permanent distinction (CLOSED — 2026-05-22, Released as v1.2.0)
+
+Operator request 2026-05-22: "auch im Animationsmenu optional transformationen
+direkt für die Animation anpassen können — NICHT nur für beim editieren wie es
+aktuell der Fall ist. Weiterhin möchte ich beim editieren unterschieden können,
+ob man es nur temporär für die gerade laufende Animation speichert, oder die
+transformation der Aniamtion komplett überschreibt".
+
+Two changes:
+
+1. **Edit pane gets a collapsible Transform card** with rotation /
+   stretch-to-polygon / width-scale / height-scale / X-offset / Y-offset
+   sliders + toggles. Mirrors the live editor's transform fieldset, but
+   writes directly to the animation definition via `patchAnimation`. Gated
+   to room scope + mp4/gif asset type (matching the live editor's gate so
+   the card doesn't appear for coded effects that ignore those fields).
+   Built as a `<details>` element so it's collapsed by default ("Ausklappmenu").
+
+2. **Live editor gets a "Save as default for this animation" button** below
+   Done/Discard. Commits all current live-editor values back to the animation
+   definition for future manual triggers. The previous silent persist of
+   transform values on Done is REMOVED — Done is now strictly "temporary
+   for this run", Save-as-default is the explicit-commit path. Decision:
+   button over checkbox because the user can tune freely first and then
+   gate the commit explicitly, instead of having to remember to set a
+   checkbox before adjusting.
+
+Plans: 0 (single feature, no breakdown needed)
+
 ## Phase 51 - Animation Name input loses focus per keystroke (CLOSED — 2026-05-22, Released as v1.1.1)
 
 Operator UAT 2026-05-22: "Nach jedem Tastendruck im Namenfeld einer Animation

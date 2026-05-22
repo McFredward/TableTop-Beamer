@@ -663,6 +663,14 @@
               <button id="live-editor-close" type="button">Done</button>
               <button id="live-editor-discard" type="button">Discard</button>
             </div>
+            <!-- Phase 52: commit current live-editor values back to the
+                 animation definition so every future start of the same
+                 animation picks up the tweaks. "Done" leaves changes
+                 on the running instance only; "Save as default" makes
+                 them the new persistent default. -->
+            <button id="live-editor-save-default" type="button" class="live-editor-save-default" title="Persist these values as the new defaults for this animation">
+              Save as default for this animation
+            </button>
           </div>
           <label>
             Opacity <span id="live-editor-opacity-value">0.90</span>

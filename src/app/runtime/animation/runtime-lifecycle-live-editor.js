@@ -35,6 +35,11 @@
     // Wire live editor close + discard buttons.
     ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
     ctx.liveEditorDiscard?.addEventListener("click", discardLiveEditor);
+    // Phase 52: "Save as default" commits the running-animation's
+    // current live-editor field values back to the persistent
+    // animation definition. Done leaves changes on the running
+    // instance; Save makes them the new defaults for future starts.
+    ctx.liveEditorSaveDefault?.addEventListener("click", saveLiveEditorAsDefault);
 
     // Wire live editor sliders.
     ctx.liveEditorOpacity.addEventListener("input", () => {
@@ -374,39 +379,16 @@
           });
         }
         ctx.state.defaultAnimationsByBoard[animation.boardId] = filtered;
-        // Persist transform changes back to the animation definition
-        // so they survive a page reload. Uses the direct
-        // saveAndCaptureCleanBaseline path so the apply/discard bar
-        // does NOT appear — the live editor "Done" button is the
-        // user's explicit commit action.
-        if (animation.scope === "room" || animation.scope === "cluster") {
-          const profile = ctx.getRoomFxProfile(animation.boardId);
-          const definition = profile.animations.find(
-            (entry) => entry.id === animation.type,
-          );
-          if (definition) {
-            const nextProfile = ctx.normalizeRoomFxProfile({
-              ...profile,
-              animations: profile.animations.map((entry) =>
-                entry.id !== definition.id
-                  ? entry
-                  : {
-                    ...entry,
-                    rotationDeg: animation.rotationDeg ?? entry.rotationDeg,
-                    stretchToPolygon: animation.stretchToPolygon ?? entry.stretchToPolygon,
-                    widthScale: animation.widthScale ?? entry.widthScale,
-                    heightScale: animation.heightScale ?? entry.heightScale,
-                    offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
-                    offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
-                  },
-              ),
-            });
-            ctx.setRoomFxProfile(animation.boardId, nextProfile);
-            // Save directly to server + advance the clean baseline so
-            // the dirty-flag bar doesn't trigger.
-            void ctx.saveAndCaptureCleanBaseline().catch(() => {});
-          }
-        }
+        // Phase 52 (2026-05-22): the silent transform-persist on Done
+        // was removed. Previously, clicking Done auto-saved transform
+        // values to the animation definition — but the operator wanted
+        // a CHOICE between temporary tweaks (just this run) and a
+        // permanent default override. The new "Save as default for
+        // this animation" button now handles the persistent path
+        // (see `saveLiveEditorAsDefault` below). Done leaves the
+        // running instance's tweaks intact for the rest of THIS run
+        // but does not write to the definition, so the next manual
+        // trigger picks up the un-tweaked defaults again.
         // Broadcast the updated animation values to all clients
         // (including /output/final) via an edit-room live mutation.
         void ctx.emitLiveMutation("edit-room", {
@@ -434,6 +416,104 @@
     // W3.4-C1 bridge: mirror to the lifecycle-state module.
     lifecycleState.setLiveEditorAnimationId(null);
     ctx.liveEditorPanel.hidden = true;
+  }
+
+  // Phase 52 (2026-05-22): commit the running animation's current
+  // live-editor field values back to the persistent animation
+  // definition so every future manual trigger of the same animation
+  // applies these tweaks. Keeps the editor OPEN — the user may want
+  // to continue tweaking. Silent direct save (no apply/discard bar)
+  // because clicking the button IS the explicit commit. Field set
+  // per scope: room = opacity/intensity/speed/volume/transform/color,
+  // inside = intensity/speed, outside = intensity/speed/mode/direction.
+  function saveLiveEditorAsDefault() {
+    if (liveEditorAnimationId === null) return;
+    const animation = ctx.state.runningAnimations.find(
+      (item) => item?.id === liveEditorAnimationId,
+    );
+    if (!animation) return;
+
+    const scopeForProfile = animation.scope === "cluster" ? "room" : animation.scope;
+    let updated = false;
+
+    if (scopeForProfile === "room") {
+      const profile = ctx.getRoomFxProfile(animation.boardId);
+      const def = profile?.animations?.find((d) => d.id === animation.type);
+      if (def) {
+        const next = ctx.normalizeRoomFxProfile({
+          ...profile,
+          animations: profile.animations.map((entry) =>
+            entry.id !== def.id ? entry : {
+              ...entry,
+              opacity: animation.opacity ?? entry.opacity,
+              intensity: animation.intensity ?? entry.intensity,
+              speed: animation.speed ?? entry.speed,
+              soundVolume: animation.soundVolume ?? entry.soundVolume,
+              rotationDeg: animation.rotationDeg ?? entry.rotationDeg,
+              stretchToPolygon: animation.stretchToPolygon ?? entry.stretchToPolygon,
+              widthScale: animation.widthScale ?? entry.widthScale,
+              heightScale: animation.heightScale ?? entry.heightScale,
+              offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
+              offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
+              colorHex: animation.colorHex ?? entry.colorHex,
+            },
+          ),
+        });
+        ctx.setRoomFxProfile(animation.boardId, next);
+        updated = true;
+      }
+    } else if (scopeForProfile === "inside") {
+      const profile = ctx.getInsideFxProfile(animation.boardId);
+      const def = profile?.animations?.find((d) => d.id === animation.type);
+      if (def) {
+        const next = ctx.normalizeInsideFxProfile({
+          ...profile,
+          animations: profile.animations.map((entry) =>
+            entry.id !== def.id ? entry : {
+              ...entry,
+              intensity: animation.intensity ?? entry.intensity,
+              speed: animation.speed ?? entry.speed,
+            },
+          ),
+        });
+        ctx.setInsideFxProfile(animation.boardId, next);
+        updated = true;
+      }
+    } else if (scopeForProfile === "outside") {
+      const profile = ctx.getOutsideFxProfile(animation.boardId);
+      const def = profile?.animations?.find((d) => d.id === animation.type);
+      if (def) {
+        const next = ctx.normalizeOutsideFxProfile({
+          ...profile,
+          animations: profile.animations.map((entry) =>
+            entry.id !== def.id ? entry : {
+              ...entry,
+              intensity: animation.intensity ?? entry.intensity,
+              speed: animation.speed ?? entry.speed,
+              mode: animation.mode ?? entry.mode,
+              direction: animation.direction ?? entry.direction,
+            },
+          ),
+        });
+        ctx.setOutsideFxProfile(animation.boardId, next);
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      // Silent direct save + clean baseline — clicking Save IS the
+      // explicit commit, no need to also force the user through the
+      // apply/discard bar.
+      if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
+        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+      }
+      if (ctx.triggerFeedback) {
+        const name = animation.animationName || animation.type;
+        ctx.triggerFeedback.textContent = `Status: saved "${name}" defaults — future starts apply these values`;
+      }
+    } else if (ctx.triggerFeedback) {
+      ctx.triggerFeedback.textContent = `Status: no matching definition to save (scope=${animation.scope})`;
+    }
   }
 
   function editAnimation(animationId) {

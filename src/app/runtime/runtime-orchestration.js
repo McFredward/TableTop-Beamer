@@ -2366,6 +2366,14 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
   setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
+  // Phase 52: inside/outside profile setters needed by the live editor's
+  // new "Save as default" button (saveLiveEditorAsDefault) which
+  // persists tweaks for any scope.
+  getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
+  setInsideFxProfile: (boardId, profile) => setInsideFxProfile(boardId, profile),
+  normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
+  setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
+  normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
   saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
   getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),

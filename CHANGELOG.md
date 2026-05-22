@@ -9,6 +9,37 @@ user-facing features, major for big architectural shifts.
 
 ---
 
+## [1.2.0] — 2026-05-22
+
+Phase 52: Per-animation transform editing + temporary-vs-permanent
+distinction in the live editor.
+
+### Added
+- **Transform card in the animation editor** (Settings → Animations →
+  pick a room animation that uses an MP4 or GIF asset). A new
+  collapsible "Transform" section exposes the same sliders that were
+  previously only reachable through the live editor: rotation, stretch
+  to polygon, width scale, height scale, X / Y offset. Changes
+  persist directly to the animation definition — no need to start the
+  animation first to tune its placement. Hidden for scopes that don't
+  support transforms (inside / outside, room coded effects). (Phase 52)
+- **"Save as default for this animation" button** in the live editor,
+  below Done / Discard. Commits the running animation's current
+  live-editor values (opacity, intensity, speed, volume, color, mode,
+  direction, transform) back to the animation definition so every
+  future manual trigger applies those values. The button is the
+  explicit-commit path. (Phase 52)
+
+### Changed
+- **Live editor "Done"** no longer silently persists transform values
+  to the animation definition. Done now means "keep these tweaks on
+  the running instance only — next manual trigger uses the un-tweaked
+  defaults". This matches the operator's mental model and the new
+  "Save as default" button is the path that overrides the definition.
+  (Phase 52)
+
+---
+
 ## [1.1.1] — 2026-05-22
 
 Phase 51: Animation Name input keystroke focus loss.
