@@ -1306,6 +1306,14 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 56 - SSR restart trigger on bitrate change (CLOSED — 2026-05-24, Released as v1.0.7)
+
+Operator UAT 2026-05-24: Apply persisted streamBitrateMbps to
+global-defaults.json but the running SSR tab kept the old bitrate.
+Root: server.mjs `restartKeys` list still had the dead qualityPreset
+entry; `streamBitrateMbps` was missing so the restart didn't fire.
+One-line list fix.
+
 ## Phase 55 - SSR settings join global dirty-flag/Apply workflow (CLOSED — 2026-05-24, Released as v1.0.6)
 
 Operator UAT 2026-05-24: bitrate slider needs to defer SSR restart

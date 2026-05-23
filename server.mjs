@@ -1322,7 +1322,12 @@ function applyLiveMutation({
         // to be reflected in the encoder, the diagnostic overlay's
         // serverInfo, AND the streamed output. Without this, the user
         // sees "balanced" forever in the chip (h17 reported issue).
-        const restartKeys = ["encoder", "qualityPreset", "fpsTarget", "resolutionPreference", "streamFpsCap"];
+        // Phase 55 (2026-05-24): `qualityPreset` replaced with
+        // `streamBitrateMbps` (numeric slider). resolveEncoderConfig reads
+        // the new key at SSR launch; without it in restartKeys, slider
+        // changes persisted to global-defaults.json but the running SSR
+        // tab kept the old bitrate.
+        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap"];
         const needsRestart =
           payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));

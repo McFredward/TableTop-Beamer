@@ -10,6 +10,21 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.7] — 2026-05-24
+
+Phase 56: SSR restart on bitrate change.
+
+### Fixed
+- Applying a bitrate slider change now actually restarts the SSR
+  Chromium tab so /output/ reflects the new value. server.mjs's
+  `restartKeys` list still referenced the removed `qualityPreset`
+  key — `streamBitrateMbps` wasn't in there, so applying a slider
+  change persisted the new value to global-defaults.json but the
+  running SSR tab kept the previous bitrate (and the Pi diagnostic
+  overlay kept showing the old Mbps). (`<sha>`, Phase 56)
+
+---
+
 ## [1.0.6] — 2026-05-24
 
 Phase 55: SSR settings go through the global dirty-flag / Apply flow.
