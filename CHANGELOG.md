@@ -10,6 +10,39 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.4] — 2026-05-24
+
+Phase 53: Nemesis Lockdown A/B polygon Y-shift migration.
+
+### Fixed
+- **Nemesis Lockdown A/B rooms y-shifted on the dashboard** since v1.0.1
+  (Phase 50). The PNG images for these two boards are rasterized at
+  2500 × 1755 (aspect 1.4245), but the polygon coordinates were drawn
+  against the original Nemesis print aspect 7978 × 5456 (= 1.4623).
+  Phase 50 switched the dashboard stage from the hardcoded print
+  aspect to the actual image aspect → the 0..1 normalized polygon Y
+  values now mapped to a slightly different (1.3 % taller) image
+  region, visibly shifting the room outlines on the dashboard.
+  (`<sha>`, Phase 53)
+
+### Migration
+- One-time data migration applied to `config/boards/nemesis-lockdown-a.json`
+  + `nemesis-lockdown-b.json` polygon Y coordinates (rooms + play
+  areas) AND to `config/projection-profiles.json` `srcYs` arrays for
+  every lockdown profile. Both shifted by `y * r + (1-r)/2` where
+  `r = (2500/1755) / (7978/5456) ≈ 0.9742`. Co-migrating both keeps
+  the projector-mesh calibrations aligned with the migrated polygons,
+  so the operator does NOT need to re-calibrate the projection after
+  this patch.
+- Nemesis-board-a/-b unaffected — their JPGs are 7978 × 5456 already,
+  so Phase 50 + the original polygon design aspect match exactly.
+- Frostpunk unaffected — its polygons were drawn after Phase 50
+  shipped against the natural PNG aspect.
+- Migration scripts preserved at
+  `.planning/phases/phase-53/migrate-lockdown-y-*.py` for audit.
+
+---
+
 ## [1.0.3] — 2026-05-22
 
 Phase 52: Per-animation transform editing + temporary-vs-permanent

@@ -1306,6 +1306,28 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 53 - Nemesis Lockdown A/B polygon Y-shift data migration (CLOSED — 2026-05-24, Released as v1.0.4)
+
+Operator UAT 2026-05-24: rooms on Nemesis Lockdown A/B visibly y-shifted
+on the dashboard since v1.0.1 (Phase 50). Root cause: Lockdown PNGs
+rasterized at 2500×1755 (aspect 1.4245) but polygons originally drawn
+against print aspect 7978×5456 (= 1.4623). Phase 50 switched the
+dashboard stage to use the image's natural aspect, leaving the
+1.3 %-off polygons visibly misaligned with the displayed image.
+
+Per operator preference ("Datenmigration durchführen — ich will Code
+für Legacy-Systeme vermeiden wo es geht"): one-time JSON data migration
+instead of adding an aspect-override config field + code path.
+
+Polygons (room + playArea) Y values migrated:
+  new_y = old_y * r + (1-r)/2,  r = (2500/1755) / (7978/5456) ≈ 0.9742
+
+Projection-profile srcYs co-migrated by the same formula so the existing
+mesh-warp calibrations preserve their physical alignment without the
+operator re-calibrating. Nemesis-board-a/-b + frostpunk unaffected.
+
+Migration scripts (audit trail): phase-53/migrate-lockdown-y-*.py
+
 ## Phase 52 - Per-animation transforms + live-editor temporary/permanent distinction (CLOSED — 2026-05-22, Released as v1.0.3)
 
 Operator request 2026-05-22: "auch im Animationsmenu optional transformationen

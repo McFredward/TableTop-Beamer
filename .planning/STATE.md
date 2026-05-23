@@ -23,11 +23,12 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: — (52 closed 2026-05-22, shipped as v1.0.3)
+- Current Phase: — (53 closed 2026-05-24, shipped as v1.0.4)
 - Current Phase Key: (none — live)
-- Last Prepared: 2026-05-22
+- Last Prepared: 2026-05-24
 - Execution Readiness: LIVE (TT-Beamer shipped v1.0.0 after Phase 49; each subsequent phase bumps the version per durable feedback memory)
-- Previous Phase: 52 (CLOSED — 2026-05-22, Released as v1.0.3, Per-animation transforms + live-editor temporary/permanent distinction. New collapsible Transform card in the animation editor edit pane (room mp4/gif only — matches live editor's gate) with the 6 transform field controls. New "Save as default for this animation" button in the live editor that commits all live-editor field values back to the animation definition for any scope (room/inside/outside). Done now strictly means "temporary for this run" — removed the silent transform-persist that previously made Done also a commit path. UX choice: button over checkbox so the user can tune freely first then explicitly commit.)
+- Previous Phase: 53 (CLOSED — 2026-05-24, Released as v1.0.4, Nemesis Lockdown A/B polygon Y-shift data migration. Lockdown PNGs are 2500x1755 (aspect 1.4245) but polygons were drawn against the original Nemesis print aspect 7978x5456 (= 1.4623); Phase 50's switch to image-natural aspect on the dashboard exposed the 1.3% Y mismatch as visibly shifted room outlines. Per operator preference, fixed via one-time JSON data migration (no legacy-board code path): polygon Y values + projection-profile srcYs co-migrated by `y * r + (1-r)/2`, r ~= 0.9742. Migration scripts kept under .planning/phases/phase-53/ for audit. Operator does NOT need to re-calibrate the projector — srcYs migration keeps the mesh-warp aligned with the migrated polygons.)
+- Earlier Phase: 52 (CLOSED — 2026-05-22, Released as v1.0.3, Per-animation transforms + live-editor temporary/permanent distinction.)
 - Earlier Phase: 51 (CLOSED — 2026-05-22, Released as v1.0.2, Animation Name input keystroke focus loss — _lastDirtyState transition gate on the blur inside syncDirtyBar.)
 - Older Phase: 50 (CLOSED — 2026-05-21, Released as v1.0.1, Aspect-ratio-aware board import.)
 - Older Phase: 49 (CLOSED — 2026-05-19, Released as v1.0.0, Release-Prep Small-Fixes Sammelphase: original Windows hardening (49-A Ctrl+C in existing shell + 49-B Job-Object close kill) plus 28 operator-UAT-driven gap-closures spanning align-mode SSR desync, dashboard 8 Hz CPU drain, mobile drag-reorder, mobile portrait viewport zoom + cluster-rail clipping, animation-editor dirty-bar UX, board-switch profile fallback, 'Import from other board' feature, undo-to-baseline dirty-flag handling, polygon-edit SSR propagation, Win32 dashboard white-page + verdict-line crash.)
