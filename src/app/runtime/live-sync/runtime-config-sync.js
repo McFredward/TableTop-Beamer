@@ -199,6 +199,20 @@
     if (!state.localConfigDirty) return { ok: true, nothingToDo: true };
     try {
       suppressBroadcastReapplyUntil = Date.now() + 3000;
+      // Phase 54 (2026-05-24): commit any pending SSR settings patch
+      // BEFORE the saveGlobalDefaultsToServer round-trip. The SSR panel
+      // accumulates slider drags into pendingPatch and marks dirty; the
+      // explicit Apply click is the moment to emit
+      // `serverRendering-update` so the server validates + persists +
+      // restarts the SSR Chromium tab once with the final value.
+      try {
+        const ssrPanel = window.TT_BEAMER_SETTINGS_SERVER_RENDERING_PANEL;
+        if (ssrPanel?.hasPendingSSRPatch?.() && typeof ssrPanel.commitPendingSSRPatch === "function") {
+          await Promise.resolve(ssrPanel.commitPendingSSRPatch());
+        }
+      } catch (err) {
+        console.warn("[global-config] SSR pending-patch commit failed:", err?.message || err);
+      }
       await ctx.saveGlobalDefaultsToServer();
       clearLocalConfigDirty("Global config: pushed local changes to server");
       captureCleanBaseline();
@@ -239,6 +253,12 @@
 
   async function discardLocalConfigAndReloadFromServer() {
     try {
+      // Phase 54: clear any pending SSR settings buffer + refresh the
+      // slider from the server's persisted config so a Discard reverts
+      // both general state AND the bitrate-slider visual.
+      try {
+        window.TT_BEAMER_SETTINGS_SERVER_RENDERING_PANEL?.discardPendingSSRPatch?.();
+      } catch { /* ignore */ }
       const loaded = await ctx.fetchGlobalDefaultsPayload();
       ctx.applyGlobalDefaultsPayloadToState(loaded.payload);
       ctx.syncRuntimePanelsFromState();

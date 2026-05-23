@@ -14,6 +14,49 @@
 //   recovery; /output/ briefly shows a reconnect banner.
 
 (() => {
+  // Phase 54 (2026-05-24): pending SSR patch buffer + commit/discard
+  // hooks. Slider input no longer fires emitLiveMutation directly —
+  // dragging would otherwise restart the SSR Chromium tab on every
+  // tick. Instead the slider accumulates into pendingPatch, marks the
+  // global config dirty, and the operator commits via the Apply
+  // changes bar (commitPendingSSRPatch is called from
+  // applyLocalConfigToServer). Discard clears the buffer + refreshes
+  // the slider from the server's persisted config.
+  let pendingPatch = null;
+  let panelDeps = null;
+
+  function _resetPending() {
+    pendingPatch = null;
+  }
+
+  function _accumPending(patch) {
+    pendingPatch = { ...(pendingPatch || {}), ...patch };
+  }
+
+  function commitPendingSSRPatch() {
+    if (!pendingPatch || !panelDeps?.emitLiveMutation) return Promise.resolve();
+    const patchCopy = pendingPatch;
+    pendingPatch = null;
+    try {
+      return Promise.resolve(panelDeps.emitLiveMutation("serverRendering-update", patchCopy));
+    } catch (err) {
+      console.warn("[ssr-panel] commitPendingSSRPatch failed:", err?.message || err);
+      return Promise.resolve();
+    }
+  }
+
+  function discardPendingSSRPatch() {
+    _resetPending();
+    // Re-fetch + reflect server's persisted config so the slider snaps
+    // back to whatever's actually applied.
+    if (typeof panelDeps?.fetchGlobalDefaults === "function" && panelDeps._reflectConfig) {
+      Promise.resolve(panelDeps.fetchGlobalDefaults()).then((cfg) => {
+        const sr = cfg?.serverRendering;
+        if (sr) panelDeps._reflectConfig(sr);
+      }).catch(() => { /* ignore */ });
+    }
+  }
+
   /**
    * Wire the form controls + Detected-encoders badge to live-sync.
    *
@@ -22,6 +65,7 @@
    * @param {function} deps.emitLiveMutation - (type, payload) => Promise
    * @param {function} [deps.fetchGlobalDefaults] - returns Promise<config>
    * @param {function} [deps.onSnapshot] - register a snapshot listener
+   * @param {function} [deps.markLocalConfigDirty] - mark global config dirty
    */
   function initServerRenderingPanel(deps = {}) {
     const refs = deps.refs ?? {};
@@ -102,16 +146,22 @@
         "Restarting render server (encoder change)…",
       );
     });
-    // Phase 54: slider drives streamBitrateMbps. `input` fires on every
-    // drag tick; the server-side write is debounced by 200ms so the
-    // patch storm is safe. Warning visibility updates live with the
-    // slider value.
+    // Phase 54 (refined): slider drag accumulates into pendingPatch +
+    // marks dirty. Server-side SSR restart only fires when the
+    // operator clicks Apply changes (commitPendingSSRPatch is called
+    // from applyLocalConfigToServer). Without this gating, every
+    // slider tick restarted the SSR Chromium tab — useless for
+    // interactive bitrate tuning.
     if (refs.ssrBitrateSlider) {
       refs.ssrBitrateSlider.addEventListener("input", () => {
         const v = Math.max(2, Math.min(50, Math.round(Number(refs.ssrBitrateSlider.value) || 16)));
         if (refs.ssrBitrateValue) refs.ssrBitrateValue.textContent = String(v);
         if (refs.ssrBitrateWarning) refs.ssrBitrateWarning.hidden = v <= 20;
-        sendPatch({ streamBitrateMbps: v });
+        _accumPending({ streamBitrateMbps: v });
+        if (typeof deps.markLocalConfigDirty === "function") {
+          deps.markLocalConfigDirty("ssr-bitrate-slider");
+        }
+        setStatus("Server-side rendering: pending — click Apply to push");
       });
     }
     for (const r of (refs.ssrResolutionPreferenceRadios || [])) {
@@ -150,9 +200,21 @@
         if (sr) reflectConfig(sr);
       });
     }
+
+    // Phase 54 (refined): stash deps + reflectConfig so the
+    // namespace-level commit/discard hooks can later emit the live
+    // mutation (commit) or refresh UI from server (discard).
+    panelDeps = {
+      emitLiveMutation,
+      fetchGlobalDefaults,
+      _reflectConfig: reflectConfig,
+    };
   }
 
   window.TT_BEAMER_SETTINGS_SERVER_RENDERING_PANEL = {
     initServerRenderingPanel,
+    commitPendingSSRPatch,
+    discardPendingSSRPatch,
+    hasPendingSSRPatch: () => pendingPatch !== null,
   };
 })();

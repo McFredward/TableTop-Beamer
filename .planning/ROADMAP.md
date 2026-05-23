@@ -1306,6 +1306,15 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 55 - SSR settings join global dirty-flag/Apply workflow (CLOSED — 2026-05-24, Released as v1.0.6)
+
+Operator UAT 2026-05-24: bitrate slider needs to defer SSR restart
+until Apply is clicked. Slider drag now accumulates into
+pendingPatch + marks global config dirty; applyLocalConfigToServer
+commits the patch via serverRendering-update; discardLocalConfigAndReloadFromServer
+clears the buffer and refreshes the slider from the server's persisted
+config.
+
 ## Phase 54 - Stream-quality preset → numeric bitrate slider with soft-warning (CLOSED — 2026-05-24, Released as v1.0.5)
 
 Operator request 2026-05-24: convert the 5-option Stream-quality-preset

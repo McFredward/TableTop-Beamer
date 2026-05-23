@@ -10,6 +10,23 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.6] — 2026-05-24
+
+Phase 55: SSR settings go through the global dirty-flag / Apply flow.
+
+### Changed
+- **Bitrate slider no longer restarts the SSR Chromium tab on every
+  drag tick.** Slider input now accumulates the pending value into a
+  client-side buffer, marks the global config dirty, and surfaces the
+  standard "Apply changes" bar. The SSR `serverRendering-update`
+  live-mutation only fires when the operator clicks **Apply** —
+  resulting in a single restart with the final committed bitrate.
+  Discard rolls the slider back to the persisted server value.
+  Status line shows "pending — click Apply to push" during drag.
+  (`<sha>`, Phase 55)
+
+---
+
 ## [1.0.5] — 2026-05-24
 
 Phase 54: Stream-quality preset → numeric bitrate slider.

@@ -23,7 +23,7 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: — (54 closed 2026-05-24, shipped as v1.0.5)
+- Current Phase: — (55 closed 2026-05-24, shipped as v1.0.6)
 - Current Phase Key: (none — live)
 - Last Prepared: 2026-05-24
 - Execution Readiness: LIVE (TT-Beamer shipped v1.0.0 after Phase 49; each subsequent phase bumps the version per durable feedback memory)
