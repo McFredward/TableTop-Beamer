@@ -10,6 +10,47 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.9] — 2026-05-24
+
+Phase 58: Slider value reaches the wire — fixed two upstream caps.
+
+### Fixed
+- **Bitrate slider value now actually visible in image quality.**
+  Operator UAT (2026-05-24): "Keinen Unterschied zwischen 2 und 50
+  Mbit/s feststellbar — die Qualität scheint identisch zu sein."
+  The slider was reaching the publisher's `RTCRtpSender.maxBitrate`
+  correctly (Phase 57 readback confirmed this part), but two other
+  upstream caps were silently bottlenecking the pipeline at ~8 Mbit/s
+  regardless of slider:
+  1. `createWebRtcTransport`'s `initialAvailableOutgoingBitrate` was
+     hardcoded to 8 Mbit/s. This is the WebRTC GCC (Google Congestion
+     Control) bandwidth estimator's STARTING point. GCC ramps slowly
+     (~few % per second) and only probes higher when the publisher
+     actively pushes more data — which a low-motion board-game scene
+     never does. Net: pipeline stuck at 8 Mbit/s start regardless of
+     publisher cap. **Fix:** the consumer-side transport now reads the
+     current `streamBitrateMbps` slider value from
+     `config/global-defaults.json` at transport-creation time
+     (2s in-process cache for FS-pressure relief) and starts GCC at
+     that value, not 8 Mbit/s.
+  2. `codecOptions.videoGoogleStartBitrate` was hardcoded to 1000 (kbps,
+     i.e. 1 Mbit/s) — the encoder's initial target. Combined with #1
+     above, the encoder began at 1 Mbit/s and GCC never gave it a
+     reason to ramp. **Fix:** the start bitrate now matches the
+     slider's `maxBitrate` so the encoder reaches the target
+     immediately. (`<sha>`, Phase 58)
+
+### Diagnosis
+- The `recv=NMbps` field added in Phase 57 made the bottleneck
+  visible: even with high-motion content, the receiver showed
+  `recv≈8 Mbps` at slider=50 AND slider=2. With the Phase 57
+  `[ssr-publisher] sender params` readback already confirming the
+  publisher's encodings was set to e.g. `maxBitrate=50000000`, the
+  bottleneck had to be downstream of the publisher. Tracing the
+  mediasoup config path located both caps above.
+
+---
+
 ## [1.0.8] — 2026-05-24
 
 Phase 57: Diagnostic — actual received bitrate in the overlay.

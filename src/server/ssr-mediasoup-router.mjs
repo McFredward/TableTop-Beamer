@@ -187,23 +187,41 @@ export async function bootMediasoupRouter({ logger = console } = {}) {
 
 /**
  * Create a WebRtcTransport on the given (or active) router.
- * @param {{ router?: import('mediasoup').types.Router }} [opts]
+ *
+ * Phase 58 (2026-05-24): the consumer-side transport's
+ * `initialAvailableOutgoingBitrate` is the GCC bandwidth estimator's
+ * STARTING point. WebRTC's GCC ramps slowly (a few % per second) and
+ * only probes higher when the publisher actively pushes more data —
+ * which a low-motion board-game scene never does. Net effect:
+ * regardless of the publisher's `maxBitrate` (slider value), the
+ * server-to-consumer leg gets stuck at the 8 Mbit/s starting cap.
+ *
+ * The slider's `streamBitrateMbps` is the operator's intent —
+ * start the estimator there so GCC has no need to ramp. On a
+ * congested link GCC will still scale down naturally.
+ *
+ * @param {{ router?: import('mediasoup').types.Router, initialBitrate?: number }} [opts]
+ *   initialBitrate: bits/s. Falls back to SSR_INITIAL_BITRATE env then 16 Mbit/s.
  * @returns {Promise<import('mediasoup').types.WebRtcTransport>}
  */
-export async function createWebRtcTransport({ router } = {}) {
+export async function createWebRtcTransport({ router, initialBitrate = null } = {}) {
   const r = router ?? activeRouter;
   if (!r) {
     throw new Error("createWebRtcTransport: router not initialized — call bootMediasoupRouter() first");
   }
+  const envOverride = Number(process.env.SSR_INITIAL_BITRATE);
+  const resolvedInitial =
+    Number.isFinite(envOverride) && envOverride > 0
+      ? envOverride
+      : Number.isFinite(initialBitrate) && initialBitrate > 0
+        ? initialBitrate
+        : 16_000_000;
   const transport = await r.createWebRtcTransport({
     listenIps: [{ ip: LISTEN_IP, announcedIp: activeAnnouncedIp }],
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,
-    // Bitrate target — derived from the active Stream-Quality preset
-    // resolved at server boot (Plan 01 resolveEncoderConfig). Defaults to
-    // 8 Mbit/s (`balanced` preset). Override via SSR_INITIAL_BITRATE.
-    initialAvailableOutgoingBitrate: Number(process.env.SSR_INITIAL_BITRATE ?? 8_000_000),
+    initialAvailableOutgoingBitrate: resolvedInitial,
   });
   return transport;
 }

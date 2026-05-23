@@ -19,7 +19,37 @@
 // transport IDs, kind enum) is validated before hitting mediasoup.
 
 import { createHash } from "node:crypto";
+import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { createWebRtcTransport, getRouter } from "./ssr-mediasoup-router.mjs";
+
+// Phase 58 (2026-05-24): resolve the current bitrate cap from
+// global-defaults.json at transport-creation time so the WebRTC GCC
+// estimator starts at the operator's configured slider value.
+// Cached briefly to avoid pounding the FS on every connect.
+let _cachedBitrateBps = null;
+let _cachedBitrateAtMs = 0;
+async function resolveInitialBitrateBps() {
+  const now = Date.now();
+  if (_cachedBitrateBps != null && now - _cachedBitrateAtMs < 2000) {
+    return _cachedBitrateBps;
+  }
+  try {
+    const configPath = path.join(process.cwd(), "config", "global-defaults.json");
+    const raw = await readFile(configPath, "utf8");
+    const cfg = JSON.parse(raw);
+    const mbps = Number(cfg?.serverRendering?.streamBitrateMbps);
+    if (Number.isFinite(mbps) && mbps >= 2 && mbps <= 50) {
+      _cachedBitrateBps = Math.round(mbps) * 1_000_000;
+    } else {
+      _cachedBitrateBps = 16_000_000;
+    }
+  } catch {
+    _cachedBitrateBps = 16_000_000;
+  }
+  _cachedBitrateAtMs = now;
+  return _cachedBitrateBps;
+}
 
 const KNOWN_ACTIONS = new Set([
   "get-router-rtp-capabilities",
@@ -537,7 +567,8 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
         }
 
         if (action === "create-send-transport" || action === "create-recv-transport") {
-          const t = await createWebRtcTransport({ router });
+          const initialBitrate = await resolveInitialBitrateBps();
+          const t = await createWebRtcTransport({ router, initialBitrate });
           if (action === "create-send-transport") conn.sendTransport = t;
           else conn.recvTransport = t;
           send({

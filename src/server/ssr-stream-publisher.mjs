@@ -271,7 +271,12 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     // simulcast layers for adaptive-bitrate quality.
     const videoEncodings = ${encodingsLiteral};
     console.log("[ssr-publisher] encoder=${enc} simulcast=${simulcastLabel} bitrate=${totalBitrate}");
-    const codecOptions = { videoGoogleStartBitrate: 1000 };
+    // Phase 58 (2026-05-24): videoGoogleStartBitrate is the encoder's
+    // initial target in kbps. Default 1000 (1 Mbit/s) meant a static
+    // scene encoded at ~1 Mbit/s and GCC had no signal to probe higher.
+    // Start at the configured slider value so the encoder reaches the
+    // operator's target immediately.
+    const codecOptions = { videoGoogleStartBitrate: ${Math.round(totalBitrate / 1000)} };
     const h264Codec = device.rtpCapabilities.codecs.find((c) => c.mimeType && c.mimeType.toLowerCase() === "video/h264");
     const produceOpts = { track: videoTrack, encodings: videoEncodings, codecOptions: codecOptions };
     if (h264Codec) produceOpts.codec = h264Codec;
