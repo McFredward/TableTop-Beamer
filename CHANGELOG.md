@@ -10,6 +10,31 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.8] — 2026-05-24
+
+Phase 57: Diagnostic — actual received bitrate in the overlay.
+
+### Added
+- **STREAM line in the /output/ diagnostic overlay now shows
+  `recv=<X>Mbps`** — the actual received bitrate computed from the
+  `bytesReceived` delta over the RTCStats timestamp delta (inbound-rtp).
+  Operator can now compare the configured slider value (`preset=` on
+  the ENCODE line) against what's actually flowing on the wire:
+  - `preset=40Mbps recv=2.5Mbps` with low-motion content → wiring is
+    fine, encoder simply doesn't need the budget (H.264 only fills
+    the cap when motion demands it).
+  - `preset=40Mbps recv=2.5Mbps` AND `preset=2Mbps recv=2.5Mbps`
+    → wiring problem, `maxBitrate` isn't reaching the encoder.
+  (`<sha>`, Phase 57)
+- **SSR-tab now logs the RTCRtpSender encodings parameters at t+500ms
+  and t+5s after `transport.produce()`** — confirms whether the
+  `maxBitrate` from the publisher script's `encodings: [{ maxBitrate }]`
+  actually reached Chromium's encoder. Surfaces in start.log under
+  `[ssr-publisher] sender params [t+500ms]: [{"maxBitrate":...}]`.
+  (`<sha>`, Phase 57)
+
+---
+
 ## [1.0.7] — 2026-05-24
 
 Phase 56: SSR restart on bitrate change.

@@ -569,6 +569,22 @@ export function createStatusUi({
       ? Math.round(stream.jitter * 1000) : null;
     const availBitrate = rtcStats?.candidatePair?.availableIncomingBitrate;
 
+    // Phase 57: actual received bitrate from bytesReceived delta over the
+    // RTCStats timestamp delta. Diagnostic for the operator to compare
+    // against the configured slider value (`preset=`). If recv is far
+    // below the target with high-motion content, the wiring is broken;
+    // if recv matches but content is low-motion (board game idle), the
+    // encoder simply doesn't need the budget.
+    const recvBps = (() => {
+      const cur = rtcStats?.inbound;
+      const prev = rtcStatsPrev?.inbound;
+      if (!cur || !prev) return null;
+      const dt = (cur.timestamp || 0) - (prev.timestamp || 0); // ms
+      const dBytes = (cur.bytesReceived || 0) - (prev.bytesReceived || 0);
+      if (!Number.isFinite(dt) || dt <= 0 || dBytes < 0) return null;
+      return (dBytes * 8 * 1000) / dt;
+    })();
+
     const dropFracPart = (() => {
       if (!stream || !stream.framesDecoded) {
         if (videoTotal && videoDropped) {
@@ -625,7 +641,7 @@ export function createStatusUi({
     // skim-readability. A monospace renderer (CSS `font-family: monospace;
     // white-space: pre`) keeps the columns aligned.
     const lines = [
-      `STREAM  ${fmtFps(receivedFps)} · ${streamRes} · ${codec || "?"} · drops=${dropFracPart} · loss=${pktLossPctPart}`,
+      `STREAM  ${fmtFps(receivedFps)} · ${streamRes} · ${codec || "?"} · recv=${fmtBitrate(recvBps)} · drops=${dropFracPart} · loss=${pktLossPctPart}`,
       `RTC     rtt=${rttMs != null ? rttMs + "ms" : "?"} · jitter=${jitterMs != null ? jitterMs + "ms" : "?"} · avail=${fmtBitrate(availBitrate)} · dec=${decoderImpl}`,
       `SSR     ${ssrFpsStr} · ${ssrRes} · mode=${renderMode} · via=${ssrDecoder}`,
       `GPU     ${ssrRenderer}`,

@@ -906,7 +906,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
         codec: null,
         inbound: { framesDecoded: 0, framesDropped: 0, framesPerSecond: 0, jitter: null,
           packetsLost: 0, packetsReceived: 0, bytesReceived: 0, totalDecodeTime: 0,
-          frameWidth: 0, frameHeight: 0 },
+          frameWidth: 0, frameHeight: 0, timestamp: 0 },
         candidatePair: { rtt: null, availableIncomingBitrate: null },
         decoderImplementation: null,
       };
@@ -923,6 +923,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
           next.inbound.totalDecodeTime = Number(s.totalDecodeTime || 0);
           next.inbound.frameWidth = Number(s.frameWidth || 0);
           next.inbound.frameHeight = Number(s.frameHeight || 0);
+          next.inbound.timestamp = Number(s.timestamp || 0);
           if (typeof s.decoderImplementation === "string") {
             next.decoderImplementation = s.decoderImplementation;
           }

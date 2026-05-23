@@ -280,6 +280,37 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
 
+    // Phase 57 (2026-05-24): read back the RTCRtpSender parameters to
+    // verify the configured maxBitrate from `encodings` actually reached
+    // Chromium's encoder. If mediasoup-client silently drops the
+    // maxBitrate field (or if Chromium overrides it), we'll see the
+    // discrepancy here. Polled once at 500ms (after the producer has
+    // settled) and once at 5s (steady state).
+    function __readBackSenderParams(label) {
+      try {
+        const rtpSender = videoProducer?.rtpSender;
+        if (!rtpSender || typeof rtpSender.getParameters !== "function") {
+          console.warn("[ssr-publisher] no rtpSender on producer (label=" + label + ")");
+          return;
+        }
+        const params = rtpSender.getParameters();
+        const encs = (params && params.encodings) || [];
+        const summary = encs.map((e) => ({
+          rid: e.rid ?? null,
+          active: e.active ?? null,
+          maxBitrate: e.maxBitrate ?? null,
+          scaleResolutionDownBy: e.scaleResolutionDownBy ?? null,
+        }));
+        console.log(
+          "[ssr-publisher] sender params [" + label + "]: " + JSON.stringify(summary),
+        );
+      } catch (e) {
+        console.warn("[ssr-publisher] sender params readback failed:", e?.message);
+      }
+    }
+    setTimeout(() => __readBackSenderParams("t+500ms"), 500);
+    setTimeout(() => __readBackSenderParams("t+5s"), 5000);
+
     // h17: SSR-side stats reporter. Replaces h8's single-fps message
     // with a richer { type: "ssr-stats", stats: {...} } envelope so
     // the consumer's diagnostic overlay can show render method,
