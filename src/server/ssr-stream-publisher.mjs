@@ -281,11 +281,14 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
 
     // Phase 57 (2026-05-24): read back the RTCRtpSender parameters to
-    // verify the configured maxBitrate from `encodings` actually reached
-    // Chromium's encoder. If mediasoup-client silently drops the
+    // verify the configured maxBitrate from the encodings array actually
+    // reached Chromium's encoder. If mediasoup-client silently drops the
     // maxBitrate field (or if Chromium overrides it), we'll see the
     // discrepancy here. Polled once at 500ms (after the producer has
-    // settled) and once at 5s (steady state).
+    // settled) and once at 5s (steady state). NOTE: this whole block is
+    // inside a backtick template literal in buildInPagePublisherScript --
+    // do NOT use backticks for inline code spans in comments here, they
+    // close the outer template early.
     function __readBackSenderParams(label) {
       try {
         const rtpSender = videoProducer?.rtpSender;
