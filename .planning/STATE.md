@@ -23,11 +23,12 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: — (53 closed 2026-05-24, shipped as v1.0.4)
+- Current Phase: — (54 closed 2026-05-24, shipped as v1.0.5)
 - Current Phase Key: (none — live)
 - Last Prepared: 2026-05-24
 - Execution Readiness: LIVE (TT-Beamer shipped v1.0.0 after Phase 49; each subsequent phase bumps the version per durable feedback memory)
-- Previous Phase: 53 (CLOSED — 2026-05-24, Released as v1.0.4, Nemesis Lockdown A/B polygon Y-shift data migration. Lockdown PNGs are 2500x1755 (aspect 1.4245) but polygons were drawn against the original Nemesis print aspect 7978x5456 (= 1.4623); Phase 50's switch to image-natural aspect on the dashboard exposed the 1.3% Y mismatch as visibly shifted room outlines. Per operator preference, fixed via one-time JSON data migration (no legacy-board code path): polygon Y values + projection-profile srcYs co-migrated by `y * r + (1-r)/2`, r ~= 0.9742. Migration scripts kept under .planning/phases/phase-53/ for audit. Operator does NOT need to re-calibrate the projector — srcYs migration keeps the mesh-warp aligned with the migrated polygons.)
+- Previous Phase: 54 (CLOSED — 2026-05-24, Released as v1.0.5, Stream-quality preset → numeric bitrate slider with soft-warning. `qualityPreset` enum replaced end-to-end with numeric `streamBitrateMbps` (UI, server validator, SSR encoder plumbing). Slider range 2-50 Mbit/s, default 16, inline warning above 20 Mbit/s. In-place data migration of global-defaults.json with preset → Mbps map.)
+- Earlier Phase: 53 (CLOSED — 2026-05-24, Released as v1.0.4, Nemesis Lockdown A/B polygon Y-shift data migration. Lockdown PNGs are 2500x1755 (aspect 1.4245) but polygons were drawn against the original Nemesis print aspect 7978x5456 (= 1.4623); Phase 50's switch to image-natural aspect on the dashboard exposed the 1.3% Y mismatch as visibly shifted room outlines. Per operator preference, fixed via one-time JSON data migration (no legacy-board code path): polygon Y values + projection-profile srcYs co-migrated by `y * r + (1-r)/2`, r ~= 0.9742. Migration scripts kept under .planning/phases/phase-53/ for audit. Operator does NOT need to re-calibrate the projector — srcYs migration keeps the mesh-warp aligned with the migrated polygons.)
 - Earlier Phase: 52 (CLOSED — 2026-05-22, Released as v1.0.3, Per-animation transforms + live-editor temporary/permanent distinction.)
 - Earlier Phase: 51 (CLOSED — 2026-05-22, Released as v1.0.2, Animation Name input keystroke focus loss — _lastDirtyState transition gate on the blur inside syncDirtyBar.)
 - Older Phase: 50 (CLOSED — 2026-05-21, Released as v1.0.1, Aspect-ratio-aware board import.)

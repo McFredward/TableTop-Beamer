@@ -615,7 +615,9 @@ export function createStatusUi({
     // Server-info one-shot.
     const enc = serverInfo?.encoder || "?";
     const encSrc = serverInfo?.encoderSource || "?";
-    const preset = serverInfo?.qualityPreset || "?";
+    // Phase 54: numeric bitrate slider replaces preset enum.
+    const bitrateMbps = serverInfo?.streamBitrateMbps;
+    const preset = Number.isFinite(bitrateMbps) ? `${bitrateMbps}Mbps` : "?";
     const targetBps = serverInfo?.bitrateBps;
     const fpsTarget = serverInfo?.fpsTarget;
 

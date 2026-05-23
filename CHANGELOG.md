@@ -10,6 +10,32 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.5] — 2026-05-24
+
+Phase 54: Stream-quality preset → numeric bitrate slider.
+
+### Changed
+- **Settings → System → Stream-quality preset** is now a **numeric
+  bitrate slider** (2–50 Mbit/s, integer steps) instead of a 5-option
+  radio group. Operators can experiment freely with bits-per-frame
+  to find the sweet spot for their hardware. Default 16 Mbit/s
+  (equivalent to the old "extra-high" preset). (`<sha>`, Phase 54)
+- **Inline soft-warning** appears below the slider when the value
+  exceeds 20 Mbit/s: "the software encoder may stutter on weak CPUs;
+  a hardware encoder is strongly recommended". The slider is NOT
+  blocked — the operator can dismiss the warning by setting any value
+  they want. (`<sha>`, Phase 54)
+- The legacy `qualityPreset` enum field in `config/global-defaults.json`
+  was migrated in-place to `streamBitrateMbps` (numeric). Mapping:
+  low-latency → 4, balanced → 8, high-quality → 12, extra-high → 16,
+  ultra-high → 20. SSR encoder + WebRTC sender now read the bitrate
+  directly from the slider value via
+  `deriveSimulcastBitrates({ configuredBitrate })`. (`<sha>`, Phase 54)
+- The Pi-side diagnostic overlay's "preset=" field shows the literal
+  Mbit/s value (e.g. `25Mbps`) instead of the preset name. (`<sha>`, Phase 54)
+
+---
+
 ## [1.0.4] — 2026-05-24
 
 Phase 53: Nemesis Lockdown A/B polygon Y-shift migration.

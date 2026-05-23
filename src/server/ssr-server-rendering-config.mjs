@@ -11,9 +11,17 @@ import path from "node:path";
 
 // ── Enum value lists ──────────────────────────────────────────────────
 export const ENCODER_VALUES = ["auto", "nvenc", "vaapi", "videotoolbox", "x264-software"];
-export const QUALITY_PRESET_VALUES = ["low-latency", "balanced", "high-quality", "extra-high", "ultra-high"];
 export const RESOLUTION_VALUES = ["auto", "1080p", "720p"];
 export const FPS_VALUES = [30, 24, 15];
+
+// Phase 54 (2026-05-24): `qualityPreset` enum replaced with a numeric
+// `streamBitrateMbps` slider. Range 2–50 Mbit/s, integer steps. Bitrate
+// > BITRATE_SOFT_WARN_MBPS surfaces a non-blocking warning in the UI
+// (software encoder may struggle on weak CPUs; operator can override).
+export const STREAM_BITRATE_MIN_MBPS = 2;
+export const STREAM_BITRATE_MAX_MBPS = 50;
+export const STREAM_BITRATE_SOFT_WARN_MBPS = 20;
+export const STREAM_BITRATE_DEFAULT_MBPS = 16;
 
 // Phase 32 D-A3: Stream FPS cap. 0 = native (no cap, hardware-bounded).
 // Drives the publisher's getDisplayMedia frameRate constraint AND encoder
@@ -28,7 +36,7 @@ export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
 
 const KNOWN_KEYS = new Set([
   "encoder",
-  "qualityPreset",
+  "streamBitrateMbps",
   "resolutionPreference",
   "fpsTarget",
   "streamFpsCap",
@@ -43,17 +51,18 @@ const KNOWN_KEYS = new Set([
  * @returns {{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, streamFpsCap:number}}
  */
 export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
-  // Phase 43 default: extra-high (16 Mbit) at 1080p / 60-fps cap.
-  // fpsTarget=30 is metadata only — the real stream cap is
-  // streamFpsCap. Operator can step down to balanced/low-latency on
-  // weak hardware via the Settings → System UI.
+  // Phase 54 (2026-05-24): default 16 Mbit/s at 1080p / 60-fps cap.
+  // Equivalent to the previous "extra-high" preset bitrate. fpsTarget=30
+  // is metadata only — the real stream cap is streamFpsCap. Operator
+  // can adjust the bitrate slider freely between 2–50 Mbit/s via the
+  // Settings → System UI.
   // `available` is kept in the signature for backwards compatibility
-  // with callers that hand-roll an encoder list; the chosen preset
+  // with callers that hand-roll an encoder list; the default bitrate
   // is the same regardless of the auto-detect result.
   void available;
   return {
     encoder: "auto",
-    qualityPreset: "extra-high",
+    streamBitrateMbps: STREAM_BITRATE_DEFAULT_MBPS,
     resolutionPreference: "1080p",
     fpsTarget: 30,
     streamFpsCap: STREAM_FPS_CAP_DEFAULT,
@@ -77,9 +86,17 @@ export function validateServerRenderingPatch(patch) {
     if (typeof patch.encoder !== "string") return { valid: false, reason: "encoder-wrong-type" };
     if (!ENCODER_VALUES.includes(patch.encoder)) return { valid: false, reason: "encoder-not-in-enum" };
   }
-  if ("qualityPreset" in patch) {
-    if (typeof patch.qualityPreset !== "string") return { valid: false, reason: "qualityPreset-wrong-type" };
-    if (!QUALITY_PRESET_VALUES.includes(patch.qualityPreset)) return { valid: false, reason: "qualityPreset-not-in-enum" };
+  if ("streamBitrateMbps" in patch) {
+    if (typeof patch.streamBitrateMbps !== "number" || !Number.isFinite(patch.streamBitrateMbps)) {
+      return { valid: false, reason: "streamBitrateMbps-wrong-type" };
+    }
+    if (patch.streamBitrateMbps < STREAM_BITRATE_MIN_MBPS
+        || patch.streamBitrateMbps > STREAM_BITRATE_MAX_MBPS) {
+      return { valid: false, reason: "streamBitrateMbps-out-of-range" };
+    }
+    if (!Number.isInteger(patch.streamBitrateMbps)) {
+      return { valid: false, reason: "streamBitrateMbps-not-integer" };
+    }
   }
   if ("resolutionPreference" in patch) {
     if (typeof patch.resolutionPreference !== "string") return { valid: false, reason: "resolutionPreference-wrong-type" };
@@ -153,9 +170,13 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
     const sr = (parsed && typeof parsed === "object" && parsed.serverRendering && typeof parsed.serverRendering === "object")
       ? parsed.serverRendering
       : {};
+    const validBitrate = Number.isFinite(sr.streamBitrateMbps)
+      && Number.isInteger(sr.streamBitrateMbps)
+      && sr.streamBitrateMbps >= STREAM_BITRATE_MIN_MBPS
+      && sr.streamBitrateMbps <= STREAM_BITRATE_MAX_MBPS;
     return {
       encoder: typeof sr.encoder === "string" && ENCODER_VALUES.includes(sr.encoder) ? sr.encoder : defaults.encoder,
-      qualityPreset: typeof sr.qualityPreset === "string" && QUALITY_PRESET_VALUES.includes(sr.qualityPreset) ? sr.qualityPreset : defaults.qualityPreset,
+      streamBitrateMbps: validBitrate ? sr.streamBitrateMbps : defaults.streamBitrateMbps,
       resolutionPreference: typeof sr.resolutionPreference === "string" && RESOLUTION_VALUES.includes(sr.resolutionPreference) ? sr.resolutionPreference : defaults.resolutionPreference,
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
       streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,

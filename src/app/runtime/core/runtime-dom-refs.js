@@ -194,7 +194,10 @@
       // src/app/lib/ui/settings/server-rendering-panel.js.
       ssrEncoderSelect: document.querySelector("#ssr-encoder-select"),
       ssrDetectedEncodersBadge: document.querySelector("#ssr-detected-encoders-badge"),
-      ssrQualityPresetRadios: Array.from(document.querySelectorAll('input[name="ssr-quality-preset"]')),
+      // Phase 54: radio preset replaced with numeric bitrate slider.
+      ssrBitrateSlider: document.querySelector("#ssr-bitrate-slider"),
+      ssrBitrateValue: document.querySelector("#ssr-bitrate-value"),
+      ssrBitrateWarning: document.querySelector("#ssr-bitrate-warning"),
       ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),

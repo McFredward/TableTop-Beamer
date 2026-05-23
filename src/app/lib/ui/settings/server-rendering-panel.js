@@ -49,10 +49,12 @@
       if (typeof serverRendering.encoder === "string") {
         refs.ssrEncoderSelect.value = serverRendering.encoder;
       }
-      if (typeof serverRendering.qualityPreset === "string") {
-        for (const r of (refs.ssrQualityPresetRadios || [])) {
-          r.checked = (r.value === serverRendering.qualityPreset);
-        }
+      // Phase 54: numeric bitrate slider replaces qualityPreset enum.
+      if (Number.isFinite(serverRendering.streamBitrateMbps)) {
+        const v = Math.round(serverRendering.streamBitrateMbps);
+        if (refs.ssrBitrateSlider) refs.ssrBitrateSlider.value = String(v);
+        if (refs.ssrBitrateValue) refs.ssrBitrateValue.textContent = String(v);
+        if (refs.ssrBitrateWarning) refs.ssrBitrateWarning.hidden = v <= 20;
       }
       if (typeof serverRendering.resolutionPreference === "string") {
         for (const r of (refs.ssrResolutionPreferenceRadios || [])) {
@@ -100,9 +102,16 @@
         "Restarting render server (encoder change)…",
       );
     });
-    for (const r of (refs.ssrQualityPresetRadios || [])) {
-      r.addEventListener("change", () => {
-        if (r.checked) sendPatch({ qualityPreset: r.value });
+    // Phase 54: slider drives streamBitrateMbps. `input` fires on every
+    // drag tick; the server-side write is debounced by 200ms so the
+    // patch storm is safe. Warning visibility updates live with the
+    // slider value.
+    if (refs.ssrBitrateSlider) {
+      refs.ssrBitrateSlider.addEventListener("input", () => {
+        const v = Math.max(2, Math.min(50, Math.round(Number(refs.ssrBitrateSlider.value) || 16)));
+        if (refs.ssrBitrateValue) refs.ssrBitrateValue.textContent = String(v);
+        if (refs.ssrBitrateWarning) refs.ssrBitrateWarning.hidden = v <= 20;
+        sendPatch({ streamBitrateMbps: v });
       });
     }
     for (const r of (refs.ssrResolutionPreferenceRadios || [])) {

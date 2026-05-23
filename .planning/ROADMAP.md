@@ -1306,6 +1306,17 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 54 - Stream-quality preset → numeric bitrate slider with soft-warning (CLOSED — 2026-05-24, Released as v1.0.5)
+
+Operator request 2026-05-24: convert the 5-option Stream-quality-preset
+radio group to a Mbit/s slider with discrete steps + inline non-blocking
+warning above 20 Mbit/s. Replaces `qualityPreset` enum with numeric
+`streamBitrateMbps` end-to-end (UI + server validator + SSR encoder
+plumbing). Data migration in-place on global-defaults.json
+(low-latency→4, balanced→8, high-quality→12, extra-high→16,
+ultra-high→20). Operator can freely experiment between 2–50 Mbit/s,
+warning shows above 20 Mbit/s but isn't blocking.
+
 ## Phase 53 - Nemesis Lockdown A/B polygon Y-shift data migration (CLOSED — 2026-05-24, Released as v1.0.4)
 
 Operator UAT 2026-05-24: rooms on Nemesis Lockdown A/B visibly y-shifted

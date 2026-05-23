@@ -49,11 +49,17 @@ const ROOT_DIR = path.resolve(__dirname, "..", "..");
  * @param {{ effectiveStreamFpsCap?: number }} [opts]
  * @returns {{ low: number, mid: number, high: number, total: number }}
  */
-function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
+function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60, configuredBitrate = null } = {}) {
   let total;
   const envOverride = Number(process.env.SSR_INITIAL_BITRATE);
   if (Number.isFinite(envOverride) && envOverride > 0) {
     total = envOverride;
+  } else if (Number.isFinite(configuredBitrate) && configuredBitrate > 0) {
+    // Phase 54 (2026-05-24): explicit bitrate from
+    // serverRendering.streamBitrateMbps slider takes precedence over the
+    // legacy fps-derived fallback. Bypasses fps-scaling because the
+    // operator's slider value is the source of truth.
+    total = configuredBitrate;
   } else if (effectiveStreamFpsCap >= 60) {
     total = 16_000_000; // 60fps or native → 16 Mbit/s
   } else if (effectiveStreamFpsCap >= 45) {
@@ -87,7 +93,11 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
  * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, viewport?: {width:number,height:number} }} [opts]
  */
 export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, viewport = { width: 1920, height: 1080 } } = {}) {
-  const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap });
+  // Phase 54: encoderConfig.bitrate is the operator's slider value in
+  // bits/s. Pass through to deriveSimulcastBitrates as the explicit
+  // override; fps-derived fallback kicks in only when bitrate is unset.
+  const configuredBitrate = Number(encoderConfig?.bitrate);
+  const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap, configuredBitrate });
   const targetWidth = Math.max(1, Math.round(viewport?.width || 1920));
   const targetHeight = Math.max(1, Math.round(viewport?.height || 1080));
   // h18: pick simulcast vs single-layer based on encoder. x264-software

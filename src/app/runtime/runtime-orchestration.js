@@ -217,7 +217,7 @@ const {
   runningOverviewPanel, globalAnimationPanel,
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   // Server-side Rendering settings (System & Performance subtab)
-  ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
+  ssrEncoderSelect, ssrDetectedEncodersBadge, ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
   ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
@@ -2993,7 +2993,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   // Server-side Rendering settings refs for initServerRenderingPanel.
   ssrEncoderSelect,
   ssrDetectedEncodersBadge,
-  ssrQualityPresetRadios,
+  ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
   ssrStreamFpsCapRadios,

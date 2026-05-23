@@ -318,7 +318,7 @@ const QUALITY_PRESETS = {
 export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = console } = {}) {
   const configPath = path.join(rootDir, "config", "global-defaults.json");
   let userChoice = "auto";
-  let userPreset = null;
+  let userBitrateMbps = null;
   let userResolution = "auto";
   let userFps = null;
   let userStreamFpsCap = 60;
@@ -329,7 +329,8 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
       ? cfg.serverRendering
       : {};
     if (typeof sr.encoder === "string") userChoice = sr.encoder;
-    if (typeof sr.qualityPreset === "string") userPreset = sr.qualityPreset;
+    // Phase 54: numeric bitrate slider replaces qualityPreset enum.
+    if (Number.isFinite(sr.streamBitrateMbps)) userBitrateMbps = sr.streamBitrateMbps;
     if (typeof sr.resolutionPreference === "string") userResolution = sr.resolutionPreference;
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
     if (typeof sr.streamFpsCap === "number" && Number.isFinite(sr.streamFpsCap)) {
@@ -371,17 +372,20 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     source = "auto";
   }
 
-  // Default preset depends on hardware capability per CONTEXT.md:
-  //   NVENC/VAAPI/VideoToolbox present → "balanced"
-  //   software-only                    → "low-latency" (conservative on weak CPUs)
-  const defaultPreset = (chosen === "x264-software") ? "low-latency" : "balanced";
-  const presetName = (userPreset && QUALITY_PRESETS[userPreset]) ? userPreset : defaultPreset;
-  const preset = QUALITY_PRESETS[presetName];
-  const fpsTarget = (userFps != null) ? userFps : preset.fpsTarget;
+  // Phase 54 (2026-05-24): numeric bitrate replaces the preset enum.
+  // Default 16 Mbit/s (was "extra-high"). Operator can adjust freely via
+  // the Settings → System bitrate slider (range 2–50 Mbit/s).
+  const DEFAULT_BITRATE_MBPS = 16;
+  const KEYFRAME_INTERVAL_SEC = 2;
+  const bitrateMbps = (userBitrateMbps != null && userBitrateMbps >= 2 && userBitrateMbps <= 50)
+    ? Math.round(userBitrateMbps)
+    : DEFAULT_BITRATE_MBPS;
+  const bitrate = bitrateMbps * 1_000_000;
+  const fpsTarget = (userFps != null) ? userFps : 30;
 
   logger.info(`[ssr-host] encoder=${chosen} source=${source}`);
   logger.info(
-    `[ssr-host] qualityPreset=${presetName} bitrate=${preset.bitrate} fpsTarget=${fpsTarget} keyframeIntervalSec=${preset.keyframeIntervalSec}`,
+    `[ssr-host] streamBitrateMbps=${bitrateMbps} bitrate=${bitrate} fpsTarget=${fpsTarget} keyframeIntervalSec=${KEYFRAME_INTERVAL_SEC}`,
   );
   logger.info(
     `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap}`,
@@ -391,11 +395,10 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     encoder: chosen,
     source,
     available,
-    preset: presetName,
-    bitrate: preset.bitrate,
+    streamBitrateMbps: bitrateMbps,
+    bitrate,
     fpsTarget,
-    keyframeIntervalSec: preset.keyframeIntervalSec,
-    x264Preset: preset.x264Preset,
+    keyframeIntervalSec: KEYFRAME_INTERVAL_SEC,
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)

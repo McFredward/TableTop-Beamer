@@ -793,14 +793,27 @@
         </label>
         <p id="ssr-detected-encoders-badge" class="ssr-detected-encoders-badge" aria-live="polite">Detected: (auto-detection in progress…)</p>
 
-        <fieldset class="ssr-radio-group">
-          <legend>Stream-quality preset</legend>
-          <label><input type="radio" name="ssr-quality-preset" value="low-latency" /> Low latency (4 Mbit/s, 720p, ultrafast)</label>
-          <label><input type="radio" name="ssr-quality-preset" value="balanced" /> Balanced (8 Mbit/s, 1080p, veryfast)</label>
-          <label><input type="radio" name="ssr-quality-preset" value="high-quality" /> High quality (12 Mbit/s, 1080p, fast)</label>
-          <label><input type="radio" name="ssr-quality-preset" value="extra-high" /> Extra high (16 Mbit/s, 1080p, fast)</label>
-          <label><input type="radio" name="ssr-quality-preset" value="ultra-high" /> Ultra high (20 Mbit/s, 1080p, medium — HW encoder recommended)</label>
-        </fieldset>
+        <!-- Phase 54 (2026-05-24): radio preset replaced with numeric bitrate slider.
+             Operator can pick any integer Mbit/s between 2 and 50; values above
+             20 Mbit/s show an inline soft-warning (HW encoder strongly
+             recommended) but are not blocked. -->
+        <label class="ssr-bitrate-slider-label">
+          <span>Stream bitrate: <span id="ssr-bitrate-value">16</span> Mbit/s</span>
+          <input id="ssr-bitrate-slider" type="range"
+                 min="2" max="50" step="1" value="16"
+                 aria-describedby="ssr-bitrate-warning" />
+          <span class="ssr-bitrate-scale" aria-hidden="true">
+            <span>2</span>
+            <span>20</span>
+            <span>50</span>
+          </span>
+        </label>
+        <p id="ssr-bitrate-warning" class="ssr-bitrate-warning" hidden role="status" aria-live="polite">
+          ⚠ Above 20 Mbit/s the software encoder (x264) may stutter on weak
+          CPUs; a hardware encoder (NVENC / VAAPI / VideoToolbox) is
+          strongly recommended. Set the value anyway if your setup can
+          handle it.
+        </p>
 
         <fieldset class="ssr-radio-group">
           <legend>Resolution preference</legend>

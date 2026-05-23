@@ -2542,6 +2542,46 @@ body[data-ssr-tab="true"] #loading-overlay {
    .panel.settings-only pattern + Phase-22 obsidian theme +
    diagnostic-chip color palette for the Detected-encoders badge.
    ============================================================ */
+/* Phase 54 (2026-05-24): bitrate slider replaces the radio-preset
+ * fieldset. Numeric range 2–50 Mbit/s with inline soft-warning when
+ * the value exceeds 20 Mbit/s (software encoder may struggle). */
+#settings-server-rendering .ssr-bitrate-slider-label {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+#settings-server-rendering .ssr-bitrate-slider-label > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+#settings-server-rendering #ssr-bitrate-slider {
+  width: 100%;
+}
+#settings-server-rendering .ssr-bitrate-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--c-text-3, rgba(255, 255, 255, 0.45));
+  padding: 0 2px;
+}
+#settings-server-rendering .ssr-bitrate-warning {
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-warn, #f59e0b) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-warn, #f59e0b) 50%, transparent);
+  color: var(--c-warn, #f59e0b);
+  font-size: 12px;
+  line-height: 1.4;
+}
+#settings-server-rendering .ssr-bitrate-warning[hidden] {
+  display: none !important;
+}
+
 #settings-server-rendering .ssr-radio-group {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
