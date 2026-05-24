@@ -194,7 +194,10 @@
       // src/app/lib/ui/settings/server-rendering-panel.js.
       ssrEncoderSelect: document.querySelector("#ssr-encoder-select"),
       ssrDetectedEncodersBadge: document.querySelector("#ssr-detected-encoders-badge"),
-      // Phase 50: radio preset replaced with numeric bitrate slider.
+      // Phase 50 (2026-05-24, follow-up): slider replaced with 3-option
+      // preset radio. The slider refs stay as nullable fallbacks so any
+      // older surface that still ships the slider keeps working.
+      ssrBitratePresetRadios: Array.from(document.querySelectorAll('input[name="ssr-bitrate-preset"]')),
       ssrBitrateSlider: document.querySelector("#ssr-bitrate-slider"),
       ssrBitrateValue: document.querySelector("#ssr-bitrate-value"),
       ssrBitrateWarning: document.querySelector("#ssr-bitrate-warning"),

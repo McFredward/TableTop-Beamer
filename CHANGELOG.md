@@ -10,6 +10,61 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.14] — 2026-05-24
+
+Phase 50: Settings → System polish + hint visibility in overlay.
+
+### Fixed
+- **"Detected: (auto-detection in progress…)" badge stuck forever.**
+  Operator UAT (2026-05-24): "Dort steht bei mir noch konstant
+  'Detected: (auto-detection in progress...)'". Root cause: the badge
+  filtered `x264-software` out of the detected list and treated the
+  resulting empty list as "still probing". On a software-only host
+  the list IS empty after filtering, so the badge stayed stuck. Now
+  three states: still probing (no list yet) → "(auto-detection in
+  progress…)"; only software fallback present → "software only (no
+  hardware encoder)"; one or more hardware encoders → list them.
+- **Added a `global-config-update` broadcast** from the server when
+  `availableEncoders` first gets populated, so the dashboard refetches
+  /api/global-defaults and updates the badge without needing a manual
+  reload. The dashboard's existing snapshot listener already had the
+  refetch path — it just wasn't being notified.
+
+### Changed
+- **Bitrate slider replaced with 3-option preset radio.** Operator
+  UAT: "der Slider macht in der neuen Situation wenig Sinn". The
+  2-50 Mbit/s slider implied tunability that the H.264 rate-control
+  doesn't actually deliver for typical board content. The new options
+  are **Low (3 Mbit/s) / Standard (10 Mbit/s, default) / Maximum
+  (30 Mbit/s)**, mapped to the same `streamBitrateMbps` config field
+  under the hood (no schema change; legacy values like 16 snap to the
+  nearest preset for display).
+- **Codec + Optimization help text moved to ⓘ info-icon tooltips.**
+  Operator UAT: "wall of text gefällt mir nicht". Each dropdown now
+  has a small `ⓘ` next to its label; the browser's native
+  `title`-attribute tooltip shows the help text on hover/focus. No JS,
+  no custom popup, accessible via keyboard. CSS for the icon in
+  `src/styles.css` (`.ssr-info-icon`).
+- **Optimization mode now visible in the /output/ overlay** as
+  `hint=detail / hint=motion / hint=auto` on the ENCODE line.
+  Operator UAT: "Was bei Optimization ausgewählt ist sollte auch im
+  overlay angezeigt werden". The contentHint flows from the operator's
+  dropdown → server → SSR publisher → `setServerInfo` → heartbeat →
+  Pi overlay. Closes the verification loop the operator wanted:
+  "Prüfe auch ob Optimization wirklich verdrahtet ist".
+
+### Verification (empirical, my bench)
+- Fresh boot: badge reads "software only (no hardware encoder)" within
+  ~10 s of server start (was: stuck forever).
+- /output/ overlay after warmup: shows `hint=detail · target=2.0Mbps
+  · 30fps`. Codec was VP9 from prior operator state, picked correctly
+  by the publisher (`[ssr-publisher] codec=vp9 ... encoderImpl=libvpx`
+  in start.log).
+- recv= shows a real value (~270 kbps) within ~22 s of boot, no
+  flicker observed during the 22 s polling window.
+
+---
+
 ## [1.0.13] — 2026-05-24
 
 Phase 50: Reset recv-anchor on peer-connection rebuild.

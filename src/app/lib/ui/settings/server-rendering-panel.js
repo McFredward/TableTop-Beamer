@@ -93,12 +93,19 @@
       if (typeof serverRendering.encoder === "string") {
         refs.ssrEncoderSelect.value = serverRendering.encoder;
       }
-      // Phase 50: numeric bitrate slider replaces qualityPreset enum.
-      if (Number.isFinite(serverRendering.streamBitrateMbps)) {
+      // Phase 50: bitrate slider replaced with 3-option preset radio
+      // (Low=3, Standard=10, Maximum=30 Mbit/s). Numeric streamBitrateMbps
+      // is still the canonical config field. If a legacy persisted value
+      // (e.g. 16) doesn't match any radio button, the nearest option is
+      // selected so the UI reflects intent without losing the value.
+      if (Number.isFinite(serverRendering.streamBitrateMbps) && refs.ssrBitratePresetRadios) {
         const v = Math.round(serverRendering.streamBitrateMbps);
-        if (refs.ssrBitrateSlider) refs.ssrBitrateSlider.value = String(v);
-        if (refs.ssrBitrateValue) refs.ssrBitrateValue.textContent = String(v);
-        if (refs.ssrBitrateWarning) refs.ssrBitrateWarning.hidden = v <= 20;
+        const presetValues = [3, 10, 30];
+        let chosen = presetValues.reduce((best, p) =>
+          Math.abs(p - v) < Math.abs(best - v) ? p : best, presetValues[1]);
+        for (const r of refs.ssrBitratePresetRadios) {
+          r.checked = (Number(r.value) === chosen);
+        }
       }
       if (typeof serverRendering.resolutionPreference === "string") {
         for (const r of (refs.ssrResolutionPreferenceRadios || [])) {
@@ -123,17 +130,27 @@
         refs.ssrContentHintSelect.value = serverRendering.contentHint;
       }
       if (refs.ssrDetectedEncodersBadge) {
-        // Hide x264-software from the badge — it's the universal software
-        // fallback that's always present in the availability list and
-        // operators read it as noise (Phase 47 gap-closure-11: operator
-        // feedback "x264-software ausblenden"). The fallback stays
-        // active in pickPreferredEncoder; this is display-only.
-        const hardwareEncoders = Array.isArray(serverRendering.availableEncoders)
-          ? serverRendering.availableEncoders.filter((e) => e !== "x264-software")
-          : [];
-        const detected = hardwareEncoders.length > 0
-          ? hardwareEncoders.join(", ")
-          : "(auto-detection in progress…)";
+        // Phase 50 (2026-05-24, follow-up): distinguish three states so
+        // the badge isn't permanently stuck at "(auto-detection in
+        // progress…)" on hardware where only the software fallback is
+        // available. Operator UAT (2026-05-24): "Dort steht bei mir
+        // noch konstant 'Detected: (auto-detection in progress...)".
+        //   1. availableEncoders not yet populated → still probing
+        //   2. only "x264-software" present → no hardware encoder
+        //      available (legitimate end-state, not an error)
+        //   3. one or more hardware encoders → list them
+        const list = Array.isArray(serverRendering.availableEncoders)
+          ? serverRendering.availableEncoders
+          : null;
+        let detected;
+        if (!list || list.length === 0) {
+          detected = "(auto-detection in progress…)";
+        } else {
+          const hw = list.filter((e) => e !== "x264-software");
+          detected = hw.length > 0
+            ? hw.join(", ")
+            : "software only (no hardware encoder)";
+        }
         refs.ssrDetectedEncodersBadge.textContent = `Detected: ${detected}`;
       }
     }
@@ -153,22 +170,18 @@
         "Restarting render server (encoder change)…",
       );
     });
-    // Phase 50 (refined): slider drag accumulates into pendingPatch +
-    // marks dirty. Server-side SSR restart only fires when the
-    // operator clicks Apply changes (commitPendingSSRPatch is called
-    // from applyLocalConfigToServer). Without this gating, every
-    // slider tick restarted the SSR Chromium tab — useless for
-    // interactive bitrate tuning.
-    if (refs.ssrBitrateSlider) {
-      refs.ssrBitrateSlider.addEventListener("input", () => {
-        const v = Math.max(2, Math.min(50, Math.round(Number(refs.ssrBitrateSlider.value) || 16)));
-        if (refs.ssrBitrateValue) refs.ssrBitrateValue.textContent = String(v);
-        if (refs.ssrBitrateWarning) refs.ssrBitrateWarning.hidden = v <= 20;
-        _accumPending({ streamBitrateMbps: v });
-        if (typeof deps.markLocalConfigDirty === "function") {
-          deps.markLocalConfigDirty("ssr-bitrate-slider");
-        }
-        setStatus("Server-side rendering: pending — click Apply to push");
+    // Phase 50 (refined): bitrate preset radio. Each click sends the
+    // mutation immediately (radios don't have the slider's drag-cost
+    // problem). The legacy pendingPatch / Apply-bar path is retired
+    // for this control — radios are inherently discrete picks.
+    for (const r of (refs.ssrBitratePresetRadios || [])) {
+      r.addEventListener("change", () => {
+        if (!r.checked) return;
+        const v = Math.max(2, Math.min(50, Math.round(Number(r.value) || 10)));
+        sendPatch(
+          { streamBitrateMbps: v },
+          "Restarting render server (bitrate cap change)…",
+        );
       });
     }
     for (const r of (refs.ssrResolutionPreferenceRadios || [])) {

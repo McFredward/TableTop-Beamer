@@ -2614,3 +2614,34 @@ body[data-ssr-tab="true"] #loading-overlay {
   border: 1px solid rgba(50, 211, 163, 0.25);
   border-radius: 999px;
 }
+
+/* Phase 50 (2026-05-24, follow-up): info-icon tooltip next to
+   Settings → System labels. Replaces the prior wall-of-text help
+   paragraphs that the operator disliked. Uses the browser's native
+   title-attribute tooltip on hover/focus — no JS, no custom popup. */
+.ssr-info-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  line-height: 18px;
+  text-align: center;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  cursor: help;
+  user-select: none;
+  vertical-align: middle;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.ssr-info-icon:hover,
+.ssr-info-icon:focus-visible {
+  color: #f1c14a;
+  background: rgba(241, 193, 74, 0.15);
+  border-color: rgba(241, 193, 74, 0.45);
+  outline: none;
+}

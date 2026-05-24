@@ -217,7 +217,9 @@ const {
   runningOverviewPanel, globalAnimationPanel,
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   // Server-side Rendering settings (System & Performance subtab)
-  ssrEncoderSelect, ssrDetectedEncodersBadge, ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
+  ssrEncoderSelect, ssrDetectedEncodersBadge,
+  ssrBitratePresetRadios,                         // Phase 50 (follow-up: slider→radio)
+  ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
   ssrCodecSelect, ssrContentHintSelect,           // Phase 50 (2026-05-24)
   ssrServerRenderingStatus,
@@ -2994,6 +2996,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   // Server-side Rendering settings refs for initServerRenderingPanel.
   ssrEncoderSelect,
   ssrDetectedEncodersBadge,
+  ssrBitratePresetRadios,                          // Phase 50 (follow-up: slider→radio)
   ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,

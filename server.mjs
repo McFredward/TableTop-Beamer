@@ -4748,6 +4748,25 @@ attachLiveWebSocket(server);
                   liveSessionState.snapshot.serverRendering = {};
                 }
                 liveSessionState.snapshot.serverRendering.availableEncoders = enc.available;
+                // Phase 50 (2026-05-24): broadcast a config-update so the
+                // dashboard's Settings → System "Detected:" badge picks up
+                // the freshly-resolved encoder list. Without this, the
+                // dashboard's initial /api/global-defaults fetch (which
+                // happens before encoder probing finishes) saw no
+                // availableEncoders → badge stuck at "(auto-detection in
+                // progress…)" forever.
+                try {
+                  broadcastLiveSession("global-config-update", {
+                    target: "config/global-defaults.json",
+                    savedAt: new Date().toISOString(),
+                    source: "encoder-detection",
+                  });
+                } catch (broadcastErr) {
+                  console.warn(
+                    "[server] encoder-list broadcast failed:",
+                    broadcastErr?.message || broadcastErr,
+                  );
+                }
               }
               if (signalingState?.setServerInfo) {
                 signalingState.setServerInfo({
@@ -4756,9 +4775,17 @@ attachLiveWebSocket(server);
                   availableEncoders: Array.isArray(enc.available) ? enc.available.join(",") : "",
                   qualityPreset: String(enc.preset || "balanced"),
                   bitrateBps: Number(enc.bitrate || 0),
+                  streamBitrateMbps: Number(enc.streamBitrateMbps || 0),
                   fpsTarget: Number(enc.fpsTarget || 30),
                   keyframeIntervalSec: Number(enc.keyframeIntervalSec || 2),
                   x264Preset: String(enc.x264Preset || ""),
+                  // Phase 50 (2026-05-24, follow-up): publish codec +
+                  // content-hint so the /output/ overlay can show the
+                  // operator's chosen optimization mode. Lets the
+                  // operator confirm at a glance "yes, I'm on VP9 +
+                  // detail" without leaving /output/.
+                  codecPreference: String(enc.codecPreference || "h264"),
+                  contentHint: String(enc.contentHint || "default"),
                 });
                 console.log(
                   `[server] serverInfo published — encoder=${enc.encoder} preset=${enc.preset} bitrate=${enc.bitrate} fpsTarget=${enc.fpsTarget}`,

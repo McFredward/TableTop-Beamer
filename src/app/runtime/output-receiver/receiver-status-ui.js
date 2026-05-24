@@ -638,6 +638,11 @@ export function createStatusUi({
     const preset = Number.isFinite(bitrateMbps) ? `${bitrateMbps}Mbps` : "?";
     const targetBps = serverInfo?.bitrateBps;
     const fpsTarget = serverInfo?.fpsTarget;
+    // Phase 50 (2026-05-24, follow-up): show optimization mode so the
+    // operator can confirm at a glance which content-hint is live.
+    const hint = (typeof serverInfo?.contentHint === "string" && serverInfo.contentHint !== "default")
+      ? serverInfo.contentHint
+      : (serverInfo?.contentHint === "default" ? "auto" : "?");
 
     // Six-line layout — one section per concern, label-prefixed for
     // skim-readability. A monospace renderer (CSS `font-family: monospace;
@@ -647,7 +652,7 @@ export function createStatusUi({
       `RTC     rtt=${rttMs != null ? rttMs + "ms" : "?"} · jitter=${jitterMs != null ? jitterMs + "ms" : "?"} · avail=${fmtBitrate(availBitrate)} · dec=${decoderImpl}`,
       `SSR     ${ssrFpsStr} · ${ssrRes} · mode=${renderMode} · via=${ssrDecoder}`,
       `GPU     ${ssrRenderer}`,
-      `ENCODE  ${enc}/${encSrc} · ${preset} · target=${fmtBitrate(targetBps)} · ${fpsTarget != null ? fpsTarget + "fps" : "?"}`,
+      `ENCODE  ${enc}/${encSrc} · ${preset} · hint=${hint} · target=${fmtBitrate(targetBps)} · ${fpsTarget != null ? fpsTarget + "fps" : "?"}`,
       `PIPE    pc=${pcConnectionState ?? "?"} · gifs=${gifsStr} · attempts=${reconnectAttempts ?? 0}`,
       `BOARD   ${board} · anims=${activeAnims} · ${alignMode} · frame=${fmtMs(lastFrameAgeMs)} · hb=${fmtMs(heartbeatAgeMs)}`,
     ];

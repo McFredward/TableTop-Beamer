@@ -793,49 +793,47 @@
         </label>
         <p id="ssr-detected-encoders-badge" class="ssr-detected-encoders-badge" aria-live="polite">Detected: (auto-detection in progress…)</p>
 
-        <!-- Phase 50 (2026-05-24): radio preset replaced with numeric bitrate slider.
-             Operator can pick any integer Mbit/s between 2 and 50; values above
-             20 Mbit/s show an inline soft-warning (HW encoder strongly
-             recommended) but are not blocked. -->
-        <label class="ssr-bitrate-slider-label">
-          <span>Stream bitrate: <span id="ssr-bitrate-value">16</span> Mbit/s</span>
-          <input id="ssr-bitrate-slider" type="range"
-                 min="2" max="50" step="1" value="16"
-                 aria-describedby="ssr-bitrate-warning" />
-          <span class="ssr-bitrate-scale" aria-hidden="true">
-            <span>2</span>
-            <span>20</span>
-            <span>50</span>
-          </span>
-        </label>
-        <p id="ssr-bitrate-warning" class="ssr-bitrate-warning" hidden role="status" aria-live="polite">
-          ⚠ Above 20 Mbit/s the software encoder (x264) may stutter on weak
-          CPUs; a hardware encoder (NVENC / VAAPI / VideoToolbox) is
-          strongly recommended. Set the value anyway if your setup can
-          handle it.
-        </p>
+        <!-- Phase 50 (2026-05-24, follow-up): slider replaced with a
+             3-option preset radio. Operator UAT: "der Slider macht in
+             der neuen Situation wenig Sinn" — H.264 rate-control on
+             board content uses far less than the cap regardless of
+             slider value, so the 2-50 numeric scale was misleading.
+             The radio still drives `streamBitrateMbps` under the hood
+             (3 / 10 / 30 Mbit/s) so the rest of the pipeline doesn't
+             change. -->
+        <fieldset class="ssr-radio-group">
+          <legend>
+            Max bitrate cap
+            <span class="ssr-info-icon" tabindex="0" role="img"
+                  aria-label="Info"
+                  title="This is a CEILING, not a target. H.264 rate control fills only as much as motion demands — typical board content uses 100-500 kbps regardless of the cap. The cap matters mostly for high-motion content (sandstorm, fire FX) where it prevents runaway bitrate.">ⓘ</span>
+          </legend>
+          <label><input type="radio" name="ssr-bitrate-preset" value="3" /> Low (3 Mbit/s)</label>
+          <label><input type="radio" name="ssr-bitrate-preset" value="10" checked /> Standard (10 Mbit/s)</label>
+          <label><input type="radio" name="ssr-bitrate-preset" value="30" /> Maximum (30 Mbit/s)</label>
+        </fieldset>
 
-        <!-- Phase 50 (2026-05-24): codec + content-hint operator levers.
-             These are the actual sharpness knobs -- the bitrate slider
-             alone is a ceiling that low-motion content rarely hits.
-             Changing either restarts the SSR Chromium tab (briefly
-             dropping the stream, same /output/ "Reconnecting" banner). -->
+        <!-- Phase 50 (2026-05-24, follow-up): codec + content-hint
+             operator levers. Help text moved to ⓘ info icons (operator
+             UAT: "wall of text gefällt mir nicht"). Each dropdown
+             change restarts the SSR Chromium tab (brief /output/
+             "Reconnecting" banner). -->
         <label for="ssr-codec-select">
           Video codec
+          <span class="ssr-info-icon" tabindex="0" role="img"
+                aria-label="Info"
+                title="H.264 is the safest default (Chromium-bundled OpenH264 encoder). VP9 produces visibly cleaner text/edges at the same bitrate (libvpx is ~30-50% more efficient than OpenH264) but uses more CPU on software-only setups: bench shows libvpx ~24 fps vs OpenH264 ~30 fps. A hardware encoder removes the gap.">ⓘ</span>
           <select id="ssr-codec-select">
             <option value="h264">H.264 (broad compatibility)</option>
             <option value="vp9">VP9 (sharper at same bitrate, modern decoders)</option>
           </select>
         </label>
-        <p class="ssr-hint-help">
-          H.264 is the safest default. VP9 produces visibly cleaner text
-          and edges at the same bitrate but uses more CPU when no
-          hardware encoder is present (software libvpx ~24 fps vs OpenH264
-          ~30 fps on the bench).
-        </p>
 
         <label for="ssr-content-hint-select">
           Content optimization
+          <span class="ssr-info-icon" tabindex="0" role="img"
+                aria-label="Info"
+                title="Tells the encoder how to bias rate-control. Detail/Text favor spatial sharpness per frame — bytes/sec stay low on static content but each frame uses lower quantization. Motion fills more of the bitrate budget (byte rate goes up ~6× on the same content) and prioritizes frame-to-frame smoothness over per-frame sharpness. Default lets the encoder pick.">ⓘ</span>
           <select id="ssr-content-hint-select">
             <option value="detail">Detail (recommended for board content)</option>
             <option value="text">Text (legibility first)</option>
@@ -843,13 +841,6 @@
             <option value="default">Default (auto)</option>
           </select>
         </label>
-        <p class="ssr-hint-help">
-          "Detail" / "Text" tell the encoder to favor spatial sharpness
-          per frame; bytes/sec stay low on static content but each frame
-          uses lower quantization. "Motion" fills more of the bitrate
-          budget (visible byte rate goes up) and prioritizes
-          frame-to-frame smoothness over per-frame sharpness.
-        </p>
 
         <fieldset class="ssr-radio-group">
           <legend>Resolution preference</legend>
