@@ -115,6 +115,13 @@
           r.checked = (Number(r.value) === Number(serverRendering.streamFpsCap));
         }
       }
+      // Phase 59 (2026-05-24): codec + content-hint reflectance.
+      if (typeof serverRendering.codecPreference === "string" && refs.ssrCodecSelect) {
+        refs.ssrCodecSelect.value = serverRendering.codecPreference;
+      }
+      if (typeof serverRendering.contentHint === "string" && refs.ssrContentHintSelect) {
+        refs.ssrContentHintSelect.value = serverRendering.contentHint;
+      }
       if (refs.ssrDetectedEncodersBadge) {
         // Hide x264-software from the badge — it's the universal software
         // fallback that's always present in the availability list and
@@ -177,6 +184,25 @@
     for (const r of (refs.ssrStreamFpsCapRadios || [])) {
       r.addEventListener("change", () => {
         if (r.checked) sendPatch({ streamFpsCap: Number(r.value) });
+      });
+    }
+    // Phase 59 (2026-05-24): codec + content-hint operator change handlers.
+    // Each restarts the SSR Chromium tab (server.mjs's restartKeys list
+    // includes codecPreference + contentHint).
+    if (refs.ssrCodecSelect) {
+      refs.ssrCodecSelect.addEventListener("change", (e) => {
+        sendPatch(
+          { codecPreference: e.target.value },
+          "Restarting render server (codec change)…",
+        );
+      });
+    }
+    if (refs.ssrContentHintSelect) {
+      refs.ssrContentHintSelect.addEventListener("change", (e) => {
+        sendPatch(
+          { contentHint: e.target.value },
+          "Restarting render server (content hint change)…",
+        );
       });
     }
 

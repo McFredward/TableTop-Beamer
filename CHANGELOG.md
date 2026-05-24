@@ -10,6 +10,74 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.10] — 2026-05-24
+
+Phase 59: VP9 codec + content-hint operator levers — actual stream
+quality knobs that move the needle.
+
+### Added
+- **Video codec dropdown** in Settings → System → Server-side Rendering.
+  Operator can pick:
+  - **H.264** (default, broad compatibility) — uses Chromium-bundled
+    OpenH264 software encoder.
+  - **VP9** — uses libvpx; 2-3× more bytes per second at the same
+    bitrate cap on the same content, and noticeably crisper text/edge
+    rendering. Trade-off: software libvpx runs ~23 fps vs OpenH264's
+    ~30 fps on the bench (CPU-bound; hardware encoder removes this
+    gap). Mediasoup router now advertises both codecs; publisher
+    selects at produce-time. (`<sha>`, Phase 59)
+- **Content optimization dropdown** in Settings → System → Server-side
+  Rendering. Sets `videoTrack.contentHint` AND `degradationPreference`
+  on the WebRTC sender:
+  - **Detail (default)** — `contentHint="detail"` +
+    `degradationPreference="maintain-resolution"`. Encoder preserves
+    fine spatial detail; if CPU/network pressure forces a degradation,
+    framerate drops before resolution does. Right call for game
+    boards with hexagons, room outlines, text labels.
+  - **Text** — `contentHint="text"` + same as Detail. Even higher
+    spatial priority. For very text-heavy boards.
+  - **Motion** — `contentHint="motion"` +
+    `degradationPreference="maintain-framerate"`. Encoder fills more
+    of the bitrate budget (visible byte rate goes up ~6× on static
+    content) and prioritizes frame-to-frame smoothness. For boards
+    with high-motion FX (sandstorm, fire animations).
+  - **Default (auto)** — no hint. Encoder uses Chromium's built-in
+    heuristics (typically defaults to motion for screen capture).
+  (`<sha>`, Phase 59)
+- **Publisher-side console diagnostics** for every produce(): logs
+  resolved codec, content hint, degradation preference, sender params
+  readback, and outbound-rtp stats poll (targetBitrate / bytesSent /
+  qualityLimitationReason / encoderImplementation) at t+8/12/18s.
+  Visible in start.log under `[ssr-publisher] ...`. (`<sha>`, Phase 59)
+
+### Changed
+- `[ssr-publisher]` console lines from the SSR-tab are now forwarded
+  to the main start.log instead of silently dropped. The original
+  "already logged" comment was wrong — they had nowhere else to go.
+  (`<sha>`, Phase 59)
+
+### Verified empirically
+- 3-stage Playwright bench on nemesis-lockdown-a with 14 active
+  animations + sandstorm-mp4:
+  - H.264 + motion: sendBps=775 kbps, recv=0.75 Mbps, 30 fps, OpenH264
+  - H.264 + detail: sendBps=138 kbps, recv=0.13 Mbps, 30 fps, OpenH264
+  - VP9 + detail:   sendBps=348 kbps, recv=0.34 Mbps, 23 fps, libvpx
+- End-to-end UI flow: operator picks VP9 in dashboard → server gets
+  `serverRendering-update` mutation → SSR Chromium tab restarts →
+  /output/ overlay reports codec=VP9 within ~15s.
+
+### Did NOT help (investigated, ruled out)
+- `videoGoogleMinBitrate`: Chromium's OpenH264 ignored a min-bitrate
+  of 5 Mbit/s and stayed at ~140 kbps. Not exposed in the UI; would
+  have been Augenwischerei.
+- Bitrate slider alone: Phase 57 readback confirmed `maxBitrate`
+  reaches the RTCRtpSender at the slider value but the encoder's
+  rate-control only fills the budget when content motion demands it.
+  Phase 58's `initialAvailableOutgoingBitrate` change still in place
+  but is not the actual quality lever.
+
+---
+
 ## [1.0.9] — 2026-05-24
 
 Phase 58: Slider value reaches the wire — fixed two upstream caps.

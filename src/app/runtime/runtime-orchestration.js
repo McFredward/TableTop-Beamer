@@ -219,6 +219,7 @@ const {
   // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
+  ssrCodecSelect, ssrContentHintSelect,           // Phase 59 (2026-05-24)
   ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
@@ -2997,6 +2998,9 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
   ssrStreamFpsCapRadios,
+  // Phase 59 (2026-05-24): codec + content-hint operator levers.
+  ssrCodecSelect,
+  ssrContentHintSelect,
   ssrServerRenderingStatus,
   // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
   // serverRendering-update mutations directly through the existing

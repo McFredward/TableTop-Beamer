@@ -1327,7 +1327,7 @@ function applyLiveMutation({
         // the new key at SSR launch; without it in restartKeys, slider
         // changes persisted to global-defaults.json but the running SSR
         // tab kept the old bitrate.
-        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap"];
+        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap", "codecPreference", "contentHint"];
         const needsRestart =
           payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));

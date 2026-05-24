@@ -140,6 +140,23 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     ]`;
   const simulcastLabel = useSimulcast ? "3-layer" : "single-layer";
   const totalBitrate = useSimulcast ? bitrates.total : singleLayerBitrate;
+
+  // Phase 59 (2026-05-24): codec + content-hint operator controls.
+  // - codecPreference: "h264" (default, broad compatibility) or "vp9"
+  //   (better compression efficiency, ~30-50% sharper at same bitrate).
+  // - contentHint: tells the encoder how to bias rate-control.
+  //   "detail" = preserve fine spatial detail (board game default);
+  //   "motion" = preserve motion smoothness;
+  //   "text" = legibility-first (even higher detail priority);
+  //   "default" = no hint (encoder uses its built-in heuristics).
+  //   Bench result: contentHint="motion" makes encoder use ~370 kbps
+  //   on static content; contentHint="detail" pushes the encoder to
+  //   use more of the bitrate budget for sharper individual frames.
+  const codecPreference = encoderConfig?.codecPreference === "vp9" ? "vp9" : "h264";
+  const contentHintValue = ["default", "detail", "motion", "text"].includes(encoderConfig?.contentHint)
+    ? encoderConfig.contentHint
+    : "detail";
+  const codecMimeMatch = codecPreference === "vp9" ? "video/vp9" : "video/h264";
   return `
 (async () => {
   try {
@@ -265,22 +282,78 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       }
     } catch {}
 
-    // 4. D-A3 encoding layers + D-A2 H264 codec preference.
+    // 4. D-A3 encoding layers + D-A2/Phase 59 codec preference.
     // h18 (2026-05-06): single-layer on software encoders (x264) so the
     // CPU isn't paying triple encode cost. Hardware encoders keep 3
     // simulcast layers for adaptive-bitrate quality.
     const videoEncodings = ${encodingsLiteral};
-    console.log("[ssr-publisher] encoder=${enc} simulcast=${simulcastLabel} bitrate=${totalBitrate}");
+    console.log("[ssr-publisher] encoder=${enc} codec=${codecPreference} contentHint=${contentHintValue} simulcast=${simulcastLabel} bitrate=${totalBitrate}");
+
+    // Phase 59 (2026-05-24): set contentHint BEFORE produce(). This is
+    // a track-level hint that tells the encoder how to bias rate-control.
+    // For "detail" / "text" the encoder favors spatial sharpness over
+    // motion smoothness, even on screen-capture tracks (which Chromium
+    // otherwise defaults to "motion" for).
+    try {
+      videoTrack.contentHint = ${JSON.stringify(contentHintValue === "default" ? "" : contentHintValue)};
+      console.log("[ssr-publisher] track.contentHint set to '" + videoTrack.contentHint + "'");
+    } catch (e) {
+      console.warn("[ssr-publisher] contentHint assignment failed:", e?.message);
+    }
+
     // Phase 58 (2026-05-24): videoGoogleStartBitrate is the encoder's
     // initial target in kbps. Default 1000 (1 Mbit/s) meant a static
     // scene encoded at ~1 Mbit/s and GCC had no signal to probe higher.
     // Start at the configured slider value so the encoder reaches the
     // operator's target immediately.
+    // Phase 58/59 (2026-05-24): videoGoogleStartBitrate sets the encoder's
+    // initial target in kbps. We also tested videoGoogleMinBitrate (would
+    // force minimum bitrate even on static content) but empirically the
+    // Chromium 131 encoder ignores it for OpenH264 -- sendBps stayed at
+    // ~140 kbps even with min=5_000_000 set. Left it out as a no-op.
     const codecOptions = { videoGoogleStartBitrate: ${Math.round(totalBitrate / 1000)} };
-    const h264Codec = device.rtpCapabilities.codecs.find((c) => c.mimeType && c.mimeType.toLowerCase() === "video/h264");
+
+    // Phase 59 (2026-05-24): pick the codec specified by the operator.
+    // Both H.264 and VP9 are declared in mediasoup's MEDIA_CODECS.
+    // If the requested codec isn't in rtpCapabilities (e.g. mediasoup
+    // didn't advertise it for some reason), fall back to H.264.
+    const codecMime = ${JSON.stringify(codecMimeMatch)};
+    let chosenCodec = device.rtpCapabilities.codecs.find(
+      (c) => c.mimeType && c.mimeType.toLowerCase() === codecMime,
+    );
+    if (!chosenCodec) {
+      chosenCodec = device.rtpCapabilities.codecs.find(
+        (c) => c.mimeType && c.mimeType.toLowerCase() === "video/h264",
+      );
+      console.warn("[ssr-publisher] requested codec '" + codecMime + "' not in rtpCapabilities; using H.264 fallback");
+    }
     const produceOpts = { track: videoTrack, encodings: videoEncodings, codecOptions: codecOptions };
-    if (h264Codec) produceOpts.codec = h264Codec;
+    if (chosenCodec) produceOpts.codec = chosenCodec;
     const videoProducer = await sendTransport.produce(produceOpts);
+
+    // Phase 59 (2026-05-24): set degradationPreference="maintain-resolution"
+    // when the operator wants detail/text optimization. This prevents
+    // Chromium from secretly lowering resolution under CPU/network
+    // pressure (the default "balanced" can degrade both res AND fps).
+    // For motion-priority content we leave the default ("balanced").
+    try {
+      const sender = videoProducer.rtpSender;
+      if (sender && typeof sender.getParameters === "function" && typeof sender.setParameters === "function") {
+        const params = sender.getParameters();
+        const desiredPref = ${JSON.stringify(
+          contentHintValue === "detail" || contentHintValue === "text"
+            ? "maintain-resolution"
+            : contentHintValue === "motion"
+              ? "maintain-framerate"
+              : "balanced",
+        )};
+        params.degradationPreference = desiredPref;
+        await sender.setParameters(params);
+        console.log("[ssr-publisher] degradationPreference set to '" + desiredPref + "'");
+      }
+    } catch (e) {
+      console.warn("[ssr-publisher] degradationPreference failed:", e?.message);
+    }
 
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);

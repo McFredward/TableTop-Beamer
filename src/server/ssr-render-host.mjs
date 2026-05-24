@@ -322,6 +322,8 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   let userResolution = "auto";
   let userFps = null;
   let userStreamFpsCap = 60;
+  let userCodecPreference = "h264";
+  let userContentHint = "detail";
   try {
     const raw = await readFile(configPath, "utf8");
     const cfg = JSON.parse(raw);
@@ -335,6 +337,14 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
     if (typeof sr.streamFpsCap === "number" && Number.isFinite(sr.streamFpsCap)) {
       userStreamFpsCap = sr.streamFpsCap;
+    }
+    if (typeof sr.codecPreference === "string" && (sr.codecPreference === "h264" || sr.codecPreference === "vp9")) {
+      userCodecPreference = sr.codecPreference;
+    }
+    if (typeof sr.contentHint === "string"
+        && (sr.contentHint === "default" || sr.contentHint === "detail"
+            || sr.contentHint === "motion" || sr.contentHint === "text")) {
+      userContentHint = sr.contentHint;
     }
   } catch (err) {
     if (err && err.code !== "ENOENT") {
@@ -390,6 +400,9 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   logger.info(
     `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap}`,
   );
+  logger.info(
+    `[ssr-host] codecPreference=${userCodecPreference} contentHint=${userContentHint}`,
+  );
 
   return {
     encoder: chosen,
@@ -402,6 +415,8 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
+    codecPreference: userCodecPreference,     // Phase 59 (2026-05-24)
+    contentHint: userContentHint,             // Phase 59 (2026-05-24)
   };
 }
 

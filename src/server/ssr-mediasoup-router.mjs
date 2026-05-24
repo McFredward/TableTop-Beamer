@@ -66,6 +66,14 @@ function detectAnnouncedIp(logger) {
 // existing runtime-wire-room-audio-binders.js path. We intentionally
 // do NOT advertise audio/opus here so that no part of the pipeline
 // can accidentally subscribe to a non-existent audio track.
+//
+// Phase 59 (2026-05-24): VP9 added as an alternative codec. Both
+// declared in the router's codec list; the publisher picks one at
+// produce-time based on the operator's `codecPreference` setting.
+// VP9 produces ~30-50% better quality than H.264 at the same bitrate
+// (academic benchmarks); for the typical board game scene the
+// improvement is most visible in fine-detail areas (room outlines,
+// hexagonal patterns, text labels).
 const MEDIA_CODECS = [
   {
     kind: "video",
@@ -75,6 +83,16 @@ const MEDIA_CODECS = [
       "packetization-mode": 1,
       "profile-level-id": "42e01f",
       "level-asymmetry-allowed": 1,
+    },
+  },
+  {
+    kind: "video",
+    mimeType: "video/VP9",
+    clockRate: 90000,
+    parameters: {
+      // profile-id=0 is the most broadly supported VP9 profile
+      // (8-bit, 4:2:0). Chrome's bundled libvpx encoder supports it.
+      "profile-id": 0,
     },
   },
 ];

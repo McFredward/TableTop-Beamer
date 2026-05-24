@@ -201,6 +201,9 @@
       ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
+      // Phase 59 (2026-05-24): codec + content-hint operator levers.
+      ssrCodecSelect: document.querySelector("#ssr-codec-select"),
+      ssrContentHintSelect: document.querySelector("#ssr-content-hint-select"),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),
       polygonRoomSelect: document.querySelector("#polygon-room-select"),

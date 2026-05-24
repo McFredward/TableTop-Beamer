@@ -34,12 +34,33 @@ export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
 // gap-closure-5/6/13/14 history). Feature reverted; only streamFpsCap
 // remains as a working FPS knob (caps the output stream framerate).
 
+// Phase 59 (2026-05-24): codec + content-hint operator levers.
+// Bitrate cap alone doesn't move the encoder above ~400 kbps for static
+// board content (H.264 rate-control fills only what content needs).
+// Two real levers:
+//
+//   1. codecPreference: H.264 vs VP9. VP9 produces visibly sharper
+//      output at the same bitrate (~30-50% more efficient compression).
+//   2. contentHint: tells the encoder how to bias rate-control.
+//      "detail" → preserve fine spatial detail (board lines, hexagons);
+//      "motion" → preserve motion smoothness; "text" → legibility-first.
+//
+// Both default to operator-can-tune-it in the UI. Defaults chosen for
+// the typical board-game-overlay use case.
+export const CODEC_VALUES = ["h264", "vp9"];
+export const CODEC_DEFAULT = "h264"; // broad compatibility on Pi-side decoders
+
+export const CONTENT_HINT_VALUES = ["default", "detail", "motion", "text"];
+export const CONTENT_HINT_DEFAULT = "detail"; // board content has fine detail
+
 const KNOWN_KEYS = new Set([
   "encoder",
   "streamBitrateMbps",
   "resolutionPreference",
   "fpsTarget",
   "streamFpsCap",
+  "codecPreference",
+  "contentHint",
 ]);
 
 /**
@@ -66,6 +87,8 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
     resolutionPreference: "1080p",
     fpsTarget: 30,
     streamFpsCap: STREAM_FPS_CAP_DEFAULT,
+    codecPreference: CODEC_DEFAULT,
+    contentHint: CONTENT_HINT_DEFAULT,
   };
 }
 
@@ -117,6 +140,15 @@ export function validateServerRenderingPatch(patch) {
     if (!STREAM_FPS_CAP_VALUES.includes(patch.streamFpsCap)) {
       return { valid: false, reason: "streamFpsCap-not-in-enum" };
     }
+  }
+  // Phase 59 (2026-05-24): codec + content-hint validation.
+  if ("codecPreference" in patch) {
+    if (typeof patch.codecPreference !== "string") return { valid: false, reason: "codecPreference-wrong-type" };
+    if (!CODEC_VALUES.includes(patch.codecPreference)) return { valid: false, reason: "codecPreference-not-in-enum" };
+  }
+  if ("contentHint" in patch) {
+    if (typeof patch.contentHint !== "string") return { valid: false, reason: "contentHint-wrong-type" };
+    if (!CONTENT_HINT_VALUES.includes(patch.contentHint)) return { valid: false, reason: "contentHint-not-in-enum" };
   }
   return { valid: true };
 }
@@ -180,6 +212,8 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
       resolutionPreference: typeof sr.resolutionPreference === "string" && RESOLUTION_VALUES.includes(sr.resolutionPreference) ? sr.resolutionPreference : defaults.resolutionPreference,
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
       streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,
+      codecPreference: typeof sr.codecPreference === "string" && CODEC_VALUES.includes(sr.codecPreference) ? sr.codecPreference : defaults.codecPreference,
+      contentHint: typeof sr.contentHint === "string" && CONTENT_HINT_VALUES.includes(sr.contentHint) ? sr.contentHint : defaults.contentHint,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") return defaults;

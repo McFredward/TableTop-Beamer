@@ -815,6 +815,42 @@
           handle it.
         </p>
 
+        <!-- Phase 59 (2026-05-24): codec + content-hint operator levers.
+             These are the actual sharpness knobs -- the bitrate slider
+             alone is a ceiling that low-motion content rarely hits.
+             Changing either restarts the SSR Chromium tab (briefly
+             dropping the stream, same /output/ "Reconnecting" banner). -->
+        <label for="ssr-codec-select">
+          Video codec
+          <select id="ssr-codec-select">
+            <option value="h264">H.264 (broad compatibility)</option>
+            <option value="vp9">VP9 (sharper at same bitrate, modern decoders)</option>
+          </select>
+        </label>
+        <p class="ssr-hint-help">
+          H.264 is the safest default. VP9 produces visibly cleaner text
+          and edges at the same bitrate but uses more CPU when no
+          hardware encoder is present (software libvpx ~24 fps vs OpenH264
+          ~30 fps on the bench).
+        </p>
+
+        <label for="ssr-content-hint-select">
+          Content optimization
+          <select id="ssr-content-hint-select">
+            <option value="detail">Detail (recommended for board content)</option>
+            <option value="text">Text (legibility first)</option>
+            <option value="motion">Motion (smooth video, fills the bitrate budget)</option>
+            <option value="default">Default (auto)</option>
+          </select>
+        </label>
+        <p class="ssr-hint-help">
+          "Detail" / "Text" tell the encoder to favor spatial sharpness
+          per frame; bytes/sec stay low on static content but each frame
+          uses lower quantization. "Motion" fills more of the bitrate
+          budget (visible byte rate goes up) and prioritizes
+          frame-to-frame smoothness over per-frame sharpness.
+        </p>
+
         <fieldset class="ssr-radio-group">
           <legend>Resolution preference</legend>
           <label><input type="radio" name="ssr-resolution-preference" value="auto" /> Auto (adaptive 1080p / 720p)</label>
