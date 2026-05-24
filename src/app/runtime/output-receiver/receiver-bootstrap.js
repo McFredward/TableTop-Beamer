@@ -365,8 +365,24 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       packetsLost: 0, packetsReceived: 0, bytesReceived: 0, totalDecodeTime: 0 },
     candidatePair: { rtt: null, availableIncomingBitrate: null },
     decoderImplementation: null,
+    // Phase 61 (2026-05-24): poll-side derived recv bitrate. Computed
+    // in pollRtcStats() each tick using a persistent "last good sample"
+    // anchor (see _recvAnchor below). Set to null until a valid diff
+    // becomes available; sticky for STICKY_MS once positive.
+    derivedRecvBps: null,
+    derivedRecvBpsStale: false,
   };
   let rtcStatsPrev = null;
+  // Phase 61: persistent anchor for recv-bitrate calculation. Holds the
+  // last sample where we had a real inbound-rtp reading (positive
+  // timestamp + non-zero bytesReceived). The next poll diffs against
+  // this anchor; the anchor only advances when a NEW sample shows real
+  // forward progress. Bridges the Pi's intermittently-sparse stats
+  // sampling (some polls return identical bytesReceived because
+  // Chromium's internal stats refresh hasn't ticked).
+  const _recvAnchor = { timestamp: 0, bytesReceived: 0, atMs: 0 };
+  let _lastDerivedRecvBpsAt = 0;
+  const _RECV_STICKY_MS = 15000;
 
   /**
    * Phase 33 Plan 03-T1: centralized state-transition function. ALL state
@@ -939,6 +955,57 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
         const codec = report.get?.(codecId);
         if (codec?.mimeType) next.codec = String(codec.mimeType);
       }
+
+      // Phase 61 (2026-05-24): derive recv bitrate using the persistent
+      // anchor. The anchor holds the last sample where we observed real
+      // inbound-rtp data (positive timestamp + bytes). Diffing against
+      // the anchor (instead of the immediately-prior tick) is robust to
+      // Pi-side sparse stats: when getStats returns the same
+      // bytesReceived twice in a row (Chromium internal stats hasn't
+      // refreshed), we don't reset the value to 0 — we keep the last
+      // derived bitrate sticky for up to STICKY_MS, then fall back.
+      const curT = Number(next.inbound.timestamp || 0);
+      const curBytes = Number(next.inbound.bytesReceived || 0);
+      const now = Date.now();
+      let computedFresh = false;
+      if (curT > 0 && curBytes > 0) {
+        if (_recvAnchor.timestamp <= 0) {
+          // First real sample — seed the anchor, no diff yet.
+          _recvAnchor.timestamp = curT;
+          _recvAnchor.bytesReceived = curBytes;
+          _recvAnchor.atMs = now;
+        } else if (curT > _recvAnchor.timestamp && curBytes >= _recvAnchor.bytesReceived) {
+          const dt = curT - _recvAnchor.timestamp;
+          const dBytes = curBytes - _recvAnchor.bytesReceived;
+          // Require >=300ms gap so we don't divide by near-zero on
+          // rapid stats refreshes, and >=1 byte of progress so we
+          // don't compute 0-bps on idle ticks (those are noise).
+          if (dt >= 300 && dBytes > 0) {
+            next.derivedRecvBps = (dBytes * 8 * 1000) / dt;
+            next.derivedRecvBpsStale = false;
+            computedFresh = true;
+            _lastDerivedRecvBpsAt = now;
+            // Slide the anchor forward to keep the diff window small
+            // (~1-2s of recent activity, not a since-stream-start sum).
+            _recvAnchor.timestamp = curT;
+            _recvAnchor.bytesReceived = curBytes;
+            _recvAnchor.atMs = now;
+          }
+        }
+      }
+      if (!computedFresh) {
+        // No fresh value computed this tick — carry the last known
+        // good for STICKY_MS, then go to null (real disconnect signal).
+        const prevDerived = rtcStats?.derivedRecvBps;
+        if (prevDerived != null && (now - _lastDerivedRecvBpsAt) < _RECV_STICKY_MS) {
+          next.derivedRecvBps = prevDerived;
+          next.derivedRecvBpsStale = true;
+        } else {
+          next.derivedRecvBps = null;
+          next.derivedRecvBpsStale = false;
+        }
+      }
+
       rtcStatsPrev = rtcStats;
       rtcStats = next;
     } catch (_) {

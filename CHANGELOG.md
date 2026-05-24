@@ -10,6 +10,47 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.12] — 2026-05-24
+
+Phase 61: Robust recv-bitrate via persistent anchor + stale indicator.
+
+### Fixed
+- **`recv=?` still flickering even after Phase 60's sticky cache.**
+  Operator UAT (2026-05-24): "etwa 3 bis 4 sekunden ist 'recv' ?,
+  dann kurz für eine halbe Sekunde sehe ich was, dann wieder ?".
+  Phase 60 cached the last-good value at module scope in
+  `receiver-status-ui.js`, but the cache was recomputed inside the
+  formatter — and the formatter ran on every 1 s tick regardless of
+  whether `pollRtcStats()` had actually resolved. On a Pi where
+  Chromium's internal RTCStats refresh ticks at ~2 s (not 1 s), every
+  other tick saw `bytesReceived` unchanged → my Phase-60 guard
+  returned the cached value but a 0-byte tick still flashed
+  "?" on alternating renders.
+- Restructure: recv-bitrate computation moved into
+  `receiver-bootstrap.js#pollRtcStats()`, which runs ONLY when
+  getStats() actually resolves. A persistent "anchor sample" lives
+  in module scope and only advances on real forward progress (positive
+  timestamp + positive bytesReceived). The anchor is diffed against
+  the new sample each poll; the result is stored on
+  `rtcStats.derivedRecvBps` (sticky 15 s if the next poll can't
+  compute fresh). The formatter just reads that field — no per-render
+  computation.
+- **Stale indicator:** when the cached value is being shown
+  (because the latest poll didn't produce a fresh diff), the chip
+  renders `recv=12.3Mbps~` (trailing tilde). Lets the operator
+  distinguish "still flowing at this rate" from "this is the last
+  reading I had, but I'm not sure right now". After 15 s of no fresh
+  data the value falls back to `?` (real stream-loss signal).
+- (`<sha>`, Phase 61)
+
+### Note for operator
+- After this patch lands, **hard-reload the Pi /output/ tab**
+  (Ctrl+Shift+R or close+reopen the browser tab). Browser HTTP cache
+  may otherwise hold the older receiver-status-ui.js. Same for any
+  open dashboard tabs.
+
+---
+
 ## [1.0.11] — 2026-05-24
 
 Phase 60: Stabilize `recv=` field in the diagnostic overlay.
