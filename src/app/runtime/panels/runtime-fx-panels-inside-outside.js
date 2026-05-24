@@ -382,7 +382,23 @@
 
   async function loadOutsideResourceAssets() {
     try {
-      const response = await fetch("/api/resources");
+      // Phase 50 (2026-05-24): timeout-wrap the /api/resources fetch.
+      // Operator UAT: mobile dashboard stuck on "Loading..." forever.
+      // Debug session traced it to this raw `fetch()` — a single TCP
+      // retransmit or AP roam on real Android wifi can hang it
+      // indefinitely. AbortController gives us bounded waits; the
+      // existing try/catch already handles the AbortError by setting
+      // an empty asset list, so a slow network just yields "no extra
+      // assets detected" rather than a stuck bootstrap.
+      const TIMEOUT_MS = (window.TT_BEAMER_CONFIG?.API_REQUEST_TIMEOUT_MS ?? 8000);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let response;
+      try {
+        response = await fetch("/api/resources", { signal: controller.signal });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
       if (!response.ok) {
         throw new Error(`resource list failed (${response.status})`);
       }

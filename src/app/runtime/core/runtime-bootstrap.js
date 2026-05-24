@@ -297,14 +297,19 @@
     });
   }
 
-  // W3.6-C7 Phase 7: loading-overlay state setup + 12s safety
-  // dismissal + first frame kickoff via requestAnimationFrame.
-  function _initApplicationLoadingOverlayAndDraw() {
+  // Phase 50 (2026-05-24): loading-overlay state + 12s safety timer.
+  // Operator UAT: mobile dashboard stuck on "Loading..." forever.
+  // Root cause (debugger trace): this safety timer used to live in
+  // Phase 7 — the LAST step of initializeApplication() — running AFTER
+  // six async phases. If anything in Phases 1-6 hung (e.g. a raw
+  // fetch on a flaky mobile network), the safety timer never registered
+  // and the loading overlay sat forever. Split into TWO functions:
+  //   - _registerLoadingOverlaySafety(): registers state + 12s safety
+  //     IMMEDIATELY at the top of initializeApplication.
+  //   - _startApplicationDrawLoop(): kicks off requestAnimationFrame,
+  //     stays at the end (depends on ctx.draw being wired by Phase 6).
+  function _registerLoadingOverlaySafety() {
     const state = ctx.state;
-    // Loading overlay state — tickLoadingOverlay() in the draw
-    // loop checks this every frame and dismisses when ready. Two paths:
-    //   FAST: no board switch + image loaded → dismiss after 3 stable frames
-    //   SLOW: board switch detected → wait for server snapshot + new image
     state._loading = {
       overlay: document.getElementById("loading-overlay"),
       dismissed: false,
@@ -312,7 +317,10 @@
       lastSeenSrc: ctx.boardImage?.src || "",
       stableFrames: 0,
     };
-    // Safety: always dismiss after 12s
+    // Defense in depth: ALWAYS dismiss after 12s, regardless of which
+    // bootstrap phase is currently running or hung. The draw-loop's
+    // tickLoadingOverlay() will dismiss earlier on the happy path
+    // (server-snapshot + image-loaded + 3 stable frames).
     const loadingOverlay = state._loading.overlay;
     if (loadingOverlay) {
       setTimeout(() => {
@@ -323,18 +331,25 @@
         }
       }, 12000);
     }
+  }
+
+  function _startApplicationDrawLoop() {
     requestAnimationFrame(ctx.draw);
   }
 
   async function initializeApplication() {
     ctx.logBootstrap.info("init_start", { event: "init-start" });
+    // Phase 50 (2026-05-24): register the 12s safety FIRST so any
+    // subsequent hang in the async phases still releases the user
+    // from the loading screen.
+    _registerLoadingOverlaySafety();
     await _initApplicationLoadZonesAndResources();
     _initApplicationSetupBoardState();
     const startupDefaultsSnapshot = await _initApplicationStartupDefaultsGuard();
     _initApplicationConnectAndSync();
     _initApplicationApplyHydrationStatus(startupDefaultsSnapshot);
     _initApplicationWarmupAndRegress();
-    _initApplicationLoadingOverlayAndDraw();
+    _startApplicationDrawLoop();
   }
 
   window.TT_BEAMER_RUNTIME_BOOTSTRAP = {

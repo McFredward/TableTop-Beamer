@@ -3192,5 +3192,23 @@ void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({
       event: "init-fail",
       error: String(error?.message || error),
     });
+    // Phase 50 (2026-05-24): dismiss the loading overlay when
+    // bootstrap throws so the user sees the underlying UI (or the
+    // server-unreachable overlay if that path was taken) instead of
+    // a stuck spinner. Without this, a thrown bootstrap left the
+    // loading screen visible until the 12s safety timer fired —
+    // which itself only runs if _registerLoadingOverlaySafety()
+    // executed before the throw.
+    try {
+      const overlay = document.getElementById("loading-overlay");
+      if (overlay && !overlay.classList.contains("is-hidden")) {
+        overlay.classList.add("is-hidden");
+        overlay.addEventListener(
+          "transitionend",
+          () => overlay.remove(),
+          { once: true },
+        );
+      }
+    } catch { /* never let cleanup throw */ }
   },
 });

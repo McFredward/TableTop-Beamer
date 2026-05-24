@@ -10,6 +10,66 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.16] — 2026-05-24
+
+Phase 50: Mobile loading-stuck — actual root cause (3 fixes).
+
+### Fixed
+- **Mobile dashboard stuck on "Loading..." forever (real root cause).**
+  Operator UAT (2026-05-24): "Das Ursprungsproblem ist nicht gelöst:
+  Am Handy 'Loading...' aber es lädt nicht". The v1.0.15 timeout bump
+  (3s → 8s on `API_REQUEST_TIMEOUT_MS`) did not help because it only
+  affected `fetchWithTimeout`, which `/api/global-defaults` and
+  `/api/boards` use. The actual culprit was a different request
+  with NO timeout at all. Spawned debugger; reproduction confirmed:
+
+  **(1) `loadOutsideResourceAssets()` used raw `fetch("/api/resources")`
+  with no AbortController.** On real Android wifi a single TCP
+  retransmit / AP roam can hang this fetch indefinitely. Since it's
+  awaited inside `_initApplicationLoadZonesAndResources` (Phase 1 of
+  bootstrap), bootstrap stalls in Phase 1, the 12s safety timer that
+  was registered in Phase 7 never runs, and the user sees Loading...
+  forever. **Fix:** wrap in AbortController + reuse the existing
+  `API_REQUEST_TIMEOUT_MS=8000ms` budget. File:
+  `src/app/runtime/panels/runtime-fx-panels-inside-outside.js:385`.
+
+  **(2) 12-second loading-overlay safety timer was registered in
+  Phase 7 (LAST step of `initializeApplication`).** Defense-in-depth
+  violation: if any earlier async phase hangs, the safety never
+  registers. **Fix:** split `_initApplicationLoadingOverlayAndDraw()`
+  into `_registerLoadingOverlaySafety()` (state + 12s safety,
+  registered FIRST) and `_startApplicationDrawLoop()` (kicks
+  requestAnimationFrame, stays last because it depends on `ctx.draw`).
+  Future async hangs anywhere in the bootstrap chain now still
+  release the user within 12s. File:
+  `src/app/runtime/core/runtime-bootstrap.js:300-353`.
+
+  **(3) `onError` handler in `runApplicationBootstrap` did not
+  dismiss the loading overlay.** If bootstrap throws (e.g. real
+  fatal error), the overlay sat on top of whatever the error path
+  rendered. **Fix:** add explicit `is-hidden` toggle to the onError
+  callback so the user sees the underlying UI / unreachable-overlay.
+  File: `src/app/runtime/runtime-orchestration.js:3189-3210`.
+
+### Verification (Playwright, Android 13 / Chrome 131 mobile UA)
+- Repro: route `/api/resources` to hang 40 seconds.
+- **Before:** loading overlay still visible at t=30s, bootstrap never
+  completes (debugger trace).
+- **After:** at t=8.1s the AbortController fires (`REQFAIL:
+  net::ERR_ABORTED`), the catch handler sets an empty asset list,
+  bootstrap completes, **loading overlay dismissed at t=10.1s**
+  with `bootstrapConfig=true`. SUCCESS.
+
+### Debug session
+Full repro log + scenario matrix in
+`.planning/debug/phase-50-mobile-loading-stuck-v2.md`. Five
+scenarios tested: baseline / `/api/global-defaults` 15s delay /
+`/api/resources` 40s hang / `/api/boards` 15s delay / Google Fonts
+hang. The `/api/resources` scenario was the only exact match for
+the operator's symptom (Loading visible, no error overlay).
+
+---
+
 ## [1.0.15] — 2026-05-24
 
 Phase 50: Mobile loading-screen fix + English-only UI strings.
