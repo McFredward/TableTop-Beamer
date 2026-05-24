@@ -81,16 +81,35 @@
   function _initApplicationSetupBoardState() {
     const state = ctx.state;
     const BOARDS = ctx.getBoards();
-    // Honour the last-opened board id from localStorage
-    // before falling back to the first available board. Server-side
-    // state may carry its own boardId too — prefer that over the
-    // persisted one if set, otherwise use the stored preference.
+    // Phase 50 (2026-05-24, follow-up): pick the initial board with
+    // priority:
+    //   1. Server's live-session `selectedBoard` (from
+    //      /api/global-defaults; embedded into __TT_BEAMER_BOOTSTRAP_CONFIG__
+    //      by Phase 3 which now runs BEFORE this function).
+    //   2. localStorage's last-board-id (per-device preference; only
+    //      meaningful on a device that has visited the dashboard
+    //      before).
+    //   3. BOARDS[0] (alphabetic first — sensible default for a
+    //      brand-new device with no signals).
+    // Operator UAT: "es hat erst das falsche board (frostpunk) geladen
+    // und dann nochmal ne minute gedauert bis es das richtige board
+    // geladen hat". The server-snapshot hint closes the gap so mobile
+    // (no localStorage) lands on the right board on first paint.
+    let serverHintBoardId = "";
+    try {
+      const bp = window.__TT_BEAMER_BOOTSTRAP_CONFIG__;
+      if (bp && typeof bp === "object" && typeof bp.selectedBoard === "string") {
+        serverHintBoardId = bp.selectedBoard;
+      }
+    } catch { /* defensive */ }
     let persistedBoardId = "";
     try {
       persistedBoardId = window.localStorage?.getItem("tt-beamer.last-board-id.v1") || "";
     } catch { /* private mode / quota — ignore */ }
     if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
-      if (persistedBoardId && BOARDS.some((board) => board.id === persistedBoardId)) {
+      if (serverHintBoardId && BOARDS.some((board) => board.id === serverHintBoardId)) {
+        state.boardId = serverHintBoardId;
+      } else if (persistedBoardId && BOARDS.some((board) => board.id === persistedBoardId)) {
         state.boardId = persistedBoardId;
       } else {
         state.boardId = BOARDS[0]?.id ?? "";
@@ -344,8 +363,17 @@
     // from the loading screen.
     _registerLoadingOverlaySafety();
     await _initApplicationLoadZonesAndResources();
-    _initApplicationSetupBoardState();
+    // Phase 50 (2026-05-24, follow-up): run the global-defaults fetch
+    // BEFORE setupBoardState so we have the server's authoritative
+    // `selectedBoard` hint (via __TT_BEAMER_BOOTSTRAP_CONFIG__) at the
+    // moment we pick the initial board. Previously setupBoardState ran
+    // first and defaulted to BOARDS[0] (alphabetic first; frostpunk on
+    // the operator's setup), then the live-sync snapshot arrived later
+    // and triggered a board switch — visible on mobile as ~1 min of
+    // "wrong board → correct board". Both phases are independent (the
+    // guard doesn't depend on state.boardId), so this reorder is safe.
     const startupDefaultsSnapshot = await _initApplicationStartupDefaultsGuard();
+    _initApplicationSetupBoardState();
     _initApplicationConnectAndSync();
     _initApplicationApplyHydrationStatus(startupDefaultsSnapshot);
     _initApplicationWarmupAndRegress();

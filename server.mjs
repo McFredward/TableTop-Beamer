@@ -4326,6 +4326,21 @@ const server = createServer(async (req, res) => {
           ...sr,
           ...(Array.isArray(detected) && detected.length > 0 ? { availableEncoders: detected } : {}),
         };
+        // Phase 50 (2026-05-24, follow-up): include the live-session's
+        // current selectedBoard so a fresh dashboard load (especially on
+        // mobile where no localStorage hint exists yet) can pick the
+        // correct board on the FIRST render instead of flashing BOARDS[0]
+        // first and then switching when the WS snapshot arrives later.
+        // Operator UAT: "es hat erst das falsche board (frostpunk) geladen
+        // und dann nochmal ne minute gedauert bis es das richtige board
+        // geladen hat". Best-effort: missing snapshot → field omitted →
+        // dashboard falls back to localStorage / BOARDS[0] as before.
+        const runtimeSelectedBoard = normalizeNonEmptyString(
+          liveSessionState.snapshot?.selectedBoard,
+        );
+        if (runtimeSelectedBoard) {
+          response.selectedBoard = runtimeSelectedBoard;
+        }
         sendJson(res, 200, response);
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });

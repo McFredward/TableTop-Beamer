@@ -10,6 +10,41 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.17] — 2026-05-24
+
+Phase 50: Initial board hint for mobile cold-start.
+
+### Fixed
+- **Mobile first-load briefly showed the wrong board.** Operator UAT
+  (2026-05-24): "es hat erst das falsche board (frostpunk) geladen und
+  dann nochmal ne minute gedauert bis es das richtige board geladen
+  hat - kann man nicht direkt das richtige board laden?". Root cause:
+  `_initApplicationSetupBoardState` (Phase 2 of bootstrap) picked the
+  initial board with priority "localStorage → BOARDS[0]". On a fresh
+  mobile device with no localStorage entry, this defaulted to
+  alphabetic first = frostpunk. The live-session's actual
+  `selectedBoard` only arrived later via WebSocket hello / snapshot
+  poll, triggering a board switch (visible as ~1 min "wrong → right").
+  **Fix:**
+  - `/api/global-defaults` response now embeds the live-session's
+    current `selectedBoard` (from `liveSessionState.snapshot`). Missing
+    snapshot → field omitted → client falls back to previous behavior.
+  - `_initApplicationSetupBoardState` now consults
+    `window.__TT_BEAMER_BOOTSTRAP_CONFIG__.selectedBoard` FIRST (server
+    hint), then localStorage's last-board-id, then BOARDS[0].
+  - Reordered `initializeApplication` so `_initApplicationStartupDefaults
+    Guard` (which populates `__TT_BEAMER_BOOTSTRAP_CONFIG__`) runs
+    BEFORE `_initApplicationSetupBoardState`. Both phases are
+    independent so the reorder is safe.
+
+### Verification (Playwright Pixel 7 Android UA, cleared localStorage)
+- Before: `boardId: 'frostpunk'` for ~60 s before switching.
+- After: `boardId: 'nemesis-lockdown-a'` on first paint;
+  `bootstrapSelectedBoard: 'nemesis-lockdown-a'`; image src ends in
+  `nemesis-lockdown-a-moiz0aq6.png`; loading overlay dismissed cleanly.
+
+---
+
 ## [1.0.16] — 2026-05-24
 
 Phase 50: Mobile loading-stuck — actual root cause (3 fixes).
