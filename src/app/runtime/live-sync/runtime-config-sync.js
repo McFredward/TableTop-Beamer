@@ -317,8 +317,9 @@
 
     const info = document.createElement("p");
     info.textContent =
-      "Die globale Config wird ausschließlich vom Server geladen. "
-      + "Starte den Server und klicke Retry, um die App zu laden.";
+      "The global config is loaded exclusively from the server. "
+      + "Make sure the server is running and reachable on this network, "
+      + "then click Retry.";
     info.style.margin = "0";
     info.style.maxWidth = "640px";
     info.style.opacity = "0.75";

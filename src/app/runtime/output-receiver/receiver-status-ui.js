@@ -234,11 +234,11 @@ export function formatReconnectDetail({ lastError = null, lastSuccessAtMs = null
     parts.push(lastError.length > 80 ? lastError.slice(0, 77) + "…" : lastError);
   }
   if (lastSuccessAtMs != null) {
-    parts.push(`letzte Verbindung: ${formatTimeSinceLastSuccess(lastSuccessAtMs, nowMs)}`);
+    parts.push(`last connection: ${formatTimeSinceLastSuccess(lastSuccessAtMs, nowMs)}`);
   } else if (parts.length === 0) {
     return "";
   } else {
-    parts.push("letzte Verbindung: —");
+    parts.push("last connection: —");
   }
   return parts.join(" · ");
 }
@@ -283,7 +283,7 @@ export function setReconnectDetail({ doc, lastError = null, lastSuccessAtMs = nu
 
 /**
  * Phase 33 Plan 04-T2: render the GivenUp overlay — operator-actionable
- * "Verbindung verloren" panel with a Retry button. Idempotent: safe to call
+ * "Connection lost" panel with a Retry button. Idempotent: safe to call
  * multiple times (re-uses the existing DOM nodes if present).
  *
  * Creates DOM dynamically (no index.html change required); the overlay
@@ -332,7 +332,7 @@ export function showGivenUpOverlay({
     const title = doc.createElement("h2");
     title.id = "ssr-given-up-title";
     title.className = "ssr-given-up-title";
-    title.textContent = "Verbindung verloren";
+    title.textContent = "Connection lost";
     title.style.cssText = "font-size: 32px; margin: 0 0 16px;";
 
     const errLine = doc.createElement("p");
@@ -365,14 +365,14 @@ export function showGivenUpOverlay({
 
   // Refresh content on every call.
   const errEl = doc.getElementById("ssr-given-up-error");
-  if (errEl) errEl.textContent = `Letzter Fehler: ${lastError || "(unbekannt)"}`;
+  if (errEl) errEl.textContent = `Last error: ${lastError || "(unknown)"}`;
   const detailEl = doc.getElementById("ssr-given-up-detail");
   if (detailEl) {
     const lastSuccessStr = lastSuccessAtMs != null
       ? new Date(lastSuccessAtMs).toLocaleTimeString()
       : "—";
     detailEl.textContent =
-      `Versuche: ${attempts} · Letzte erfolgreiche Verbindung: ${lastSuccessStr}`;
+      `Attempts: ${attempts} · Last successful connection: ${lastSuccessStr}`;
   }
 
   // Bind / re-bind the retry handler. Replace the button to drop prior listeners

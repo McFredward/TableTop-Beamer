@@ -136,7 +136,16 @@
   const API_BASE_STORAGE_KEY = "tt-beamer.api-base.v1";
   const API_BASE_URL_PARAM_KEYS = ["ttApiBase", "apiBase", "api_base"];
   const API_PORT_FALLBACKS = [4173, 4174, 3000, 8080];
-  const API_REQUEST_TIMEOUT_MS = 3000;
+  // Phase 50 (2026-05-24, follow-up): bumped from 3000 → 8000 ms.
+  // Operator UAT (2026-05-24): "Die mobile Nutzung funktioniert nicht
+  // mehr — weil es stuck im loading screen ist… Nach einer gewissen
+  // Zeit kommt 'Unable to connect to server (API UNREACHABLE)'. Am
+  // Desktop hab ich das nicht". The 3s ceiling was tight for mobile
+  // network round-trips (DNS + LAN hop + first-byte) — desktop on the
+  // same wire resolves in <100ms but a phone over wifi can spike past
+  // 3s on cold-start. 8s gives mobile a real chance without making
+  // legitimate failures (server actually down) feel slow.
+  const API_REQUEST_TIMEOUT_MS = 8000;
   const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
   const ROOM_GEOMETRY_DEFAULT = {
@@ -208,7 +217,7 @@
   // `package.json` — both must stay in lockstep or the topbar chip
   // drifts from the actual build (surfaced via the small chip in the
   // topbar, index.html #app-version + inline script).
-  const APP_VERSION = "1.0.14";
+  const APP_VERSION = "1.0.15";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,

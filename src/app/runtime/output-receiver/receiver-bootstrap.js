@@ -455,7 +455,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       try {
         showGivenUpOverlay({
           doc: (typeof document !== "undefined" ? document : null),
-          lastError: lastErrorMessage || "Verbindung dauerhaft verloren",
+          lastError: lastErrorMessage || "Connection permanently lost",
           attempts: reconnectAttempts,
           lastSuccessAtMs: lastSuccessfulConnectAtMs,
           onRetry: () => doManualRetry(),
@@ -755,7 +755,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
           // cleared on host-down — it could keep ticking and clobber the
           // error overlay we're about to show.
           if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
-          lastErrorMessage = "Render-Host abgestürzt";
+          lastErrorMessage = "Render host crashed";
           ui.hideSplash(); // h5: error must be visible above splash
           ui.showError(
             "Render host crashed. The server is restarting the render tab — click Retry to reconnect.",

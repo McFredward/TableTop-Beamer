@@ -10,6 +10,50 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.15] — 2026-05-24
+
+Phase 50: Mobile loading-screen fix + English-only UI strings.
+
+### Fixed
+- **Mobile dashboard stuck on loading screen → "Unable to connect to
+  server (API UNREACHABLE)".** Operator UAT (2026-05-24): "Die mobile
+  Nutzung funktioniert nicht mehr — weil es stuck im loading screen
+  ist… Nach einer gewissen Zeit kommt 'Unable to connect to server |
+  Global defaults save failed (API UNREACHABLE)'. Am Desktop hab ich
+  das nicht". Root cause: `API_REQUEST_TIMEOUT_MS` was 3000 ms — fine
+  on a wired desktop where the first byte returns in <100 ms, but
+  tight for mobile networks where cold-start DNS + LAN hop + first-
+  byte can spike past 3 s. The startup-defaults guard then threw
+  `API_UNREACHABLE`, the dashboard rendered the server-unreachable
+  overlay, and the loading screen got covered by it. **Fix:** bump
+  timeout to 8000 ms — gives mobile a real chance without making
+  legitimate "server actually down" cases feel slow.
+
+### Changed (i18n cleanup)
+- **All user-facing strings are now English.** Operator UAT: "bitte
+  schau dass jegliche Strings in der gesamten Anwendung englisch
+  sind". The following six German strings were translated:
+  - server-unreachable overlay info line:
+    "Die globale Config wird ausschließlich vom Server geladen.
+    Starte den Server und klicke Retry, um die App zu laden." →
+    "The global config is loaded exclusively from the server. Make
+    sure the server is running and reachable on this network, then
+    click Retry."
+  - GivenUp overlay title: "Verbindung verloren" → "Connection lost"
+  - GivenUp overlay detail:
+    "Versuche: N · Letzte erfolgreiche Verbindung: HH:MM:SS" →
+    "Attempts: N · Last successful connection: HH:MM:SS"
+  - GivenUp overlay error: "Letzter Fehler: X (unbekannt)" →
+    "Last error: X (unknown)"
+  - reconnect status: "letzte Verbindung: …" → "last connection: …"
+  - host-down error: "Render-Host abgestürzt" → "Render host crashed"
+  - Receiver-bootstrap: "Verbindung dauerhaft verloren" →
+    "Connection permanently lost"
+  Code comments quoting operator UAT (which by definition are German)
+  are kept as faithful citations.
+
+---
+
 ## [1.0.14] — 2026-05-24
 
 Phase 50: Settings → System polish + hint visibility in overlay.
