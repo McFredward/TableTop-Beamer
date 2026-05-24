@@ -21,6 +21,24 @@
 // and `pc-failed` signals which fire instantly via WebRTC state.
 export const DISCONNECT_THRESHOLD_MS = 8000;
 
+// Phase 60 (2026-05-24): sticky last-good cache for the diagnostic
+// overlay's `recv=` field. The raw RTCStats diff is intermittently
+// invalid (init-stub timestamps=0, transient missing inbound-rtp
+// entries, 0-byte ticks during idle frames). Without this cache the
+// chip showed "?" most of the time — operator reported "ich sehe nur
+// ganz kurz manchmal einen Wert". Holding the last good value for a
+// few seconds gives a stable readout while still resetting on real
+// stream loss.
+let _lastGoodRecvBps = null;
+let _lastGoodRecvBpsAt = 0;
+const RECV_BPS_STICKY_MS = 5000;
+function _useCachedRecvBps() {
+  if (_lastGoodRecvBps != null && (Date.now() - _lastGoodRecvBpsAt) < RECV_BPS_STICKY_MS) {
+    return _lastGoodRecvBps;
+  }
+  return null;
+}
+
 // Phase 33 iteration 2 (2026-05-09): frame-stale threshold separated from
 // heartbeat-stale threshold. The /output/ page is NOT a thin client — it
 // runs the FULL app code in parallel with showing the streamed video,
@@ -569,20 +587,44 @@ export function createStatusUi({
       ? Math.round(stream.jitter * 1000) : null;
     const availBitrate = rtcStats?.candidatePair?.availableIncomingBitrate;
 
-    // Phase 57: actual received bitrate from bytesReceived delta over the
-    // RTCStats timestamp delta. Diagnostic for the operator to compare
-    // against the configured slider value (`preset=`). If recv is far
-    // below the target with high-motion content, the wiring is broken;
-    // if recv matches but content is low-motion (board game idle), the
-    // encoder simply doesn't need the budget.
+    // Phase 57/60: actual received bitrate from bytesReceived delta over
+    // the RTCStats timestamp delta. The naive diff has three failure
+    // modes that flashed "?" in the operator's overlay most of the time:
+    //   1. The init-stub `rtcStats` carries `bytesReceived=0` and
+    //      `timestamp=0` for the first ~2 polls before the WebRTC stack
+    //      starts populating inbound-rtp; diff against that gives a
+    //      garbage huge timestamp and 0 bps.
+    //   2. Some getStats() polls return no inbound-rtp entry at all
+    //      (transient — happens during ICE renegotiation, codec switch
+    //      restart, or a brief decode stall); next.inbound stays at the
+    //      zero stub and the next tick's diff is bogus.
+    //   3. When dBytes is 0 (no bytes between polls) we return 0, which
+    //      formats as "?" — even though the stream is fine, just idle.
+    //
+    // Fix: only compute if BOTH timestamps are populated and strictly
+    // increasing, and cache the last good value for a few seconds so
+    // brief gaps don't flicker the chip.
     const recvBps = (() => {
       const cur = rtcStats?.inbound;
       const prev = rtcStatsPrev?.inbound;
-      if (!cur || !prev) return null;
-      const dt = (cur.timestamp || 0) - (prev.timestamp || 0); // ms
-      const dBytes = (cur.bytesReceived || 0) - (prev.bytesReceived || 0);
-      if (!Number.isFinite(dt) || dt <= 0 || dBytes < 0) return null;
-      return (dBytes * 8 * 1000) / dt;
+      if (!cur || !prev) return _useCachedRecvBps();
+      const curT = Number(cur.timestamp || 0);
+      const prevT = Number(prev.timestamp || 0);
+      // Reject if either timestamp is the init-stub (0) or hasn't
+      // advanced — both indicators that we don't have two real samples.
+      if (!Number.isFinite(curT) || !Number.isFinite(prevT) || prevT <= 0 || curT <= prevT) {
+        return _useCachedRecvBps();
+      }
+      const dt = curT - prevT;
+      const dBytes = Number(cur.bytesReceived || 0) - Number(prev.bytesReceived || 0);
+      // Require at least 100ms gap to avoid huge transient spikes from
+      // double-poll races.
+      if (dt < 100 || dBytes < 0) return _useCachedRecvBps();
+      const bps = (dBytes * 8 * 1000) / dt;
+      // Cache for fallback (sticky last good value).
+      _lastGoodRecvBps = bps;
+      _lastGoodRecvBpsAt = Date.now();
+      return bps;
     })();
 
     const dropFracPart = (() => {

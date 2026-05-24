@@ -10,6 +10,32 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.11] — 2026-05-24
+
+Phase 60: Stabilize `recv=` field in the diagnostic overlay.
+
+### Fixed
+- **`recv=?` no longer flickers most of the time on the /output/
+  diagnostic overlay.** Operator UAT (2026-05-24): "ich sehe nur ganz
+  kurz manchmal einen Wert". Root cause: the raw RTCStats diff in
+  `formatDiagnosticOverlay` had three failure modes —
+  1. The init-stub `rtcStats` has `bytesReceived=0` and `timestamp=0`
+     for the first ~2 polls before WebRTC populates inbound-rtp;
+     diffing against that produces garbage.
+  2. Some `getStats()` polls return no inbound-rtp entry at all
+     (transient during ICE renegotiation, codec switches, decode
+     stalls); `next.inbound` stays at the zero stub.
+  3. When `dBytes` is 0 between polls (idle frames), we returned 0,
+     which formatted as "?" via `fmtBitrate(0 ≤ 0) → "?"`.
+  **Fix:** require both `cur.timestamp` and `prev.timestamp` to be
+  populated (>0) and strictly increasing (>100ms gap); cache the last
+  good value at module level for 5 s so brief gaps don't flicker the
+  chip. Empirical bench: stability went from "~1 in 8 samples is a
+  real value" (operator report) to 39/40 samples = 97.5% real value.
+  (`<sha>`, Phase 60)
+
+---
+
 ## [1.0.10] — 2026-05-24
 
 Phase 59: VP9 codec + content-hint operator levers — actual stream
