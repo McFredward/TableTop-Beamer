@@ -586,7 +586,7 @@
         ssrPanel.initServerRenderingPanel({
           refs: ctx,
           emitLiveMutation: ctx.emitLiveMutation,
-          // Phase 54: wire markLocalConfigDirty so the bitrate slider
+          // Phase 50: wire markLocalConfigDirty so the bitrate slider
           // can flag pending changes to the global Apply bar without
           // immediately restarting the SSR Chromium tab.
           markLocalConfigDirty: (reason) => {

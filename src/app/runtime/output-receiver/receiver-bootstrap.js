@@ -365,7 +365,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       packetsLost: 0, packetsReceived: 0, bytesReceived: 0, totalDecodeTime: 0 },
     candidatePair: { rtt: null, availableIncomingBitrate: null },
     decoderImplementation: null,
-    // Phase 61 (2026-05-24): poll-side derived recv bitrate. Computed
+    // Phase 50 (2026-05-24): poll-side derived recv bitrate. Computed
     // in pollRtcStats() each tick using a persistent "last good sample"
     // anchor (see _recvAnchor below). Set to null until a valid diff
     // becomes available; sticky for STICKY_MS once positive.
@@ -373,7 +373,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     derivedRecvBpsStale: false,
   };
   let rtcStatsPrev = null;
-  // Phase 61: persistent anchor for recv-bitrate calculation. Holds the
+  // Phase 50: persistent anchor for recv-bitrate calculation. Holds the
   // last sample where we had a real inbound-rtp reading (positive
   // timestamp + non-zero bytesReceived). The next poll diffs against
   // this anchor; the anchor only advances when a NEW sample shows real
@@ -956,7 +956,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
         if (codec?.mimeType) next.codec = String(codec.mimeType);
       }
 
-      // Phase 61 (2026-05-24): derive recv bitrate using the persistent
+      // Phase 50 (2026-05-24): derive recv bitrate using the persistent
       // anchor. The anchor holds the last sample where we observed real
       // inbound-rtp data (positive timestamp + bytes). Diffing against
       // the anchor (instead of the immediately-prior tick) is robust to
@@ -969,7 +969,7 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       const now = Date.now();
       let computedFresh = false;
       if (curT > 0) {
-        // Phase 62 (2026-05-24): detect counter rollback. When the SSR
+        // Phase 50 (2026-05-24): detect counter rollback. When the SSR
         // Chromium tab restarts (codec switch, board switch, animation
         // surge causing the SSR-host to recycle), the consumer's
         // RTCPeerConnection is rebuilt and inbound-rtp's bytesReceived

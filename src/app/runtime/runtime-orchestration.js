@@ -219,7 +219,7 @@ const {
   // Server-side Rendering settings (System & Performance subtab)
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrBitrateSlider, ssrBitrateValue, ssrBitrateWarning,
   ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrStreamFpsCapRadios,
-  ssrCodecSelect, ssrContentHintSelect,           // Phase 59 (2026-05-24)
+  ssrCodecSelect, ssrContentHintSelect,           // Phase 50 (2026-05-24)
   ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
@@ -2367,7 +2367,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
   setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
-  // Phase 52: inside/outside profile setters needed by the live editor's
+  // Phase 50: inside/outside profile setters needed by the live editor's
   // new "Save as default" button (saveLiveEditorAsDefault) which
   // persists tweaks for any scope.
   getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
@@ -2998,7 +2998,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   ssrResolutionPreferenceRadios,
   ssrFpsTargetRadios,
   ssrStreamFpsCapRadios,
-  // Phase 59 (2026-05-24): codec + content-hint operator levers.
+  // Phase 50 (2026-05-24): codec + content-hint operator levers.
   ssrCodecSelect,
   ssrContentHintSelect,
   ssrServerRenderingStatus,

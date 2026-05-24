@@ -116,7 +116,7 @@
       liveEditorOffsetYValue: document.querySelector("#live-editor-offset-y-value"),
       liveEditorDiscard: document.querySelector("#live-editor-discard"),
       liveEditorDefault: document.querySelector("#live-editor-default"),
-      // Phase 52: "Save as default" button — commits the current
+      // Phase 50: "Save as default" button — commits the current
       // live-editor field values back to the animation definition.
       liveEditorSaveDefault: document.querySelector("#live-editor-save-default"),
       dashboardDefaultAnimation: document.querySelector("#dashboard-default-animation"),
@@ -194,14 +194,14 @@
       // src/app/lib/ui/settings/server-rendering-panel.js.
       ssrEncoderSelect: document.querySelector("#ssr-encoder-select"),
       ssrDetectedEncodersBadge: document.querySelector("#ssr-detected-encoders-badge"),
-      // Phase 54: radio preset replaced with numeric bitrate slider.
+      // Phase 50: radio preset replaced with numeric bitrate slider.
       ssrBitrateSlider: document.querySelector("#ssr-bitrate-slider"),
       ssrBitrateValue: document.querySelector("#ssr-bitrate-value"),
       ssrBitrateWarning: document.querySelector("#ssr-bitrate-warning"),
       ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
-      // Phase 59 (2026-05-24): codec + content-hint operator levers.
+      // Phase 50 (2026-05-24): codec + content-hint operator levers.
       ssrCodecSelect: document.querySelector("#ssr-codec-select"),
       ssrContentHintSelect: document.querySelector("#ssr-content-hint-select"),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),

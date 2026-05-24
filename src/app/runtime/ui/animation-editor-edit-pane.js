@@ -122,7 +122,7 @@
     const colorCard = buildColorCard(sel.scope, def, boardId);
     if (colorCard) pane.append(colorCard);
     pane.append(buildDefaultsCard(sel.scope, def, boardId));
-    // Phase 52 (2026-05-22): collapsible Transform card per animation
+    // Phase 50 (2026-05-22): collapsible Transform card per animation
     // (rotation / stretch / scale / offset). Mirrors the live-editor's
     // transform sliders, but persists to the definition directly so
     // operators can configure transforms WITHOUT having to start the
@@ -133,7 +133,7 @@
     pane.append(buildSoundCard(sel.scope, def, boardId));
   }
 
-  // Phase 52: per-animation Transform card. Same fields/clamps as the
+  // Phase 50: per-animation Transform card. Same fields/clamps as the
   // live-editor transform fieldset (HTML #live-editor-transform). Wraps
   // in a <details> element so the card is collapsed by default —
   // transforms are an "advanced" tweak and shouldn't clutter the pane

@@ -1374,7 +1374,7 @@ input[type="range"]::-moz-range-thumb:hover {
   gap: 0.65rem;
 }
 
-/* Phase 52 (2026-05-22): live editor "Save as default" — visually
+/* Phase 50 (2026-05-22): live editor "Save as default" — visually
  * distinct primary commit action that sits below the Done/Discard
  * pair. Full width + accent fill so it's clear this is the path that
  * persists the running animation's tweaks back to the definition
@@ -2542,7 +2542,7 @@ body[data-ssr-tab="true"] #loading-overlay {
    .panel.settings-only pattern + Phase-22 obsidian theme +
    diagnostic-chip color palette for the Detected-encoders badge.
    ============================================================ */
-/* Phase 54 (2026-05-24): bitrate slider replaces the radio-preset
+/* Phase 50 (2026-05-24): bitrate slider replaces the radio-preset
  * fieldset. Numeric range 2–50 Mbit/s with inline soft-warning when
  * the value exceeds 20 Mbit/s (software encoder may struggle). */
 #settings-server-rendering .ssr-bitrate-slider-label {

@@ -23,7 +23,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { createWebRtcTransport, getRouter } from "./ssr-mediasoup-router.mjs";
 
-// Phase 58 (2026-05-24): resolve the current bitrate cap from
+// Phase 50 (2026-05-24): resolve the current bitrate cap from
 // global-defaults.json at transport-creation time so the WebRTC GCC
 // estimator starts at the operator's configured slider value.
 // Cached briefly to avoid pounding the FS on every connect.

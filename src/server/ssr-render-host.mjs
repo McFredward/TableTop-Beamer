@@ -331,7 +331,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
       ? cfg.serverRendering
       : {};
     if (typeof sr.encoder === "string") userChoice = sr.encoder;
-    // Phase 54: numeric bitrate slider replaces qualityPreset enum.
+    // Phase 50: numeric bitrate slider replaces qualityPreset enum.
     if (Number.isFinite(sr.streamBitrateMbps)) userBitrateMbps = sr.streamBitrateMbps;
     if (typeof sr.resolutionPreference === "string") userResolution = sr.resolutionPreference;
     if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
@@ -382,7 +382,7 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     source = "auto";
   }
 
-  // Phase 54 (2026-05-24): numeric bitrate replaces the preset enum.
+  // Phase 50 (2026-05-24): numeric bitrate replaces the preset enum.
   // Default 16 Mbit/s (was "extra-high"). Operator can adjust freely via
   // the Settings → System bitrate slider (range 2–50 Mbit/s).
   const DEFAULT_BITRATE_MBPS = 16;
@@ -415,8 +415,8 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     resolutionPreference: userResolution,
     streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
     effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
-    codecPreference: userCodecPreference,     // Phase 59 (2026-05-24)
-    contentHint: userContentHint,             // Phase 59 (2026-05-24)
+    codecPreference: userCodecPreference,     // Phase 50 (2026-05-24)
+    contentHint: userContentHint,             // Phase 50 (2026-05-24)
   };
 }
 
@@ -1161,9 +1161,9 @@ export function bootSsrRenderHost({
         try {
           const t = msg.type();
           const text = msg.text();
-          // Phase 58 fix (2026-05-24): the original "already logged"
+          // Phase 50 fix (2026-05-24): the original "already logged"
           // comment was wrong — these messages are NOT logged elsewhere.
-          // They get silently dropped, which made the Phase 57 sender-
+          // They get silently dropped, which made the Phase 50 sender-
           // params readback invisible. Forward them through to the
           // server log so the operator can see encoder/bitrate/sender
           // params diagnostics in start.log.

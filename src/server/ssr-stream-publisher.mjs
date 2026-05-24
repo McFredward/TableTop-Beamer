@@ -55,7 +55,7 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60, configuredBitrate
   if (Number.isFinite(envOverride) && envOverride > 0) {
     total = envOverride;
   } else if (Number.isFinite(configuredBitrate) && configuredBitrate > 0) {
-    // Phase 54 (2026-05-24): explicit bitrate from
+    // Phase 50 (2026-05-24): explicit bitrate from
     // serverRendering.streamBitrateMbps slider takes precedence over the
     // legacy fps-derived fallback. Bypasses fps-scaling because the
     // operator's slider value is the source of truth.
@@ -93,7 +93,7 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60, configuredBitrate
  * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, viewport?: {width:number,height:number} }} [opts]
  */
 export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, viewport = { width: 1920, height: 1080 } } = {}) {
-  // Phase 54: encoderConfig.bitrate is the operator's slider value in
+  // Phase 50: encoderConfig.bitrate is the operator's slider value in
   // bits/s. Pass through to deriveSimulcastBitrates as the explicit
   // override; fps-derived fallback kicks in only when bitrate is unset.
   const configuredBitrate = Number(encoderConfig?.bitrate);
@@ -141,7 +141,7 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
   const simulcastLabel = useSimulcast ? "3-layer" : "single-layer";
   const totalBitrate = useSimulcast ? bitrates.total : singleLayerBitrate;
 
-  // Phase 59 (2026-05-24): codec + content-hint operator controls.
+  // Phase 50 (2026-05-24): codec + content-hint operator controls.
   // - codecPreference: "h264" (default, broad compatibility) or "vp9"
   //   (better compression efficiency, ~30-50% sharper at same bitrate).
   // - contentHint: tells the encoder how to bias rate-control.
@@ -282,14 +282,14 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       }
     } catch {}
 
-    // 4. D-A3 encoding layers + D-A2/Phase 59 codec preference.
+    // 4. D-A3 encoding layers + D-A2/Phase 50 codec preference.
     // h18 (2026-05-06): single-layer on software encoders (x264) so the
     // CPU isn't paying triple encode cost. Hardware encoders keep 3
     // simulcast layers for adaptive-bitrate quality.
     const videoEncodings = ${encodingsLiteral};
     console.log("[ssr-publisher] encoder=${enc} codec=${codecPreference} contentHint=${contentHintValue} simulcast=${simulcastLabel} bitrate=${totalBitrate}");
 
-    // Phase 59 (2026-05-24): set contentHint BEFORE produce(). This is
+    // Phase 50 (2026-05-24): set contentHint BEFORE produce(). This is
     // a track-level hint that tells the encoder how to bias rate-control.
     // For "detail" / "text" the encoder favors spatial sharpness over
     // motion smoothness, even on screen-capture tracks (which Chromium
@@ -301,19 +301,19 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       console.warn("[ssr-publisher] contentHint assignment failed:", e?.message);
     }
 
-    // Phase 58 (2026-05-24): videoGoogleStartBitrate is the encoder's
+    // Phase 50 (2026-05-24): videoGoogleStartBitrate is the encoder's
     // initial target in kbps. Default 1000 (1 Mbit/s) meant a static
     // scene encoded at ~1 Mbit/s and GCC had no signal to probe higher.
     // Start at the configured slider value so the encoder reaches the
     // operator's target immediately.
-    // Phase 58/59 (2026-05-24): videoGoogleStartBitrate sets the encoder's
+    // Phase 50/59 (2026-05-24): videoGoogleStartBitrate sets the encoder's
     // initial target in kbps. We also tested videoGoogleMinBitrate (would
     // force minimum bitrate even on static content) but empirically the
     // Chromium 131 encoder ignores it for OpenH264 -- sendBps stayed at
     // ~140 kbps even with min=5_000_000 set. Left it out as a no-op.
     const codecOptions = { videoGoogleStartBitrate: ${Math.round(totalBitrate / 1000)} };
 
-    // Phase 59 (2026-05-24): pick the codec specified by the operator.
+    // Phase 50 (2026-05-24): pick the codec specified by the operator.
     // Both H.264 and VP9 are declared in mediasoup's MEDIA_CODECS.
     // If the requested codec isn't in rtpCapabilities (e.g. mediasoup
     // didn't advertise it for some reason), fall back to H.264.
@@ -331,7 +331,7 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     if (chosenCodec) produceOpts.codec = chosenCodec;
     const videoProducer = await sendTransport.produce(produceOpts);
 
-    // Phase 59 (2026-05-24): set degradationPreference="maintain-resolution"
+    // Phase 50 (2026-05-24): set degradationPreference="maintain-resolution"
     // when the operator wants detail/text optimization. This prevents
     // Chromium from secretly lowering resolution under CPU/network
     // pressure (the default "balanced" can degrade both res AND fps).
@@ -358,7 +358,7 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
 
-    // Phase 57 (2026-05-24): read back the RTCRtpSender parameters to
+    // Phase 50 (2026-05-24): read back the RTCRtpSender parameters to
     // verify the configured maxBitrate from the encodings array actually
     // reached Chromium's encoder. If mediasoup-client silently drops the
     // maxBitrate field (or if Chromium overrides it), we'll see the
@@ -392,7 +392,7 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     setTimeout(() => __readBackSenderParams("t+500ms"), 500);
     setTimeout(() => __readBackSenderParams("t+5s"), 5000);
 
-    // Phase 58 (2026-05-24): poll outbound-rtp stats to read the
+    // Phase 50 (2026-05-24): poll outbound-rtp stats to read the
     // encoder's CURRENT targetBitrate (what the encoder is actually
     // trying to hit) and bytesSent rate (what's actually flowing).
     // If targetBitrate is << sender.maxBitrate, the cap isn't the

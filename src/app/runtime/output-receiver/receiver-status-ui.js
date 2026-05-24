@@ -21,13 +21,13 @@
 // and `pc-failed` signals which fire instantly via WebRTC state.
 export const DISCONNECT_THRESHOLD_MS = 8000;
 
-// Phase 60 → Phase 61 (2026-05-24): the receiver-status-ui's
+// Phase 50 → Phase 50 (2026-05-24): the receiver-status-ui's
 // recv-bitrate calculation was moved into receiver-bootstrap.js
 // pollRtcStats(), which has direct access to the persistent sample
 // anchor and runs only when getStats actually resolves. The formatter
 // now just reads rtcStats.derivedRecvBps (set by pollRtcStats).
 //
-// Phase 60's module-level cache (_lastGoodRecvBps) is retired — the
+// Phase 50's module-level cache (_lastGoodRecvBps) is retired — the
 // sticky-cache logic lives in pollRtcStats now where it's robust to
 // the Pi-side sparse-stats pattern.
 
@@ -579,7 +579,7 @@ export function createStatusUi({
       ? Math.round(stream.jitter * 1000) : null;
     const availBitrate = rtcStats?.candidatePair?.availableIncomingBitrate;
 
-    // Phase 61 (2026-05-24): recv bitrate is now computed in
+    // Phase 50 (2026-05-24): recv bitrate is now computed in
     // receiver-bootstrap.js#pollRtcStats — it has direct access to the
     // persistent anchor sample, handles Pi-side sparse stats by holding
     // the last good value sticky for 15 s, and only updates on real
@@ -633,7 +633,7 @@ export function createStatusUi({
     // Server-info one-shot.
     const enc = serverInfo?.encoder || "?";
     const encSrc = serverInfo?.encoderSource || "?";
-    // Phase 54: numeric bitrate slider replaces preset enum.
+    // Phase 50: numeric bitrate slider replaces preset enum.
     const bitrateMbps = serverInfo?.streamBitrateMbps;
     const preset = Number.isFinite(bitrateMbps) ? `${bitrateMbps}Mbps` : "?";
     const targetBps = serverInfo?.bitrateBps;

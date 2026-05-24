@@ -14,7 +14,7 @@
 //   recovery; /output/ briefly shows a reconnect banner.
 
 (() => {
-  // Phase 54 (2026-05-24): pending SSR patch buffer + commit/discard
+  // Phase 50 (2026-05-24): pending SSR patch buffer + commit/discard
   // hooks. Slider input no longer fires emitLiveMutation directly —
   // dragging would otherwise restart the SSR Chromium tab on every
   // tick. Instead the slider accumulates into pendingPatch, marks the
@@ -93,7 +93,7 @@
       if (typeof serverRendering.encoder === "string") {
         refs.ssrEncoderSelect.value = serverRendering.encoder;
       }
-      // Phase 54: numeric bitrate slider replaces qualityPreset enum.
+      // Phase 50: numeric bitrate slider replaces qualityPreset enum.
       if (Number.isFinite(serverRendering.streamBitrateMbps)) {
         const v = Math.round(serverRendering.streamBitrateMbps);
         if (refs.ssrBitrateSlider) refs.ssrBitrateSlider.value = String(v);
@@ -115,7 +115,7 @@
           r.checked = (Number(r.value) === Number(serverRendering.streamFpsCap));
         }
       }
-      // Phase 59 (2026-05-24): codec + content-hint reflectance.
+      // Phase 50 (2026-05-24): codec + content-hint reflectance.
       if (typeof serverRendering.codecPreference === "string" && refs.ssrCodecSelect) {
         refs.ssrCodecSelect.value = serverRendering.codecPreference;
       }
@@ -153,7 +153,7 @@
         "Restarting render server (encoder change)…",
       );
     });
-    // Phase 54 (refined): slider drag accumulates into pendingPatch +
+    // Phase 50 (refined): slider drag accumulates into pendingPatch +
     // marks dirty. Server-side SSR restart only fires when the
     // operator clicks Apply changes (commitPendingSSRPatch is called
     // from applyLocalConfigToServer). Without this gating, every
@@ -186,7 +186,7 @@
         if (r.checked) sendPatch({ streamFpsCap: Number(r.value) });
       });
     }
-    // Phase 59 (2026-05-24): codec + content-hint operator change handlers.
+    // Phase 50 (2026-05-24): codec + content-hint operator change handlers.
     // Each restarts the SSR Chromium tab (server.mjs's restartKeys list
     // includes codecPreference + contentHint).
     if (refs.ssrCodecSelect) {
@@ -227,7 +227,7 @@
       });
     }
 
-    // Phase 54 (refined): stash deps + reflectConfig so the
+    // Phase 50 (refined): stash deps + reflectConfig so the
     // namespace-level commit/discard hooks can later emit the live
     // mutation (commit) or refresh UI from server (discard).
     panelDeps = {

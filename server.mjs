@@ -1322,7 +1322,7 @@ function applyLiveMutation({
         // to be reflected in the encoder, the diagnostic overlay's
         // serverInfo, AND the streamed output. Without this, the user
         // sees "balanced" forever in the chip (h17 reported issue).
-        // Phase 55 (2026-05-24): `qualityPreset` replaced with
+        // Phase 50 (2026-05-24): `qualityPreset` replaced with
         // `streamBitrateMbps` (numeric slider). resolveEncoderConfig reads
         // the new key at SSR launch; without it in restartKeys, slider
         // changes persisted to global-defaults.json but the running SSR

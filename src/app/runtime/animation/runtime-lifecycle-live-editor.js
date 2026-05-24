@@ -35,7 +35,7 @@
     // Wire live editor close + discard buttons.
     ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
     ctx.liveEditorDiscard?.addEventListener("click", discardLiveEditor);
-    // Phase 52: "Save as default" commits the running-animation's
+    // Phase 50: "Save as default" commits the running-animation's
     // current live-editor field values back to the persistent
     // animation definition. Done leaves changes on the running
     // instance; Save makes them the new defaults for future starts.
@@ -379,7 +379,7 @@
           });
         }
         ctx.state.defaultAnimationsByBoard[animation.boardId] = filtered;
-        // Phase 52 (2026-05-22): the silent transform-persist on Done
+        // Phase 50 (2026-05-22): the silent transform-persist on Done
         // was removed. Previously, clicking Done auto-saved transform
         // values to the animation definition — but the operator wanted
         // a CHOICE between temporary tweaks (just this run) and a
@@ -418,7 +418,7 @@
     ctx.liveEditorPanel.hidden = true;
   }
 
-  // Phase 52 (2026-05-22): commit the running animation's current
+  // Phase 50 (2026-05-22): commit the running animation's current
   // live-editor field values back to the persistent animation
   // definition so every future manual trigger of the same animation
   // applies these tweaks. Keeps the editor OPEN — the user may want

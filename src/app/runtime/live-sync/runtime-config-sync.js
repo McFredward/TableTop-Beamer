@@ -199,7 +199,7 @@
     if (!state.localConfigDirty) return { ok: true, nothingToDo: true };
     try {
       suppressBroadcastReapplyUntil = Date.now() + 3000;
-      // Phase 54 (2026-05-24): commit any pending SSR settings patch
+      // Phase 50 (2026-05-24): commit any pending SSR settings patch
       // BEFORE the saveGlobalDefaultsToServer round-trip. The SSR panel
       // accumulates slider drags into pendingPatch and marks dirty; the
       // explicit Apply click is the moment to emit
@@ -253,7 +253,7 @@
 
   async function discardLocalConfigAndReloadFromServer() {
     try {
-      // Phase 54: clear any pending SSR settings buffer + refresh the
+      // Phase 50: clear any pending SSR settings buffer + refresh the
       // slider from the server's persisted config so a Discard reverts
       // both general state AND the bitrate-slider visual.
       try {

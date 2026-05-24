@@ -851,7 +851,7 @@ body.anim-editor-dragging .anim-editor-list {
   margin: 0;
 }
 
-/* Phase 52 (2026-05-22): collapsible Transform card. Built as a
+/* Phase 50 (2026-05-22): collapsible Transform card. Built as a
  * <details> so it folds away by default — transforms are an advanced
  * tweak that shouldn't clutter the edit pane when not in use. The
  * <summary> looks like the static `.anim-editor-card-eyebrow` label

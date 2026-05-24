@@ -14,7 +14,7 @@ export const ENCODER_VALUES = ["auto", "nvenc", "vaapi", "videotoolbox", "x264-s
 export const RESOLUTION_VALUES = ["auto", "1080p", "720p"];
 export const FPS_VALUES = [30, 24, 15];
 
-// Phase 54 (2026-05-24): `qualityPreset` enum replaced with a numeric
+// Phase 50 (2026-05-24): `qualityPreset` enum replaced with a numeric
 // `streamBitrateMbps` slider. Range 2–50 Mbit/s, integer steps. Bitrate
 // > BITRATE_SOFT_WARN_MBPS surfaces a non-blocking warning in the UI
 // (software encoder may struggle on weak CPUs; operator can override).
@@ -34,7 +34,7 @@ export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
 // gap-closure-5/6/13/14 history). Feature reverted; only streamFpsCap
 // remains as a working FPS knob (caps the output stream framerate).
 
-// Phase 59 (2026-05-24): codec + content-hint operator levers.
+// Phase 50 (2026-05-24): codec + content-hint operator levers.
 // Bitrate cap alone doesn't move the encoder above ~400 kbps for static
 // board content (H.264 rate-control fills only what content needs).
 // Two real levers:
@@ -72,7 +72,7 @@ const KNOWN_KEYS = new Set([
  * @returns {{encoder:string, qualityPreset:string, resolutionPreference:string, fpsTarget:number, streamFpsCap:number}}
  */
 export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
-  // Phase 54 (2026-05-24): default 16 Mbit/s at 1080p / 60-fps cap.
+  // Phase 50 (2026-05-24): default 16 Mbit/s at 1080p / 60-fps cap.
   // Equivalent to the previous "extra-high" preset bitrate. fpsTarget=30
   // is metadata only — the real stream cap is streamFpsCap. Operator
   // can adjust the bitrate slider freely between 2–50 Mbit/s via the
@@ -141,7 +141,7 @@ export function validateServerRenderingPatch(patch) {
       return { valid: false, reason: "streamFpsCap-not-in-enum" };
     }
   }
-  // Phase 59 (2026-05-24): codec + content-hint validation.
+  // Phase 50 (2026-05-24): codec + content-hint validation.
   if ("codecPreference" in patch) {
     if (typeof patch.codecPreference !== "string") return { valid: false, reason: "codecPreference-wrong-type" };
     if (!CODEC_VALUES.includes(patch.codecPreference)) return { valid: false, reason: "codecPreference-not-in-enum" };

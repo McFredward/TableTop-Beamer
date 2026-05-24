@@ -12,7 +12,7 @@ up into one MINOR release section at cut-time.
 
 ## [1.0.13] — 2026-05-24
 
-Phase 62: Reset recv-anchor on peer-connection rebuild.
+Phase 50: Reset recv-anchor on peer-connection rebuild.
 
 ### Fixed
 - **`recv=?` stuck after triggering many animations.** Operator UAT
@@ -23,7 +23,7 @@ Phase 62: Reset recv-anchor on peer-connection rebuild.
   Root cause: when the SSR Chromium tab restarts (codec switch, board
   switch, animation surge that exceeds the watchdog), the consumer's
   RTCPeerConnection is rebuilt and inbound-rtp's `bytesReceived`
-  counter rolls back to 0. The Phase 61 anchor still held the OLD
+  counter rolls back to 0. The Phase 50 anchor still held the OLD
   high bytes/timestamp from the previous PC → `curBytes >= anchor`
   AND `curT > anchor.timestamp` both failed forever → derivedRecvBps
   stuck at the stale value until cache expired to "?". Board switch
@@ -32,7 +32,7 @@ Phase 62: Reset recv-anchor on peer-connection rebuild.
   OR `curT < anchor.timestamp`, treat it as a counter reset, reseed
   the anchor with the new values, and skip the diff this tick.
   The next tick's diff is computed against the fresh anchor. (`<sha>`,
-  Phase 62)
+  Phase 50)
 
 ### Notes
 - If you still see `recv=8kbps` consistently for BOTH H.264 and VP9
@@ -48,13 +48,13 @@ Phase 62: Reset recv-anchor on peer-connection rebuild.
 
 ## [1.0.12] — 2026-05-24
 
-Phase 61: Robust recv-bitrate via persistent anchor + stale indicator.
+Phase 50: Robust recv-bitrate via persistent anchor + stale indicator.
 
 ### Fixed
-- **`recv=?` still flickering even after Phase 60's sticky cache.**
+- **`recv=?` still flickering even after Phase 50's sticky cache.**
   Operator UAT (2026-05-24): "etwa 3 bis 4 sekunden ist 'recv' ?,
   dann kurz für eine halbe Sekunde sehe ich was, dann wieder ?".
-  Phase 60 cached the last-good value at module scope in
+  Phase 50 cached the last-good value at module scope in
   `receiver-status-ui.js`, but the cache was recomputed inside the
   formatter — and the formatter ran on every 1 s tick regardless of
   whether `pollRtcStats()` had actually resolved. On a Pi where
@@ -77,7 +77,7 @@ Phase 61: Robust recv-bitrate via persistent anchor + stale indicator.
   distinguish "still flowing at this rate" from "this is the last
   reading I had, but I'm not sure right now". After 15 s of no fresh
   data the value falls back to `?` (real stream-loss signal).
-- (`<sha>`, Phase 61)
+- (`<sha>`, Phase 50)
 
 ### Note for operator
 - After this patch lands, **hard-reload the Pi /output/ tab**
@@ -89,7 +89,7 @@ Phase 61: Robust recv-bitrate via persistent anchor + stale indicator.
 
 ## [1.0.11] — 2026-05-24
 
-Phase 60: Stabilize `recv=` field in the diagnostic overlay.
+Phase 50: Stabilize `recv=` field in the diagnostic overlay.
 
 ### Fixed
 - **`recv=?` no longer flickers most of the time on the /output/
@@ -109,13 +109,13 @@ Phase 60: Stabilize `recv=` field in the diagnostic overlay.
   good value at module level for 5 s so brief gaps don't flicker the
   chip. Empirical bench: stability went from "~1 in 8 samples is a
   real value" (operator report) to 39/40 samples = 97.5% real value.
-  (`<sha>`, Phase 60)
+  (`<sha>`, Phase 50)
 
 ---
 
 ## [1.0.10] — 2026-05-24
 
-Phase 59: VP9 codec + content-hint operator levers — actual stream
+Phase 50: VP9 codec + content-hint operator levers — actual stream
 quality knobs that move the needle.
 
 ### Added
@@ -128,7 +128,7 @@ quality knobs that move the needle.
     rendering. Trade-off: software libvpx runs ~23 fps vs OpenH264's
     ~30 fps on the bench (CPU-bound; hardware encoder removes this
     gap). Mediasoup router now advertises both codecs; publisher
-    selects at produce-time. (`<sha>`, Phase 59)
+    selects at produce-time. (`<sha>`, Phase 50)
 - **Content optimization dropdown** in Settings → System → Server-side
   Rendering. Sets `videoTrack.contentHint` AND `degradationPreference`
   on the WebRTC sender:
@@ -146,18 +146,18 @@ quality knobs that move the needle.
     with high-motion FX (sandstorm, fire animations).
   - **Default (auto)** — no hint. Encoder uses Chromium's built-in
     heuristics (typically defaults to motion for screen capture).
-  (`<sha>`, Phase 59)
+  (`<sha>`, Phase 50)
 - **Publisher-side console diagnostics** for every produce(): logs
   resolved codec, content hint, degradation preference, sender params
   readback, and outbound-rtp stats poll (targetBitrate / bytesSent /
   qualityLimitationReason / encoderImplementation) at t+8/12/18s.
-  Visible in start.log under `[ssr-publisher] ...`. (`<sha>`, Phase 59)
+  Visible in start.log under `[ssr-publisher] ...`. (`<sha>`, Phase 50)
 
 ### Changed
 - `[ssr-publisher]` console lines from the SSR-tab are now forwarded
   to the main start.log instead of silently dropped. The original
   "already logged" comment was wrong — they had nowhere else to go.
-  (`<sha>`, Phase 59)
+  (`<sha>`, Phase 50)
 
 ### Verified empirically
 - 3-stage Playwright bench on nemesis-lockdown-a with 14 active
@@ -173,24 +173,24 @@ quality knobs that move the needle.
 - `videoGoogleMinBitrate`: Chromium's OpenH264 ignored a min-bitrate
   of 5 Mbit/s and stayed at ~140 kbps. Not exposed in the UI; would
   have been Augenwischerei.
-- Bitrate slider alone: Phase 57 readback confirmed `maxBitrate`
+- Bitrate slider alone: Phase 50 readback confirmed `maxBitrate`
   reaches the RTCRtpSender at the slider value but the encoder's
   rate-control only fills the budget when content motion demands it.
-  Phase 58's `initialAvailableOutgoingBitrate` change still in place
+  Phase 50's `initialAvailableOutgoingBitrate` change still in place
   but is not the actual quality lever.
 
 ---
 
 ## [1.0.9] — 2026-05-24
 
-Phase 58: Slider value reaches the wire — fixed two upstream caps.
+Phase 50: Slider value reaches the wire — fixed two upstream caps.
 
 ### Fixed
 - **Bitrate slider value now actually visible in image quality.**
   Operator UAT (2026-05-24): "Keinen Unterschied zwischen 2 und 50
   Mbit/s feststellbar — die Qualität scheint identisch zu sein."
   The slider was reaching the publisher's `RTCRtpSender.maxBitrate`
-  correctly (Phase 57 readback confirmed this part), but two other
+  correctly (Phase 50 readback confirmed this part), but two other
   upstream caps were silently bottlenecking the pipeline at ~8 Mbit/s
   regardless of slider:
   1. `createWebRtcTransport`'s `initialAvailableOutgoingBitrate` was
@@ -209,12 +209,12 @@ Phase 58: Slider value reaches the wire — fixed two upstream caps.
      above, the encoder began at 1 Mbit/s and GCC never gave it a
      reason to ramp. **Fix:** the start bitrate now matches the
      slider's `maxBitrate` so the encoder reaches the target
-     immediately. (`<sha>`, Phase 58)
+     immediately. (`<sha>`, Phase 50)
 
 ### Diagnosis
-- The `recv=NMbps` field added in Phase 57 made the bottleneck
+- The `recv=NMbps` field added in Phase 50 made the bottleneck
   visible: even with high-motion content, the receiver showed
-  `recv≈8 Mbps` at slider=50 AND slider=2. With the Phase 57
+  `recv≈8 Mbps` at slider=50 AND slider=2. With the Phase 50
   `[ssr-publisher] sender params` readback already confirming the
   publisher's encodings was set to e.g. `maxBitrate=50000000`, the
   bottleneck had to be downstream of the publisher. Tracing the
@@ -224,7 +224,7 @@ Phase 58: Slider value reaches the wire — fixed two upstream caps.
 
 ## [1.0.8] — 2026-05-24
 
-Phase 57: Diagnostic — actual received bitrate in the overlay.
+Phase 50: Diagnostic — actual received bitrate in the overlay.
 
 ### Added
 - **STREAM line in the /output/ diagnostic overlay now shows
@@ -237,19 +237,19 @@ Phase 57: Diagnostic — actual received bitrate in the overlay.
     the cap when motion demands it).
   - `preset=40Mbps recv=2.5Mbps` AND `preset=2Mbps recv=2.5Mbps`
     → wiring problem, `maxBitrate` isn't reaching the encoder.
-  (`<sha>`, Phase 57)
+  (`<sha>`, Phase 50)
 - **SSR-tab now logs the RTCRtpSender encodings parameters at t+500ms
   and t+5s after `transport.produce()`** — confirms whether the
   `maxBitrate` from the publisher script's `encodings: [{ maxBitrate }]`
   actually reached Chromium's encoder. Surfaces in start.log under
   `[ssr-publisher] sender params [t+500ms]: [{"maxBitrate":...}]`.
-  (`<sha>`, Phase 57)
+  (`<sha>`, Phase 50)
 
 ---
 
 ## [1.0.7] — 2026-05-24
 
-Phase 56: SSR restart on bitrate change.
+Phase 50: SSR restart on bitrate change.
 
 ### Fixed
 - Applying a bitrate slider change now actually restarts the SSR
@@ -258,13 +258,13 @@ Phase 56: SSR restart on bitrate change.
   key — `streamBitrateMbps` wasn't in there, so applying a slider
   change persisted the new value to global-defaults.json but the
   running SSR tab kept the previous bitrate (and the Pi diagnostic
-  overlay kept showing the old Mbps). (`<sha>`, Phase 56)
+  overlay kept showing the old Mbps). (`<sha>`, Phase 50)
 
 ---
 
 ## [1.0.6] — 2026-05-24
 
-Phase 55: SSR settings go through the global dirty-flag / Apply flow.
+Phase 50: SSR settings go through the global dirty-flag / Apply flow.
 
 ### Changed
 - **Bitrate slider no longer restarts the SSR Chromium tab on every
@@ -275,39 +275,39 @@ Phase 55: SSR settings go through the global dirty-flag / Apply flow.
   resulting in a single restart with the final committed bitrate.
   Discard rolls the slider back to the persisted server value.
   Status line shows "pending — click Apply to push" during drag.
-  (`<sha>`, Phase 55)
+  (`<sha>`, Phase 50)
 
 ---
 
 ## [1.0.5] — 2026-05-24
 
-Phase 54: Stream-quality preset → numeric bitrate slider.
+Phase 50: Stream-quality preset → numeric bitrate slider.
 
 ### Changed
 - **Settings → System → Stream-quality preset** is now a **numeric
   bitrate slider** (2–50 Mbit/s, integer steps) instead of a 5-option
   radio group. Operators can experiment freely with bits-per-frame
   to find the sweet spot for their hardware. Default 16 Mbit/s
-  (equivalent to the old "extra-high" preset). (`<sha>`, Phase 54)
+  (equivalent to the old "extra-high" preset). (`<sha>`, Phase 50)
 - **Inline soft-warning** appears below the slider when the value
   exceeds 20 Mbit/s: "the software encoder may stutter on weak CPUs;
   a hardware encoder is strongly recommended". The slider is NOT
   blocked — the operator can dismiss the warning by setting any value
-  they want. (`<sha>`, Phase 54)
+  they want. (`<sha>`, Phase 50)
 - The legacy `qualityPreset` enum field in `config/global-defaults.json`
   was migrated in-place to `streamBitrateMbps` (numeric). Mapping:
   low-latency → 4, balanced → 8, high-quality → 12, extra-high → 16,
   ultra-high → 20. SSR encoder + WebRTC sender now read the bitrate
   directly from the slider value via
-  `deriveSimulcastBitrates({ configuredBitrate })`. (`<sha>`, Phase 54)
+  `deriveSimulcastBitrates({ configuredBitrate })`. (`<sha>`, Phase 50)
 - The Pi-side diagnostic overlay's "preset=" field shows the literal
-  Mbit/s value (e.g. `25Mbps`) instead of the preset name. (`<sha>`, Phase 54)
+  Mbit/s value (e.g. `25Mbps`) instead of the preset name. (`<sha>`, Phase 50)
 
 ---
 
 ## [1.0.4] — 2026-05-24
 
-Phase 53: Nemesis Lockdown A/B polygon Y-shift migration.
+Phase 50: Nemesis Lockdown A/B polygon Y-shift migration.
 
 ### Fixed
 - **Nemesis Lockdown A/B rooms y-shifted on the dashboard** since v1.0.1
@@ -318,7 +318,7 @@ Phase 53: Nemesis Lockdown A/B polygon Y-shift migration.
   aspect to the actual image aspect → the 0..1 normalized polygon Y
   values now mapped to a slightly different (1.3 % taller) image
   region, visibly shifting the room outlines on the dashboard.
-  (`<sha>`, Phase 53)
+  (`<sha>`, Phase 50)
 
 ### Migration
 - One-time data migration applied to `config/boards/nemesis-lockdown-a.json`
@@ -340,7 +340,7 @@ Phase 53: Nemesis Lockdown A/B polygon Y-shift migration.
 
 ## [1.0.3] — 2026-05-22
 
-Phase 52: Per-animation transform editing + temporary-vs-permanent
+Phase 50: Per-animation transform editing + temporary-vs-permanent
 distinction in the live editor.
 
 ### Added
@@ -352,26 +352,26 @@ distinction in the live editor.
   persist directly to the animation definition — no need to start the
   animation first to tune its placement. Hidden for scopes that don't
   support transforms (inside / outside, room coded effects).
-  (`8e8d1aa`, Phase 52)
+  (`8e8d1aa`, Phase 50)
 - **"Save as default for this animation" button** in the live editor,
   below Done / Discard. Commits the running animation's current
   live-editor values (opacity, intensity, speed, volume, color, mode,
   direction, transform) back to the animation definition so every
   future manual trigger applies those values. The button is the
-  explicit-commit path. (`8e8d1aa`, Phase 52)
+  explicit-commit path. (`8e8d1aa`, Phase 50)
 
 ### Changed
 - **Live editor "Done"** no longer silently persists transform values
   to the animation definition. Done now means "keep these tweaks on
   the running instance only — next manual trigger uses the un-tweaked
   defaults". The new "Save as default" button is the path that
-  overrides the definition. (`8e8d1aa`, Phase 52)
+  overrides the definition. (`8e8d1aa`, Phase 50)
 
 ---
 
 ## [1.0.2] — 2026-05-22
 
-Phase 51: Animation Name input keystroke focus loss.
+Phase 50: Animation Name input keystroke focus loss.
 
 ### Fixed
 - Typing in the animation **Name** field no longer ends the input
@@ -383,7 +383,7 @@ Phase 51: Animation Name input keystroke focus loss.
   inside `syncDirtyBar()` (to dismiss the keyboard when the dirty bar
   first appears) — but the blur fired on every syncDirtyBar call,
   including the ~one per keystroke during a Name edit. Now gated to
-  the false→true dirty-flag transition only. (`91ac380`, Phase 51)
+  the false→true dirty-flag transition only. (`91ac380`, Phase 50)
 
 ---
 

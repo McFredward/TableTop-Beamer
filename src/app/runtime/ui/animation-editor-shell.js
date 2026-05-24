@@ -50,7 +50,7 @@
   let clearPaneCache = null;
   let stopCodedPreview = null;
 
-  // Phase 51 (2026-05-22): track the previous dirty-flag value so
+  // Phase 50 (2026-05-22): track the previous dirty-flag value so
   // syncDirtyBar() only blurs the focused input on the false→true
   // transition (when the bar first appears), not on every subsequent
   // call. Without this gating, every keystroke in the animation Name
@@ -469,7 +469,7 @@
       ctx.animEditorBackButton.disabled = dirty;
       ctx.animEditorBackButton.setAttribute("aria-disabled", dirty ? "true" : "false");
     }
-    // Phase 51 (2026-05-22): blur input ONLY on the false→true transition.
+    // Phase 50 (2026-05-22): blur input ONLY on the false→true transition.
     // gap-closure-25 (Phase 49) blurred on every syncDirtyBar() call where
     // dirty was true — but syncDirtyBar fires after EVERY mutation
     // (patchAnimation runs it on every keystroke in the Name field), so

@@ -67,7 +67,7 @@ function detectAnnouncedIp(logger) {
 // do NOT advertise audio/opus here so that no part of the pipeline
 // can accidentally subscribe to a non-existent audio track.
 //
-// Phase 59 (2026-05-24): VP9 added as an alternative codec. Both
+// Phase 50 (2026-05-24): VP9 added as an alternative codec. Both
 // declared in the router's codec list; the publisher picks one at
 // produce-time based on the operator's `codecPreference` setting.
 // VP9 produces ~30-50% better quality than H.264 at the same bitrate
@@ -206,7 +206,7 @@ export async function bootMediasoupRouter({ logger = console } = {}) {
 /**
  * Create a WebRtcTransport on the given (or active) router.
  *
- * Phase 58 (2026-05-24): the consumer-side transport's
+ * Phase 50 (2026-05-24): the consumer-side transport's
  * `initialAvailableOutgoingBitrate` is the GCC bandwidth estimator's
  * STARTING point. WebRTC's GCC ramps slowly (a few % per second) and
  * only probes higher when the publisher actively pushes more data —
