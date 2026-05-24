@@ -968,13 +968,29 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       const curBytes = Number(next.inbound.bytesReceived || 0);
       const now = Date.now();
       let computedFresh = false;
-      if (curT > 0 && curBytes > 0) {
-        if (_recvAnchor.timestamp <= 0) {
-          // First real sample — seed the anchor, no diff yet.
+      if (curT > 0) {
+        // Phase 62 (2026-05-24): detect counter rollback. When the SSR
+        // Chromium tab restarts (codec switch, board switch, animation
+        // surge causing the SSR-host to recycle), the consumer's
+        // RTCPeerConnection is rebuilt and inbound-rtp's bytesReceived
+        // starts back at 0. The anchor still holds the OLD high
+        // bytes/timestamp from the previous PC → `curBytes >= anchor`
+        // and `curT > anchor.timestamp` both fail forever, recv stays
+        // stuck at the stale cached value (then "?" after STICKY_MS).
+        // Operator UAT (2026-05-24): "wenn ich viele animationen
+        // starte ist recv wieder dauerhaft auf ?, beim board wechsel
+        // hat es wieder geklappt".
+        // Reseed if bytes went backwards OR timestamp went backwards
+        // (both are clean signals of a new PC). Skip diff this tick;
+        // next tick will have a valid anchor.
+        const counterRolledBack =
+          (curBytes < _recvAnchor.bytesReceived) ||
+          (_recvAnchor.timestamp > 0 && curT < _recvAnchor.timestamp);
+        if (counterRolledBack || _recvAnchor.timestamp <= 0) {
           _recvAnchor.timestamp = curT;
           _recvAnchor.bytesReceived = curBytes;
           _recvAnchor.atMs = now;
-        } else if (curT > _recvAnchor.timestamp && curBytes >= _recvAnchor.bytesReceived) {
+        } else if (curBytes > 0 && curT > _recvAnchor.timestamp && curBytes >= _recvAnchor.bytesReceived) {
           const dt = curT - _recvAnchor.timestamp;
           const dBytes = curBytes - _recvAnchor.bytesReceived;
           // Require >=300ms gap so we don't divide by near-zero on

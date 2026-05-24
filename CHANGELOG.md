@@ -10,6 +10,42 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.13] — 2026-05-24
+
+Phase 62: Reset recv-anchor on peer-connection rebuild.
+
+### Fixed
+- **`recv=?` stuck after triggering many animations.** Operator UAT
+  (2026-05-24): "Anfänglich hat das mit dem Wert ohne ? funktioniert,
+  dann habe ich aber viele animationen gestartet und 'recv' ist
+  wieder dauerhaft auf '?' ohne einen Wert anzuzeigen. Beim board
+  wechsel hat es wieder geklappt".
+  Root cause: when the SSR Chromium tab restarts (codec switch, board
+  switch, animation surge that exceeds the watchdog), the consumer's
+  RTCPeerConnection is rebuilt and inbound-rtp's `bytesReceived`
+  counter rolls back to 0. The Phase 61 anchor still held the OLD
+  high bytes/timestamp from the previous PC → `curBytes >= anchor`
+  AND `curT > anchor.timestamp` both failed forever → derivedRecvBps
+  stuck at the stale value until cache expired to "?". Board switch
+  manually rebuilt state and got past it.
+  **Fix:** detect rollback explicitly — if `curBytes < anchor.bytes`
+  OR `curT < anchor.timestamp`, treat it as a counter reset, reseed
+  the anchor with the new values, and skip the diff this tick.
+  The next tick's diff is computed against the fresh anchor. (`<sha>`,
+  Phase 62)
+
+### Notes
+- If you still see `recv=8kbps` consistently for BOTH H.264 and VP9
+  with lots of animations active, the SSR Chromium tab is likely
+  CPU-bound — encoder produces few frames, network really does carry
+  ~8 kbps. Check `start.log` for `[ssr-publisher] enc-stats
+  framesPerSecond=X sendBps=Y` to confirm. If `framesPerSecond` is
+  e.g. 3 instead of 30, the SSR-tab can't sustain the render rate
+  under the animation load. That's a separate CPU/render budget
+  issue, not a wiring problem.
+
+---
+
 ## [1.0.12] — 2026-05-24
 
 Phase 61: Robust recv-bitrate via persistent anchor + stale indicator.
