@@ -319,6 +319,47 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     setTimeout(() => __readBackSenderParams("t+500ms"), 500);
     setTimeout(() => __readBackSenderParams("t+5s"), 5000);
 
+    // Phase 58 (2026-05-24): poll outbound-rtp stats to read the
+    // encoder's CURRENT targetBitrate (what the encoder is actually
+    // trying to hit) and bytesSent rate (what's actually flowing).
+    // If targetBitrate is << sender.maxBitrate, the cap isn't the
+    // bottleneck -- content / rate-control is.
+    let __prevBytes = 0;
+    let __prevAt = performance.now();
+    async function __pollEncoderStats(label) {
+      try {
+        const stats = await videoProducer.getStats();
+        const entries = [];
+        stats.forEach((s) => {
+          if (s.type === "outbound-rtp" && s.kind === "video") {
+            entries.push(s);
+          }
+        });
+        for (const o of entries) {
+          const now = performance.now();
+          const dt = now - __prevAt;
+          const dBytes = (o.bytesSent || 0) - __prevBytes;
+          const sendBps = dt > 0 ? (dBytes * 8 * 1000) / dt : 0;
+          __prevBytes = o.bytesSent || 0;
+          __prevAt = now;
+          console.log(
+            "[ssr-publisher] enc-stats [" + label + "]: " +
+            "targetBitrate=" + (o.targetBitrate ?? "n/a") +
+            " framesEncoded=" + (o.framesEncoded ?? "n/a") +
+            " framesPerSecond=" + (o.framesPerSecond ?? "n/a") +
+            " sendBps=" + Math.round(sendBps) +
+            " qualityLimitReason=" + (o.qualityLimitationReason ?? "n/a") +
+            " encoderImpl=" + (o.encoderImplementation ?? "n/a")
+          );
+        }
+      } catch (e) {
+        console.warn("[ssr-publisher] enc-stats readback failed:", e?.message);
+      }
+    }
+    setTimeout(() => __pollEncoderStats("t+8s"), 8000);
+    setTimeout(() => __pollEncoderStats("t+12s"), 12000);
+    setTimeout(() => __pollEncoderStats("t+18s"), 18000);
+
     // h17: SSR-side stats reporter. Replaces h8's single-fps message
     // with a richer { type: "ssr-stats", stats: {...} } envelope so
     // the consumer's diagnostic overlay can show render method,

@@ -1146,7 +1146,16 @@ export function bootSsrRenderHost({
         try {
           const t = msg.type();
           const text = msg.text();
-          if (text.startsWith("[ssr-publisher]")) return; // already logged
+          // Phase 58 fix (2026-05-24): the original "already logged"
+          // comment was wrong — these messages are NOT logged elsewhere.
+          // They get silently dropped, which made the Phase 57 sender-
+          // params readback invisible. Forward them through to the
+          // server log so the operator can see encoder/bitrate/sender
+          // params diagnostics in start.log.
+          if (text.startsWith("[ssr-publisher]")) {
+            logger.info(text.slice(0, 800));
+            return;
+          }
           if (t !== "error" && t !== "warning" && process.env.SSR_TAB_CONSOLE_VERBOSE !== "1") return;
           const fn = (t === "error" ? logger.error : t === "warning" ? logger.warn : logger.info).bind(logger);
           fn(`[ssr-tab:${t}] ${text.slice(0, 800)}`);
