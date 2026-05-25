@@ -10,6 +10,52 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.28] — 2026-05-25
+
+Phase 50: Editor transform edits + live preview transform.
+
+### Fixed
+- **Animation Editor transform edits still not respected on trigger
+  (4th retry).** Operator UAT (2026-05-25): "Immer noch nicht!
+  Scheint ein größerer bug zu sein, spawne einen debugger". Spawned
+  gsd-debugger. Findings:
+  1. The flow is correct: dashboard's `start-room-animation` →
+     `startRoomAnimationFromDraft` → reads from `state.roomDraft.*` →
+     re-seeded from def only when `lastSyncedAnimationId !==
+     selectedDefinition.id` gate fires.
+  2. v1.0.27's gating conditions were correct in theory but brittle —
+     any boardId / animationId edge case (editor's own board picker,
+     stale animationId) silently kept the flag pinned.
+  3. **Likely operator-side cause:** `stretchToPolygon = true` makes
+     the renderer IGNORE width/height/offsetX/offsetY values —
+     consistent with the symptom ("EGAL was ich einstelle").
+
+  Fix v1.0.28: drop the gating conditions entirely. Clear
+  `runtimeState.roomDraft.lastSyncedAnimationId` on ANY room-scope
+  patch (idempotent; the dispatch gate naturally resets it on the
+  next trigger). Same simplification in `saveLiveEditorAsDefault`.
+
+### Added
+- **Live preview in the Animation Editor now reflects transform edits
+  (rotation, width/height scale, X/Y offset) in real time.** Operator
+  UAT (2026-05-25): "Weiterhin will ich auch das in der Preview im
+  Animationeditor die Transformation direkt mit angezeigt wird".
+  `syncMediaPreviewProps` (animation-editor-live-preview.js) now
+  applies a CSS `transform: translate(ox%, oy%) rotate(rot deg)
+  scale(ws, hs)` to the preview `<img>`/`<video>`. When
+  Stretch-to-polygon is ON, scale/offset are forced to neutral
+  (matches the renderer's behavior of ignoring those fields).
+
+### Verified (Playwright, frostpunk + Generator boost)
+- Edit widthScale 1→3.5, rotation 0→45, flip Stretch off →
+  - def updates: widthScale=3.5, rotation=45, stretch=false ✓
+  - `draft.lastSyncedAnimationId` → null ✓
+  - preview transform: `translate(0%, 0%) rotate(45deg) scale(3.5, 2.51)` ✓
+- Simulated room-dispatch:65 gate → draft re-seeds:
+  `widthScale=3.5, rotationDeg=45, stretch=false` ✓
+
+---
+
 ## [1.0.27] — 2026-05-25
 
 Phase 50: Re-seed draft from runtime state (v1.0.26 was incomplete).

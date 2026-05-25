@@ -826,11 +826,18 @@
     // holds roomDraft + boardId — is passed in separately as
     // ctx.runtimeState. v1.0.26 incorrectly read ctx.state and the
     // condition was always false; this is the v1.0.27 retry.
+    //
+    // Phase 50 (2026-05-25) v1.0.28 retry: drop the gating conditions
+    // (animationId / boardId match) — they were correct in theory but
+    // brittle in practice. After three failed retries the operator
+    // still reported "die gespeicherten Werte werden nicht
+    // respektiert". Clearing lastSyncedAnimationId unconditionally on
+    // any room-scope patch is safe: the room-dispatch.js:65 gate
+    // resets the flag back to selectedDefinition.id at the next
+    // trigger; worst case we re-seed an extra time. Idempotent +
+    // resilient against stale-board edge cases.
     const runtimeState = ctx.runtimeState ?? ctx.state;
-    if (scope === "room"
-        && runtimeState?.roomDraft
-        && runtimeState.roomDraft.animationId === id
-        && runtimeState.boardId === boardId) {
+    if (scope === "room" && runtimeState?.roomDraft) {
       runtimeState.roomDraft.lastSyncedAnimationId = null;
     }
     // Every patch may flip localConfigDirty;

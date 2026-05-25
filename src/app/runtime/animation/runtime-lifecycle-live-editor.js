@@ -518,16 +518,13 @@
     }
 
     if (updated) {
-      // Phase 50 (2026-05-25): the dashboard's room-trigger reads
-      // state.roomDraft.* and only re-seeds from the def when the
-      // selectedDefinition id changes (room-dispatch.js:65). Clearing
-      // lastSyncedAnimationId here forces the next trigger to pick up
-      // the newly-persisted defaults instead of stale draft values.
-      // Same root-cause as the animation-editor patchAnimation hook.
-      if (scopeForProfile === "room"
-          && ctx.state?.roomDraft
-          && ctx.state.roomDraft.animationId === animation.type
-          && ctx.state.boardId === animation.boardId) {
+      // Phase 50 (2026-05-25 v1.0.28): drop the matching guards and
+      // clear the draft sync flag unconditionally for room-scope
+      // edits — same rationale as patchAnimation in the editor pane.
+      // ctx.state IS the runtime state here (live-editor inits with
+      // the orchestration ctx directly, not the shell wrapper), so no
+      // runtimeState indirection needed.
+      if (scopeForProfile === "room" && ctx.state?.roomDraft) {
         ctx.state.roomDraft.lastSyncedAnimationId = null;
       }
       // Silent direct save + clean baseline — clicking Save IS the

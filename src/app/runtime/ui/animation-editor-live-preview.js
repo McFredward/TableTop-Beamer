@@ -403,6 +403,23 @@
         }
       } catch { /* some browsers throw before loadedmetadata — handler retries */ }
     }
+    // Phase 50 (2026-05-25): operator UAT — "Weiterhin will ich auch das
+    // in der Preview im Animationeditor die Transformation direkt mit
+    // angezeigt wird". Apply rotation / scale / offset via CSS transform
+    // so the preview reflects edits live. Doesn't perfectly match the
+    // polygon-clipped board renderer (which uses canvas matrix transforms
+    // inside a clip path), but gives the operator faithful visual
+    // feedback for rotation + Stretch-off free-transform mode. When
+    // Stretch is ON the renderer ignores width/height/offset, so the
+    // preview keeps those neutral (1, 1, 0, 0) to match.
+    const rot = Number.isFinite(Number(def.rotationDeg)) ? Number(def.rotationDeg) : 0;
+    const stretch = def.stretchToPolygon !== false;
+    const ws = stretch ? 1 : (Number.isFinite(Number(def.widthScale)) ? Number(def.widthScale) : 1);
+    const hs = stretch ? 1 : (Number.isFinite(Number(def.heightScale)) ? Number(def.heightScale) : 1);
+    const ox = stretch ? 0 : (Number.isFinite(Number(def.offsetXScale)) ? Number(def.offsetXScale) : 0) * 100;
+    const oy = stretch ? 0 : (Number.isFinite(Number(def.offsetYScale)) ? Number(def.offsetYScale) : 0) * 100;
+    el.style.transformOrigin = "50% 50%";
+    el.style.transform = `translate(${ox}%, ${oy}%) rotate(${rot}deg) scale(${ws}, ${hs})`;
   }
 
   function updatePreviewDynamicBits(def) {
