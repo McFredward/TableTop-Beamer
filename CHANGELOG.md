@@ -10,6 +10,45 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.18] — 2026-05-25
+
+Phase 50: Restore per-board play areas (regression from v1.0.17).
+
+### Fixed
+- **All custom play areas wiped — boards only showed the default play
+  area.** Operator UAT (2026-05-25): "Alle play-areas sind kaputt in
+  jedem Board!! Ich sehe in jedem boards jeweils nur die default play
+  area und nicht mehr die von mir gezeichneten Play areas". Caused by
+  the v1.0.17 bootstrap reorder: `_initApplicationSetupBoardState()`
+  ran AFTER `_initApplicationStartupDefaultsGuard()` so it could see
+  the server's `selectedBoard` hint — but setupBoardState ALSO
+  initializes per-board default maps (`state.playAreasByBoard =
+  createDefaultPlayAreasByBoard()`, plus the same for outsideFx,
+  roomFx, insideFx, shipPolygonsByBoard, selectedPlayAreaIdByBoard).
+  When it ran after the guard, those default maps overwrote the
+  hydrated per-board data that `loadBoardProfiles()` had just loaded.
+
+### Fix
+- Extracted the board-id selection logic from `_initApplicationSetup
+  BoardState()` into a tiny standalone `_pickInitialBoardId()`. The
+  default-map init stays in its ORIGINAL slot (before the guard, like
+  in v1.0.16 and earlier), so `loadBoardProfiles()` still overlays
+  real per-board data on top of the defaults. The new `_pickInitial
+  BoardId()` runs AFTER the guard — preserving v1.0.17's mobile
+  cold-start improvement (server's `selectedBoard` hint > localStorage
+  > BOARDS[0]).
+
+### Verification (Playwright, cleared localStorage)
+- Play area counts per board now match disk:
+  - frostpunk: 1, nemesis-board-a: 1, nemesis-board-b: 1,
+    nemesis-lockdown-a: 2, nemesis-lockdown-b: 4
+- Selected play areas survive: lockdown-a→play-area-2,
+  lockdown-b→play-area-4 (both as on disk).
+- `boardId` still uses server hint: lands directly on the right
+  board, no two-step switch.
+
+---
+
 ## [1.0.17] — 2026-05-24
 
 Phase 50: Initial board hint for mobile cold-start.

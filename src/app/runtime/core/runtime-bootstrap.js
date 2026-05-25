@@ -75,46 +75,25 @@
     }
   }
 
-  // W3.6-C7 Phase 2: per-board state initialization (board-id resolve,
-  // legacy hitarea/geometry stubs, all per-board default maps, quick-
-  // mode normalize, animation sound map + speed clamp).
+  // W3.6-C7 Phase 2: per-board state initialization (legacy hitarea/
+  // geometry stubs, all per-board DEFAULT maps, quick-mode normalize,
+  // animation sound map + speed clamp).
+  //
+  // Phase 50 (2026-05-25, follow-up): the board-id selection logic was
+  // EXTRACTED from this function into `_pickInitialBoardId()`, which
+  // runs AFTER the global-defaults guard (so the server's selectedBoard
+  // hint is available). The previous attempt at re-ordering the whole
+  // function broke things — the default-map init (state.playAreasByBoard
+  // = createDefaultPlayAreasByBoard()) ran AFTER loadBoardProfiles() and
+  // silently overwrote the hydrated per-board data. Operator UAT
+  // (2026-05-25): "Alle play-areas sind kaputt in jedem Board!! Ich
+  // sehe in jedem boards jeweils nur die default play area und nicht
+  // mehr die von mir gezeichneten Play areas". This split keeps Phase 2
+  // running in its original slot (before Phase 3), so defaults are set
+  // first and then loadBoardProfiles() overlays the real per-board data
+  // on top, as it has always done. Only the boardId pick moves later.
   function _initApplicationSetupBoardState() {
     const state = ctx.state;
-    const BOARDS = ctx.getBoards();
-    // Phase 50 (2026-05-24, follow-up): pick the initial board with
-    // priority:
-    //   1. Server's live-session `selectedBoard` (from
-    //      /api/global-defaults; embedded into __TT_BEAMER_BOOTSTRAP_CONFIG__
-    //      by Phase 3 which now runs BEFORE this function).
-    //   2. localStorage's last-board-id (per-device preference; only
-    //      meaningful on a device that has visited the dashboard
-    //      before).
-    //   3. BOARDS[0] (alphabetic first — sensible default for a
-    //      brand-new device with no signals).
-    // Operator UAT: "es hat erst das falsche board (frostpunk) geladen
-    // und dann nochmal ne minute gedauert bis es das richtige board
-    // geladen hat". The server-snapshot hint closes the gap so mobile
-    // (no localStorage) lands on the right board on first paint.
-    let serverHintBoardId = "";
-    try {
-      const bp = window.__TT_BEAMER_BOOTSTRAP_CONFIG__;
-      if (bp && typeof bp === "object" && typeof bp.selectedBoard === "string") {
-        serverHintBoardId = bp.selectedBoard;
-      }
-    } catch { /* defensive */ }
-    let persistedBoardId = "";
-    try {
-      persistedBoardId = window.localStorage?.getItem("tt-beamer.last-board-id.v1") || "";
-    } catch { /* private mode / quota — ignore */ }
-    if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
-      if (serverHintBoardId && BOARDS.some((board) => board.id === serverHintBoardId)) {
-        state.boardId = serverHintBoardId;
-      } else if (persistedBoardId && BOARDS.some((board) => board.id === persistedBoardId)) {
-        state.boardId = persistedBoardId;
-      } else {
-        state.boardId = BOARDS[0]?.id ?? "";
-      }
-    }
     // Apply persisted local UI prefs (toggle states, polygon corner
     // size, tap-action mode, mobile zone) over the defaults set in
     // runtime-state.js. Quiet on missing/corrupt payloads.
@@ -194,6 +173,40 @@
     }
 
     return startupDefaultsSnapshot;
+  }
+
+  // Phase 50 (2026-05-25): initial board-id resolution. Runs AFTER the
+  // global-defaults guard so it can see the server's live-session
+  // `selectedBoard` hint (embedded into __TT_BEAMER_BOOTSTRAP_CONFIG__).
+  // Priority:
+  //   1. Server hint (window.__TT_BEAMER_BOOTSTRAP_CONFIG__.selectedBoard)
+  //   2. localStorage's last-board-id (per-device preference)
+  //   3. BOARDS[0] (alphabetic first — sensible default)
+  // Mobile cold-start (no localStorage) lands on the right board on
+  // first paint without the previous ~1 min "wrong board → switch".
+  function _pickInitialBoardId() {
+    const state = ctx.state;
+    const BOARDS = ctx.getBoards();
+    let serverHintBoardId = "";
+    try {
+      const bp = window.__TT_BEAMER_BOOTSTRAP_CONFIG__;
+      if (bp && typeof bp === "object" && typeof bp.selectedBoard === "string") {
+        serverHintBoardId = bp.selectedBoard;
+      }
+    } catch { /* defensive */ }
+    let persistedBoardId = "";
+    try {
+      persistedBoardId = window.localStorage?.getItem("tt-beamer.last-board-id.v1") || "";
+    } catch { /* private mode / quota — ignore */ }
+    if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
+      if (serverHintBoardId && BOARDS.some((board) => board.id === serverHintBoardId)) {
+        state.boardId = serverHintBoardId;
+      } else if (persistedBoardId && BOARDS.some((board) => board.id === persistedBoardId)) {
+        state.boardId = persistedBoardId;
+      } else {
+        state.boardId = BOARDS[0]?.id ?? "";
+      }
+    }
   }
 
   // W3.6-C7 Phase 4: post-hydration panel sync + projection transform
@@ -363,17 +376,22 @@
     // from the loading screen.
     _registerLoadingOverlaySafety();
     await _initApplicationLoadZonesAndResources();
-    // Phase 50 (2026-05-24, follow-up): run the global-defaults fetch
-    // BEFORE setupBoardState so we have the server's authoritative
-    // `selectedBoard` hint (via __TT_BEAMER_BOOTSTRAP_CONFIG__) at the
-    // moment we pick the initial board. Previously setupBoardState ran
-    // first and defaulted to BOARDS[0] (alphabetic first; frostpunk on
-    // the operator's setup), then the live-sync snapshot arrived later
-    // and triggered a board switch — visible on mobile as ~1 min of
-    // "wrong board → correct board". Both phases are independent (the
-    // guard doesn't depend on state.boardId), so this reorder is safe.
-    const startupDefaultsSnapshot = await _initApplicationStartupDefaultsGuard();
+    // Phase 50 (2026-05-25, revised): restore original ordering of
+    // setupBoardState BEFORE startupDefaultsGuard. The intermediate
+    // reorder (2026-05-24) had setupBoardState run AFTER the guard so
+    // it could see the server's selectedBoard hint — but setupBoardState
+    // ALSO initializes per-board default maps (state.playAreasByBoard =
+    // createDefaultPlayAreasByBoard(), etc.), and those overwrote the
+    // hydrated per-board data that loadBoardProfiles() had just loaded.
+    // Operator UAT (2026-05-25): "Alle play-areas sind kaputt in jedem
+    // Board".
+    // The board-id-selection logic was extracted into
+    // `_pickInitialBoardId()` which runs AFTER the guard. Defaults are
+    // set first, loadBoardProfiles overlays real data on top, then we
+    // pick the initial boardId from the (now-available) server hint.
     _initApplicationSetupBoardState();
+    const startupDefaultsSnapshot = await _initApplicationStartupDefaultsGuard();
+    _pickInitialBoardId();
     _initApplicationConnectAndSync();
     _initApplicationApplyHydrationStatus(startupDefaultsSnapshot);
     _initApplicationWarmupAndRegress();
