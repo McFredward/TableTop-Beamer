@@ -1083,6 +1083,15 @@ details.anim-editor-card-collapsible[open] .anim-editor-card-summary::after {
   border: 1px solid var(--c-border);
   border-radius: var(--rd-r-lg);
   color: var(--c-accent);
+  /* Phase 50 (2026-05-25): the preview media now applies a CSS
+   * transform reflecting the Transform card's rotation / scale /
+   * offset settings. Without clipping, a `scale(3.5)` blows the
+   * media out of the swatch and across the page. Containment here
+   * keeps the visual feedback inside the box (operator UAT: "es
+   * soll … innerhalb der box verbleiben und darin entsprechend
+   * scaliert werden, aktuell kann wenn das video gestrecht wird,
+   * es über den ganzen bildschirm gehen"). */
+  overflow: hidden;
 }
 
 .anim-editor-preview-swatch svg {

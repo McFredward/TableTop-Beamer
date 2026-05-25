@@ -10,6 +10,56 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.29] — 2026-05-25
+
+Phase 50: Transform fields now pass through to running room animations.
+
+### Fixed
+- **Real root cause** of the "transform edits not respected" saga
+  (operator UAT 5×): the six `createAnimation({…})` call sites in
+  `runtime-room-dispatch.js` were OMITTING `rotationDeg`,
+  `stretchToPolygon`, `widthScale`, `heightScale`, `offsetXScale`,
+  `offsetYScale` from the spread. The factory
+  (`runtime-animation-factory.js:31-36`) defaults those to neutral
+  values (`stretchToPolygon: true, widthScale: 1, …`) when the caller
+  doesn't pass them, completely masking whatever the operator had
+  edited in `def`/`draftPayload`. The room renderer reads
+  `animation.widthScale ?? definition.widthScale` — but the
+  factory-default `1` short-circuits the `??`, so the def's actual
+  value never wins.
+
+  Fix: added `rotationDeg/stretchToPolygon/widthScale/heightScale/
+  offsetXScale/offsetYScale: draftPayload.<field>` to all six
+  `createAnimation` invocations in `runtime-room-dispatch.js` (lines
+  177, 284, 306, 418, 534, 555). All four predecessor fixes
+  (v1.0.26-v1.0.28) — re-seed draft from def, runtime-state passthrough,
+  unconditional sync-flag clear, live preview transform — were
+  necessary for the draft → payload pipeline to carry the right
+  values, but this v1.0.29 fix is what finally lets those values
+  reach the running animation that the renderer reads.
+
+  Verified end-to-end (Playwright, frostpunk + Generator boost, clean
+  runtime-active-animations.json):
+  - Edit widthScale=4, heightScale=2.5, rotation=33, stretch=off
+  - Click Start
+  - Single running animation pushed with all four edited fields ✓
+
+### Improved
+- **Preview transform now stays inside the preview box.** Operator UAT:
+  "es soll … innerhalb der box verbleiben … aktuell kann wenn das
+  video gestrecht wird es über den ganzen bildschirm gehen". Added
+  `overflow: hidden` to `.anim-editor-preview-swatch` so a `scale(4)`
+  blowout is clipped to the box.
+
+### Operator-facing test note
+- The persistence file `config/runtime-active-animations.json` survives
+  server restarts and can hold stale running-animation entries from
+  earlier sessions. If you ever see "two of the same animation" with
+  conflicting values after testing, clean that file (or just trigger
+  Stop) before judging the running set.
+
+---
+
 ## [1.0.28] — 2026-05-25
 
 Phase 50: Editor transform edits + live preview transform.
