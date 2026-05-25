@@ -10,6 +10,44 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.27] — 2026-05-25
+
+Phase 50: Re-seed draft from runtime state (v1.0.26 was incomplete).
+
+### Fixed
+- **v1.0.26 was supposed to clear `state.roomDraft.lastSyncedAnimationId`
+  on a def edit so the next trigger re-seeds from the new def — but
+  the fix never fired in practice.** Operator UAT (2026-05-25): "Nein
+  immer noch nicht. Ich teste gerade im board Frostpunk die Animation
+  Generator boost. Ich habe im Animationeditor die Animation unter
+  'Transform' verändert, aber EGAL was ich dort einstelle und
+  abspeichere, wenn ich die Animation im dashboard starte werden meine
+  hier eingestellten Werte nicht respektiert".
+
+  Root cause of the missed fix: the animation-editor's edit-pane
+  module reads `ctx.state` — but `animation-editor-view.js` overrides
+  `state` with `shell.getState()` when wiring `editPane.init()`. The
+  shell's getState returns a SHELL-LOCAL UI state (`{scope, search,
+  selectedIds, ...}`) with NO `roomDraft` and NO `boardId`. So the
+  v1.0.26 condition (`ctx.state.roomDraft.animationId === id &&
+  ctx.state.boardId === boardId`) was always false, and the draft
+  invalidation never ran.
+
+  Fix:
+  - `animation-editor-view.js` now passes the actual runtime state
+    separately as `runtimeState: deps.state` (after the override).
+  - `patchAnimation` (animation-editor-edit-pane.js) reads
+    `ctx.runtimeState ?? ctx.state` so the condition + write target
+    the runtime state's `roomDraft.lastSyncedAnimationId`.
+
+  Verified end-to-end (Playwright, frostpunk + Generator boost):
+  edit widthScale 2.18→3.7 + flip stretchToPolygon off → after edit
+  `lastSynced = null` (was: `"room-mphf0q8m-1"`) → simulated trigger
+  re-seeded draft to `widthScale=3.7, stretch=false`. The animation
+  will now actually start with the edited values.
+
+---
+
 ## [1.0.26] — 2026-05-25
 
 Phase 50: Animation-editor edits now apply on next trigger.

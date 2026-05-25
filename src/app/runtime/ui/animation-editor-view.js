@@ -59,6 +59,14 @@
       ...deps,
       shell,
       state: shell.getState(),
+      // Phase 50 (2026-05-25): shell.getState() overrides `state` with the
+      // shell-local UI state (scope/search/selectedIds/...). Pass the
+      // runtime state separately so patchAnimation can read state.boardId
+      // and clear state.roomDraft.lastSyncedAnimationId after a def edit,
+      // forcing the dashboard trigger to re-seed the draft from the new
+      // def values. Operator UAT (2026-05-25): "Die Transform-Einstellungen
+      // … werden nicht respektiert".
+      runtimeState: deps.state,
       render: libraryList.render,
       renderList: libraryList.renderList,
       collectAnimations: libraryList.collectAnimations,

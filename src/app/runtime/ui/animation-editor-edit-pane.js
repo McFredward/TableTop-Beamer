@@ -819,11 +819,19 @@
     // old seed. Fix: when a room-scope def matching the current draft
     // animation gets patched, clear `lastSyncedAnimationId` so the next
     // trigger re-seeds the draft from the freshly-edited def.
+    //
+    // NOTE: ctx.state here is the SHELL's local UI state (overridden in
+    // animation-editor-view.js so the edit-pane's existing `state.scope
+    // /search/selectedIds` refs keep working). The RUNTIME state — which
+    // holds roomDraft + boardId — is passed in separately as
+    // ctx.runtimeState. v1.0.26 incorrectly read ctx.state and the
+    // condition was always false; this is the v1.0.27 retry.
+    const runtimeState = ctx.runtimeState ?? ctx.state;
     if (scope === "room"
-        && ctx.state?.roomDraft
-        && ctx.state.roomDraft.animationId === id
-        && ctx.state.boardId === boardId) {
-      ctx.state.roomDraft.lastSyncedAnimationId = null;
+        && runtimeState?.roomDraft
+        && runtimeState.roomDraft.animationId === id
+        && runtimeState.boardId === boardId) {
+      runtimeState.roomDraft.lastSyncedAnimationId = null;
     }
     // Every patch may flip localConfigDirty;
     // reflect it in the editor topbar immediately.
