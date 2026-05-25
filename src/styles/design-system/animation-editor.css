@@ -932,6 +932,21 @@ details.anim-editor-card-collapsible[open] .anim-editor-card-summary::after {
 .anim-editor-slider-row {
   display: grid;
   gap: 6px;
+  transition: opacity 0.15s ease;
+}
+
+/* Phase 50 (2026-05-25): when 'Stretch to polygon' is on, the width /
+ * height / X-offset / Y-offset sliders are disabled (mirrors live-
+ * editor behavior). Operator UAT — we surface the disabled state
+ * visually so the operator understands at a glance that the switch
+ * is what blocks the sliders, not a bug. */
+.anim-editor-slider-row.is-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.anim-editor-slider-row.is-disabled .anim-editor-slider-row-head > span:last-child {
+  color: var(--c-text-3);
 }
 
 .anim-editor-slider-row-head {

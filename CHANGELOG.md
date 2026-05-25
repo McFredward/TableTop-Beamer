@@ -10,6 +10,35 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.23] — 2026-05-25
+
+Phase 50: Stretch-to-polygon greys out the transform sliders.
+
+### Fixed
+- **The 'Stretch to polygon' switch in the animation editor's
+  Transform card blocks width/height/X-offset/Y-offset edits (correct
+  — they have no effect when the media is force-fit to the room
+  polygon), but the sliders still looked active so the operator didn't
+  realise WHY their drag was being ignored.** Operator UAT (2026-05-25):
+  "Wenn ich eine Animation editiere dann verhindert der 'Stretch to
+  Polygon' Switch, dass ich die Animation transformiere — so weit so
+  richtig. Nur ist für den User nicht ganz so intuitiv, ich hätte
+  gerne das alle slider unter dem switch etwas ausgegraut sind und das
+  ausgrauen verschwindet wenn der switch ausgeschaltet wird".
+
+  Fix: gated rows (`widthScale` / `heightScale` / `offsetXScale` /
+  `offsetYScale`) now get an `is-disabled` class when stretchToPolygon
+  is true. CSS applies 0.42 opacity + `pointer-events: none` and the
+  `<input type="range">` itself is set to `disabled`. The toggle
+  pushes the update live via a new `onChange` callback on
+  `buildToggleRow`, so flipping the switch updates the gate without a
+  full pane rebuild (preserves the toggle's pressed state). Rotation
+  is intentionally NOT gated because rotation works regardless of
+  stretch (mirrors the existing live-editor behaviour at runtime-
+  lifecycle-live-editor.js:235-238).
+
+---
+
 ## [1.0.22] — 2026-05-25
 
 Phase 50: Animation-editor Name field keeps focus on dirty transition.

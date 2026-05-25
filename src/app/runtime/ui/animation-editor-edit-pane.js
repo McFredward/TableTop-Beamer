@@ -161,24 +161,53 @@
         sub: "Fit the media to the room polygon shape." },
       { kind: "slider", key: "widthScale", label: "Width scale",
         min: 0.1, max: 10, step: 0.01,
-        format: (v) => v.toFixed(2) },
+        format: (v) => v.toFixed(2),
+        gatedByStretch: true },
       { kind: "slider", key: "heightScale", label: "Height scale",
         min: 0.1, max: 10, step: 0.01,
-        format: (v) => v.toFixed(2) },
+        format: (v) => v.toFixed(2),
+        gatedByStretch: true },
       { kind: "slider", key: "offsetXScale", label: "X offset",
         min: -1, max: 1, step: 0.01,
-        format: (v) => v.toFixed(2) },
+        format: (v) => v.toFixed(2),
+        gatedByStretch: true },
       { kind: "slider", key: "offsetYScale", label: "Y offset",
         min: -1, max: 1, step: 0.01,
-        format: (v) => v.toFixed(2) },
+        format: (v) => v.toFixed(2),
+        gatedByStretch: true },
     ];
+    // Phase 50 (2026-05-25): operator UAT — "der 'Stretch to Polygon'
+    // switch verhindert, dass ich die Animation transformiere — so weit
+    // so richtig. Nur ist für den User nicht ganz so intuitiv, ich hätte
+    // gerne das alle slider unter dem switch etwas ausgegraut sind und
+    // das ausgrauen verschwindet wenn der switch ausgeschaltet wird".
+    // The slider's `disabled` attribute on its own doesn't read as
+    // intentional — the rows look identical until you try to drag the
+    // thumb. Apply `.is-disabled` to the gated rows for visible opacity
+    // + pointer-events: none on top of `<input disabled>` so the gate
+    // is read-only AND looks read-only.
+    const gatedRows = [];
+    const _applyStretchGate = (stretched) => {
+      for (const row of gatedRows) {
+        row.classList.toggle("is-disabled", stretched);
+        const input = row.querySelector("input[type='range']");
+        if (input) input.disabled = stretched;
+      }
+    };
     for (const f of fields) {
       if (f.kind === "slider") {
-        card.append(buildSliderRow(scope, def, boardId, f));
+        const row = buildSliderRow(scope, def, boardId, f);
+        if (f.gatedByStretch) gatedRows.push(row);
+        card.append(row);
       } else if (f.kind === "toggle") {
-        card.append(buildToggleRow(scope, def, boardId, f));
+        card.append(buildToggleRow(scope, def, boardId, f, {
+          onChange: (next) => {
+            if (f.key === "stretchToPolygon") _applyStretchGate(next);
+          },
+        }));
       }
     }
+    _applyStretchGate(Boolean(def.stretchToPolygon));
     return card;
   }
 
@@ -449,7 +478,7 @@
     return row;
   }
 
-  function buildToggleRow(scope, def, boardId, field) {
+  function buildToggleRow(scope, def, boardId, field, opts = {}) {
     const row = document.createElement("div");
     row.className = "anim-editor-toggle-row";
     const text = document.createElement("div");
@@ -474,6 +503,12 @@
       const next = toggle.getAttribute("aria-checked") !== "true";
       toggle.setAttribute("aria-checked", next ? "true" : "false");
       patchAnimation(scope, boardId, def.id, { [field.key]: next });
+      // Phase 50 (2026-05-25): notify callers (buildTransformCard) so
+      // dependent rows can re-apply visual gating without a full pane
+      // rebuild — preserves the toggle's own focus / pressed state.
+      if (typeof opts?.onChange === "function") {
+        try { opts.onChange(next); } catch (err) { console.error(err); }
+      }
     });
     row.append(text, toggle);
     return row;
