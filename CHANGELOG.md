@@ -10,6 +10,31 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.21] — 2026-05-25
+
+Phase 50: Animation-editor upload now syncs def.assetRef.
+
+### Fixed
+- **After uploading a new GIF/MP4 in the animation editor, the dropdown
+  auto-selected the new file but the animation kept rendering the OLD
+  asset until the operator manually picked another option then switched
+  back.** Operator UAT (2026-05-25): "Wenn ich ein video/gif im
+  animationseditor hochlade wird es im dropdown zwar direkt ausgewählt,
+  aber die animation noch nicht richtig angezeigt — ich muss erst im
+  dropdown ein anderes element auswählen, dann wieder zurück, dann
+  wird die neue animation richtig ausgewählt". Caused by the
+  upload-completion handler: `refreshList(payload.path)` auto-selected
+  the uploaded file in the DOM `<select>`, but for the new-path case
+  (Phase 28 B3's "pure library upload" branch) `patchAnimation` was
+  never called — so `def.assetRef` stayed at the old value and the
+  renderer kept playing the old asset. The dropdown-bounce workaround
+  fired the `change` listener which DID call `patchAnimation`, syncing
+  state back. Fix: for any successful upload where the uploaded path
+  differs from the def's current `assetRef`, fire `patchAnimation`
+  with the new path so state matches the visible dropdown.
+
+---
+
 ## [1.0.20] — 2026-05-25
 
 Phase 50: Aspect-aware default align-mode profile.

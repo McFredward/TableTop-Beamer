@@ -130,6 +130,19 @@
         // is the currently-selected def's assetRef. Pure library uploads
         // (uploading a new file that isn't selected by anything) do NOT mark
         // dirty.
+        //
+        // Phase 50 (2026-05-25): operator UAT — "wenn ich ein video/gif im
+        // animationseditor hochlade wird es im dropdown zwar direkt
+        // ausgewählt, aber die animation noch nicht richtig angezeigt — ich
+        // muss erst im dropdown ein anderes element auswählen, dann wieder
+        // zurück, dann wird die neue animation richtig ausgewählt".
+        // refreshList(payload.path) below auto-selects the uploaded file in
+        // the dropdown — but for the new-path case the def's assetRef was
+        // never updated, so the renderer kept using the OLD asset. The
+        // manual dropdown-bounce only worked because the `change` listener
+        // fired patchAnimation. Fix: when the upload's path differs from
+        // the def's current assetRef AND refreshList will auto-select it,
+        // also fire patchAnimation so state matches the visible dropdown.
         const currentAssetRef = String(def.assetRef || "").trim();
         const uploadedPath = String(payload.path || "").trim();
         if (currentAssetRef && uploadedPath === currentAssetRef) {
@@ -149,9 +162,14 @@
           }
           // else: same hash → identical-bytes re-upload → no patchAnimation,
           // no dirty.
+        } else if (uploadedPath) {
+          // New file uploaded into this def's slot — the dropdown is about
+          // to show it as the selection (refreshList below), so the def's
+          // assetRef must follow or the renderer plays the wrong asset.
+          const newHash = typeof payload.hash === "string" ? payload.hash : null;
+          if (newHash) _lastSeenAssetHashByPath.set(uploadedPath, newHash);
+          patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
         }
-        // else: pure-library upload (no selection match) → no patchAnimation,
-        // no dirty.
         await refreshList(payload.path);
       } catch (error) {
         status.textContent = "Upload failed";
