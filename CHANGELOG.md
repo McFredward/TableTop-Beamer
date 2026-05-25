@@ -10,6 +10,39 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.26] — 2026-05-25
+
+Phase 50: Animation-editor edits now apply on next trigger.
+
+### Fixed
+- **Transform values (rotation, width/height scale, X/Y offset, etc.)
+  edited in the animation editor pane were saved into the def but
+  ignored when the operator next triggered the animation.** Operator
+  UAT (2026-05-25): "Die Transform-Einstellungen einer Animation, die
+  im Animations-Menu eingestellt wurden, werden nicht respektiert.
+  D.h. wenn ich eine Animation starte wird die Animation trotzdem
+  normal gestartet ohne dass die gespeicherten Werte respektiert
+  werden". Root cause: the dashboard's room-trigger pipeline
+  (`runtime-room-dispatch.js:65`) only re-seeds `state.roomDraft.*`
+  from the def when the selected animation id CHANGES
+  (`lastSyncedAnimationId !== selectedDefinition.id`). If the
+  operator edits the same animation that's already selected, the
+  draft stays pinned to its old seed — and the trigger reads from
+  the draft, not the def. Result: edits invisible.
+
+  Fix: when `patchAnimation` (animation-editor pane) or
+  `saveLiveEditorAsDefault` (live-editor) modifies a room-scope def
+  that matches the current `state.roomDraft.animationId` AND the
+  current board, also clear `state.roomDraft.lastSyncedAnimationId`.
+  Next trigger sees the mismatch and re-seeds the draft from the
+  freshly-edited def. Per-run sidebar tweaks ARE lost when the
+  operator opens the editor and edits the def — which matches the
+  operator's mental model ("editor edits = new defaults, sidebar =
+  per-run adjustments"; editing the default overrides the sidebar's
+  staged state).
+
+---
+
 ## [1.0.25] — 2026-05-25
 
 Phase 50: Live-editor Stretch-to-polygon also greys out its sliders.

@@ -807,6 +807,24 @@
     if (typeof ctx.refreshGlobalButtons === "function") {
       ctx.refreshGlobalButtons();
     }
+    // Phase 50 (2026-05-25): operator UAT — "Die Transform-Einstellungen
+    // einer Animation, die im Animations-Menu eingestellt wurden, werden
+    // nicht respektiert. D.h. wenn ich eine Animation starte wird die
+    // Animation trotzdem normal gestartet ohne dass die gespeicherten
+    // Werte respektiert werden". Root cause: the dashboard trigger reads
+    // `state.roomDraft.*` (rotationDeg/widthScale/etc.) — and the draft
+    // is only re-seeded from the def when the user switches to a
+    // DIFFERENT animation id (room-dispatch.js:65 gate). Editing the
+    // same animation in the editor pane leaves the draft pinned to its
+    // old seed. Fix: when a room-scope def matching the current draft
+    // animation gets patched, clear `lastSyncedAnimationId` so the next
+    // trigger re-seeds the draft from the freshly-edited def.
+    if (scope === "room"
+        && ctx.state?.roomDraft
+        && ctx.state.roomDraft.animationId === id
+        && ctx.state.boardId === boardId) {
+      ctx.state.roomDraft.lastSyncedAnimationId = null;
+    }
     // Every patch may flip localConfigDirty;
     // reflect it in the editor topbar immediately.
     syncDirtyBar();
