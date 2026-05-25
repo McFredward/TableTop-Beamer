@@ -10,6 +10,36 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.22] — 2026-05-25
+
+Phase 50: Animation-editor Name field keeps focus on dirty transition.
+
+### Fixed
+- **Typing the first letter into the animation Name field blurred the
+  input — operator had to click back into the field to continue
+  typing.** Operator UAT (2026-05-25): "das erste mal wenn die dirty
+  flag kommt (zB weil ich den Namen ändere), kann ich den namen nicht
+  mehr weiter reinschreiben, sondern ich muss explizit noch einmal
+  reindrücken … OBWOHL die dirty flag im richtigen moment kommt (wenn
+  man den ersten Buchstaben geändert hat) das man den namen weiter
+  eintippen kann, ohne explizit noch einmal reindrücken zu müssen".
+  Caused by Phase 49's gap-closure-25 / Phase 50's earlier (2026-05-22)
+  refinement: `syncDirtyBar()` blurs the active INPUT on the false→
+  true dirty transition to dismiss the mobile soft keyboard before the
+  operator taps Apply. But TYPING is what flips dirty=true — at the
+  moment of the transition, the active element IS the input being
+  typed in, so blurring it interrupts the operator mid-word. Fix: skip
+  the blur when the focused element is a text-entry INPUT
+  (`text/search/email/tel/url/password/number`) or TEXTAREA — those
+  are the only elements that summon a soft keyboard, AND the only
+  ones where active typing happens. Other targets (SELECT, BUTTON)
+  still get the blur if needed, but those don't have keyboards to
+  dismiss in the first place. The "tap Apply after typing" flow stays
+  intact because by then the operator has tapped outside the input
+  themselves (which dismisses the keyboard naturally).
+
+---
+
 ## [1.0.21] — 2026-05-25
 
 Phase 50: Animation-editor upload now syncs def.assetRef.

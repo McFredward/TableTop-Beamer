@@ -481,11 +481,32 @@
     // Apply/Discard isn't eaten by the keyboard-dismiss pipeline). Once
     // the bar is already visible and the user is editing, we must NOT
     // touch focus.
+    //
+    // Phase 50 (2026-05-25): even the false→true transition still blurred
+    // the Name-input on the first keystroke — because TYPING is what flips
+    // the dirty bit, the activeElement at that moment IS the input the
+    // operator is typing in. Operator UAT (2026-05-25): "wenn die dirty
+    // flag kommt (zB weil ich den Namen ändere), kann ich den namen nicht
+    // mehr weiter reinschreiben, sondern ich muss explizit noch einmal
+    // reindrücken … das man den namen weiter eintippen kann, ohne explizit
+    // noch einmal reindrücken zu müssen". Fix: skip the blur entirely
+    // when the focused element is a text-entry input/textarea — those
+    // ARE the elements where the soft keyboard lives, AND they're the
+    // only ones where active typing is plausible. The keyboard-dismiss-
+    // before-Apply intent only mattered for the case "user finished
+    // typing → moved to Apply" — and by then the user has already tapped
+    // outside the input themselves (normal browser dismisses on outside
+    // tap). Other focus targets (SELECT, BUTTON) don't summon keyboards.
     if (dirty && !_lastDirtyState) {
       const focused = document.activeElement;
+      const tag = focused?.tagName;
+      const isTextEntry = tag === "TEXTAREA"
+        || (tag === "INPUT"
+            && /^(text|search|email|tel|url|password|number)$/i.test(focused.type || "text"));
       if (focused
           && focused !== document.body
-          && (focused.tagName === "INPUT" || focused.tagName === "TEXTAREA" || focused.tagName === "SELECT")
+          && !isTextEntry
+          && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")
           && typeof focused.blur === "function") {
         try { focused.blur(); } catch {}
       }
