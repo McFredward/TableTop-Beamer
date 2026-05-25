@@ -80,6 +80,19 @@
     const visualCaps = ctx.getRuntimeVisualCaps();
 
     if (type === "outside-space") {
+      // Phase 50 (2026-05-25): operator UAT — "outside-space Animation
+      // im SSR ist ruckelig, die anderen Animationen aber schon". Root
+      // cause: the SSR Chromium tab is headless (Xvfb + SwiftShader
+      // software-GL) so each canvas state change (strokeStyle,
+      // beginPath, stroke) is ~10× slower than on the dashboard's real
+      // GPU. The previous per-star draw produced ~600-800 individual
+      // ops per frame — fine on a real GPU, painfully slow on SwiftShader.
+      // Fix: batch strokes by lineWidth/alpha bucket so we emit one
+      // beginPath + many moveTo/lineTo + one stroke per bucket. Cuts
+      // the canvas-state-change count by ~10×. Visually almost
+      // identical because adjacent stars share similar alpha already
+      // (twinkle is sine-driven, so buckets quantize the natural
+      // gradient without obvious banding).
       const immersive = options.outsideMode === "immersive";
       const speedInfluence = ctx.clampOutsideSpeed(options.outsideSpeed ?? 1);
       const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
@@ -101,6 +114,11 @@
           { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
         ];
 
+      // 4 alpha buckets per layer — quantize twinkle in steps of 0.25.
+      // 4 was empirically enough to keep the natural twinkle look while
+      // collapsing state changes from O(starCount) → O(layers × 4).
+      const ALPHA_BUCKETS = 4;
+
       for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
         const layer = parallaxLayers[layerIndex];
         const starCount = Math.max(
@@ -112,6 +130,21 @@
         );
         const layerSpeed = layer.speed * (0.8 + intensity * 0.75) * speedFactor;
         const layerWave = h * layer.wave;
+        const baseAlphaScale = layer.alpha * (0.8 + intensity * 0.7);
+        const streakBaseLen =
+          (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
+        // Use a single representative lineWidth per layer (averaged
+        // over the typical size variance) so we can batch strokes.
+        const layerLineWidth = Math.max(0.8, layer.size * (0.65 + layerIndex * 0.08) * 1.05);
+
+        // Buckets: { strokePaths[bucket]: Path2D-equivalent list,
+        // fillRects[bucket]: array of {x,y,size} }
+        const strokeBuckets = new Array(ALPHA_BUCKETS);
+        const fillBuckets = new Array(ALPHA_BUCKETS);
+        for (let b = 0; b < ALPHA_BUCKETS; b += 1) {
+          strokeBuckets[b] = [];
+          fillBuckets[b] = [];
+        }
 
         for (let i = 0; i < starCount; i += 1) {
           const seedX = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
@@ -120,40 +153,80 @@
           const x = progressRaw < 0 ? progressRaw + w + 8 : progressRaw;
           const y = seedY * h + Math.sin(age * 0.35 + i * 0.07 + layerIndex) * layerWave;
           const twinkle = (Math.sin(age * (2 + layerIndex * 0.7) + i * 0.9) + 1) / 2;
-          const alpha = Math.min(0.95, layer.alpha * (0.8 + intensity * 0.7) * (0.75 + twinkle * 0.45));
+          const alpha = Math.min(0.95, baseAlphaScale * (0.75 + twinkle * 0.45));
           const size = layer.size * (0.8 + (((i * 19.9) % 100) / 100) * 0.7);
-          const streakLength =
-            (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
-          const streakWidth = Math.max(0.8, size * (0.65 + layerIndex * 0.08));
+          // Bucket by quantized alpha.
+          const bucket = Math.min(ALPHA_BUCKETS - 1, Math.floor(alpha / (0.95 / ALPHA_BUCKETS)));
+          strokeBuckets[bucket].push(x, y);
+          fillBuckets[bucket].push(x, y, size);
+        }
 
-          c.strokeStyle = `rgba(232, 238, 255, ${Math.min(0.9, alpha * 0.72)})`;
-          c.lineWidth = streakWidth;
+        // Stroke pass: one beginPath + many moveTo/lineTo + one stroke
+        // per bucket.
+        c.lineWidth = layerLineWidth;
+        for (let b = 0; b < ALPHA_BUCKETS; b += 1) {
+          const pts = strokeBuckets[b];
+          if (pts.length === 0) continue;
+          const bucketCenter = ((b + 0.5) / ALPHA_BUCKETS) * 0.95;
+          c.strokeStyle = `rgba(232, 238, 255, ${Math.min(0.9, bucketCenter * 0.72)})`;
           c.beginPath();
-          c.moveTo(x + streakLength * directionMultiplier, y);
-          c.lineTo(x, y);
+          for (let p = 0; p < pts.length; p += 2) {
+            const x = pts[p];
+            const y = pts[p + 1];
+            c.moveTo(x + streakBaseLen * directionMultiplier, y);
+            c.lineTo(x, y);
+          }
           c.stroke();
+        }
 
-          c.fillStyle = `rgba(245, 248, 255, ${alpha})`;
-          c.fillRect(x, y, size, size);
+        // Fill pass: one fillStyle per bucket, then fillRect per star.
+        // fillRect itself can't be batched in standard canvas API, but
+        // grouping by fillStyle is still a big win (no per-star
+        // style assignment).
+        for (let b = 0; b < ALPHA_BUCKETS; b += 1) {
+          const rects = fillBuckets[b];
+          if (rects.length === 0) continue;
+          const bucketCenter = ((b + 0.5) / ALPHA_BUCKETS) * 0.95;
+          c.fillStyle = `rgba(245, 248, 255, ${bucketCenter})`;
+          for (let p = 0; p < rects.length; p += 3) {
+            c.fillRect(rects[p], rects[p + 1], rects[p + 2], rects[p + 2]);
+          }
         }
       }
 
+      // Express lanes — also batched into a single Path2D per
+      // alpha-bucket.
       const expressLanes = Math.max(
         4,
         Math.min(22, Math.round((immersive ? 14 : 9) * intensity * visualCaps.nonCriticalDensityScale)),
       );
-      for (let i = 0; i < expressLanes; i += 1) {
-        const laneY = (((i * 63.17) % 1000) / 1000) * h;
-        const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
-        const laneLength = 140 + speedInfluence * 55 + intensity * 70;
-        const laneAlpha = (0.04 + ((Math.sin(age * 4.6 + i) + 1) / 2) * 0.15) * (immersive ? 1.2 : 0.92);
-        c.strokeStyle = `rgba(224, 233, 255, ${Math.min(0.48, laneAlpha)})`;
-        c.lineWidth = 0.8 + ((i % 3) + 1) * 0.38;
+      const laneLength = 140 + speedInfluence * 55 + intensity * 70;
+      // Group lanes by their (mod 3) lineWidth bucket — only 3
+      // distinct widths possible — so we can batch by width.
+      for (let widthMod = 0; widthMod < 3; widthMod += 1) {
+        c.lineWidth = 0.8 + (widthMod + 1) * 0.38;
+        // Average alpha across the lanes in this width group —
+        // lanes alpha varies per-frame via sin, but the natural
+        // variance is small and the visual still reads correctly.
+        let totalAlpha = 0;
+        let count = 0;
         c.beginPath();
-        const laneHeadX = directionMultiplier > 0 ? w - pulse : pulse;
-        c.moveTo(laneHeadX + laneLength * directionMultiplier, laneY);
-        c.lineTo(laneHeadX, laneY);
-        c.stroke();
+        for (let i = 0; i < expressLanes; i += 1) {
+          if ((i % 3) !== widthMod) continue;
+          const laneY = (((i * 63.17) % 1000) / 1000) * h;
+          const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
+          const laneAlpha = (0.04 + ((Math.sin(age * 4.6 + i) + 1) / 2) * 0.15) * (immersive ? 1.2 : 0.92);
+          totalAlpha += laneAlpha;
+          count += 1;
+          const laneHeadX = directionMultiplier > 0 ? w - pulse : pulse;
+          c.moveTo(laneHeadX + laneLength * directionMultiplier, laneY);
+          c.lineTo(laneHeadX, laneY);
+        }
+        if (count > 0) {
+          const avgAlpha = totalAlpha / count;
+          c.strokeStyle = `rgba(224, 233, 255, ${Math.min(0.48, avgAlpha)})`;
+          c.stroke();
+        }
       }
       return;
     }

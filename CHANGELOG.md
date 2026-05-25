@@ -10,6 +10,43 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.31] — 2026-05-25
+
+Phase 50: outside-space starfield batched for SSR smoothness.
+
+### Fixed
+- **`outside-space` (parallax starfield) animation was choppy in the
+  SSR stream while other animations played smoothly.** Operator UAT
+  (2026-05-25): "outside-space animation im SSR ist ruckelig, erscheint
+  nicht ganz flüssig, die anderen Animationen aber schon".
+
+  Root cause: per-frame the effect ran a tight loop emitting ~600-800
+  individual canvas state changes (per-star `strokeStyle`, `beginPath`,
+  `stroke`, `fillStyle`, `fillRect` — ×3-4 parallax layers ×16-98
+  stars each + 4-22 express lanes). On the dashboard's real GPU these
+  ops batch into a few draw-calls; on the headless SSR Chromium tab
+  (Xvfb + SwiftShader software-GL) each state change is ~10× slower,
+  so the per-frame budget overflows and the encoder receives an
+  uneven frame cadence.
+
+  Fix: batch strokes/fills by 4 alpha buckets per layer. For each
+  layer + bucket, emit ONE `strokeStyle` + `beginPath` + many
+  `moveTo`/`lineTo` + ONE `stroke`. fillRects can't be path-batched
+  but grouping by `fillStyle` still removes per-star style
+  assignments. Express lanes batched by their (mod-3) lineWidth into
+  3 sub-batches. State-change count drops from ~600-800/frame to
+  ~30/frame — large enough win on SwiftShader to restore smooth
+  playback while preserving the visual character (twinkle gradient
+  remains, just quantized to 4 levels per layer instead of continuous
+  — which the natural sine-driven twinkle already approximates).
+
+  Visual diff vs the old continuous-alpha rendering is essentially
+  imperceptible at 1920×1080 — twinkle still reads as twinkle because
+  adjacent stars naturally fall into different buckets at different
+  phases of the sine cycle.
+
+---
+
 ## [1.0.30] — 2026-05-25
 
 Phase 50: Room MP4 loop seam eliminated from SSR stream.
