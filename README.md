@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-1.1.0-7c3aed.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-1.1.3-7c3aed.svg)](#project-status)
 
 <br>
 
