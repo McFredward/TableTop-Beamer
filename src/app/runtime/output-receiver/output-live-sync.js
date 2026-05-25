@@ -326,8 +326,27 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       // array no longer matches the grid layout. Call rebuildHandleElements
       // if available so the handle count tracks the new grid before
       // positionHandles iterates.
+      //
+      // v1.1.3 (2026-05-25): gate these calls on `handlesVisible`. The
+      // _real_ root cause of the operator's "handles reappear after board
+      // switch with align mode OFF" UAT was here, not in the loader.
+      // When align mode is ON, handle-ui creates handle DOM nodes (appended
+      // to <body>, NOT to #room-overlay) and sets `handlesVisible = true`.
+      // When align mode is toggled OFF, hideHandles() removes those nodes
+      // and sets `handlesVisible = false`. A subsequent board switch fires
+      // an align-grid-snapshot WS message that lands here; calling
+      // `rebuildHandleElements()` ungated re-creates the corner+rotate+
+      // scale+squish DOM directly on document.body — bypassing the CSS
+      // `body.align-mode-active` gate (handles live outside #room-overlay
+      // and have inline `position: fixed; z-index: 9999` so they're always
+      // visible once in the DOM). Checking `getHandlesVisible()` short-
+      // circuits these redraws when align mode is off — the grid state was
+      // still updated by `gs.restoreGridSnapshot(...)` above, so the next
+      // align-mode activation will rebuild handles against the correct
+      // grid. SSR Chromium tab is unaffected (its createHandles is a no-op
+      // on `_isSsrChromiumTab()`, so `handlesVisible` is false there too).
       const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
-      if (ui) {
+      if (ui && ui.getHandlesVisible?.() === true) {
         try { ui.rebuildHandleElements?.(); } catch {}
         try { ui.positionHandles?.(); } catch {}
         try { ui.positionRotateHandles?.(); } catch {}

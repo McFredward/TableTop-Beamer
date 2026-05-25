@@ -12,6 +12,46 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.3] — 2026-05-25
+
+Hotfix. v1.1.2's defensive scrubs covered the polygon-editor's
+`#room-overlay` SVG repopulation path but missed the real
+mechanism for the handle DOM (corner + rotate + scale + squish).
+Operator UAT still showed handles + grid lines reappearing on
+`/output/` after align-OFF → board-switch.
+
+### Fixed
+- **Align handles reappear on `/output/` after board switch
+  with align mode OFF (real root cause).** Empirically reproduced
+  via Playwright on Linux: align ON → handles + lineCanvas +
+  toolbar mount; align OFF → all torn down (correct);
+  `<select id="board-select">` change → 9 corner handles +
+  4 rotate + 4 scale + 4 squish bars reappear (wrong). Stack
+  trace from a temporary `console.log` in `rebuildHandleElements`
+  pinned the culprit: `_applyAlignGridSnapshot` in
+  `src/app/runtime/output-receiver/output-live-sync.js` (Phase 38
+  W3) called `ui.rebuildHandleElements()` + `positionHandles()` +
+  `positionRotateHandles()` + `drawLines()` UNCONDITIONALLY when
+  a new grid snapshot arrived over WebSocket. Board switch fires
+  exactly such a snapshot (the new board's saved profile loads
+  into the grid). The handle DOM lives on `document.body` with
+  inline `position: fixed; z-index: 9999;` — NOT inside
+  `#room-overlay` — so the `body.align-mode-active` CSS gate that
+  protects polygon "Punkte" never gated these. v1.1.2's
+  `#room-overlay` clear was correct but irrelevant to the handle
+  path. Fix: gate the four `rebuildHandleElements/positionHandles/
+  positionRotateHandles/drawLines` calls on
+  `ui.getHandlesVisible?.() === true`. The grid state itself is
+  still updated by `gs.restoreGridSnapshot(...)` above, so the
+  next align-mode activation will rebuild handles against the
+  correct grid. SSR Chromium tab unaffected — its `createHandles`
+  is a no-op on `_isSsrChromiumTab()`, so `handlesVisible` is
+  false there too. Verified across three back-to-back
+  Playwright runs: 0 corner / 0 rotate / 0 scale / 0 squish
+  handles after board switch in all runs.
+
+---
+
 ## [1.1.2] — 2026-05-25
 
 Hotfix. Operator UAT after the v1.1.1 push: align-mode handles
