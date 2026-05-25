@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-1.0.0-7c3aed.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-1.1.0-7c3aed.svg)](#project-status)
 
 <br>
 
@@ -145,9 +145,12 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
 - **Keep `/output/` in the foreground** on the projector Pi. Chromium throttles
   background tabs, which causes spurious "lost connection" cycles. Fullscreen-kiosk
   mode on the projector display avoids this entirely.
-- **The default quality preset** (`extra-high`, 1080p, 30 fps source / 60 fps
-  stream cap, 16 Mbit) is tuned for a Pi 5 + a 1080p projector on a quiet LAN.
-  Step down to `balanced` if you see jitter.
+- **Default stream settings** (H.264, 1080p, 30 fps source / 60 fps stream
+  cap, 16 Mbit/s) are tuned for a Pi 5 + a 1080p projector on a quiet LAN.
+  In Settings → System (Server Side Rendering) you can switch the codec
+  (H.264 / VP9), pick a content-hint (detail / motion / auto), and step
+  the bitrate up to Maximum (30 Mbit) or down to Low (3 Mbit) if you see
+  jitter.
 
 ---
 

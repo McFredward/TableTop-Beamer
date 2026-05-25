@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.asset-manifest.v1",
-  "generatedAt": "2026-05-19T19:33:02.509Z",
+  "generatedAt": "2026-05-25T09:38:54.464Z",
   "hashByPath": {
     "/resources/animations/burst.gif": {
       "hash": "ea0b0774b013",
@@ -11,6 +11,11 @@
       "hash": "07c43c1ec097",
       "size": 2226598,
       "mtime": "2026-04-12T08:27:47.250Z"
+    },
+    "/resources/animations/generator_boost.mp4": {
+      "hash": "2437bdc3c310",
+      "size": 4280522,
+      "mtime": "2026-05-25T07:40:21.369Z"
     },
     "/resources/animations/malfunction.gif": {
       "hash": "4f0558cdafdf",
@@ -31,6 +36,11 @@
       "hash": "7c8c380d6064",
       "size": 22274941,
       "mtime": "2026-05-04T08:01:56.744Z"
+    },
+    "/resources/animations/topdown_burst.gif": {
+      "hash": "19fe79192087",
+      "size": 19084010,
+      "mtime": "2026-05-22T21:42:50.645Z"
     },
     "/resources/sounds/alarm.mp3": {
       "hash": "34dfaf906741",

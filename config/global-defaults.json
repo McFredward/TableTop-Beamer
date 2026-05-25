@@ -1,30 +1,30 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-05-23T23:00:46.159Z",
+  "savedAt": "2026-05-25T09:39:11.711Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
     "volume": 0.7
   },
   "animationSpeed": 1,
-  "diagnosticOverlay": true,
+  "diagnosticOverlay": false,
   "projectionMapping": {
     "corners": {
       "topLeft": {
-        "x": 19.464045589586416,
-        "y": 3.687410762204635
+        "x": 20.364583333333332,
+        "y": 10.555555555555555
       },
       "topRight": {
-        "x": 76.44741274374691,
-        "y": 3.687410762204635
+        "x": 75.36458333333333,
+        "y": 10.555555555555555
       },
       "bottomRight": {
-        "x": 76.44741274374691,
-        "y": 98.15740746894024
+        "x": 75.36458333333333,
+        "y": 81.57407407407409
       },
       "bottomLeft": {
-        "x": 19.464045589586416,
-        "y": 98.15740746894024
+        "x": 20.364583333333332,
+        "y": 81.57407407407409
       }
     }
   },
@@ -33,6 +33,7 @@
     "resolutionPreference": "1080p",
     "fpsTarget": 30,
     "streamFpsCap": 60,
-    "streamBitrateMbps": 16
+    "streamBitrateMbps": 16,
+    "codecPreference": "vp9"
   }
 }
