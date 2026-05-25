@@ -93,6 +93,12 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60, configuredBitrate
  * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, viewport?: {width:number,height:number} }} [opts]
  */
 export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, viewport = { width: 1920, height: 1080 } } = {}) {
+  // v1.1.1 (2026-05-25): SSR_PUBLISHER_DEBUG=1 enables in-page diagnostic
+  // logs (gpu-probe + track-state per poll). Off by default to keep prod
+  // logs clean. Built up during the Win32 1fps regression hunt — left in
+  // gated form because they distinguish capture-pipeline issues from
+  // encoder-pipeline issues in a single operator run.
+  const publisherDebug = process.env.SSR_PUBLISHER_DEBUG === "1";
   // Phase 50: encoderConfig.bitrate is the operator's slider value in
   // bits/s. Pass through to deriveSimulcastBitrates as the explicit
   // override; fps-derived fallback kicks in only when bitrate is unset.
@@ -282,6 +288,24 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       }
     } catch {}
 
+    // v1.1.1 (2026-05-25): gpu-probe — gated by SSR_PUBLISHER_DEBUG env.
+    // Used during the Win32 1fps regression hunt to distinguish
+    // SwiftShader vs. ANGLE vs. real GPU. Logs the WebGL UNMASKED_VENDOR
+    // and UNMASKED_RENDERER strings once at publisher boot. Cross-platform
+    // diagnostic — operator can diff Linux vs. Win32 logs side-by-side.
+    if (${publisherDebug ? "true" : "false"}) {
+      try {
+        const __probeGl = document.createElement("canvas").getContext("webgl2") ||
+          document.createElement("canvas").getContext("webgl");
+        const __ext = __probeGl && __probeGl.getExtension("WEBGL_debug_renderer_info");
+        const __vendor = __ext ? __probeGl.getParameter(__ext.UNMASKED_VENDOR_WEBGL) : "n/a";
+        const __renderer = __ext ? __probeGl.getParameter(__ext.UNMASKED_RENDERER_WEBGL) : "n/a";
+        console.log("[ssr-publisher] gpu-probe: vendor=" + __vendor + " renderer=" + __renderer);
+      } catch (e) {
+        console.warn("[ssr-publisher] gpu-probe failed:", e?.message);
+      }
+    }
+
     // 4. D-A3 encoding layers + D-A2/Phase 50 codec preference.
     // h18 (2026-05-06): single-layer on software encoders (x264) so the
     // CPU isn't paying triple encode cost. Hardware encoders keep 3
@@ -424,6 +448,26 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
             " qualityLimitReason=" + (o.qualityLimitationReason ?? "n/a") +
             " encoderImpl=" + (o.encoderImplementation ?? "n/a")
           );
+          // v1.1.1: capture-pipeline state alongside encoder state, gated
+          // by SSR_PUBLISHER_DEBUG env. Distinguishes capture-side throttling
+          // (muted/setFps) from encoder-side throttling (framesEncoded≈1 with
+          // healthy track). Built during Win32 1fps regression hunt.
+          if (${publisherDebug ? "true" : "false"}) {
+            try {
+              const __tSet = videoTrack.getSettings?.() || {};
+              console.log(
+                "[ssr-publisher] track-state [" + label + "]: " +
+                "readyState=" + videoTrack.readyState +
+                " muted=" + videoTrack.muted +
+                " enabled=" + videoTrack.enabled +
+                " setFps=" + (__tSet.frameRate ?? "n/a") +
+                " setW=" + (__tSet.width ?? "n/a") +
+                " setH=" + (__tSet.height ?? "n/a")
+              );
+            } catch (e) {
+              console.warn("[ssr-publisher] track-state readback failed:", e?.message);
+            }
+          }
         }
       } catch (e) {
         console.warn("[ssr-publisher] enc-stats readback failed:", e?.message);

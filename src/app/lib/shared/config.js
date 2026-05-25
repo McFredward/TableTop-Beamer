@@ -217,7 +217,7 @@
   // `package.json` — both must stay in lockstep or the topbar chip
   // drifts from the actual build (surfaced via the small chip in the
   // topbar, index.html #app-version + inline script).
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.1.1";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,

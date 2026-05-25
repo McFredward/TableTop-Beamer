@@ -12,6 +12,40 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.1] — 2026-05-25
+
+Hotfix release. Restores the SSR stream on Windows after v1.1.0
+shipped a regression that pinned `/output/` to ~1 fps on Win32
+operator boxes (Linux unaffected).
+
+### Fixed
+- **Win32 SSR stream stuck at 1-2 fps with `outside-space` mode
+  active.** The v1.0.31 starfield render optimization
+  (`f6383b2`) batched ~600-800 per-frame canvas state changes down
+  to ~30. On Linux+Xvfb this was a clean win (smoother SSR for the
+  outside-space animation). On Win32 Chrome headless=new the
+  drastic reduction in canvas state changes removed an implicit
+  page-composition damage signal — Chromiums compositor stopped
+  committing frames at 60 Hz and the tab-capture pipeline starved
+  to ~1 fps. Revert restores the original per-star draw on all
+  platforms; the Linux outside-space smoothness regression that
+  motivated f6383b2 returns but is strictly better than the Win32
+  1-fps break. Empirically root-caused via git-bisect on operator
+  Win11 RTX 4090 box (2026-05-25 UAT: cef4da7/d4e8b6f/8527c77/
+  2559e77 all smooth; f6383b2 broken).
+
+### Added
+- **`SSR_PUBLISHER_DEBUG=1` env var.** Gates two in-page diagnostic
+  log lines emitted by the publisher: `[ssr-publisher] gpu-probe:
+  vendor=... renderer=...` once at boot, and `[ssr-publisher]
+  track-state [t+...]:` per encoder-stats poll showing
+  `videoTrack.muted`, `readyState`, and source dimensions. Off by
+  default so prod logs stay clean. Built up during the v1.1.0
+  regression hunt — kept in gated form because they distinguish
+  capture-pipeline from encoder-pipeline issues in one operator run.
+
+---
+
 ## [1.1.0] — 2026-05-25
 
 First MINOR release since the 1.0.0 cut on 2026-05-19. Rolls up
