@@ -10,6 +10,33 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.19] — 2026-05-25
+
+Phase 50: Aspect-aware default play-area polygon.
+
+### Changed
+- **Default play-area polygon now preserves the board image's
+  width/height ratio instead of stretching uniformly across boards
+  with different aspect ratios.** Operator UAT (2026-05-25): "Das
+  default profil mit den 80% nicht mehr perfekt für alle boards
+  geeignet … das default board sollte die ursprüngliche board-länge
+  nicht verzerren/stretchen sondern die ratio zwischen höhe und länge
+  einhalten. Der User kann es dann hinterher noch so verzerren wie er
+  es möchte". The legacy `SHIP_POLYGON_DEFAULT` constant was designed
+  for a ~1.46:1 board (Nemesis); on Frostpunk (1.085:1) and other
+  ratios it produced visually unequal pixel margins. Fix: server now
+  probes PNG/JPEG dimensions from `config/boards/assets/*` and
+  attaches `imageWidth`/`imageHeight`/`aspectRatio` to the runtime
+  board record. New helper `buildAspectAwareDefaultPolygon(AR)` anchors
+  the margins to the shorter axis so all four polygon sides have
+  approximately equal pixel margins regardless of board ratio.
+  Applied at three entry points: per-board default-creation at boot
+  (`createDefaultPlayAreasByBoard`), `Reset polygon to default`
+  button, and `Create new play area` button. Existing user-drawn
+  polygons untouched — change only affects fresh defaults.
+
+---
+
 ## [1.0.18] — 2026-05-25
 
 Phase 50: Restore per-board play areas (regression from v1.0.17).

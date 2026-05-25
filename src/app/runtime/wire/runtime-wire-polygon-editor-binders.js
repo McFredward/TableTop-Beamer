@@ -456,6 +456,7 @@
       playAreaCreateButton,
       triggerFeedback,
       SHIP_POLYGON_DEFAULT,
+      getDefaultShipPolygonForBoard,
       normalizePlayAreaId,
       normalizeShipPolygon,
       getPlayAreas,
@@ -481,10 +482,16 @@
       // so it pops in as a clearly-distinct shape regardless of how
       // the user has reshaped their existing play areas. They can
       // edit the polygon afterwards via the vertex/edge controls.
+      // Phase 50 (2026-05-25): default polygon is aspect-aware so it
+      // matches the active board's image ratio (was: stretched on
+      // square/wide boards).
+      const defaultPolygon = typeof getDefaultShipPolygonForBoard === "function"
+        ? getDefaultShipPolygonForBoard(state.boardId)
+        : SHIP_POLYGON_DEFAULT;
       const nextArea = {
         id: nextId,
         name: `Play Area ${nextIndex}`,
-        polygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
+        polygon: normalizeShipPolygon(defaultPolygon),
       };
       setPlayAreas(state.boardId, [...currentAreas, nextArea], { selectedPlayAreaId: nextId });
       state.shipPolygonEditor.selectedVertexIndex = 0;
@@ -669,6 +676,7 @@
       state,
       shipPolygonResetButton,
       SHIP_POLYGON_DEFAULT,
+      getDefaultShipPolygonForBoard,
       triggerFeedback,
       isPanArbitrating,
       arePlayAreaVerticesEditable,
@@ -687,7 +695,12 @@
         triggerFeedback.textContent = "Status: Play Area vertices hidden - polygon edit paused";
         return;
       }
-      setShipPolygonPoints(state.boardId, SHIP_POLYGON_DEFAULT);
+      // Phase 50 (2026-05-25): aspect-aware default polygon (preserves
+      // board image's W:H ratio).
+      const defaultPolygon = typeof getDefaultShipPolygonForBoard === "function"
+        ? getDefaultShipPolygonForBoard(state.boardId)
+        : SHIP_POLYGON_DEFAULT;
+      setShipPolygonPoints(state.boardId, defaultPolygon);
       const persisted = persistBoardProfiles();
       state.shipPolygonEditor.selectedVertexIndex = 0;
       state.shipPolygonEditor.selectedEdgeIndex = 0;

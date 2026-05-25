@@ -192,6 +192,68 @@
     return ctx.normalizeSpecialPolygon(points, ctx.SHIP_POLYGON_DEFAULT);
   }
 
+  // Phase 50 (2026-05-25): default-polygon builder that adapts to the
+  // board image's aspect ratio so the polygon's pixel-margins stay
+  // roughly equal on all four sides. Previously the literal
+  // SHIP_POLYGON_DEFAULT (designed for a ~1.46:1 board) stretched
+  // non-uniformly on square or wide boards. Operator UAT (2026-05-25):
+  // "Das default profil mit den 80% nicht mehr perfekt für alle boards
+  // geeignet … das default board sollte die ursprüngliche board-länge
+  // nicht verzerren/stretchen sondern die ratio zwischen höhe und länge
+  // einhalten. Der User kann es dann hinterher noch so verzerren wie er
+  // es möchte". Returns the original SHIP_POLYGON_DEFAULT when aspect
+  // ratio is unknown so existing behavior is preserved for boards
+  // whose image dimensions haven't been probed.
+  function buildAspectAwareDefaultPolygon(aspectRatio) {
+    const ar = Number(aspectRatio);
+    if (!Number.isFinite(ar) || ar <= 0) {
+      return ctx.SHIP_POLYGON_DEFAULT.map((point) => [...point]);
+    }
+    // Anchor margins to the shorter axis so pixel margins are equal on
+    // both axes. baseMargin = 0.08 (8%) and baseChamfer = 0.04 (4%) are
+    // the values that match the original polygon on a 1.0:1 board.
+    const baseMargin = 0.08;
+    const baseChamfer = 0.04;
+    const minMargin = 0.02; // never collapse the polygon entirely
+    let xMargin;
+    let yMargin;
+    let xChamfer;
+    if (ar >= 1) {
+      // wider than tall — shrink X-margin so its pixel value matches Y
+      yMargin = baseMargin;
+      xMargin = Math.max(minMargin, baseMargin / ar);
+      xChamfer = Math.max(minMargin / 2, baseChamfer / ar);
+    } else {
+      // taller than wide — shrink Y-margin so its pixel value matches X
+      xMargin = baseMargin;
+      yMargin = Math.max(minMargin, baseMargin * ar);
+      xChamfer = baseChamfer;
+    }
+    return [
+      [xMargin, yMargin],
+      [1 - xMargin, yMargin],
+      [Math.min(1, 1 - xMargin + xChamfer), 0.5],
+      [1 - xMargin, 1 - yMargin],
+      [xMargin, 1 - yMargin],
+      [Math.max(0, xMargin - xChamfer), 0.5],
+    ];
+  }
+
+  function _resolveBoardAspectRatio(boardId) {
+    const board = ctx.getBoard?.(boardId);
+    const ar = Number(board?.aspectRatio);
+    if (Number.isFinite(ar) && ar > 0) return ar;
+    const w = Number(board?.imageWidth);
+    const h = Number(board?.imageHeight);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return w / h;
+    return null;
+  }
+
+  function getDefaultShipPolygonForBoard(boardId = ctx.state.boardId) {
+    const ar = _resolveBoardAspectRatio(boardId);
+    return buildAspectAwareDefaultPolygon(ar);
+  }
+
   function normalizePlayAreaId(value, fallbackIndex = 0) {
     const raw = String(value || "").trim().toLowerCase();
     const sanitized = raw
@@ -251,7 +313,7 @@
     return Object.fromEntries(
       ctx.getBoards().map((board) => [
         board.id,
-        normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT),
+        normalizePlayAreasCollection(null, getDefaultShipPolygonForBoard(board.id)),
       ]),
     );
   }
@@ -259,7 +321,7 @@
   function createDefaultSelectedPlayAreaIdByBoard() {
     return Object.fromEntries(
       ctx.getBoards().map((board) => {
-        const defaults = normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT);
+        const defaults = normalizePlayAreasCollection(null, getDefaultShipPolygonForBoard(board.id));
         return [board.id, defaults[0].id];
       }),
     );
@@ -351,6 +413,8 @@
     resolveProfilePolygonContract,
     applyPolygonPrecedence: mergePolygonPrecedence,
     normalizeShipPolygon,
+    buildAspectAwareDefaultPolygon,
+    getDefaultShipPolygonForBoard,
     normalizePlayAreaId,
     normalizePlayAreaEntry,
     normalizePlayAreasCollection,

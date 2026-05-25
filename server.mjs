@@ -2554,8 +2554,91 @@ function buildDefaultSpecialCluster(roomCatalog = []) {
   ];
 }
 
-function toRuntimeBoard(boardDefinition) {
-  return {
+// Phase 50 (2026-05-25): per-board image dimension cache. Read PNG /
+// JPEG dimensions from disk so the runtime board record carries
+// `imageWidth` / `imageHeight` / `aspectRatio`. The play-area-geometry
+// default-polygon builder uses these to keep the default polygon's
+// pixel margins approximately equal on all four sides regardless of
+// the board image's aspect ratio (was: a single 88%-wide × 84%-high
+// polygon stretched non-uniformly across boards with different ARs).
+const _boardImageDimCache = new Map(); // key: absPath, value: { mtimeMs, width, height }
+
+function _parsePngDimensions(buf) {
+  // PNG: 8-byte signature, then IHDR chunk at offset 8 with 4-byte length,
+  // 4-byte "IHDR", then 4-byte width BE and 4-byte height BE.
+  if (buf.length < 24) return null;
+  if (buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4E || buf[3] !== 0x47) return null;
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+function _parseJpegDimensions(buf) {
+  // JPEG: scan SOFn markers (0xFFC0..0xFFCF, excluding 0xC4, 0xC8, 0xCC).
+  if (buf.length < 4 || buf[0] !== 0xFF || buf[1] !== 0xD8) return null;
+  let i = 2;
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xFF) return null;
+    let marker = buf[i + 1];
+    // Skip fill bytes (0xFF padding).
+    while (marker === 0xFF && i + 1 < buf.length) {
+      i += 1;
+      marker = buf[i + 1];
+    }
+    i += 2;
+    if (marker === 0xD8 || marker === 0xD9) return null; // SOI/EOI without dims
+    if (marker >= 0xD0 && marker <= 0xD7) continue; // RSTn — no length
+    if (i + 2 > buf.length) return null;
+    const segLen = buf.readUInt16BE(i);
+    if ((marker >= 0xC0 && marker <= 0xCF) && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+      if (i + 7 > buf.length) return null;
+      const height = buf.readUInt16BE(i + 3);
+      const width = buf.readUInt16BE(i + 5);
+      return { width, height };
+    }
+    i += segLen;
+  }
+  return null;
+}
+
+async function _probeImageDimensions(absPath) {
+  let mtimeMs = 0;
+  try {
+    const stats = await stat(absPath);
+    mtimeMs = stats.mtimeMs;
+  } catch {
+    return null;
+  }
+  const cached = _boardImageDimCache.get(absPath);
+  if (cached && cached.mtimeMs === mtimeMs) {
+    return { width: cached.width, height: cached.height };
+  }
+  // First 64KB is plenty to find SOF in JPEGs and IHDR in PNGs.
+  let head;
+  try {
+    const fd = await readFile(absPath);
+    head = fd.subarray(0, Math.min(fd.length, 65536));
+  } catch {
+    return null;
+  }
+  let dims = _parsePngDimensions(head);
+  if (!dims) dims = _parseJpegDimensions(head);
+  if (!dims || dims.width <= 0 || dims.height <= 0) return null;
+  _boardImageDimCache.set(absPath, { mtimeMs, width: dims.width, height: dims.height });
+  return dims;
+}
+
+async function _resolveBoardImageDimensions(imageSrc) {
+  const raw = String(imageSrc || "").trim();
+  // Only local `/config/boards/assets/...` paths are probed — external
+  // URLs (http/https/data:) can't be read from disk; client will fall
+  // back to a 1:1 default polygon in that case.
+  if (!raw.startsWith("/config/boards/assets/")) return null;
+  const rel = raw.replace(/^\/+/, "");
+  const abs = path.join(ROOT_DIR, rel);
+  return _probeImageDimensions(abs);
+}
+
+function toRuntimeBoard(boardDefinition, dimensions = null) {
+  const base = {
     id: boardDefinition.boardId,
     label: boardDefinition.metadata.name,
     src: boardDefinition.metadata.imageSrc,
@@ -2579,6 +2662,12 @@ function toRuntimeBoard(boardDefinition) {
       roomIds: [...cluster.roomIds],
     })),
   };
+  if (dimensions && dimensions.width > 0 && dimensions.height > 0) {
+    base.imageWidth = dimensions.width;
+    base.imageHeight = dimensions.height;
+    base.aspectRatio = dimensions.width / dimensions.height;
+  }
+  return base;
 }
 
 function sanitizeBoardFileName(boardId) {
@@ -2632,12 +2721,18 @@ async function loadCanonicalBoardsFromStorage() {
 async function loadBoardCatalog() {
   const storedBoards = await loadCanonicalBoardsFromStorage();
   const boards = storedBoards.sort((a, b) => a.boardId.localeCompare(b.boardId));
+  const runtimeBoards = await Promise.all(
+    boards.map(async (board) => {
+      const dims = await _resolveBoardImageDimensions(board.metadata.imageSrc);
+      return toRuntimeBoard(board, dims);
+    }),
+  );
   return {
     schema: BOARD_CATALOG_SCHEMA,
     generatedAt: new Date().toISOString(),
     boardCount: boards.length,
     boards,
-    runtimeBoards: boards.map(toRuntimeBoard),
+    runtimeBoards,
   };
 }
 
