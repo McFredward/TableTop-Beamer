@@ -459,6 +459,22 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init(_wrapCtxForTrace({
   renderRoomOverlay: () => { try { renderRoomOverlay(); } catch { /* not ready yet */ } },
   // Current board for server-side profile scoping
   getBoardId: () => state?.boardId ?? null,
+  // Phase 50 (2026-05-25): board AR feeds buildNewProfileDefaultGrid so a
+  // brand-new align-mode profile starts as a rectangle that matches the
+  // board's pixel proportions instead of the screen's 16:9 default. The
+  // server probes image dimensions and attaches aspectRatio/imageWidth/
+  // imageHeight onto the runtime board record (server.mjs ::
+  // toRuntimeBoard). Returns null when boards aren't hydrated yet —
+  // grid-state then falls back to the legacy 10/90 inset.
+  getBoardAspectRatio: () => {
+    const b = getBoard?.(state?.boardId);
+    const ar = Number(b?.aspectRatio);
+    if (Number.isFinite(ar) && ar > 0) return ar;
+    const w = Number(b?.imageWidth);
+    const h = Number(b?.imageHeight);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return w / h;
+    return null;
+  },
   // Phase 30 B2 h10: forward showToast lazily so the gl-renderer can
   // surface fallback transitions ("WebGL context lost — recovering",
   // "GL disabled — using 2D"). The const `showToast` is declared

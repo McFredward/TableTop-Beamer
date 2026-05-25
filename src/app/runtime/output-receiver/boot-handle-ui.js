@@ -222,6 +222,25 @@ export function bootHandleUi(args) {
     OUTPUT_ROLE_FINAL,
     OUTPUT_ROLE_CONTROL,
     getBoardId,
+    // Phase 50 (2026-05-25): board AR for aspect-aware new-profile default
+    // in grid-state. Derived from runtimeBoards' imageWidth/imageHeight
+    // (server.mjs :: toRuntimeBoard probes PNG/JPEG dims). Returns null
+    // when boardAccess is absent or board hasn't been hydrated — grid-
+    // state then falls back to the legacy 10/90 inset.
+    getBoardAspectRatio: () => {
+      try {
+        const id = typeof getBoardId === "function" ? getBoardId() : null;
+        const b = id && typeof boardAccess?.getBoard === "function"
+          ? boardAccess.getBoard(id)
+          : null;
+        const ar = Number(b?.aspectRatio);
+        if (Number.isFinite(ar) && ar > 0) return ar;
+        const w = Number(b?.imageWidth);
+        const h = Number(b?.imageHeight);
+        if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return w / h;
+      } catch { /* defensive */ }
+      return null;
+    },
     liveSyncCoreOverride,         // NEW for Phase 36 — grid-state reads this
     alignModeDirtyEndpoint,        // NEW for Phase 36 — profile-persistence reads this if supplied
     logger,

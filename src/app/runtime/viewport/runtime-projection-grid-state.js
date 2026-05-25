@@ -54,17 +54,64 @@
     return lines;
   }
 
-  function buildNewProfileDefaultGrid() {
-    // Phase 38 W13 (2026-05-12): operator-requested 10/90 inset default
-    // restored. Operator UAT: "Der Default (unsaved) soll NICHT den ganzen
-    // Bildschirm ausfüllen sondern nur ca. 80% wie es schon einmal der Fall
-    // war." This matches the Phase 27 / Phase 31 h21b behavior — when no
-    // calibration profile is loaded, the board renders inset so the operator
-    // can see the projection bounds visually before calibrating.
+  // Phase 50 (2026-05-25): resolve the active board's aspect ratio + the
+  // current viewport's aspect ratio. Used by buildNewProfileDefaultGrid
+  // below so the default destination rectangle preserves the board's
+  // proportions instead of stretching it into a generic 80% screen rect.
+  // Returns nulls when either piece is unknown — callers fall back to
+  // the legacy 10/90 inset in that case (no behavior change).
+  function _resolveBoardAndScreenAR() {
+    let boardAR = null;
+    try {
+      const fromCtx = typeof ctx?.getBoardAspectRatio === "function"
+        ? Number(ctx.getBoardAspectRatio())
+        : null;
+      if (Number.isFinite(fromCtx) && fromCtx > 0) {
+        boardAR = fromCtx;
+      } else {
+        const boardId = typeof ctx?.getBoardId === "function" ? ctx.getBoardId() : null;
+        const board = boardId && typeof ctx?.boardAccess?.getBoard === "function"
+          ? ctx.boardAccess.getBoard(boardId)
+          : null;
+        if (board) {
+          const arField = Number(board.aspectRatio);
+          if (Number.isFinite(arField) && arField > 0) {
+            boardAR = arField;
+          } else {
+            const w = Number(board.imageWidth);
+            const h = Number(board.imageHeight);
+            if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+              boardAR = w / h;
+            }
+          }
+        }
+      }
+    } catch { /* defensive: never throw out of grid init */ }
+
+    let screenAR = null;
+    try {
+      if (typeof window !== "undefined" && window.innerWidth > 0 && window.innerHeight > 0) {
+        screenAR = window.innerWidth / window.innerHeight;
+      }
+    } catch { /* SSR / no window */ }
+    return { boardAR, screenAR };
+  }
+
+  function buildNewProfileDefaultGrid(opts = {}) {
+    // Phase 50 (2026-05-25): aspect-aware destination rectangle. Operator
+    // UAT (2026-05-25): "wenn ich ein neues profil anlege im align mode in
+    // /output/ dann es … - auch bei Frostpunk, was ja mehr viereckig ist
+    // - das default 80% Rechteck". The 10/90 inset always produces a
+    // dest-rect with the SCREEN's aspect ratio (1.78 on 1920×1080), so
+    // the board content gets stretched to fill it. Fix: when board AR +
+    // screen AR are both known, build the dest-rect with the BOARD's
+    // pixel-ratio so the projected content keeps its proportions, then
+    // the operator only has to handle distortion intentionally instead
+    // of fighting a baked-in stretch.
     //
-    // The Phase 36 M3 T1 contract (handle-frame must align with video bbox
-    // within 4px when no profile loaded) is updated to expect 10/90 inset
-    // alignment instead of identity. See test_phase36_align_handles.py::T1.
+    // Falls back to the original 10/90 inset when either AR is unknown
+    // (boot-time call before init runs, missing image-dim probe, etc.)
+    // so existing behavior is preserved on degraded data paths.
     //
     // History:
     //   - Phase 27: 10/90 inset (original default).
@@ -72,11 +119,53 @@
     //   - Phase 31 h21b: restored 10/90 because user wanted the inset visual.
     //   - Phase 36 M3: switched to identity for T1 test contract.
     //   - Phase 38 W13: restored 10/90 per operator UAT request.
+    //   - Phase 50 (2026-05-25): made AR-aware per operator request.
+    const explicitBoardAR = Number(opts?.boardAspectRatio);
+    const explicitScreenAR = Number(opts?.screenAspectRatio);
+    const resolved = (Number.isFinite(explicitBoardAR) && explicitBoardAR > 0
+                      && Number.isFinite(explicitScreenAR) && explicitScreenAR > 0)
+      ? { boardAR: explicitBoardAR, screenAR: explicitScreenAR }
+      : _resolveBoardAndScreenAR();
+
     const srcXs = [0.0, 0.5, 1.0];
     const srcYs = [0.0, 0.5, 1.0];
-    // 10/90 inset — 80% of screen visible, 10% margin on every edge.
-    const dstXs = [0.1, 0.5, 0.9];
-    const dstYs = [0.1, 0.5, 0.9];
+
+    // 80% of the larger fittable dimension, centered. When we have valid
+    // board + screen ARs the rectangle's pixel proportions match the
+    // board (no distortion). Otherwise: legacy uniform 10/90 inset.
+    const TARGET_FRACTION = 0.8;
+    let dstMinX = 0.1;
+    let dstMaxX = 0.9;
+    let dstMinY = 0.1;
+    let dstMaxY = 0.9;
+
+    if (resolved.boardAR && resolved.screenAR) {
+      const arRatio = resolved.boardAR / resolved.screenAR;
+      // dstNormW / dstNormH must equal boardAR / screenAR for the projected
+      // rectangle to share the board's pixel proportions.
+      let dstW;
+      let dstH;
+      if (arRatio <= 1) {
+        // Board is "narrower" (or equally-proportioned) than the screen
+        // → fit by height, shrink width to match board ratio.
+        dstH = TARGET_FRACTION;
+        dstW = TARGET_FRACTION * arRatio;
+      } else {
+        // Board is "wider" than the screen → fit by width, shrink height
+        // to match.
+        dstW = TARGET_FRACTION;
+        dstH = TARGET_FRACTION / arRatio;
+      }
+      const marginX = (1 - dstW) / 2;
+      const marginY = (1 - dstH) / 2;
+      dstMinX = marginX;
+      dstMaxX = 1 - marginX;
+      dstMinY = marginY;
+      dstMaxY = 1 - marginY;
+    }
+
+    const dstXs = [dstMinX, (dstMinX + dstMaxX) / 2, dstMaxX];
+    const dstYs = [dstMinY, (dstMinY + dstMaxY) / 2, dstMaxY];
     const points = [];
     for (let row = 0; row < dstYs.length; row++) {
       points[row] = [];

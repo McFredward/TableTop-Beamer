@@ -10,6 +10,48 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.20] — 2026-05-25
+
+Phase 50: Aspect-aware default align-mode profile.
+
+### Changed
+- **The default rectangle of a newly-created align-mode profile (or
+  Reset Grid) now preserves the active board's pixel ratio instead of
+  always producing a 10/90 screen-sized inset.** Operator UAT
+  (2026-05-25): "wenn ich ein neues profil anlege im align mode in
+  /output/ dann es es - auch bei Frostpunk, was ja mehr viereckig ist
+  - das default 80% Rechteck". The legacy default produced a
+  destination rectangle whose pixel-AR matched the SCREEN (1.78 on
+  1920×1080), so the board content was pre-stretched into a 16:9 box
+  on Frostpunk (1.085 AR) or any other non-16:9 board. Fix:
+  `buildNewProfileDefaultGrid()` now reads the active board's
+  aspectRatio (server-probed image dim, added in v1.0.19) and the
+  current viewport AR, and sizes the destination rectangle so its
+  pixel proportions equal `boardAR / screenAR` (centered, 80% of the
+  larger fittable dimension). Operator now starts with an undistorted
+  rectangle and only has to apply distortion intentionally. Falls back
+  to the legacy 10/90 inset on the boot-time IIFE seed (before init
+  runs) or when image dimensions are unknown.
+
+### Wiring
+- Added `getBoardAspectRatio` dependency to the projection-mapping init
+  bag in two paths:
+  - Dashboard (`runtime-orchestration.js`) — reads from
+    `getBoard(state.boardId).aspectRatio`.
+  - `/output/` (`boot-handle-ui.js`) — reads from
+    `boardAccess.getBoard(getBoardId()).aspectRatio`.
+
+### Verified
+| Board       | Board AR | Default rect (norm) | Pixel AR  |
+|-------------|---------:|--------------------:|----------:|
+| Frostpunk   | 1.085    | 0.488 × 0.800       | 1.085 ✓   |
+| Nemesis A/B | 1.462    | 0.658 × 0.800       | 1.462 ✓   |
+| Lockdown A/B| 1.425    | 0.641 × 0.800       | 1.425 ✓   |
+
+(viewport 1920×1080, screen AR 1.778 — pixel-AR exactly equals board AR.)
+
+---
+
 ## [1.0.19] — 2026-05-25
 
 Phase 50: Aspect-aware default play-area polygon.
