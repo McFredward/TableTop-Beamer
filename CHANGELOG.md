@@ -12,6 +12,34 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.2] — 2026-05-25
+
+Hotfix. Operator UAT after the v1.1.1 push: align-mode handles
+(the corner-drag points + grid lines on `/output/`) stayed
+visible after the operator toggled align mode OFF and then
+switched to a different board.
+
+### Fixed
+- **Align handles + points persist on `/output/` after board
+  switch with align mode OFF.** Reproducible sequence: align ON
+  → align OFF → board switch → handles reappeared. Root cause:
+  the projection-profile-persistence module re-fires
+  `renderRoomOverlay()` when a new profile loads during board
+  switch, and the polygon-editor re-populates `#room-overlay`
+  with SVG circles (the "points"). The CSS gate
+  (`body.align-mode-active`) is supposed to hide them when align
+  is off — but a race during async board refresh
+  (`refreshBoardCatalog`/`refreshSelectedBoard` awaits) allowed
+  the class to flicker back briefly, exposing the un-cleared SVG
+  content. Two-pronged fix: (1) `deactivate()` now also clears
+  the `#room-overlay` SVGs children so it stays structurally
+  empty until the next `activate()`; (2) the
+  `onProjectionProfileChange` handler now pre-scrubs handles +
+  removes the align-mode-active class BEFORE the async refresh
+  chain instead of only at the end.
+
+---
+
 ## [1.1.1] — 2026-05-25
 
 Hotfix release. Restores the SSR stream on Windows after v1.1.0

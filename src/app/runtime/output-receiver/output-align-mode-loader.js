@@ -855,6 +855,24 @@ export function bootAlignModeLoader({
         try { el.remove(); } catch (_) { /* keep going */ }
       }
     } catch (_) { /* never break deactivate */ }
+
+    // v1.1.2 (2026-05-25): also clear the #room-overlay SVGs children.
+    // Operator UAT: after align ON → align OFF → board switch, points
+    // and handles re-appeared on /output/. Root cause: the projection-
+    // profile-persistence module re-fires renderRoomOverlay() when a new
+    // profile loads during board switch, and the polygon-editor populates
+    // #room-overlay with SVG circles (the "points"). Those circles are
+    // CSS-hidden via body:not(.align-mode-active) #room-overlay, but if
+    // anything re-adds the .align-mode-active class (race during async
+    // refreshBoardCatalog/refreshSelectedBoard awaits), the un-cleared
+    // SVG content would become visible. Clearing on deactivate makes
+    // the room-overlay structurally empty until the next activate().
+    try {
+      const roomOverlay = document.getElementById("room-overlay");
+      if (roomOverlay) {
+        while (roomOverlay.firstChild) roomOverlay.firstChild.remove();
+      }
+    } catch (_) { /* never break deactivate */ }
   }
 
   // Subscribe to align-mode toggles
@@ -875,6 +893,22 @@ export function bootAlignModeLoader({
   // switched boards or applied a new profile)
   if (typeof liveSync.onProjectionProfileChange === "function") {
     liveSync.onProjectionProfileChange(async () => {
+      // v1.1.2 (2026-05-25): pre-scrub guard. If align mode is currently
+      // OFF when the profile change arrives, eagerly tear down any
+      // orphan handle DOM + clear the align-mode-active class BEFORE
+      // awaiting the network refreshes. Without this, other listeners
+      // (notably profile-persistences renderRoomOverlay invocations
+      // and boot-handle-uis own onProjectionProfileChange handler when
+      // still subscribed) can repopulate #room-overlay between handler
+      // registration and our final deactivate(), leaving "Punkte"
+      // visible after the await chain settles. The final deactivate()
+      // below still runs as before for completeness.
+      try {
+        if (liveSync.getAlignMode?.() !== true) {
+          document.body.classList.remove("align-mode-active");
+          deactivate();
+        }
+      } catch (_) { /* never break the handler */ }
       await refreshBoardCatalog();
       await refreshSelectedBoard();
       // 2026-05-15: branch on current align-mode state.
