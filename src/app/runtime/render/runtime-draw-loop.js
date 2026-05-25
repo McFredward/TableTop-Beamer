@@ -87,26 +87,50 @@
       const videoEntry = ctx.getRoomVideoElement(assetRef);
       const video = videoEntry?.video;
       if (video) {
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
+        // Phase 50 (2026-05-25): manual-wrap loop machinery (mirrors
+        // outside MP4) to eliminate the SSR-visible seam at video EOS.
+        // Native <video loop> reset stalls for 1 capture frame, which
+        // the dashboard's canvas re-paint hides but the SSR encoder
+        // captures + inserts an I-frame for — producing a perceivable
+        // hitch in /output/. ensureRoomMp4Playback puts the video into
+        // manual-wrap mode (`loop=false`), maybeWrapRoomMp4Loop
+        // preempts the EOS by seeking back early, and the fallback
+        // canvas bridges the brief `seeking` window so SSR sees a
+        // continuous frame stream.
         const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
-        if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
-          video.playbackRate = playbackRate;
+        const playbackState = ctx.ensureRoomMp4Playback?.(video, {
+          assetRef,
+          targetRate: playbackRate,
+        });
+        if (playbackState) {
+          ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
-        if (video.paused) {
-          void video.play().catch(() => undefined);
-        }
-        if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
-          try {
-            const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
-            c.save();
-            c.globalAlpha = ctx.clampRoomOpacity(animation.opacity);
+        try {
+          const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
+          c.save();
+          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity);
+          const isSeeking = video.seeking === true;
+          const haveLiveFrame =
+            !isSeeking
+            && video.readyState >= 2
+            && Number(video.videoWidth) > 0
+            && Number(video.videoHeight) > 0;
+          if (haveLiveFrame) {
             drawRoomAssetImage(c, video, rect);
-            c.restore();
-          } catch {
-            c.restore();
+            // Refresh fallback frame so the next seek window has a
+            // visually-near substitute. Capture cadence is every rAF
+            // tick — cheap because the fallback canvas sizes to the
+            // video's natural dimensions (typically 1920×1080 or less).
+            if (playbackState && ctx.captureRoomMp4FallbackFrame) {
+              ctx.captureRoomMp4FallbackFrame(playbackState, video);
+            }
+          } else if (playbackState && ctx.getRoomMp4FallbackSource) {
+            const src = ctx.getRoomMp4FallbackSource(playbackState);
+            if (src) drawRoomAssetImage(c, src, rect);
           }
+          c.restore();
+        } catch {
+          c.restore();
         }
       }
       return;

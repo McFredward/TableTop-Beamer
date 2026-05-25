@@ -10,6 +10,58 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.30] — 2026-05-25
+
+Phase 50: Room MP4 loop seam eliminated from SSR stream.
+
+### Fixed
+- **MP4 room animations showed a brief stutter at the loop boundary
+  only in the SSR stream (/output/), not on the dashboard.** Operator
+  UAT (2026-05-25): "Bei Animationen bei denen eine mp4 hinterlegt
+  ist, sieht man eine ganz kurze Unterbrechung im SSR (/output/) am
+  Ende des Videos bevor es wieder beginnt. Es soll komplett fließend
+  direkt neu starten, da die Animationen loops sind, es darf NIEMALS
+  zu einer unterbrechung kommen. Das interessante: Es scheint nur im
+  SSR aufzutreten, im Dashboard sehe ich die ganz kurze Unterbrechung
+  am Ende des Videos nicht".
+
+  Root cause (spawned debugger): the room MP4 branch in
+  `runtime-draw-loop.js` used the native `<video loop>` attribute,
+  which stalls for 1 capture frame at EOS while the browser resets
+  `currentTime`. The dashboard's `<canvas>` re-paint masks this (the
+  canvas texture stays the same, imperceptible at 60 Hz), but the
+  SSR's `getDisplayMedia`-driven tab capture grabs the held frame
+  AND the encoder inserts an I-frame at the loop wrap (scene change
+  detected), producing a visible stutter on the WebRTC consumer.
+  Outside MP4 already had full seam-hiding machinery for this exact
+  problem (`runtime-outside-mp4.js`); the room path was never ported.
+
+### Fix
+- Added room-specific helpers to `runtime-outside-mp4.js`:
+  `ensureRoomMp4Playback` (manual-wrap mode with `loop=false`),
+  `maybeWrapRoomMp4Loop` (preempts EOS by seeking back ~0.08 s
+  early), `captureRoomMp4FallbackFrame` + `getRoomMp4FallbackSource`
+  (per-asset fallback canvas sized to video's natural dimensions).
+- Updated the room MP4 branch in `runtime-draw-loop.js:83-113` to
+  drive the new machinery: every rAF captures the live frame to the
+  fallback canvas; when `video.seeking` is true (the brief loop-
+  wrap window), the renderer paints the cached fallback frame
+  instead, so the canvas (and therefore the SSR capture) never
+  shows a held frame. The encoder sees a smooth pixel stream and
+  doesn't fire a scene-change keyframe.
+- Cache keyed by `assetRef` since multiple rooms sharing the same
+  MP4 share one `<video>` element + playback state by design.
+- Rotation is intentionally NOT gated because rotation works
+  regardless of stretch (mirrors live-editor at
+  `runtime-lifecycle-live-editor.js:235-238`).
+
+### Verification (operator-facing)
+Pick a short (~2 s) MP4 room animation, watch /output/ at low
+brightness for 30 s. Pre-fix: visible micro-stutter every ~2 s at
+the loop boundary. Post-fix: completely seamless.
+
+---
+
 ## [1.0.29] — 2026-05-25
 
 Phase 50: Transform fields now pass through to running room animations.

@@ -1270,6 +1270,10 @@ const {
   bindOutsideMp4FrameCallback,
   shouldDrawOutsideMp4Now,
   ensureOutsideMp4Playback,
+  ensureRoomMp4Playback,
+  maybeWrapRoomMp4Loop,
+  captureRoomMp4FallbackFrame,
+  getRoomMp4FallbackSource,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
 window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
@@ -2492,6 +2496,11 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   clearOutsideTimelineState: (boardId) => clearOutsideTimelineState(boardId),
   ensureOutsideMp4Playback: (video, opts) => ensureOutsideMp4Playback(video, opts),
   maybeWrapOutsideMp4Loop: (video, playbackState) => maybeWrapOutsideMp4Loop(video, playbackState),
+  // Phase 50 (2026-05-25) — room MP4 seam machinery
+  ensureRoomMp4Playback: (video, opts) => ensureRoomMp4Playback(video, opts),
+  maybeWrapRoomMp4Loop: (video, state) => maybeWrapRoomMp4Loop(video, state),
+  captureRoomMp4FallbackFrame: (state, video) => captureRoomMp4FallbackFrame(state, video),
+  getRoomMp4FallbackSource: (state) => getRoomMp4FallbackSource(state),
   shouldDrawOutsideMp4Now: (playbackState) => shouldDrawOutsideMp4Now(playbackState),
   captureOutsideMp4FallbackFrame: (playbackState, video) => captureOutsideMp4FallbackFrame(playbackState, video),
   drawOutsideMp4FallbackFrame: (playbackState) => drawOutsideMp4FallbackFrame(playbackState),

@@ -22,6 +22,17 @@
   const roomVideoCacheByPath = new Map();
   const outsideMp4PlaybackStateByBoard = new Map();
   const outsideTimelineStateByBoard = new Map();
+  // Phase 50 (2026-05-25): room-mp4 loop-wrap machinery, mirrors the
+  // outside-mp4 fallback path keyed by assetRef instead of boardId.
+  // Operator UAT (2026-05-25): "Bei Animationen bei denen eine mp4
+  // hinterlegt ist, sieht man eine ganz kurze Unterbrechung im SSR
+  // (/output/) am Ende des Videos … Es soll komplett fließend direkt
+  // neu starten". Root cause: bare native `<video loop>` stalls for
+  // 1 capture frame at loop wrap; the dashboard's canvas re-paint
+  // hides it but the SSR's getDisplayMedia capture + encoder show
+  // it as a held frame + I-frame insertion. Fix: same manual-wrap +
+  // fallback-frame pattern as outside MP4.
+  const roomMp4PlaybackStateByKey = new Map();
 
   // Loop/fallback tuning constants (previously module-scope in the
   // runtime file).
@@ -370,6 +381,128 @@
     return playbackState;
   }
 
+  // ── Room MP4 loop-seam machinery ────────────────────────────────
+  //
+  // Mirrors the outside-mp4 helpers but the playback cache is keyed
+  // by assetRef (multiple rooms sharing the same MP4 share one video
+  // element, and therefore share the playback state). The fallback
+  // canvas matches the video's natural dimensions; drawImage handles
+  // any rect transformation downstream via drawRoomAssetImage.
+
+  function _roomMp4Key(assetRef) {
+    return String(assetRef || "").trim() || "?";
+  }
+
+  function _ensureRoomMp4FallbackCanvas(state, video) {
+    if (!state || !video) return null;
+    const w = Math.max(1, Math.floor(Number(video.videoWidth) || 0));
+    const h = Math.max(1, Math.floor(Number(video.videoHeight) || 0));
+    if (w === 0 || h === 0) return null;
+    if (!state.fallbackCanvas || !state.fallbackCtx) {
+      const canvas = document.createElement("canvas");
+      const fctx = canvas.getContext("2d", { alpha: true });
+      if (!fctx) return null;
+      state.fallbackCanvas = canvas;
+      state.fallbackCtx = fctx;
+    }
+    if (state.fallbackCanvas.width !== w || state.fallbackCanvas.height !== h) {
+      state.fallbackCanvas.width = w;
+      state.fallbackCanvas.height = h;
+    }
+    return state;
+  }
+
+  function captureRoomMp4FallbackFrame(state, video) {
+    if (!state || !video) return;
+    const ready = _ensureRoomMp4FallbackCanvas(state, video);
+    if (!ready) return;
+    state.fallbackCtx.clearRect(0, 0, state.fallbackCanvas.width, state.fallbackCanvas.height);
+    state.fallbackCtx.drawImage(video, 0, 0, state.fallbackCanvas.width, state.fallbackCanvas.height);
+    state.lastVisibleFrameAtMs = performance.now();
+    state.lastDecodedFrameAtMs = state.lastVisibleFrameAtMs;
+    state.hasVisibleFrame = true;
+  }
+
+  function getRoomMp4FallbackSource(state) {
+    if (!state?.fallbackCanvas || !state.hasVisibleFrame) return null;
+    const ageMs = performance.now() - Number(state.lastVisibleFrameAtMs || 0);
+    if (!Number.isFinite(ageMs) || ageMs > OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS) return null;
+    return state.fallbackCanvas;
+  }
+
+  function maybeWrapRoomMp4Loop(video, state) {
+    if (!video || !state || video.seeking) return;
+    const durationSec = Number(video.duration);
+    const currentTime = Number(video.currentTime);
+    if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(currentTime)) return;
+    const loopStartSec = getOutsideMp4LoopStartTime(durationSec);
+    const loopLeadSec = Math.min(
+      Math.max(0.03, OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC),
+      Math.max(0.04, durationSec * 0.25),
+    );
+    if (durationSec <= loopStartSec + loopLeadSec) return;
+    const nowMs = performance.now();
+    if (nowMs - Number(state.lastLoopWrapAtMs || 0) < OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS) return;
+    if (currentTime < durationSec - loopLeadSec) return;
+    try {
+      video.currentTime = loopStartSec;
+      state.lastLoopWrapAtMs = nowMs;
+    } catch {
+      // ignore transient seek errors near loop boundary
+    }
+  }
+
+  function _bindRoomMp4FrameCallback(video, state) {
+    if (!video || !state || state.videoFrameCallbackBound) return;
+    if (typeof video.requestVideoFrameCallback !== "function") return;
+    state.videoFrameCallbackBound = true;
+    const onFrame = () => {
+      state.lastDecodedFrameAtMs = performance.now();
+      state.hasVisibleFrame = true;
+      video.requestVideoFrameCallback(onFrame);
+    };
+    video.requestVideoFrameCallback(onFrame);
+  }
+
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1 } = {}) {
+    if (!video) return null;
+    const key = _roomMp4Key(assetRef);
+    const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
+    // Manual-wrap mode: native loop attribute OFF so maybeWrapRoomMp4Loop
+    // can preempt the seam-producing native EOS reset.
+    video.loop = false;
+    video.muted = true;
+    video.playsInline = true;
+    if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
+      video.defaultPlaybackRate = targetRate;
+    }
+    if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+      video.playbackRate = targetRate;
+    }
+    if (!previous) {
+      const durationSec = Number(video.duration);
+      if (Number.isFinite(durationSec) && durationSec > 0) {
+        try { video.currentTime = getOutsideMp4LoopStartTime(durationSec); } catch { /* ignore */ }
+      }
+    }
+    if (video.paused) {
+      void video.play().catch(() => undefined);
+    }
+    const state = previous ?? {
+      key,
+      fallbackCanvas: null,
+      fallbackCtx: null,
+      lastVisibleFrameAtMs: 0,
+      lastDecodedFrameAtMs: 0,
+      lastLoopWrapAtMs: 0,
+      videoFrameCallbackBound: false,
+      hasVisibleFrame: false,
+    };
+    _bindRoomMp4FrameCallback(video, state);
+    roomMp4PlaybackStateByKey.set(key, state);
+    return state;
+  }
+
   window.TT_BEAMER_RUNTIME_OUTSIDE_MP4 = {
     init,
     getOutsideVideoElement,
@@ -387,5 +520,10 @@
     bindOutsideMp4FrameCallback,
     shouldDrawOutsideMp4Now,
     ensureOutsideMp4Playback,
+    // Room MP4 seam machinery (Phase 50 2026-05-25)
+    ensureRoomMp4Playback,
+    maybeWrapRoomMp4Loop,
+    captureRoomMp4FallbackFrame,
+    getRoomMp4FallbackSource,
   };
 })();
