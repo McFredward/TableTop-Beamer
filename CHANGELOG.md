@@ -10,6 +10,35 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.24] — 2026-05-25
+
+Phase 50: Live-editor "Save as default" closes the editor + rename.
+
+### Changed
+- **"Save as default for this animation" button now also acts as Done
+  — clicking it both persists the values AND closes the live editor.**
+  Operator UAT (2026-05-25): "Das 'Save as default for this animation'
+  soll TROTZDEM auch zusätzlich den selben effect wie 'Done' haben,
+  wenn man es anklickt". Previously the operator had to click Save
+  then Done (two clicks) to commit + close; now Save alone does both.
+  Implementation: `saveLiveEditorAsDefault()` calls `closeLiveEditor()`
+  after a successful persist (broadcasts `edit-room`, persists the
+  auto-start checkbox, hides the panel). The "saved defaults" status
+  message survives since closeLiveEditor doesn't touch
+  triggerFeedback.
+
+- **Renamed the "Default animation (auto-start on load)" checkbox to
+  "Auto-start animation"** for clarity. Operator UAT (2026-05-25):
+  "Benenne bitte den slider oben von 'Default animation' in
+  'auto-start Animation' um, dann ist es klarer was hier gemeint ist".
+  Renamed in both places where the label appears:
+  - `#live-editor-default` (animation editor panel)
+  - `#dashboard-default-animation` (dashboard room panel)
+  The underlying DOM IDs stay unchanged so wiring/persistence
+  contracts are untouched.
+
+---
+
 ## [1.0.23] — 2026-05-25
 
 Phase 50: Stretch-to-polygon greys out the transform sliders.

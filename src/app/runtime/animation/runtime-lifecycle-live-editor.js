@@ -511,6 +511,14 @@
         const name = animation.animationName || animation.type;
         ctx.triggerFeedback.textContent = `Status: saved "${name}" defaults — future starts apply these values`;
       }
+      // Phase 50 (2026-05-25): operator UAT — "Das 'Save as default for
+      // this animation' soll TROTZDEM auch zusätzlich den selben effect
+      // wie 'Done' haben, wenn man es anklickt". After persisting the
+      // values, close the editor like Done does (broadcasts edit-room
+      // + persists the auto-start checkbox + hides the panel). The
+      // status message set above survives closeLiveEditor since that
+      // function does not touch triggerFeedback.
+      closeLiveEditor();
     } else if (ctx.triggerFeedback) {
       ctx.triggerFeedback.textContent = `Status: no matching definition to save (scope=${animation.scope})`;
     }
