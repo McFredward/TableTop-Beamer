@@ -1399,6 +1399,18 @@ input[type="range"]::-moz-range-thumb:hover {
   }
 }
 
+/* Phase 50 (2026-05-25): when "Stretch to polygon" is on, the
+ * Width/Height/X-offset/Y-offset sliders inside the live-editor's
+ * Transform <details> get an is-disabled class on their <label>
+ * wrapper. Native input[disabled] on a range slider barely changes
+ * its appearance, so the operator couldn't see why their drags
+ * were ignored. Drop opacity + block pointer events. */
+#live-editor-transform label.is-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
 .button-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

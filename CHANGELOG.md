@@ -10,6 +10,33 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.0.25] — 2026-05-25
+
+Phase 50: Live-editor Stretch-to-polygon also greys out its sliders.
+
+### Fixed
+- **Width/Height/X-offset/Y-offset sliders in the live editor's
+  Transform panel weren't visibly grayed when Stretch-to-polygon was
+  on, even though they were already `disabled` at the input level.
+  Operator UAT (2026-05-25)**: "Das Ausgrauen hat überhaupt nicht
+  funktioniert … Im Editierungsmenu unter 'Stretch to Polygon', gibt
+  es Slider für 'Width scale' 'Height scale' 'X offset' 'Y offset' -
+  So lange 'Stretch to polygon' aktiv ist sollen die slider ausgegraut
+  sein, das ist aktuell nicht der Fall". Root cause: v1.0.23 only
+  added visual gating to the dashboard's animation-editor pane, not to
+  the live-editor floating panel (a separate UI that opens when you
+  click a running animation). The live editor only set
+  `input.disabled = true`, which native styling barely shows on a
+  range slider. Fix: new `_applyLiveEditorStretchGate(stretched)`
+  helper toggles `.is-disabled` on each gated slider's parent
+  `<label>` (in addition to the `input.disabled`); paired with new
+  CSS (`#live-editor-transform label.is-disabled { opacity: 0.42;
+  pointer-events: none; }`). Called from both the initial-populate
+  path (`_populateLiveEditorVisibility`) and the toggle's change
+  listener so the gate stays consistent.
+
+---
+
 ## [1.0.24] — 2026-05-25
 
 Phase 50: Live-editor "Save as default" closes the editor + rename.

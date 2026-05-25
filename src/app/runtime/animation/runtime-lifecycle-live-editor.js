@@ -71,10 +71,7 @@
     ctx.liveEditorStretch.addEventListener("change", () => {
       const checked = ctx.liveEditorStretch.checked;
       applyLiveEditorValue("stretchToPolygon", checked);
-      ctx.liveEditorWidth.disabled = checked;
-      ctx.liveEditorHeight.disabled = checked;
-      ctx.liveEditorOffsetX.disabled = checked;
-      ctx.liveEditorOffsetY.disabled = checked;
+      _applyLiveEditorStretchGate(checked);
     });
     ctx.liveEditorWidth.addEventListener("input", () => {
       const value = Math.max(0.1, Math.min(10, Number(ctx.liveEditorWidth.value)));
@@ -232,10 +229,30 @@
       ctx.liveEditorOffsetY.value = String(offsetYScale);
       ctx.liveEditorOffsetYValue.textContent = offsetYScale.toFixed(2);
 
-      ctx.liveEditorWidth.disabled = stretched;
-      ctx.liveEditorHeight.disabled = stretched;
-      ctx.liveEditorOffsetX.disabled = stretched;
-      ctx.liveEditorOffsetY.disabled = stretched;
+      _applyLiveEditorStretchGate(stretched);
+    }
+  }
+
+  // Phase 50 (2026-05-25): operator UAT — width/height/X/Y sliders
+  // were marked `disabled` on the input element when Stretch-to-polygon
+  // was on, but native disabled styling on <input type=range> is too
+  // subtle and the operator couldn't tell visually that the sliders
+  // were inert. Add `.is-disabled` on the parent <label> so the
+  // existing CSS (.live-editor-panel label.is-disabled) drops opacity
+  // and pointer-events. Both the initial-populate path AND the
+  // change-listener path call this helper for parity.
+  function _applyLiveEditorStretchGate(stretched) {
+    const gatedInputs = [
+      ctx.liveEditorWidth,
+      ctx.liveEditorHeight,
+      ctx.liveEditorOffsetX,
+      ctx.liveEditorOffsetY,
+    ];
+    for (const input of gatedInputs) {
+      if (!input) continue;
+      input.disabled = stretched;
+      const label = typeof input.closest === "function" ? input.closest("label") : null;
+      if (label) label.classList.toggle("is-disabled", stretched);
     }
   }
 
