@@ -12,6 +12,41 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.4] — 2026-06-01
+
+Post-v1.1.3 hotfix. Resolves the operator-reported "konstantes
+leichtes Stockeln" on snow.mp4 in the SSR `/output/` stream.
+
+### Fixed
+- **SSR mp4 stream stutter ("constant low-FPS feel") on the
+  `/output/` WebRTC consumer.** Universal root cause: the three
+  internal mp4 render paths (inside-mp4, room-mp4, outside-mp4
+  final-output) were painting `<video>` to the canvas on every rAF
+  tick (~60 Hz on a modern PC) without rate-gating to the source
+  cadence. snow.mp4 is 30 fps source, so every other rAF tick was
+  sampling the same decoded frame → the SSR encoder picked this up
+  as visible duplicate frames and the consumer saw 23–26 fps
+  stuttery video while the dashboard rendered the same mp4 smoothly
+  at full 30 fps. Fix is symmetric: all three paths now route
+  through the same defense pattern that outside-mp4 (non-final-
+  output) has used since Phase 30 — `shouldDrawOutsideMp4Now()`
+  tier-gates the live paint to 33/22/16 ms (= 30/45/60 fps per
+  perf tier), and a fallback canvas bridges the gated-out ticks so
+  the SSR capture pipeline still sees a canvas op every frame
+  (Win32 capture budget preserved per
+  `project_win32_ssr_canvas_damage.md`). Inside-mp4 also gained
+  the manual loop-wrap + fallback machinery it never had —
+  previously a bare `video.loop=true` with no `readyState` check
+  and no fallback canvas, making it the worst-case path. The
+  Phase 30 T4 "always paint on `/output/`" optimization was
+  removed: it was correct on Pi (~16 fps rAF, gate never fired)
+  but wrong on modern Win11 / RTX 4090 (~60 Hz rAF, gate fires
+  often) — that asymmetry is what produced the operator's reported
+  stutter. No platform branches added; the fix is universal. Phase
+  50's outside-mp4 loop-seam machinery is reused, not modified.
+
+---
+
 ## [1.1.3] — 2026-05-25
 
 Post-v1.1.1 hotfix.

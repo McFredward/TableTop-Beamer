@@ -115,7 +115,17 @@
             && video.readyState >= 2
             && Number(video.videoWidth) > 0
             && Number(video.videoHeight) > 0;
-          if (haveLiveFrame) {
+          // Phase 57 (2026-06-01): tier-gate live paint to the mp4
+          // source cadence (33/22/16 ms per tier) so we don't oversample
+          // a 30fps mp4 at 60Hz rAF. Without the gate the decoder
+          // sometimes hands back the same frame twice → operator-
+          // reported "konstantes leichtes Stockeln" on snow.mp4 (the
+          // universal stutter; mirrors the inside/outside fix). When
+          // gated out, fall through to the existing fallback-source
+          // replay so SSR capture still sees a fresh canvas op every
+          // frame (Win32 capture budget preserved).
+          const drawNow = playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true;
+          if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
             // Refresh fallback frame so the next seek window has a
             // visually-near substitute. Capture cadence is every rAF
@@ -291,16 +301,44 @@
       const videoEntry = ctx.getOutsideVideoElement(definition.assetRef);
       if (videoEntry?.video) {
         const video = videoEntry.video;
-        const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
-        video.loop = true;
-        if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
-          video.playbackRate = playbackRate;
-        }
-        if (video.paused) {
-          void video.play().catch(() => undefined);
+        const targetRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
+        // Phase 57 (2026-06-01): backport room/outside-mp4 defense
+        // level to inside-mp4. Previously bare `video.loop=true` +
+        // unconditional drawImage(video) every rAF — no live-frame
+        // check, no tier-fps gate, no fallback canvas. On modern PCs
+        // /output/ rAF runs ~60Hz and snow.mp4 source is 30fps, so
+        // every rAF oversampled the decoder → operator-reported
+        // "konstantes leichtes Stockeln" (57-CONTEXT D-01/D-02).
+        //
+        // Uses the room-mp4 playback machinery (keyed by assetRef)
+        // rather than outside-mp4 (keyed by boardId) so inside +
+        // outside mp4 active on the same board cannot clobber each
+        // other's playback state. Deviation from 57-01-PLAN.md
+        // Change 1 text — equivalent defense level; documented in
+        // 57-01-SUMMARY.md.
+        const playbackState = ctx.ensureRoomMp4Playback?.(video, {
+          assetRef: definition.assetRef,
+          targetRate,
+        });
+        if (playbackState) {
+          ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
         c.globalAlpha = intensity;
-        c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        const isSeeking = video.seeking === true;
+        const haveLiveFrame =
+          !isSeeking
+          && video.readyState >= 2
+          && Number(video.videoWidth) > 0
+          && Number(video.videoHeight) > 0;
+        if (playbackState && haveLiveFrame && ctx.shouldDrawOutsideMp4Now(playbackState)) {
+          c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+          if (ctx.captureRoomMp4FallbackFrame) {
+            ctx.captureRoomMp4FallbackFrame(playbackState, video);
+          }
+        } else if (playbackState && ctx.getRoomMp4FallbackSource) {
+          const src = ctx.getRoomMp4FallbackSource(playbackState);
+          if (src) c.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
         return;
       }
     }
@@ -501,66 +539,38 @@
           });
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
-          // Phase 30 Plan 30-04 T4 (Option B): on /output/ (final-output
-          // role) the rAF rate is below any tier-target gate, so
-          // shouldDrawOutsideMp4Now never returns false → the fallback
-          // canvas is dead weight. Always paint the live frame, never
-          // capture, never replay. This avoids the second 1920×1080
-          // drawImage(video, …) inside captureOutsideMp4FallbackFrame
-          // every frame. Per Pi UAT (T2) the entire outside-fx layer
-          // costs ~4.5 fps; this T4 fix recovers most of that cleanly.
-          // Boot transition is already covered by h8 tickLoadingOverlay
-          // (waits for video.readyState ≥ 2); the inner readyState
-          // check below is defense-in-depth and keeps the existing
-          // semantics (no bare/uninitialised frame paint).
+          // Phase 57 (2026-06-01): removed the Phase 30 T4 final-output
+          // bypass. T4 assumed "/output/ rAF rate is below any tier-
+          // target gate so shouldDrawOutsideMp4Now never returns false"
+          // — true on Pi at ~16 fps rAF, but FALSE on the operator's
+          // modern Win11 RTX 4090 box where /output/ rAF runs ~60Hz and
+          // tier targets are 33/22/16 ms (= 30/45/60 fps). With T4 in
+          // place, snow.mp4 (30 fps source) was oversampled every rAF →
+          // operator-reported "konstantes leichtes Stockeln" on
+          // /output/. Collapse final-output and non-final-output into a
+          // single tier-gated branch; live-paint + capture when gated
+          // through, fallback replay when gated out or during the loop-
+          // wrap seek window. Win32 canvas-damage budget preserved:
+          // still 1 drawImage(video) + 1 capture op per painted frame
+          // (project_win32_ssr_canvas_damage.md).
           //
-          // Non-/output/ contexts (dashboard preview etc.) keep the
-          // original tier-gated + fallback path so dashboard UX where
-          // the gate legitimately fires is unaffected.
-          const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
-          if (isFinalOutput) {
-            // Phase 30 Plan 30-04 T10/T13: live-paint primary,
-            // capture every 5th rAF (~300 ms staleness at 16 fps),
-            // fallback when readyState dips OR video is seeking.
-            // T10's every-30-frames was too sparse — at the loop-
-            // wrap boundary the captured bridge frame could be
-            // ~1.8 s old and the user saw a perceptible jump.
-            // Every 5th frame keeps the bridge fresh while still
-            // saving most of the per-frame drawImage(video) cost.
-            //
-            // Critical: also check `video.seeking`.
-            // maybeWrapOutsideMp4Loop sets video.currentTime back to
-            // a small value before natural EOS. During the seek the
-            // video is in `seeking` state for 1-3 rAF cycles, and
-            // readyState typically does NOT drop below 2 (Chromium
-            // keeps the prior buffer alive). Without the
-            // video.seeking guard, drawImage(video) during seeking
-            // paints stale or partial pixels → the visible hiccup.
-            const isSeeking = video.seeking === true;
-            const haveLiveFrame =
-              !isSeeking
-              && video.readyState >= 2
-              && Number(video.videoWidth) > 0
-              && Number(video.videoHeight) > 0;
-            if (haveLiveFrame) {
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              const frameIdx = ctx.state?.runtimePerf?.frameIndex ?? 0;
-              if ((frameIdx % 5) === 0) {
-                ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-              }
-            } else {
-              // readyState dipped — typically the loop-wrap seek
-              // window. Replay the most-recent captured frame to
-              // bridge the gap seamlessly.
-              ctx.drawOutsideMp4FallbackFrame(playbackState);
-            }
-          } else if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
-            if (ctx.shouldDrawOutsideMp4Now(playbackState)) {
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-            } else {
-              ctx.drawOutsideMp4FallbackFrame(playbackState);
-            }
+          // Critical: also check `video.seeking`.
+          // maybeWrapOutsideMp4Loop sets video.currentTime back to
+          // a small value before natural EOS. During the seek the
+          // video is in `seeking` state for 1-3 rAF cycles, and
+          // readyState typically does NOT drop below 2 (Chromium
+          // keeps the prior buffer alive). Without the
+          // video.seeking guard, drawImage(video) during seeking
+          // paints stale or partial pixels → the visible hiccup.
+          const isSeeking = video.seeking === true;
+          const haveLiveFrame =
+            !isSeeking
+            && video.readyState >= 2
+            && Number(video.videoWidth) > 0
+            && Number(video.videoHeight) > 0;
+          if (haveLiveFrame && ctx.shouldDrawOutsideMp4Now(playbackState)) {
+            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.captureOutsideMp4FallbackFrame(playbackState, video);
           } else {
             ctx.drawOutsideMp4FallbackFrame(playbackState);
           }
