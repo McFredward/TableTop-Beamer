@@ -12,6 +12,77 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.5] — 2026-06-02
+
+Phase 57 Sammelphase: follow-up to v1.1.4 after operator UAT
+(2026-06-01) reported residual mp4 stutter: "Immer noch die selben
+kleine hänger wie zuvor, es ist nicht das es komplett freezed,
+sondern eher immer wieder eine frame drop auftaucht — aber nur bei
+dem mp4 video während die SSR und Stream fps stabil bleiben."
+
+### Changed
+- **mp4 paint gate now consumes the rVFC `hasVisibleFrame` signal
+  instead of a pure time throttle.** The Phase 57 v1.1.4 fix tier-
+  gated paints to 22 ms (45 fps in balanced tier) but ignored
+  the `requestVideoFrameCallback` signal that
+  `bindOutsideMp4FrameCallback` was already producing. Linux
+  Playwright diagnostic (this version's new instrumentation, see
+  below) showed the SSR-tab inside-mp4 path painting ~30
+  `drawImage(video)` per second of which ~12 (40%) re-drew the
+  prior decoded frame (no new rVFC tick) — perfectly identical
+  bytes, but a wasted pipeline op and a misleading paint cadence.
+  New `hasNewDecodedFrame(state)` helper consumes the rVFC
+  `_decodedFrameCount` counter; paint sites in
+  `runtime-draw-loop.js` (inside / room / outside-final) now only
+  paint the live `<video>` when a new decoded frame is available
+  since the previous paint, and `markMp4FramePainted(state)`
+  stamps the counter after each successful live paint. On rAF
+  ticks without a new frame, the fallback canvas (the most recent
+  decoded frame) is replayed — same pixels as the prior
+  duplicate-paint would have produced, so the Win32 canvas-damage
+  budget is preserved at one `drawImage` per rAF
+  (`project_win32_ssr_canvas_damage.md`). On browsers without
+  `requestVideoFrameCallback` (none modern), the v1.1.4 time gate
+  remains as a fallback.
+
+### Added
+- **`SSR_PUBLISHER_DEBUG=1` now also forwards `[mp4-diag]`
+  console lines from the SSR Chromium tab to the server log**
+  (`src/server/ssr-render-host.mjs`) and appends `?mp4diag=1` to
+  the SSR navigation URL so the in-page diagnostic activates
+  automatically. The diagnostic emits one JSON line per
+  playback-state per second with `decoded` (rVFC ticks),
+  `decodeFps`, `paints` (broken down into `live` / `stale` /
+  `gated-out` / `fallback` / `no-frame`), `rafTicks`, and
+  `vpq` (Chromium's `getVideoPlaybackQuality()` snapshot:
+  `totalFps`, `droppedFps`, `currentTime`, `readyState`). This
+  is the operator-facing toolkit for capturing the Win11 RTX 4090
+  symptom in detail: `droppedFps > 0` indicates Chromium's
+  video presentation pipeline is dropping decoded frames upstream
+  of our paint code; `stale > 0` (should be ≈ 0 after the rVFC
+  gate above) indicates the paint gate logic regressed. In-page
+  flag also accepts `?mp4diag=1` or `window.TT_MP4_DIAG = true`.
+
+### Notes — root-cause investigation summary
+- Linux Playwright (headless Chromium + Xvfb SSR tab): snow.mp4
+  is a 23.976 fps source (`r_frame_rate=24000/1001`, 198 frames
+  in 8.26 s). Dashboard `getVideoPlaybackQuality` reports
+  `totalFps=24, droppedFps=0` (no drops). **SSR tab** reports
+  `totalFps=24, droppedFps=6` — Chromium's video presentation
+  pipeline drops ~6 frames/s in the SSR tab, so only ~18 unique
+  decoded frames per second reach the canvas even though the
+  source delivered all 24. `rVFC` fires only for the non-dropped
+  frames, so the paint code is already painting every available
+  frame; the visible "frame drop" residue likely reflects that
+  upstream-drop pattern. Win11 testing with the new
+  `SSR_PUBLISHER_DEBUG=1` build will tell us whether Win11 has the
+  same upstream-drop pattern; if `droppedFps=0` on Win11 and
+  stutter is still reported, the symptom is encoder-side and needs
+  its own phase. If `droppedFps>0` on Win11, the next plan is to
+  suppress Chromium's hidden-tab video throttling.
+
+---
+
 ## [1.1.4] — 2026-06-01
 
 Post-v1.1.3 hotfix. Resolves the operator-reported "konstantes

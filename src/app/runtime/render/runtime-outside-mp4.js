@@ -295,9 +295,17 @@
       return;
     }
     playbackState.videoFrameCallbackBound = true;
-    const onVideoFrame = () => {
+    const onVideoFrame = (_t, metadata) => {
       playbackState.lastDecodedFrameAtMs = performance.now();
       playbackState.hasVisibleFrame = true;
+      // Phase 57 diag: count rVFC decode events for instrumentation
+      playbackState._decodedFrameCount = (playbackState._decodedFrameCount || 0) + 1;
+      if (metadata && typeof metadata.mediaTime === "number") {
+        playbackState._lastMediaTime = metadata.mediaTime;
+      }
+      if (metadata && typeof metadata.presentedFrames === "number") {
+        playbackState._lastPresentedFrames = metadata.presentedFrames;
+      }
       video.requestVideoFrameCallback(onVideoFrame);
     };
     video.requestVideoFrameCallback(onVideoFrame);
@@ -320,6 +328,37 @@
       return true;
     }
     return false;
+  }
+
+  // Phase 57 v1.1.5 (2026-06-02): consume the rVFC "new decoded frame
+  // available" signal and report whether painting the live <video>
+  // would yield NEW pixels relative to the prior live paint. When no
+  // new decoded frame has arrived since the last live paint, the bare
+  // drawImage(video) emits the same pixels twice → the encoder's
+  // frame N+1 is a duplicate of N (visible as a "frame drop" to the
+  // viewer on motion-heavy content like snow.mp4). The time-throttle
+  // gate in shouldDrawOutsideMp4Now does NOT detect this; this gate
+  // does, by comparing the rVFC-incremented _decodedFrameCount against
+  // the count stamped on the last live paint.
+  //
+  // Returns false when the rVFC binding isn't active (e.g. browsers
+  // without requestVideoFrameCallback) — callers must fall back to
+  // the time gate in that case.
+  function hasNewDecodedFrame(playbackState) {
+    if (!playbackState) return false;
+    if (!playbackState.videoFrameCallbackBound) return false;
+    const decoded = Number(playbackState._decodedFrameCount || 0);
+    const lastPainted = Number(playbackState._lastPaintedDecodedCount || 0);
+    return decoded > lastPainted;
+  }
+
+  // Phase 57 v1.1.5 (2026-06-02): stamp the decoded-frame counter on
+  // the playback state AFTER a successful live paint so the next
+  // hasNewDecodedFrame() call returns false until rVFC fires again.
+  function markMp4FramePainted(playbackState) {
+    if (!playbackState) return;
+    playbackState._lastPaintedDecodedCount = Number(playbackState._decodedFrameCount || 0);
+    playbackState.lastDrawAtMs = performance.now();
   }
 
   function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1 } = {}) {
@@ -377,6 +416,9 @@
       hasVisibleFrame: previousHasVisibleFrame,
     };
     bindOutsideMp4FrameCallback(video, playbackState);
+    // Phase 57 diag stash — used by recordMp4PaintDiag to query
+    // getVideoPlaybackQuality without touching paint sites
+    playbackState._videoForDiag = video;
     outsideMp4PlaybackStateByBoard.set(effectiveBoardId, playbackState);
     return playbackState;
   }
@@ -456,9 +498,17 @@
     if (!video || !state || state.videoFrameCallbackBound) return;
     if (typeof video.requestVideoFrameCallback !== "function") return;
     state.videoFrameCallbackBound = true;
-    const onFrame = () => {
+    const onFrame = (_t, metadata) => {
       state.lastDecodedFrameAtMs = performance.now();
       state.hasVisibleFrame = true;
+      // Phase 57 diag: count rVFC decode events for instrumentation
+      state._decodedFrameCount = (state._decodedFrameCount || 0) + 1;
+      if (metadata && typeof metadata.mediaTime === "number") {
+        state._lastMediaTime = metadata.mediaTime;
+      }
+      if (metadata && typeof metadata.presentedFrames === "number") {
+        state._lastPresentedFrames = metadata.presentedFrames;
+      }
       video.requestVideoFrameCallback(onFrame);
     };
     video.requestVideoFrameCallback(onFrame);
@@ -499,8 +549,93 @@
       hasVisibleFrame: false,
     };
     _bindRoomMp4FrameCallback(video, state);
+    // Phase 57 diag stash
+    state._videoForDiag = video;
     roomMp4PlaybackStateByKey.set(key, state);
     return state;
+  }
+
+  // Phase 57 diag: record one paint event for instrumentation. Outcome is
+  // one of "live" (drew live decoded frame), "fallback" (drew stale
+  // fallback canvas), "gated-out" (skipped paint entirely), "stale"
+  // (drew live frame even though no new decoded frame since last paint),
+  // "no-frame" (decoder not ready / seeking). Emits a single console
+  // line every ~1000ms when window.TT_MP4_DIAG is truthy.
+  function recordMp4PaintDiag(playbackState, label, outcome) {
+    if (!playbackState) return;
+    const diag = playbackState._diag || (playbackState._diag = {
+      windowStartMs: performance.now(),
+      paints: { live: 0, fallback: 0, "gated-out": 0, stale: 0, "no-frame": 0 },
+      rafTicks: 0,
+      decodedAtStart: Number(playbackState._decodedFrameCount || 0),
+      lastDecodedSeenForPaint: Number(playbackState._decodedFrameCount || 0),
+    });
+    diag.rafTicks += 1;
+    const decodedNow = Number(playbackState._decodedFrameCount || 0);
+    // detect stale-live paint: outcome=="live" but no NEW decoded frame
+    // since the previous live paint
+    if (outcome === "live") {
+      if (decodedNow <= diag.lastDecodedSeenForPaint) {
+        outcome = "stale";
+      }
+      diag.lastDecodedSeenForPaint = decodedNow;
+    }
+    diag.paints[outcome] = (diag.paints[outcome] || 0) + 1;
+
+    const nowMs = performance.now();
+    const elapsed = nowMs - diag.windowStartMs;
+    // Diag gate: explicit window.TT_MP4_DIAG flag OR ?mp4diag=1 URL query
+    const diagOn = typeof window !== "undefined" && (
+      window.TT_MP4_DIAG === true
+      || (typeof window.location !== "undefined" && /[?&]mp4diag=1\b/.test(String(window.location.search || "")))
+    );
+    if (elapsed >= 1000 && diagOn) {
+      const decodedDelta = decodedNow - diag.decodedAtStart;
+      const totalPaints = diag.paints.live + diag.paints.fallback + diag.paints["gated-out"] + diag.paints.stale + diag.paints["no-frame"];
+      // Snapshot Chromium decoder stats (when available) to expose
+      // whether the source mp4's 30fps is being decoded fully or the
+      // pipeline is dropping frames upstream of our paint code.
+      let vpq = null;
+      try {
+        // _videoForDiag is stashed by callers; safe-guard if missing
+        const vid = playbackState._videoForDiag;
+        if (vid && typeof vid.getVideoPlaybackQuality === "function") {
+          const q = vid.getVideoPlaybackQuality();
+          if (!diag._lastVpq) diag._lastVpq = q;
+          const totalDelta = (Number(q.totalVideoFrames) || 0) - (Number(diag._lastVpq.totalVideoFrames) || 0);
+          const droppedDelta = (Number(q.droppedVideoFrames) || 0) - (Number(diag._lastVpq.droppedVideoFrames) || 0);
+          vpq = {
+            totalFps: Math.round((totalDelta * 1000) / elapsed),
+            droppedFps: Math.round((droppedDelta * 1000) / elapsed),
+            playbackRate: Number(vid.playbackRate) || 1,
+            currentTime: Number(vid.currentTime) || 0,
+            duration: Number(vid.duration) || 0,
+            readyState: Number(vid.readyState) || 0,
+          };
+          diag._lastVpq = q;
+        }
+      } catch (_) { /* ignore */ }
+      // eslint-disable-next-line no-console
+      console.log(`[mp4-diag] ${label}`, JSON.stringify({
+        windowMs: Math.round(elapsed),
+        rafTicks: diag.rafTicks,
+        decoded: decodedDelta,
+        decodeFps: Math.round((decodedDelta * 1000) / elapsed),
+        paints: diag.paints,
+        paintTotal: totalPaints,
+        live: diag.paints.live,
+        stale: diag.paints.stale,
+        gatedOut: diag.paints["gated-out"],
+        fallback: diag.paints.fallback,
+        noFrame: diag.paints["no-frame"],
+        vpq,
+      }));
+      // reset window
+      diag.windowStartMs = nowMs;
+      diag.paints = { live: 0, fallback: 0, "gated-out": 0, stale: 0, "no-frame": 0 };
+      diag.rafTicks = 0;
+      diag.decodedAtStart = decodedNow;
+    }
   }
 
   window.TT_BEAMER_RUNTIME_OUTSIDE_MP4 = {
@@ -519,11 +654,16 @@
     maybeWrapOutsideMp4Loop,
     bindOutsideMp4FrameCallback,
     shouldDrawOutsideMp4Now,
+    // Phase 57 v1.1.5 (2026-06-02) — rVFC-driven paint gates
+    hasNewDecodedFrame,
+    markMp4FramePainted,
     ensureOutsideMp4Playback,
     // Room MP4 seam machinery (Phase 50 2026-05-25)
     ensureRoomMp4Playback,
     maybeWrapRoomMp4Loop,
     captureRoomMp4FallbackFrame,
     getRoomMp4FallbackSource,
+    // Phase 57 diag (2026-06-02) — instrumentation only, gated on window.TT_MP4_DIAG
+    recordMp4PaintDiag,
   };
 })();

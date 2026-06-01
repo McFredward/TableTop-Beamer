@@ -1274,6 +1274,9 @@ const {
   maybeWrapRoomMp4Loop,
   captureRoomMp4FallbackFrame,
   getRoomMp4FallbackSource,
+  recordMp4PaintDiag,
+  hasNewDecodedFrame,
+  markMp4FramePainted,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
 window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
@@ -2504,6 +2507,11 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   shouldDrawOutsideMp4Now: (playbackState) => shouldDrawOutsideMp4Now(playbackState),
   captureOutsideMp4FallbackFrame: (playbackState, video) => captureOutsideMp4FallbackFrame(playbackState, video),
   drawOutsideMp4FallbackFrame: (playbackState) => drawOutsideMp4FallbackFrame(playbackState),
+  // Phase 57 diag (2026-06-02) — gated behind window.TT_MP4_DIAG
+  recordMp4PaintDiag: (playbackState, label, outcome) => recordMp4PaintDiag(playbackState, label, outcome),
+  // Phase 57 v1.1.5 (2026-06-02) — rVFC-driven mp4 paint gating
+  hasNewDecodedFrame: (playbackState) => hasNewDecodedFrame(playbackState),
+  markMp4FramePainted: (playbackState) => markMp4FramePainted(playbackState),
   getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
   getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),

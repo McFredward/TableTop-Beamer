@@ -124,7 +124,11 @@
           // gated out, fall through to the existing fallback-source
           // replay so SSR capture still sees a fresh canvas op every
           // frame (Win32 capture budget preserved).
-          const drawNow = playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true;
+          // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
+          // (see inside-mp4 path comment for full rationale).
+          const hasRvfcR = playbackState && playbackState.videoFrameCallbackBound;
+          const newFrameR = hasRvfcR && ctx.hasNewDecodedFrame(playbackState);
+          const drawNow = hasRvfcR ? newFrameR : (playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true);
           if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
             // Refresh fallback frame so the next seek window has a
@@ -134,9 +138,18 @@
             if (playbackState && ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
+            if (playbackState) ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
           } else if (playbackState && ctx.getRoomMp4FallbackSource) {
             const src = ctx.getRoomMp4FallbackSource(playbackState);
-            if (src) drawRoomAssetImage(c, src, rect);
+            if (src) {
+              drawRoomAssetImage(c, src, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", haveLiveFrame ? "gated-out" : "fallback");
+            } else {
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+            }
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
           }
           c.restore();
         } catch {
@@ -330,14 +343,41 @@
           && video.readyState >= 2
           && Number(video.videoWidth) > 0
           && Number(video.videoHeight) > 0;
-        if (playbackState && haveLiveFrame && ctx.shouldDrawOutsideMp4Now(playbackState)) {
+        // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate. The
+        // bare time-throttle in shouldDrawOutsideMp4Now opens at
+        // 22ms (45fps balanced tier) but snow.mp4 decodes at ~17-24fps
+        // under SSR load → ~40% of live paints redrew the SAME decoded
+        // frame, producing duplicate pixels in the encoder stream
+        // (operator-visible "frame drop" / "kleine hänger" 57-CONTEXT
+        // 2026-06-01). hasNewDecodedFrame consumes the rVFC signal
+        // (bindOutsideMp4FrameCallback / _bindRoomMp4FrameCallback)
+        // and only authorizes a live paint when a NEW decoded frame
+        // has arrived since the previous one. Fallback canvas replay
+        // covers the "no new frame" rAF cycles so the canvas always
+        // has content (Win32 capture budget preserved: 1 drawImage per
+        // rAF, project_win32_ssr_canvas_damage.md). When rVFC is
+        // unsupported, hasNewDecodedFrame returns false and the path
+        // falls back to the v1.1.4 time-gate.
+        const hasRvfc = playbackState && playbackState.videoFrameCallbackBound;
+        const newFrame = hasRvfc && ctx.hasNewDecodedFrame(playbackState);
+        const gateAllows = hasRvfc ? newFrame : (playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true);
+        if (playbackState && haveLiveFrame && gateAllows) {
           c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
           if (ctx.captureRoomMp4FallbackFrame) {
             ctx.captureRoomMp4FallbackFrame(playbackState, video);
           }
+          ctx.markMp4FramePainted(playbackState);
+          ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
         } else if (playbackState && ctx.getRoomMp4FallbackSource) {
           const src = ctx.getRoomMp4FallbackSource(playbackState);
-          if (src) c.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height);
+          if (src) {
+            c.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", haveLiveFrame ? "gated-out" : "fallback");
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
+          }
+        } else {
+          ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
         }
         return;
       }
@@ -568,11 +608,19 @@
             && video.readyState >= 2
             && Number(video.videoWidth) > 0
             && Number(video.videoHeight) > 0;
-          if (haveLiveFrame && ctx.shouldDrawOutsideMp4Now(playbackState)) {
+          // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
+          // (see inside-mp4 path comment for full rationale).
+          const hasRvfcO = playbackState && playbackState.videoFrameCallbackBound;
+          const newFrameO = hasRvfcO && ctx.hasNewDecodedFrame(playbackState);
+          const drawNowO = hasRvfcO ? newFrameO : ctx.shouldDrawOutsideMp4Now(playbackState);
+          if (haveLiveFrame && drawNowO) {
             c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+            ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
           } else {
             ctx.drawOutsideMp4FallbackFrame(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");
           }
         } else {
           ctx.clearOutsideMp4PlaybackState(state.boardId);

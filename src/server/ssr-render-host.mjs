@@ -1171,6 +1171,12 @@ export function bootSsrRenderHost({
             logger.info(text.slice(0, 800));
             return;
           }
+          // Phase 57 diag (2026-06-02): forward mp4 paint diagnostics
+          // from the SSR tab when enabled. Gated on SSR_PUBLISHER_DEBUG.
+          if (text.startsWith("[mp4-diag]") && process.env.SSR_PUBLISHER_DEBUG === "1") {
+            logger.info(text.slice(0, 800));
+            return;
+          }
           if (t !== "error" && t !== "warning" && process.env.SSR_TAB_CONSOLE_VERBOSE !== "1") return;
           const fn = (t === "error" ? logger.error : t === "warning" ? logger.warn : logger.info).bind(logger);
           fn(`[ssr-tab:${t}] ${text.slice(0, 800)}`);
@@ -1202,7 +1208,11 @@ export function bootSsrRenderHost({
       } catch {}
       // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
       // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
-      await page.goto(`http://127.0.0.1:${port}/ssr`, {
+      // Phase 57 diag (2026-06-02): when SSR_PUBLISHER_DEBUG=1, enable
+      // the in-page mp4 paint diagnostic by appending ?mp4diag=1 to the
+      // SSR navigation URL.
+      const ssrDiagSuffix = process.env.SSR_PUBLISHER_DEBUG === "1" ? "?mp4diag=1" : "";
+      await page.goto(`http://127.0.0.1:${port}/ssr${ssrDiagSuffix}`, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
