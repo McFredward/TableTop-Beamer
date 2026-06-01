@@ -1306,6 +1306,32 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 57 - SSR mp4 playback quality / smoothness (OPEN — 2026-06-01)
+
+Operator UAT (Frostpunk board, post-v1.1.3): 720p `snow.mp4` inside-
+animation playing full-area on `/output/` shows visible stutters. SSR
+overlay reports ~40fps, stream reports 23-26fps. Dashboard renders the
+same animation smoothly. Other animations (e.g. `fire.gif`) on the same
+setup do NOT stutter. Bug is specific to mp4 playback inside the SSR
+encode + stream pipeline.
+
+Scope: broad SSR mp4 playback quality / smoothness surface area —
+investigate WHY mp4 stutters in the stream but not on dashboard, fix
+the dominant cause(s) without regressing the other animation paths
+(coded effects, GIF, outside-mp4 which had its own seam fix in v1.1.0).
+Likely-relevant subsystems: runtime-outside-mp4.js (seam machinery
+already exists for outside path), runtime-draw-loop.js, room-MP4
+playback wiring, encoder rate-control interaction with mp4 keyframe
+cadence, possibly hardware decode availability in SSR Chromium.
+
+Out of Scope:
+- New animation types or import features.
+- Audio playback timing (separate concern).
+- Dashboard-side rendering (operator confirmed dashboard already
+  smooth).
+
+Plans: TBD after research
+
 ## Phase 56 - SSR restart trigger on bitrate change (CLOSED — 2026-05-24, Released as v1.0.7)
 
 Operator UAT 2026-05-24: Apply persisted streamBitrateMbps to
