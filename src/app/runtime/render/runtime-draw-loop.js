@@ -145,6 +145,18 @@
             if (src) {
               drawRoomAssetImage(c, src, rect);
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", haveLiveFrame ? "gated-out" : "fallback");
+            } else if (haveLiveFrame) {
+              // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+              // canvas not yet captured (first paint after lifecycle
+              // change OR fallback init race). Use live <video> directly
+              // — strictly better than leaving the region UNPAINTED
+              // (main rAF's clearRect would bleed black through).
+              drawRoomAssetImage(c, video, rect);
+              if (ctx.captureRoomMp4FallbackFrame) {
+                ctx.captureRoomMp4FallbackFrame(playbackState, video);
+              }
+              ctx.markMp4FramePainted(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
             } else {
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
             }
@@ -373,6 +385,19 @@
           if (src) {
             c.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", haveLiveFrame ? "gated-out" : "fallback");
+          } else if (haveLiveFrame) {
+            // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+            // canvas not yet captured (first paint after lifecycle
+            // change OR fallback init race). Use live <video> directly
+            // — strictly better than leaving the region UNPAINTED
+            // (main rAF's clearRect would bleed black through, producing
+            // the operator-reported strobe on overlaid mp4s).
+            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            if (ctx.captureRoomMp4FallbackFrame) {
+              ctx.captureRoomMp4FallbackFrame(playbackState, video);
+            }
+            ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
           } else {
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
           }
@@ -419,7 +444,10 @@
           }
           const memberConcurrencyKey = `${animation.boardId ?? ""}::${room.id ?? ""}`;
           const memberConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(memberConcurrencyKey) ?? 0;
-          if (memberConcurrency >= 2) {
+          // Phase 57 v1.1.7 (2026-06-02): also lift when an inside-
+          // animation is concurrently active on this board (Bug B).
+          const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? "") ?? 0) > 0;
+          if (memberConcurrency >= 2 || insideConcurrent) {
             c.globalCompositeOperation = "lighter";
           }
           drawRoomComposition(memberAnimation, age, room, roomMetrics);
@@ -460,7 +488,10 @@
         // coded, mp4, and gif all route through drawRoomComposition.
         const concurrencyKey = `${animation.boardId ?? ""}::${animation.roomId ?? ""}`;
         const roomConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(concurrencyKey) ?? 0;
-        if (roomConcurrency >= 2) {
+        // Phase 57 v1.1.7 (2026-06-02): also lift when an inside-
+        // animation is concurrently active on this board (Bug B).
+        const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? "") ?? 0) > 0;
+        if (roomConcurrency >= 2 || insideConcurrent) {
           c.globalCompositeOperation = "lighter";
         }
         drawRoomComposition(animation, age, room, roomMetrics);
@@ -482,6 +513,15 @@
       const clipped = ctx.clipToInsideShip(animation.boardId ?? state.boardId);
       if (!clipped) {
         return;
+      }
+      // Phase 57 v1.1.7 (2026-06-02): Bug B — when any room animation
+      // is concurrently active on this board, draw the inside-
+      // animation with additive composite so it cannot opaquely cover
+      // the room animation regardless of trigger order. Mirrors the
+      // Phase 12 room-room layering pattern.
+      const roomConcurrent = (state.runtimePerf.roomAnimationCountByBoard?.get(animation.boardId ?? state.boardId ?? "") ?? 0) > 0;
+      if (roomConcurrent) {
+        c.globalCompositeOperation = "lighter";
       }
       drawInsideGlobalVisual(animation, age);
     } finally {
@@ -619,8 +659,18 @@
             ctx.markMp4FramePainted(playbackState);
             ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
           } else {
-            ctx.drawOutsideMp4FallbackFrame(playbackState);
-            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");
+            const painted = ctx.drawOutsideMp4FallbackFrame(playbackState);
+            if (!painted && haveLiveFrame) {
+              // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+              // canvas not yet captured. Paint live <video> directly so
+              // the region is never left UNPAINTED (would bleed black).
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              ctx.markMp4FramePainted(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
+            } else {
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");
+            }
           }
         } else {
           ctx.clearOutsideMp4PlaybackState(state.boardId);
@@ -742,15 +792,36 @@
       // to additive composite ('lighter') so draw order cannot occlude.
       // Single-animation rooms keep the default source-over blend.
       const roomConcurrencyByKey = new Map();
+      // Phase 57 v1.1.7 (2026-06-02): Bug B — parallel count for
+      // inside-animation presence per board so room+inside concurrent
+      // can also lift to "lighter" (operator-confirmed regression: an
+      // inside animation drawn AFTER a room animation opaquely covers
+      // the room region). Inside animations have scope === "global"
+      // AND are NOT in the board's outside-fx profile.
+      const insideAnimationCountByBoard = new Map();
+      const roomAnimationCountByBoard = new Map();
       for (const entry of state.runningAnimations) {
-        if (entry?.scope !== "room") continue;
-        const boardId = typeof entry.boardId === "string" ? entry.boardId : "";
-        const roomId = typeof entry.roomId === "string" ? entry.roomId : "";
-        if (!roomId) continue;
-        const key = `${boardId}::${roomId}`;
-        roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
+        const boardId = typeof entry?.boardId === "string" ? entry.boardId : "";
+        if (entry?.scope === "room") {
+          const roomId = typeof entry.roomId === "string" ? entry.roomId : "";
+          if (!roomId) continue;
+          const key = `${boardId}::${roomId}`;
+          roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
+          roomAnimationCountByBoard.set(boardId, (roomAnimationCountByBoard.get(boardId) || 0) + 1);
+        } else if (entry?.scope === "cluster") {
+          // Cluster animations expand to multiple room draws; count as room presence
+          roomAnimationCountByBoard.set(boardId, (roomAnimationCountByBoard.get(boardId) || 0) + 1);
+        } else if (entry?.scope === "global") {
+          // global covers both inside and outside; only count inside here
+          if (!ctx.isOutsideAnimationType?.(entry.type, boardId || ctx.state.boardId)
+              && entry.type !== "outside-space") {
+            insideAnimationCountByBoard.set(boardId, (insideAnimationCountByBoard.get(boardId) || 0) + 1);
+          }
+        }
       }
       state.runtimePerf.roomConcurrencyByKey = roomConcurrencyByKey;
+      state.runtimePerf.insideAnimationCountByBoard = insideAnimationCountByBoard;
+      state.runtimePerf.roomAnimationCountByBoard = roomAnimationCountByBoard;
 
       const failedAnimationIds = [];
       let renderedCount = 0;

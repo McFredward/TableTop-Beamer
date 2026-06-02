@@ -12,6 +12,58 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.7] — 2026-06-02
+
+Phase 57 Sammelphase continuation: closes two operator-reported
+follow-up bugs surfaced when overlaying mp4 animations on the same
+board after v1.1.6 shipped.
+
+### Fixed
+- **Bug A — Strobo / black-flicker on overlaid mp4** (`src/app/
+  runtime/render/runtime-outside-mp4.js` + `runtime-draw-loop.js`).
+  The v1.1.5 rVFC paint gate's fallback branch returned `null` from
+  `getRoomMp4FallbackSource` / `drawOutsideMp4FallbackFrame` when the
+  fallback canvas was older than 1500 ms OR when the fallback hadn't
+  been captured yet. The paint sites in turn left the region
+  UNPAINTED → the main rAF's `clearRect` bled black through →
+  operator-visible random black flashes when two mp4s overlay with
+  desynced decode cadences (operator UAT 2026-06-02: snow.mp4 inside-
+  animation + generator_boost.mp4 room animation). Three-part fix:
+  (1) drop the 1500 ms age guard on both fallback helpers (returning a
+  stale fallback is strictly better than returning null);
+  (2) eagerly capture the fallback canvas inside the rVFC frame
+  callback so the fallback is always populated after the first
+  decoded frame regardless of the paint site's `haveLiveFrame` check;
+  (3) add a "paint live `<video>` directly" last-resort branch in all
+  three mp4 paint sites for the initial-state case where no fallback
+  has been captured yet. Linux Playwright verification with both
+  mp4s overlay: post-startup `no-frame` paint count is **0/0** across
+  21+ one-second samples (down from ~2 % pre-fix); snow-only regression
+  baseline preserved (0 stale, 0 no-frame).
+- **Bug B — Inside animation overwrites room animations** (`src/app/
+  runtime/render/runtime-draw-loop.js`). Phase 12 room-room
+  concurrency lifts `globalCompositeOperation` to `"lighter"` via
+  `roomConcurrencyByKey` but that map only counts `scope === "room"`
+  entries — inside (`scope === "global"`) animations were never
+  counted, so a room+inside combination drew the inside animation
+  opaquely on top of the room region (operator quote: "Wenn erst
+  raum animationen gestartet werden und dann die inside animation —
+  dann sieht man die room animationen nicht mehr"). Fix: build
+  parallel `insideAnimationCountByBoard` and
+  `roomAnimationCountByBoard` maps each rAF; both room-scope draw
+  branches (cluster member + single room) and the inside-animation
+  draw branch now lift to additive composite when the other side is
+  concurrently active, mirroring the Phase 12 pattern. Layering is
+  order-independent regardless of trigger order.
+
+### Notes
+- Linux Playwright verification with the snow.mp4 (inside) +
+  generator_boost.mp4 (room) overlay scenario; visual frames captured
+  on /output/ show both animations visible continuously with no black
+  flashes.
+
+---
+
 ## [1.1.6] — 2026-06-02
 
 Phase 57 Sammelphase continuation: closes the residual SSR-tab

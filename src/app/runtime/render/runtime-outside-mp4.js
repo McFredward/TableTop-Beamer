@@ -243,11 +243,15 @@
   }
 
   function drawOutsideMp4FallbackFrame(playbackState) {
+    // Phase 57 v1.1.7 (2026-06-02): drop the 1500ms age guard. Bug A
+    // (strobo / black-flicker on overlaid mp4) traced to this guard
+    // returning false on rAF ticks where rVFC hasn't fired in >1500ms
+    // under load (two mp4s simultaneously). When this returned false,
+    // the paint site left the region UNPAINTED → main rAF's clearRect
+    // bled black through → operator-visible strobe. The fallback
+    // canvas reflects the last good decoded frame; painting it even
+    // when "stale" is strictly better than painting nothing.
     if (!playbackState?.fallbackCanvas || !playbackState.hasVisibleFrame) {
-      return false;
-    }
-    const ageMs = performance.now() - Number(playbackState.lastVisibleFrameAtMs || 0);
-    if (!Number.isFinite(ageMs) || ageMs > OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS) {
       return false;
     }
     const mainCanvas = ctx.canvas;
@@ -305,6 +309,19 @@
       }
       if (metadata && typeof metadata.presentedFrames === "number") {
         playbackState._lastPresentedFrames = metadata.presentedFrames;
+      }
+      // Phase 57 v1.1.7 (2026-06-02): Bug A — eagerly capture the
+      // fallback canvas on every rVFC fire (not only after a successful
+      // live paint). Closes the race where the paint site's
+      // `haveLiveFrame` check fails transiently (seek window /
+      // readyState dip) → no capture happens → fallback stays null →
+      // `getRoomMp4FallbackSource` returns null → region painted BLACK
+      // (operator-visible strobe). rVFC firing proves Chromium has a
+      // presentable frame in the texture, so the capture is safe.
+      try {
+        captureOutsideMp4FallbackFrame(playbackState, video);
+      } catch {
+        // canvas surface may be transiently unavailable during page tear-down
       }
       video.requestVideoFrameCallback(onVideoFrame);
     };
@@ -466,9 +483,15 @@
   }
 
   function getRoomMp4FallbackSource(state) {
+    // Phase 57 v1.1.7 (2026-06-02): drop the 1500ms age guard. Bug A
+    // (strobo / black-flicker on overlaid mp4) traced to this guard
+    // returning null on rAF ticks where rVFC hasn't fired in >1500ms
+    // under load (two mp4s simultaneously). When this returned null,
+    // the inside-mp4 / room-mp4 paint sites left the region UNPAINTED
+    // → main rAF's clearRect bled black → operator-visible strobe.
+    // The fallback canvas reflects the last good decoded frame;
+    // returning it even when "stale" is strictly better than null.
     if (!state?.fallbackCanvas || !state.hasVisibleFrame) return null;
-    const ageMs = performance.now() - Number(state.lastVisibleFrameAtMs || 0);
-    if (!Number.isFinite(ageMs) || ageMs > OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS) return null;
     return state.fallbackCanvas;
   }
 
@@ -508,6 +531,16 @@
       }
       if (metadata && typeof metadata.presentedFrames === "number") {
         state._lastPresentedFrames = metadata.presentedFrames;
+      }
+      // Phase 57 v1.1.7 (2026-06-02): Bug A — eagerly capture the
+      // fallback canvas on every rVFC fire (see bindOutsideMp4Frame-
+      // Callback comment for full rationale). Ensures fallback is
+      // always non-null after the first decoded frame, preventing the
+      // operator-visible black-flash strobe when overlaying mp4s.
+      try {
+        captureRoomMp4FallbackFrame(state, video);
+      } catch {
+        // canvas surface may be transiently unavailable during teardown
       }
       video.requestVideoFrameCallback(onFrame);
     };
