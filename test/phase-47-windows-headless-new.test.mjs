@@ -67,7 +67,7 @@ const WIN32_ITER15_BASELINE = [
   "--autoplay-policy=no-user-gesture-required",
   // (no --ozone-platform=x11 — iter15-gated to Linux)
   "--use-gl=angle",
-  "--use-angle=default",
+  "--use-angle=vulkan",
   "--enable-unsafe-swiftshader",
   "--disable-dev-shm-usage",
   "--disable-background-timer-throttling",

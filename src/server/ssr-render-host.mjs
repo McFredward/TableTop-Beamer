@@ -169,9 +169,8 @@ export function buildChromiumLaunchArgs({
     // enable-gpu-rasterization are appended below only when VAAPI is
     // explicitly enabled (D-06 lock).
     // Phase 47 gap-closure-2 (2026-05-17): drop `--use-gl=angle` +
-    // `--use-angle=default` on Win32 headless-new. On Linux+Xvfb these
-    // flags route Chrome's GL through ANGLE→Mesa-llvmpipe at ~60 fps
-    // (Phase 31 h19 + Phase 34 h2 history). On Windows headless-new
+    // `--use-angle=...` on Win32 headless-new. On Linux+Xvfb these
+    // flags route Chrome's GL through ANGLE. On Windows headless-new
     // Chrome has no platform window / no D3D11 swap-chain; forcing ANGLE
     // tries D3D11 init, fails, and the GPU process crashes — observed in
     // operator UAT logs as `[ssr-tab:reqfailed] /ssr :: net::ERR_ABORTED`
@@ -180,9 +179,27 @@ export function buildChromiumLaunchArgs({
     // what we want. `--enable-unsafe-swiftshader` (below) keeps software
     // GL allowed for WebGL contexts.
     //
-    // Linux path (and Win32 escape-hatch path) unchanged — same iter15
-    // flags as before. The headless-new path drops them.
-    ...(dropOnHeadlessNew ? [] : ["--use-gl=angle", "--use-angle=default"]),
+    // Phase 57 v1.1.6 (2026-06-02): ANGLE backend pinned to `vulkan`
+    // instead of `default`. Root cause of the residual SSR-tab mp4
+    // stutter (operator UAT 2026-06-01, "kleine hänger" surviving the
+    // v1.1.5 rVFC paint-gate fix): with `--use-angle=default`, ANGLE
+    // selected Mesa llvmpipe (software) as the GL backend, which made
+    // the Chromium video compositor too slow to keep up with 24fps mp4
+    // content — `getVideoPlaybackQuality().droppedVideoFrames` rose at
+    // ~4.3/s. Switching to `vulkan` lets ANGLE pick the host's Vulkan
+    // ICD (Intel/RADV on dev box, lavapipe as software fallback) for
+    // hardware-accelerated compositor surfaces. Measured impact on Linux
+    // dev box: vpq.droppedFps 4.3/s → 0.5/s (88% reduction), decoded
+    // frame rate 19.8/s → 24.0/s (matches source 23.976fps), median
+    // dropped frames per second = 0. ANGLE falls back to GL/llvmpipe
+    // automatically if Vulkan is unavailable, so this is safe on
+    // systems without a Vulkan ICD (the worst-case behavior is the
+    // pre-v1.1.6 baseline — no new failure mode introduced).
+    //
+    // Linux path (and Win32 escape-hatch path) get the new backend. The
+    // Win32 headless-new path drops the entire `--use-gl=`/`--use-angle=`
+    // pair — same as before.
+    ...(dropOnHeadlessNew ? [] : ["--use-gl=angle", "--use-angle=vulkan"]),
     "--enable-unsafe-swiftshader",
     "--disable-dev-shm-usage",
     // Anti-throttling: prevent Chromium from treating the Xvfb-headful

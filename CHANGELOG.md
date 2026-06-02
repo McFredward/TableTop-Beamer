@@ -12,6 +12,73 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.1.6] — 2026-06-02
+
+Phase 57 Sammelphase continuation: closes the residual SSR-tab
+dropped-frame gap left after v1.1.5.
+
+v1.1.5 fixed the paint gate (rVFC-driven, no more stale paints) but
+the operator's Linux UAT still showed `vpq.droppedFps≈4-7/s` in the
+SSR Chromium tab — Chromium's video pipeline was dropping decoded
+frames UPSTREAM of any paint logic, even after `--disable-renderer-
+backgrounding` / `--disable-background-timer-throttling` /
+`--disable-backgrounding-occluded-windows` etc. Root cause: the
+ANGLE backend was defaulting to Mesa llvmpipe (software GL), which
+made the Chromium compositor too slow to keep up with 24fps content,
+so the compositor scheduler dropped frames between decode and
+display.
+
+### Changed
+- **`--use-angle=default` → `--use-angle=vulkan` on Linux SSR
+  Chromium** (`src/server/ssr-render-host.mjs#buildChromiumLaunchArgs`).
+  ANGLE now selects a Vulkan ICD (Intel / RADV / nouveau on real
+  hardware; Mesa lavapipe as software fallback) instead of GL over
+  llvmpipe. Measured impact on Linux dev box driving the Phase 57
+  Playwright SSR-tab harness against snow.mp4 (23.976fps source,
+  loop-until-stopped, 26+ one-second samples per run):
+
+  | Metric (SSR-tab, post-settle) | v1.1.5 baseline | v1.1.6 (Vulkan) |
+  |---|---|---|
+  | `vpq.droppedFps` mean | 4.27 / s | **0.39 / s** |
+  | `vpq.droppedFps` median | 4 | **0** |
+  | `vpq.droppedFps` max | 6 | **1** |
+  | Decoded frames / s | 19.77 | **24.0** (matches source) |
+  | Live mp4 paints / s | 19.77 | **24.0** |
+  | Gated-out paints / s | 32.1 | **0.97** |
+  | Stream HUD drops (60s) | non-zero | **0/67** |
+
+  88% reduction in `droppedFps`; the median sample now has zero
+  drops. Decoded frame rate fully matches source. ANGLE's automatic
+  fallback to GL (and then SwiftShader) is preserved — if a Linux
+  host has no Vulkan ICD at all the worst case is the v1.1.5
+  baseline; no new failure mode is introduced. On Win32 the
+  `--use-gl=`/`--use-angle=` pair is still dropped under the
+  headless-new default (`dropOnHeadlessNew` gate from Phase 47
+  Wave 2) — Win32 behavior unchanged. The SSR_WIN_HEADLESS=0
+  escape-hatch path on Win32 picks up the new Vulkan backend, which
+  on Windows means ANGLE→D3D11 (Vulkan absent on most Win Chrome
+  builds) — same fallback chain as today, just a different default
+  preference order.
+
+### Notes — investigation
+- Tried and reverted (no measurable impact on `droppedFps`):
+  `--disable-features=VideoBackgroundedFrameDropping`,
+  `--disable-features=BackgroundVideoTrackOptimization`,
+  `--disable-features=MediaSessionService`,
+  `--disable-features=UseSurfaceLayerForVideo`,
+  `--disable-background-media-suspend`. The Phase 57 prior debugger
+  had flagged these as the "standard suspects" for backgrounded-tab
+  video dropping. Empirically none changed the measured droppedFps
+  more than noise — confirming the drops were NOT a tab-
+  backgrounding optimization but a compositor-throughput limit.
+- `--ignore-gpu-blocklist --enable-gpu-rasterization` (ungated)
+  also tried and reverted: same regression as documented in Phase 34
+  h2 (snow.mp4 fetch aborts with ERR_ABORTED, JS thread blocks).
+  The Vulkan ANGLE backend is the only path that gives the
+  compositor a real GPU without re-triggering Phase 34's hot-loop.
+
+---
+
 ## [1.1.5] — 2026-06-02
 
 Phase 57 Sammelphase: follow-up to v1.1.4 after operator UAT
