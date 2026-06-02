@@ -1306,7 +1306,52 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
-## Phase 58 - Per-animation playback modes (loop / play-once / boomerang) (PLANNING)
+## Phase 58 - Per-animation playback modes (loop / play-once / boomerang) (WAVE 1 COMPLETE, WAVES 2-4 PENDING)
+
+**Status update 2026-06-02:** Wave 1 (schema + editor UI) landed at
+commit `2138bfd`. Wave 2-4 deferred to follow-up session(s) — see
+`58-CONTEXT.md` for full state-machine spec and decisions.
+
+**Wave 1 delivered (no behavior change yet):**
+- `playbackMode` + `onRetrigger` fields added to inside/outside/room
+  animation definition normalizers (`runtime-fx-normalizers.js`) with
+  backwards-compat (`loopUntilStopped=false` → infers
+  `play-once-disappear`).
+- Animation editor renders stufenweise picker for gif/mp4 in all
+  three scopes: Mode dropdown (Loop / Play-once-disappear /
+  Play-then-freeze / Boomerang) + conditional On-retrigger sub-
+  dropdown when mode = play-then-freeze.
+- Playwright UAT confirmed: dropdown appears, conditional subfield
+  hide/show works, persistence round-trips correctly via save+reload,
+  values appear on disk in `config/boards/<id>.json`.
+
+**Wave 2 pending — non-reverse modes runtime:**
+- `play-once-disappear`: mp4/gif plays once, then animation
+  auto-removes from running list.
+- `play-then-freeze` + `instant-disappear`: mp4/gif plays once, then
+  freezes at last frame; re-trigger = disappear.
+- Requires touching `runtime-animation-factory.js` (carry
+  playbackMode/onRetrigger), `runtime-runtime-controls.js`
+  (upsertGlobalAnimation reads mode from definition),
+  `runtime-outside-mp4.js` + room/inside mp4 render paths
+  (video.loop=false + pause-on-ended), and `runtime-gif-decoder.js` /
+  `runtime-gif-playback.js` (stop frame-pump at last index).
+
+**Wave 3 pending — reverse modes (boomerang + reverse-on-retrigger):**
+- gif: frame-walk backward via existing decoder (trivial).
+- mp4: server-side ffmpeg pre-compute on save (D-03), cached on
+  disk under `./resources/.reverse-cache/`, WebSocket progress event,
+  editor UI loading indicator. Reverse playback then switches
+  `video.src` to the `.reverse.mp4` file.
+- Modes: `reverse-then-freeze-first`, `reverse-then-disappear`,
+  `boomerang` (forward → reverse → forward).
+- HIGHEST RISK wave per `P8-T47-REVERSE-ROOT-CAUSE.md` lesson.
+
+**Wave 4 pending — dashboard per-trigger override:**
+- Replace per-trigger `loopUntilStopped` toggle with same stufenweise
+  picker; first option "Use animation default".
+
+
 
 Operator vision (2026-06-02): jede gif/mp4-Animation soll im
 Animationsmenu einen Playback-Mode bekommen. Aktuell loopen alle
