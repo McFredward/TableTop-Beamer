@@ -417,13 +417,6 @@
         min: 0.3, max: 2.5, step: 0.05,
         format: (v) => `${v.toFixed(2)}x`,
       });
-      if (scope === "inside") {
-        fields.push({
-          kind: "toggle", key: "loopUntilStopped",
-          label: "Loop",
-          sub: "Repeats until stopped.",
-        });
-      }
       if (scope === "outside") {
         // Mode + direction used to live in
         // a separate Playback card; inlined into Defaults so the user
@@ -446,6 +439,32 @@
             ],
           });
         }
+      }
+    }
+    // Phase 58: per-animation playback mode for gif/mp4 in all three
+    // scopes. Replaces the legacy inside-only `loopUntilStopped` toggle.
+    // Stufenweise picker: Mode dropdown, then On-retrigger sub-dropdown
+    // appears conditionally when Mode = "play-then-freeze".
+    const isMedia = def.assetType === "gif" || def.assetType === "mp4";
+    if (isMedia) {
+      fields.push({
+        kind: "select", key: "playbackMode", label: "Playback mode",
+        options: [
+          { value: "loop",                 label: "Loop (forever)" },
+          { value: "play-once-disappear",  label: "Play once, then disappear" },
+          { value: "play-then-freeze",     label: "Play once, then freeze" },
+          { value: "boomerang",            label: "Boomerang (forward & reverse)" },
+        ],
+      });
+      if (def.playbackMode === "play-then-freeze") {
+        fields.push({
+          kind: "select", key: "onRetrigger", label: "On re-trigger",
+          options: [
+            { value: "instant-disappear",        label: "Disappear immediately" },
+            { value: "reverse-then-freeze-first", label: "Reverse to first frame, then freeze" },
+            { value: "reverse-then-disappear",   label: "Reverse to first frame, then disappear" },
+          ],
+        });
       }
     }
     return fields;
@@ -670,7 +689,10 @@
       // asset-ref caption ("GIF path" vs "Effect key"); easiest way
       // is a full pane rebuild, losing any in-flight caret — but
       // changing assetType is an infrequent, deliberate action.
-      if (field.key === "assetType") {
+      // Phase 58: same treatment for playbackMode — switching to/from
+      // "play-then-freeze" surfaces/hides the "On re-trigger" subfield,
+      // requires pane rebuild for the conditional row to appear.
+      if (field.key === "assetType" || field.key === "playbackMode") {
         currentPaneKey = null;
         renderPane();
       }

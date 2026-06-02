@@ -37,6 +37,40 @@
     return sentinelNone;
   }
 
+  // Phase 58: per-animation playback mode.
+  // Valid modes: loop (default, legacy behavior),
+  // play-once-disappear, play-then-freeze, boomerang.
+  // Backwards-compat: if neither playbackMode nor loopUntilStopped is
+  // present, default = "loop" (preserves existing behavior). If
+  // loopUntilStopped === false (legacy explicit non-loop), infer
+  // play-once-disappear so the operator's intent is preserved.
+  const VALID_PLAYBACK_MODES = new Set([
+    "loop",
+    "play-once-disappear",
+    "play-then-freeze",
+    "boomerang",
+  ]);
+  const VALID_ON_RETRIGGER = new Set([
+    "instant-disappear",
+    "reverse-then-freeze-first",
+    "reverse-then-disappear",
+  ]);
+  function normalizePlaybackMode(definition) {
+    const raw = definition?.playbackMode;
+    if (typeof raw === "string" && VALID_PLAYBACK_MODES.has(raw)) return raw;
+    if (raw != null) return "loop";
+    if (Object.prototype.hasOwnProperty.call(definition || {}, "loopUntilStopped")
+        && definition.loopUntilStopped === false) {
+      return "play-once-disappear";
+    }
+    return "loop";
+  }
+  function normalizeOnRetrigger(definition) {
+    const raw = definition?.onRetrigger;
+    if (typeof raw === "string" && VALID_ON_RETRIGGER.has(raw)) return raw;
+    return "instant-disappear";
+  }
+
   // Accept a design-system icon key if it exists in
   // ICON_DEFS (loaded by icons.js), otherwise return null. null is
   // the "no user override" sentinel — resolveAnimationIcon falls back
@@ -88,6 +122,10 @@
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option.
+      // See 58-CONTEXT.md for the state machine and decisions.
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key from the design-system set.
@@ -246,6 +284,11 @@
       mode: ctx.normalizeOutsideMode(definition?.mode),
       direction: ctx.normalizeOutsideDirection(definition?.direction),
       soundEnabled: Boolean(definition?.soundEnabled),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option
+      // (gif/mp4 only; coded outside effects keep their forever-loop
+      // semantics regardless of this field).
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key (see Inside normalizer).
@@ -476,6 +519,10 @@
       // hull-flicker, a running instance in room R cuts any concurrent
       // solid-color animation in R during the flicker's off-gate.
       breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option
+      // (gif/mp4 only; coded room effects keep their own lifecycle).
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
       // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };
