@@ -1,17 +1,18 @@
 # CURRENT PHASE
 
-- Active: **Phase 51 — SSR mp4 playback quality / smoothness**
-  DISCUSS (opened 2026-06-01). Operator UAT (Frostpunk board): 720p
-  inside-animation mp4 (`snow.mp4`) playing full-area stutters visibly
-  on `/output/` despite SSR overlay reporting ~40fps and stream reporting
-  23-26fps. Dashboard renders smooth. Other animations (e.g. `fire.gif`)
-  don't stutter on the same setup. Scope intentionally broad: cover the
-  general SSR mp4 playback quality / smoothness surface area, not just
-  the snow.mp4 instance.
+- Active: **none.** Phase 57 closed PASS 2026-06-02 at v1.1.7. No phase open.
 
-- App version: `1.1.3` (CHANGELOG.md, package.json, src/app/lib/shared/config.js)
+- App version: `1.1.7` (CHANGELOG.md, package.json, src/app/lib/shared/config.js)
 
-- Previous Phase: **Phase 50 — Post-launch Sammelphase**
+- Previous Phase: **Phase 57 — SSR mp4 playback quality / smoothness**
+  CLOSED PASS 2026-06-02. Four iterations shipped: v1.1.4 (tier-gating),
+  v1.1.5 (rVFC paint gate + diagnostic infra), v1.1.6 (ANGLE Vulkan
+  backend — root-cause fix), v1.1.7 (overlay strobo + inside/room
+  layering). See CHANGELOG.md `[1.1.7]` and ROADMAP.md Phase 57 for
+  closure detail. Operator confirmed smooth playback + order-independent
+  layering at close.
+
+- Pre-Phase-57: **Phase 50 — Post-launch Sammelphase**
   CLOSED at v1.1.0 release on 2026-05-25 (commit `64ade85`). Rolled up
   31 PATCH releases (1.0.1 → 1.0.31): aspect-ratio support for any
   board, VP9 codec option, content-hint dropdown, bitrate preset radio,

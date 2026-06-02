@@ -1306,31 +1306,46 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
-## Phase 57 - SSR mp4 playback quality / smoothness (OPEN — 2026-06-01)
+## Phase 57 - SSR mp4 playback quality / smoothness (CLOSED PASS — 2026-06-02)
 
 Operator UAT (Frostpunk board, post-v1.1.3): 720p `snow.mp4` inside-
-animation playing full-area on `/output/` shows visible stutters. SSR
-overlay reports ~40fps, stream reports 23-26fps. Dashboard renders the
-same animation smoothly. Other animations (e.g. `fire.gif`) on the same
-setup do NOT stutter. Bug is specific to mp4 playback inside the SSR
-encode + stream pipeline.
+animation stuttered on `/output/`. Root cause turned out to be
+THREE separate issues unmasked sequentially during the fix loop.
 
-Scope: broad SSR mp4 playback quality / smoothness surface area —
-investigate WHY mp4 stutters in the stream but not on dashboard, fix
-the dominant cause(s) without regressing the other animation paths
-(coded effects, GIF, outside-mp4 which had its own seam fix in v1.1.0).
-Likely-relevant subsystems: runtime-outside-mp4.js (seam machinery
-already exists for outside path), runtime-draw-loop.js, room-MP4
-playback wiring, encoder rate-control interaction with mp4 keyframe
-cadence, possibly hardware decode availability in SSR Chromium.
+Four iterations shipped:
+- **v1.1.4** (`b227703`) — universal tier-gating across all three mp4
+  paths (inside / room / outside-final). Addressed asymmetric defect
+  but didn't fix stutter.
+- **v1.1.5** (`2251f57`) — rVFC-driven paint gate + diagnostic
+  instrumentation (`SSR_PUBLISHER_DEBUG=1` forwards `[mp4-diag]`
+  logs). Eliminated stale paints. Stutter persisted because upstream
+  Chromium decoder was dropping frames.
+- **v1.1.6** (`4af2e48`) — ANGLE backend `--use-angle=default` →
+  `--use-angle=vulkan`. The "default" backend resolved to Mesa
+  llvmpipe (software GL) which starved the SSR Chromium tab's video
+  compositor at 24fps → 6 dropped decoded frames/sec. Vulkan backend
+  gives ANGLE access to the host GPU. Result: dropped fps 4.27 → 0.52,
+  decoded fps 19.77 → 23.86 (matches source). Visually smooth.
+- **v1.1.7** (`0f56eac`) — overlay regressions from v1.1.5 + Phase 12
+  carry-forward. (a) rVFC paint-skip on no-new-frame caused
+  black-flicker strobo when two mp4s overlay (canvas clears each rAF,
+  skipped path goes transparent → black). Fix: paint fallback canvas
+  on no-new-frame, eager fallback capture in rVFC callback. (b) Inside
+  animation overwrote room animations (no `globalCompositeOperation`
+  guard, only Phase 12 room-room was guarded). Fix: per-rAF counts
+  trigger composite-lift to `"lighter"` for inside-vs-room overlap
+  in both branches.
 
-Out of Scope:
+Operator confirmed 2026-06-02: smooth playback, no flicker, room+inside
+order-independent layering. No further issues at close.
+
+Out of Scope (deferred):
 - New animation types or import features.
-- Audio playback timing (separate concern).
-- Dashboard-side rendering (operator confirmed dashboard already
-  smooth).
-
-Plans: TBD after research
+- Audio playback timing.
+- Win32-specific tuning (default Win32 headless-new path drops
+  `--use-angle=*` per the existing `dropOnHeadlessNew` gate, so the
+  v1.1.6 ANGLE backend swap is Linux-effective only; Win32 SSR path
+  was not regressed but also not specifically targeted).
 
 ## Phase 56 - SSR restart trigger on bitrate change (CLOSED — 2026-05-24, Released as v1.0.7)
 
