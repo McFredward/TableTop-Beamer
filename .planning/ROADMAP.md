@@ -1306,6 +1306,47 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 58 - Per-animation playback modes (loop / play-once / boomerang) (PLANNING)
+
+Operator vision (2026-06-02): jede gif/mp4-Animation soll im
+Animationsmenu einen Playback-Mode bekommen. Aktuell loopen alle
+gif/mp4 automatisch. Neue Modi:
+
+- **loop** (Default — heutiges Verhalten)
+- **play-once with freeze** — spielt bis zum letzten Frame, dann
+  freeze. On re-trigger: konfigurierbar (sofort weg / rückwärts bis
+  ersten Frame freeze / rückwärts dann weg).
+- **play-once and disappear** — spielt einmal, dann weg.
+- **boomerang** — forward → reverse → forward → reverse, infinite.
+
+Geltungsbereich: room + inside + outside (alle drei
+Animationsklassen). Anwendbar nur für `assetType` = gif | mp4
+(coded-Effekte loopen weiterhin nach ihrer eigenen Lifecycle-Logik).
+
+Wichtige Vorgeschichte (Phase 8, Mar 2026): Boomerang wurde
+bereits einmal eingebaut, vier Hotfix-Wellen lang nicht stabilisiert,
+und in 8-HF7 komplett entfernt. Root-cause damals: rückwärts-Seeks
+via `video.currentTime` auf h264-mp4 erzeugten Decoder-Thrash und
+sichtbares Flackern. Diesmal MUSS die Architektur Runtime-Reverse-
+Seeks vermeiden (siehe Decisions).
+
+Mp4-Reverse-Strategie (operator-locked 2026-06-02):
+- Bevorzugt: in-Code-Lösung ohne Server-Roundtrip (WebCodecs
+  `VideoDecoder` + Frame-Buffer), falls technisch und speicher-
+  technisch tragfähig.
+- Fallback: server-seitige ffmpeg-Pre-computation, AUTOMATISCH
+  ausgelöst beim Speichern der Option (kein manueller Schritt), mit
+  Lade-Indikator in der UI. Cache auf disk, idempotent.
+- gif-Reverse ist trivial via existierender ImageDecoder-basierter
+  Frame-Pump in `runtime-gif-decoder.js`.
+
+Out of Scope (deferred):
+- Neue Animationsklassen (keine "outside-objects" o.ä.).
+- Audio-Sync für reverse-Playback (mp4-audio bleibt unverändert/aus).
+- Migration des existierenden `loopUntilStopped`-Felds: bleibt
+  legacy-kompatibel readable; neue Animationen nutzen das neue
+  Schema-Feld (Migration on save, no behavior change).
+
 ## Phase 57 - SSR mp4 playback quality / smoothness (CLOSED PASS — 2026-06-02)
 
 Operator UAT (Frostpunk board, post-v1.1.3): 720p `snow.mp4` inside-
