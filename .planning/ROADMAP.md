@@ -1306,11 +1306,17 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
-## Phase 58 - Per-animation playback modes (loop / play-once / boomerang) (WAVE 1 COMPLETE, WAVES 2-4 PENDING)
+## Phase 58 - Per-animation playback modes (CLOSED PARTIAL — 2026-06-04, Released as v1.2.0)
 
-**Status update 2026-06-02:** Wave 1 (schema + editor UI) landed at
-commit `2138bfd`. Wave 2-4 deferred to follow-up session(s) — see
-`58-CONTEXT.md` for full state-machine spec and decisions.
+**Closure summary:** Wave 1 (schema + editor UI) + Wave 2 (runtime
+state machine for non-reverse modes) shipped. Loop, Play-once-
+disappear, and Play-then-freeze + Instant-disappear deliver the
+operator's vision for 3 of 6 modes. Boomerang and reverse-on-
+retrigger sub-options remain selectable in UI but fall back to loop
+or instant-disappear at runtime — full reverse playback (ffmpeg
+server pre-compute for mp4, frame-walk for gif) is scoped to Phase 59.
+Operator can configure all six modes today; Phase 59 lights up the
+remaining three at runtime without requiring a re-save.
 
 **Wave 1 delivered (no behavior change yet):**
 - `playbackMode` + `onRetrigger` fields added to inside/outside/room
@@ -1350,6 +1356,38 @@ commit `2138bfd`. Wave 2-4 deferred to follow-up session(s) — see
 **Wave 4 pending — dashboard per-trigger override:**
 - Replace per-trigger `loopUntilStopped` toggle with same stufenweise
   picker; first option "Use animation default".
+
+## Phase 59 - Reverse playback (boomerang + reverse-on-retrigger) + dashboard per-trigger override (PLANNING)
+
+Goal: complete Phase 58's vision by lighting up Boomerang and
+reverse-on-retrigger sub-options at runtime, plus add per-trigger
+mode override in the dashboard.
+
+Scope carry-forward from Phase 58 deferred work:
+- **gif reverse**: extend `_resolveFrameIndex` (`runtime-gif-
+  playback.js`) to walk backward — boomerang does
+  `cursorMs = position in 0..2*duration; if >duration, mirror`;
+  reverse-then-X is per-instance state (need playbackPhase tracking).
+- **mp4 reverse**: new server module `src/server/reverse-encode.mjs`
+  spawning ffmpeg `-vf reverse` into `./resources/.reverse-cache/`
+  keyed by `mtime+size+path` hash; WebSocket progress event so the
+  editor can show a Lade-Indikator; runtime swaps `video.src` to the
+  cached `*.reverse.mp4` when entering reverse phase.
+- **Lifecycle state machine for reverse-on-retrigger**: render layer
+  needs to track `playbackPhase` per animation instance (forward /
+  reverse / frozen-last / frozen-first / disappeared) and emit
+  cleanup intents when an instance reaches its terminal state.
+- **Dashboard per-trigger picker**: replace per-trigger
+  `loopUntilStopped` toggle in `runtime-wire-overlay-window-binders.js`
+  with the same stufenweise picker the editor uses; first option
+  "Use animation default" preserves the per-definition mode unless
+  the operator explicitly overrides.
+
+Note: Phase 58 Wave 1 + Wave 2 plumbed `playbackMode` + `onRetrigger`
+through definition → instance → render layer end-to-end, so Phase 59
+only needs to add the reverse-playback machinery and per-trigger
+override binding. The schema + UI + non-reverse runtime are already
+in place.
 
 
 

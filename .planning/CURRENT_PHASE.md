@@ -1,27 +1,26 @@
 # CURRENT PHASE
 
-- Active: **Phase 58 — Per-animation playback modes** (WAVE 1 COMPLETE,
-  WAVES 2-4 PENDING). Wave 1 (schema + editor UI) shipped at commit
-  `2138bfd` on 2026-06-02. No version bump yet — per project memory,
-  version bump fires on phase CLOSURE. Phase remains open until Waves
-  2-4 deliver the runtime behavior change.
+- Active: **none.** Phase 58 closed PARTIAL 2026-06-04 at v1.2.0
+  (Wave 1 schema/UI + Wave 2 runtime state machine for non-reverse
+  modes). Wave 3 (reverse playback for boomerang + reverse-on-
+  retrigger) + Wave 4 (dashboard per-trigger override) carry forward
+  to Phase 59.
 
-- App version: `1.1.7` (CHANGELOG.md, package.json, src/app/lib/shared/config.js)
-  Wave 1 is additive schema/UI with no runtime behavior change, so no
-  version bump triggered.
+- App version: `1.2.0` (CHANGELOG.md, package.json, src/app/lib/shared/config.js)
+  Wave 1+2 ships a new operator-visible feature (per-animation playback
+  mode) so the bump is MINOR. 3 of 6 modes are functional end-to-end
+  (loop, play-once-disappear, play-then-freeze+instant-disappear);
+  the other 3 (boomerang + reverse-on-retrigger sub-options) are
+  selectable in the UI and persist correctly but fall back to loop /
+  instant-disappear at runtime until Phase 59 lands.
 
-- Next session entry points:
-  - Read `.planning/phases/phase-58-per-animation-playback-modes/58-CONTEXT.md`
-    for the locked decisions and state-machine spec.
-  - Wave 2 starts at `src/app/runtime/core/runtime-animation-factory.js`
-    (carry `playbackMode`/`onRetrigger` on the instance) + then the
-    mp4 render paths and gif decoder.
-  - Wave 3 needs a server module `src/server/reverse-encode.mjs` (new)
-    for ffmpeg pre-compute + cache + WebSocket progress event.
-  - Wave 4 dashboard override lives in
-    `src/app/runtime/wire/runtime-wire-overlay-window-binders.js:676`.
+- Previous Phase (CLOSED PARTIAL): **Phase 58 — Per-animation playback modes**
+  Released v1.2.0 on 2026-06-04. Schema + editor UI + non-reverse
+  runtime state machine. Boomerang + reverse-then-X deferred to
+  Phase 59. See CHANGELOG.md [1.2.0] for full feature list and
+  deferred-work notes.
 
-- Previous Phase (CLOSED PASS): **Phase 57 — SSR mp4 playback quality / smoothness**
+- Pre-Phase-58: **Phase 57 — SSR mp4 playback quality / smoothness**
   CLOSED PASS 2026-06-02. Four iterations shipped: v1.1.4 (tier-gating),
   v1.1.5 (rVFC paint gate + diagnostic infra), v1.1.6 (ANGLE Vulkan
   backend — root-cause fix), v1.1.7 (overlay strobo + inside/room

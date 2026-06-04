@@ -12,6 +12,81 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.0] — 2026-06-04
+
+Phase 58 — Per-animation playback modes. Operator can now configure
+each gif / mp4 animation in the editor with one of four playback
+modes: **Loop** (default, legacy behavior), **Play once and
+disappear**, **Play once and freeze** (with three On-retrigger sub-
+options: Disappear / Reverse-to-first-freeze / Reverse-to-first-
+disappear), and **Boomerang**. Applies to all three animation
+scopes (room + inside + outside).
+
+### Added
+- **Per-animation `playbackMode` + `onRetrigger` schema fields**
+  on every gif/mp4 animation definition (`src/app/runtime/state/
+  runtime-fx-normalizers.js`). Backwards-compat: definitions without
+  the new fields default to `playbackMode = "loop"`. Legacy
+  `loopUntilStopped = false` infers `play-once-disappear` on read.
+- **Stufenweise picker in the animation editor**: Mode dropdown
+  (Loop / Play-once-disappear / Play-then-freeze / Boomerang) plus
+  a conditional On-retrigger sub-dropdown that appears only when
+  Mode = Play-then-freeze. Lives in the Defaults card alongside the
+  existing sliders (`animation-editor-edit-pane.js`). Replaces the
+  legacy inside-only Loop toggle with a unified picker available in
+  all three scopes for gif/mp4.
+
+### Changed
+- **Runtime state machine for non-reverse modes** carries
+  `playbackMode` + `onRetrigger` through `createAnimation`,
+  `upsertGlobalAnimation`, and the room-dispatch path onto every
+  running animation instance. Render layer reads `animation.playbackMode`
+  to decide loop semantics:
+  - `loop` — `video.loop = true` (mp4) / gif modulo-wrap (legacy).
+  - `play-once-disappear` — mp4: `video.loop = false`, native EOS
+    pause; gif: cursor clamps to final frame.
+  - `play-then-freeze + instant-disappear` — same as play-once-
+    disappear visually (video frozen at last frame); re-trigger uses
+    existing upsert→stop flow for instant cleanup.
+  - `attachMp4LifecycleHandlers` installs an idempotent `ended`
+    listener that pauses the video for non-loop modes; the per-mode
+    flag lives on the video element so mid-playback mode changes
+    take effect at the next EOS.
+  - `maybeWrapRoomMp4Loop` / `maybeWrapOutsideMp4Loop` skip the
+    near-EOS seek-back for non-loop modes so the freeze-at-end
+    actually persists.
+
+### Deferred (selectable in UI but not yet fully implemented; will
+ship in Phase 59)
+- **`boomerang` mode** — falls back to loop behavior at runtime.
+  Requires reverse-playback infrastructure (mp4: server-side ffmpeg
+  pre-compute + cache + WS progress event; gif: frame-walk-backward
+  via the existing `_resolveFrameIndex` cursor math).
+- **`reverse-then-freeze-first` + `reverse-then-disappear` sub-
+  options** of `play-then-freeze` — currently behave the same as
+  `instant-disappear` because the reverse-playback infrastructure
+  above isn't wired yet. The On-retrigger dropdown still saves the
+  operator's choice; once Phase 59 lands the selected behavior takes
+  effect automatically without an editor re-save.
+- **Dashboard per-trigger mode override** — operator-confirmed scope
+  but not yet wired. Today's `loopUntilStopped` per-trigger toggle
+  stays as-is. Phase 59 will replace it with the same stufenweise
+  picker plus a `Use animation default` first option.
+
+### Notes
+- Phase 8 Boomerang lesson (`P8-T47-REVERSE-ROOT-CAUSE.md`) is
+  honored: the Wave 2 implementation does NOT use `video.currentTime`
+  seeks per rAF for reverse playback. The Phase 59 reverse pipeline
+  will use ffmpeg pre-computed reverse mp4 files (cached on disk) +
+  the existing Phase 57 mp4 playback pipeline pointed at the reversed
+  source. gif reverse will use ImageDecoder frame-index walking via
+  `runtime-gif-decoder.js`.
+- Per-board JSON files now persist the new schema fields. Operators
+  can configure modes today; Loop / Play-once-disappear / Play-then-
+  freeze + Instant-disappear are visible at runtime. Selecting
+  Boomerang or a reverse-on-retrigger sub-option saves correctly and
+  becomes active when Phase 59 lands.
+
 ## [1.1.7] — 2026-06-02
 
 Phase 57 Sammelphase continuation: closes two operator-reported
