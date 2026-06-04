@@ -262,6 +262,7 @@
     // auto-removal racing the freeze/disappear handling.
     const definitionPlaybackMode = matchedDefinition?.playbackMode ?? "loop";
     const definitionOnRetrigger = matchedDefinition?.onRetrigger ?? "instant-disappear";
+    const definitionPlaybackDirection = matchedDefinition?.playbackDirection ?? "forward";
     const isNonLoopMode = definitionPlaybackMode !== "loop";
     const normalizedDefaultDurationSec = Number(defaultDurationSec);
     // Phase 58: non-loop modes always behave as hold=true so the render
@@ -304,6 +305,7 @@
           durationSec: effectiveDefaultDurationSec ?? 0,
           playbackMode: definitionPlaybackMode,
           onRetrigger: definitionOnRetrigger,
+          playbackDirection: definitionPlaybackDirection,
         });
         void ctx.emitLiveMutation("trigger-global", {
           animationType: type,
@@ -349,6 +351,7 @@
         durationSec: effectiveDefaultDurationSec ?? 0,
         playbackMode: definitionPlaybackMode,
         onRetrigger: definitionOnRetrigger,
+        playbackDirection: definitionPlaybackDirection,
       });
       ctx.triggerFeedback.textContent = `Pending: ${ctx.getAnimationLabel(type)} start accepted (waiting for snapshot)`;
       void ctx.emitLiveMutation("trigger-global", {

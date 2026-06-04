@@ -42,6 +42,7 @@
     // wired to pass these through. See 58-CONTEXT.md for state machine.
     playbackMode = "loop",
     onRetrigger = "instant-disappear",
+    playbackDirection = "forward",
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -87,11 +88,15 @@
       // override (Wave 4) will also feed through this same channel.
       playbackMode: typeof playbackMode === "string" && playbackMode ? playbackMode : "loop",
       onRetrigger: typeof onRetrigger === "string" && onRetrigger ? onRetrigger : "instant-disappear",
+      playbackDirection: typeof playbackDirection === "string" && playbackDirection ? playbackDirection : "forward",
       // Phase 58 playback phase state. Owned by the render path /
-      // lifecycle observers. Values: forward (default), frozen-last,
-      // reverse (Wave 3), frozen-first (Wave 3). The cleanup path
-      // removes the instance from runningAnimations regardless of phase.
-      playbackPhase: "forward",
+      // lifecycle observers. Values match the initial direction (set
+      // here from playbackDirection so reverse-direction triggers start
+      // in the reverse phase). Transitions on EOS for boomerang +
+      // reverse-on-retrigger modes.
+      playbackPhase: typeof playbackDirection === "string" && playbackDirection === "reverse"
+        ? "reverse"
+        : "forward",
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

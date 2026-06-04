@@ -3,6 +3,7 @@ import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "n
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -47,6 +48,16 @@ const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profi
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
+// Phase 58 Wave 3: server-side cache for ffmpeg-reversed mp4 files.
+// Keyed by source filename + mtime; cache miss spawns ffmpeg -vf
+// reverse synchronously and writes the result here. Subsequent
+// requests serve from disk. See Phase 8 P8-T47-REVERSE-ROOT-CAUSE.md
+// for why runtime video.currentTime seeking does NOT work for mp4
+// reverse — pre-computed reverse mp4 is the right architecture.
+const REVERSE_CACHE_DIR = path.join(RESOURCES_DIR, ".reverse-cache");
+// Track in-flight encodes so concurrent requests for the same asset
+// don't spawn duplicate ffmpeg processes.
+const REVERSE_ENCODE_INFLIGHT = new Map();
 // Phase 28 B5 — central asset manifest with sha256[:12] cache-busting tokens.
 const ASSET_MANIFEST_PATH = path.join(ROOT_DIR, "config", "asset-manifest.json");
 const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
@@ -2051,6 +2062,92 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
+// Phase 58 Wave 3: ffmpeg-driven reverse encode for mp4 animations.
+// Given a source asset URL like "/resources/animations/snow.mp4",
+// returns the path to a cached reverse-encoded .mp4 file on disk.
+// First call for a given (asset, mtime) pair spawns ffmpeg
+// synchronously (~0.5-3s for typical short animation clips); the
+// result is cached on disk under REVERSE_CACHE_DIR and served
+// directly thereafter.
+//
+// Cache invalidation: keyed by mtime, so if the operator replaces
+// the source mp4 the next request triggers a re-encode automatically.
+//
+// Concurrent requests for the same key share the in-flight promise
+// via REVERSE_ENCODE_INFLIGHT — no duplicate ffmpeg processes.
+async function getOrEncodeReverseMp4(assetUrl) {
+  const trimmed = String(assetUrl || "").trim();
+  // Validate: must be /resources/animations/*.mp4 — same surface as
+  // the operator-upload endpoint. Path traversal blocked by prefix
+  // + extension check.
+  if (!trimmed.startsWith("/resources/animations/") || !/\.mp4$/i.test(trimmed)) {
+    throw new Error(`invalid asset path: ${trimmed}`);
+  }
+  const relPath = trimmed.replace(/^\//, "");
+  const sourceAbsPath = path.join(ROOT_DIR, relPath);
+  if (!sourceAbsPath.startsWith(RESOURCES_DIR)) {
+    throw new Error(`asset escape: ${sourceAbsPath}`);
+  }
+  let sourceStat;
+  try {
+    sourceStat = await stat(sourceAbsPath);
+  } catch {
+    throw new Error(`asset not found: ${trimmed}`);
+  }
+  const basename = path.basename(sourceAbsPath, ".mp4");
+  // Cache filename includes mtime so source replacement auto-invalidates.
+  const mtimeKey = Math.floor(sourceStat.mtimeMs);
+  const cacheFile = path.join(
+    REVERSE_CACHE_DIR,
+    `${basename.replace(/[^a-zA-Z0-9._-]/g, "_")}-${mtimeKey}.mp4`,
+  );
+
+  // Cache hit?
+  try {
+    const cacheStat = await stat(cacheFile);
+    if (cacheStat.isFile() && cacheStat.size > 0) {
+      return cacheFile;
+    }
+  } catch {
+    // cache miss
+  }
+
+  // In-flight dedup
+  if (REVERSE_ENCODE_INFLIGHT.has(cacheFile)) {
+    return REVERSE_ENCODE_INFLIGHT.get(cacheFile);
+  }
+
+  const encodePromise = (async () => {
+    await mkdir(REVERSE_CACHE_DIR, { recursive: true });
+    // Write to a temp file first so partial encodes never get served.
+    const tmpFile = `${cacheFile}.tmp-${process.pid}-${Date.now()}`;
+    await new Promise((resolve, reject) => {
+      // -f mp4 forces format detection — the temp filename doesn't
+      // carry a .mp4 extension at the very end (it has .tmp-PID-TS).
+      const args = ["-y", "-i", sourceAbsPath, "-vf", "reverse", "-an", "-f", "mp4", tmpFile];
+      const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+      let stderr = "";
+      proc.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      proc.on("error", reject);
+      proc.on("close", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`ffmpeg exit ${code}: ${stderr.slice(-400)}`));
+      });
+    });
+    // Atomic rename so partial-temp never observable as cache file.
+    const { rename } = await import("node:fs/promises");
+    await rename(tmpFile, cacheFile);
+    return cacheFile;
+  })();
+
+  REVERSE_ENCODE_INFLIGHT.set(cacheFile, encodePromise);
+  try {
+    return await encodePromise;
+  } finally {
+    REVERSE_ENCODE_INFLIGHT.delete(cacheFile);
+  }
+}
+
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   const chunks = [];
   let totalSize = 0;
@@ -3823,6 +3920,34 @@ const server = createServer(async (req, res) => {
 
     // Phase 38 W0 — JPEG screenshot of the SSR tab via CDP. Tests use this
     // to verify the mesh-warp render reflects grid mutations, end-to-end.
+    // Phase 58 Wave 3: serve ffmpeg-reversed mp4. Query param `asset`
+    // = URL path like "/resources/animations/snow.mp4". First call
+    // synchronously encodes; subsequent calls serve from cache.
+    // Used by the runtime when the operator picks Direction=Reverse
+    // or playbackMode=Boomerang on a mp4-based animation.
+    if (req.method === "GET" && routePath === "/api/animation-reverse") {
+      const requestUrl = new URL(req.url || "", "http://localhost");
+      const assetParam = requestUrl.searchParams.get("asset") || "";
+      try {
+        const cacheFile = await getOrEncodeReverseMp4(assetParam);
+        const cacheStat = await stat(cacheFile);
+        res.writeHead(200, {
+          "content-type": "video/mp4",
+          "content-length": String(cacheStat.size),
+          "accept-ranges": "bytes",
+          "cache-control": "public, max-age=86400",
+        });
+        const stream = createReadStream(cacheFile);
+        stream.pipe(res);
+        stream.on("error", () => {
+          try { res.destroy(); } catch { /* ignore */ }
+        });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "reverse-encode-failed", detail: err?.message || String(err) });
+      }
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/diag/ssr-screenshot") {
       const host = getActiveSsrRenderHost();
       if (!host || typeof host.captureScreenshot !== "function") {

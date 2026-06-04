@@ -447,6 +447,18 @@
     // appears conditionally when Mode = "play-then-freeze".
     const isMedia = def.assetType === "gif" || def.assetType === "mp4";
     if (isMedia) {
+      // Phase 58 Wave 2.5: initial direction is now a separate per-
+      // animation control. Forward (default) plays from start to end;
+      // Reverse plays from end to start. Combined with Boomerang or
+      // play-then-freeze + reverse-then-X, the direction defines the
+      // FIRST direction of playback.
+      fields.push({
+        kind: "select", key: "playbackDirection", label: "Direction",
+        options: [
+          { value: "forward", label: "Forward" },
+          { value: "reverse", label: "Reverse" },
+        ],
+      });
       fields.push({
         kind: "select", key: "playbackMode", label: "Playback mode",
         options: [

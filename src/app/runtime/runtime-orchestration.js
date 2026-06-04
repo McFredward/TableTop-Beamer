@@ -1241,6 +1241,7 @@ const {
   getGifPlaybackCacheEntry,
   ensureGifPlaybackReady,
   getGifPlaybackFrame,
+  getGifPlaybackTotalDurationSec,
   resolveRoomGifRenderConfig,
   warmGifAssetPath,
   warmRoomGifAssets,
@@ -1253,6 +1254,14 @@ window.TT_BEAMER_RUNTIME_OUTSIDE_MP4.init({
   getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
   isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   getMp4PerformanceControls: () => getMp4PerformanceControls(),
+  // Phase 58 Wave 2.5: render-driven cleanup for play-once-disappear
+  // calls stopAnimation when video.ended fires. Wired lazily so the
+  // lifecycle stop pipeline is initialised before reference.
+  stopAnimation: (animationId) => {
+    const fn = window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE?.stopAnimation
+      ?? window.TT_BEAMER_RUNTIME_LIFECYCLE_STOP_PIPELINE?.stopAnimation;
+    if (typeof fn === "function") fn(animationId);
+  },
 });
 const {
   getOutsideVideoElement,
@@ -1270,6 +1279,8 @@ const {
   bindOutsideMp4FrameCallback,
   shouldDrawOutsideMp4Now,
   ensureOutsideMp4Playback,
+  maybeDispatchPlaybackCleanup,
+  resolveMp4AssetUrlForDirection,
   ensureRoomMp4Playback,
   maybeWrapRoomMp4Loop,
   captureRoomMp4FallbackFrame,
@@ -2489,7 +2500,8 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
   resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
   resolveRoomGifRenderConfig: (type, age, intensity, options) => resolveRoomGifRenderConfig(type, age, intensity, options),
-  getGifPlaybackFrame: (path, elapsed) => getGifPlaybackFrame(path, elapsed),
+  getGifPlaybackFrame: (path, elapsed, playbackMode) => getGifPlaybackFrame(path, elapsed, playbackMode),
+  getGifPlaybackTotalDurationSec: (path) => getGifPlaybackTotalDurationSec(path),
   getRoomVideoElement: (path) => getRoomVideoElement(path),
   getOutsideVideoElement: (path) => getOutsideVideoElement(path),
   buildOutsideLifecycleKey: (boardId, definition) => buildOutsideLifecycleKey(boardId, definition),
@@ -2499,6 +2511,10 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   clearOutsideTimelineState: (boardId) => clearOutsideTimelineState(boardId),
   ensureOutsideMp4Playback: (video, opts) => ensureOutsideMp4Playback(video, opts),
   maybeWrapOutsideMp4Loop: (video, playbackState) => maybeWrapOutsideMp4Loop(video, playbackState),
+  // Phase 58 Wave 2.5 — render-driven cleanup for play-once-disappear
+  maybeDispatchPlaybackCleanup: (animation, mediaSignals) => maybeDispatchPlaybackCleanup(animation, mediaSignals),
+  // Phase 58 Wave 3 — pick forward / reverse-cached URL for mp4
+  resolveMp4AssetUrlForDirection: (assetPath, direction) => resolveMp4AssetUrlForDirection(assetPath, direction),
   // Phase 50 (2026-05-25) — room MP4 seam machinery
   ensureRoomMp4Playback: (video, opts) => ensureRoomMp4Playback(video, opts),
   maybeWrapRoomMp4Loop: (video, state) => maybeWrapRoomMp4Loop(video, state),

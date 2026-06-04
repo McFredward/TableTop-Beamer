@@ -65,14 +65,23 @@
     const assetType = ctx.normalizeRoomAssetType(animation.roomAssetType);
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, animation.roomAssetRef, "");
     if (assetType === "gif") {
+      const roomGifSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
       const gifRenderConfig = ctx.resolveRoomGifRenderConfig(animation.type, age, animation.intensity, {
         gifAssetPath: assetRef,
         gifTimelineAgeSec: age,
-        gifPlaybackSpeed: ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1),
+        gifPlaybackSpeed: roomGifSpeed,
         opacity: ctx.clampRoomOpacity(animation.opacity),
-        // Phase 58: room-gif honors per-animation playback mode.
+        // Phase 58: room-gif honors per-animation playback mode + direction.
         playbackMode: animation.playbackMode || "loop",
+        playbackDirection: animation.playbackDirection || "forward",
       });
+      // Phase 58 Wave 2.5: dispatch cleanup for room-gif when
+      // play-once-disappear's cursor has passed the total duration.
+      if (animation.playbackMode === "play-once-disappear") {
+        const totalSec = ctx.getGifPlaybackTotalDurationSec?.(assetRef) || 0;
+        const elapsedScaledSec = age * roomGifSpeed;
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && elapsedScaledSec >= totalSec });
+      }
       if (gifRenderConfig.frame) {
         const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
         c.save();
@@ -86,7 +95,10 @@
       if (ctx.shouldSkipRoomMp4Frame(animation)) {
         return;
       }
-      const videoEntry = ctx.getRoomVideoElement(assetRef);
+      // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
+      const roomMp4Direction = animation.playbackDirection || "forward";
+      const roomMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
+      const videoEntry = ctx.getRoomVideoElement(roomMp4SrcUrl);
       const video = videoEntry?.video;
       if (video) {
         // Phase 50 (2026-05-25): manual-wrap loop machinery (mirrors
@@ -100,18 +112,29 @@
         // canvas bridges the brief `seeking` window so SSR sees a
         // continuous frame stream.
         const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
+        // Phase 58 Wave 3: for boomerang, pre-compute both forward
+        // and reverse URLs so the ended handler can src-swap.
+        const roomMp4IsBoomerang = (animation.playbackMode || "loop") === "boomerang";
+        const roomMp4Forward = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "forward") || assetRef : null;
+        const roomMp4Reverse = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "reverse") : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
-          assetRef,
+          assetRef: roomMp4SrcUrl,
           targetRate: playbackRate,
           // Phase 58: per-instance playback mode from the running
           // animation; controls whether maybeWrapRoomMp4Loop seeks back
           // at EOS (loop/boomerang) or lets the video freeze
           // (play-then-freeze, play-once-disappear).
           playbackMode: animation.playbackMode || "loop",
+          boomerangForwardSrc: roomMp4Forward,
+          boomerangReverseSrc: roomMp4Reverse,
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
+        // Phase 58 Wave 2.5: cleanup-dispatch for play-once-disappear.
+        // Checks video.ended each frame; on transition emits stop
+        // exactly once (idempotent via animation._endedDispatched).
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
         try {
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
@@ -324,7 +347,13 @@
       // Phase 58: inside-gif reads per-animation playback mode from
       // the running instance (falls back to definition for preview).
       const insideGifMode = animation?.playbackMode || definition?.playbackMode || "loop";
-      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode);
+      const insideGifDir = animation?.playbackDirection || definition?.playbackDirection || "forward";
+      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode, insideGifDir);
+      // Phase 58 Wave 2.5: cleanup for inside-gif play-once-disappear.
+      if (insideGifMode === "play-once-disappear" && animation) {
+        const totalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && timeline >= totalSec });
+      }
       if (frame) {
         c.globalAlpha = intensity;
         c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -333,7 +362,10 @@
     }
 
     if (definition?.assetType === "mp4") {
-      const videoEntry = ctx.getOutsideVideoElement(definition.assetRef);
+      // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
+      const insideMp4Direction = animation?.playbackDirection || definition?.playbackDirection || "forward";
+      const insideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4Direction) || definition.assetRef;
+      const videoEntry = ctx.getOutsideVideoElement(insideMp4SrcUrl);
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
@@ -351,14 +383,22 @@
         // other's playback state. Deviation from 57-01-PLAN.md
         // Change 1 text — equivalent defense level; documented in
         // 57-01-SUMMARY.md.
+        const insideMp4Mode = animation?.playbackMode || definition.playbackMode || "loop";
+        const insideMp4IsBoomerang = insideMp4Mode === "boomerang";
+        const insideMp4Forward = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "forward") || definition.assetRef : null;
+        const insideMp4Reverse = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "reverse") : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
-          assetRef: definition.assetRef,
+          assetRef: insideMp4SrcUrl,
           targetRate,
           // Phase 58: inside-mp4 reads playbackMode from the running
           // animation; falls back to definition for control-side
           // preview paths that don't carry an instance.
-          playbackMode: animation?.playbackMode || definition.playbackMode || "loop",
+          playbackMode: insideMp4Mode,
+          boomerangForwardSrc: insideMp4Forward,
+          boomerangReverseSrc: insideMp4Reverse,
         });
+        // Phase 58 Wave 2.5: cleanup-dispatch for inside-mp4.
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
@@ -615,7 +655,13 @@
         ctx.clearOutsideMp4PlaybackState(state.boardId);
         // Phase 58: outside-gif honors per-instance playback mode.
         const outsideGifMode = animation?.playbackMode || selectedDefinition.playbackMode || "loop";
-        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline, outsideGifMode);
+        const outsideGifDir = animation?.playbackDirection || selectedDefinition.playbackDirection || "forward";
+        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline, outsideGifMode, outsideGifDir);
+        // Phase 58 Wave 2.5: cleanup for outside-gif play-once-disappear.
+        if (outsideGifMode === "play-once-disappear" && animation) {
+          const totalSec = ctx.getGifPlaybackTotalDurationSec?.(selectedDefinition.assetRef) || 0;
+          ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && timeline.timeline >= totalSec });
+        }
         if (frame) {
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
           c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -623,20 +669,33 @@
         return;
       }
       if (selectedDefinition.assetType === "mp4") {
-        const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef);
+        // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
+        const outsideMp4Direction = animation?.playbackDirection || selectedDefinition?.playbackDirection || "forward";
+        const outsideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4Direction) || selectedDefinition.assetRef;
+        const videoEntry = ctx.getOutsideVideoElement(outsideMp4SrcUrl);
         if (videoEntry?.video) {
           const video = videoEntry.video;
           const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
+          const outsideMp4Mode = animation?.playbackMode || selectedDefinition.playbackMode || "loop";
+          const outsideMp4IsBoomerang = outsideMp4Mode === "boomerang";
+          const outsideMp4Forward = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "forward") || selectedDefinition.assetRef : null;
+          const outsideMp4Reverse = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "reverse") : null;
           const playbackState = ctx.ensureOutsideMp4Playback(video, {
             boardId: state.boardId,
             lifecycleKey: outsideLifecycleKey,
-            assetRef: selectedDefinition.assetRef,
+            assetRef: outsideMp4SrcUrl,
             targetRate,
             // Phase 58: outside mp4 reads playbackMode from the running
             // animation when available; falls back to definition for
             // preview paths.
-            playbackMode: animation?.playbackMode || selectedDefinition.playbackMode || "loop",
+            playbackMode: outsideMp4Mode,
+            boomerangForwardSrc: outsideMp4Forward,
+            boomerangReverseSrc: outsideMp4Reverse,
           });
+          // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
+          if (animation) {
+            ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+          }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
           // Phase 57 (2026-06-01): removed the Phase 30 T4 final-output

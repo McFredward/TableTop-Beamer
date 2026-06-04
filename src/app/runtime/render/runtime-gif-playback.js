@@ -395,18 +395,27 @@
     }
   }
 
-  function _resolveFrameIndex(entry, elapsedSeconds, playbackMode = "loop") {
+  function _resolveFrameIndex(entry, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward") {
     const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
     const rawCursorMs = (Number(elapsedSeconds) || 0) * 1000;
+    // Phase 58 Wave 2.5: reverse direction maps the cursor onto a
+    // mirrored timeline. For loop+reverse: cursor walks from end to
+    // start, wraps at 0. For non-loop+reverse: cursor starts at end
+    // and walks toward start, clamps at 0 (first frame).
+    const directedCursorMs = playbackDirection === "reverse"
+      ? Math.max(0, totalDurationMs - 1) - rawCursorMs
+      : rawCursorMs;
     let cursorMs;
-    // Phase 58: non-loop modes (play-once-disappear, play-then-freeze)
-    // clamp the cursor to the final frame instead of wrapping modulo.
-    // boomerang is treated as loop here for Wave 2 — true reverse-walk
-    // arrives in Wave 3.
-    if (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze") {
-      cursorMs = Math.min(Math.max(0, rawCursorMs), totalDurationMs - 1);
+    if (playbackMode === "boomerang") {
+      // Ping-pong the cursor across [0, 2 * totalDurationMs); second
+      // half mirrors back so the same frame-walk produces reverse.
+      const period = Math.max(2, 2 * totalDurationMs);
+      const pos = ((directedCursorMs % period) + period) % period;
+      cursorMs = pos < totalDurationMs ? pos : (period - 1 - pos);
+    } else if (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze") {
+      cursorMs = Math.min(Math.max(0, directedCursorMs), totalDurationMs - 1);
     } else {
-      cursorMs = ((rawCursorMs % totalDurationMs) + totalDurationMs) % totalDurationMs;
+      cursorMs = ((directedCursorMs % totalDurationMs) + totalDurationMs) % totalDurationMs;
     }
     for (let i = 0; i < entry.frames.length; i += 1) {
       const frame = entry.frames[i];
@@ -416,13 +425,21 @@
     return entry.frames.length - 1;
   }
 
-  function getGifPlaybackFrame(path, elapsedSeconds, playbackMode = "loop") {
+  // Phase 58 Wave 2.5: expose total duration so the draw-loop can
+  // detect play-once-disappear EOS for gif animations.
+  function getGifPlaybackTotalDurationSec(path) {
+    const entry = ensureGifPlaybackReady(path);
+    if (!entry || entry.status !== "ready" || entry.frames.length === 0) return 0;
+    return Math.max(0, (Number(entry.totalDurationMs) || 0) / 1000);
+  }
+
+  function getGifPlaybackFrame(path, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward") {
     const entry = ensureGifPlaybackReady(path);
     if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
       _gifProbe("trigger-null", { path, status: entry?.status || "missing" });
       return null;
     }
-    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds, playbackMode);
+    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds, playbackMode, playbackDirection);
     const frame = entry.frames[frameIdx];
     if (!frame) return null;
     // ImageDecoder fast-path (dashboard only) stores `bitmap` —
@@ -451,7 +468,7 @@
     const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
     const playbackSpeed = ctx.clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
     return {
-      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed, options.playbackMode || "loop"),
+      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed, options.playbackMode || "loop", options.playbackDirection || "forward"),
       opacity: ctx.clampRoomOpacity(options.opacity ?? intensity),
     };
   }
@@ -635,6 +652,7 @@
     getGifPlaybackCacheEntry,
     ensureGifPlaybackReady,
     getGifPlaybackFrame,
+    getGifPlaybackTotalDurationSec,
     resolveRoomGifRenderConfig,
     warmGifAssetPath,
     warmRoomGifAssets,

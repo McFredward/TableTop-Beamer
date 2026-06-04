@@ -106,6 +106,7 @@
         // not yet configured with a mode.
         playbackMode: selectedDefinition.playbackMode ?? "loop",
         onRetrigger: selectedDefinition.onRetrigger ?? "instant-disappear",
+        playbackDirection: selectedDefinition.playbackDirection ?? "forward",
       };
 
       if (selectedAssetType === "gif") {
@@ -210,6 +211,7 @@
                     offsetYScale: draftPayload.offsetYScale,
                     playbackMode: draftPayload.playbackMode,
                     onRetrigger: draftPayload.onRetrigger,
+                    playbackDirection: draftPayload.playbackDirection,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -327,6 +329,7 @@
           offsetYScale: draftPayload.offsetYScale,
           playbackMode: draftPayload.playbackMode,
           onRetrigger: draftPayload.onRetrigger,
+          playbackDirection: draftPayload.playbackDirection,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -356,6 +359,7 @@
             offsetYScale: draftPayload.offsetYScale,
             playbackMode: draftPayload.playbackMode,
             onRetrigger: draftPayload.onRetrigger,
+            playbackDirection: draftPayload.playbackDirection,
             hold: true,
             durationSec: 0,
           });
@@ -476,6 +480,7 @@
                   offsetYScale: draftPayload.offsetYScale,
                   playbackMode: draftPayload.playbackMode,
                   onRetrigger: draftPayload.onRetrigger,
+                  playbackDirection: draftPayload.playbackDirection,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -599,6 +604,7 @@
         offsetYScale: draftPayload.offsetYScale,
         playbackMode: draftPayload.playbackMode,
         onRetrigger: draftPayload.onRetrigger,
+        playbackDirection: draftPayload.playbackDirection,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -630,6 +636,7 @@
           offsetYScale: draftPayload.offsetYScale,
           playbackMode: draftPayload.playbackMode,
           onRetrigger: draftPayload.onRetrigger,
+          playbackDirection: draftPayload.playbackDirection,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

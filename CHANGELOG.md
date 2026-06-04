@@ -12,6 +12,63 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.1] — 2026-06-04
+
+Phase 58 follow-up: Wave 2.5 (cleanup-dispatch + bug fix) + Wave 3
+(gif reverse / boomerang + mp4 ffmpeg-reverse infrastructure +
+direction field).
+
+### Fixed
+- **play-once-disappear correctly disappears** instead of freezing
+  at the last frame. The render layer now detects video.ended (mp4)
+  or cursor-past-total (gif) and dispatches `stopAnimation(id)`
+  exactly once per instance (idempotent via
+  `animation._endedDispatched`). The animation cleanly removes from
+  the running list. Wired in all three render paths (room-mp4,
+  inside-mp4, outside-mp4) and all three gif paths.
+
+### Added
+- **Per-animation Direction control** (Forward / Reverse) in the
+  editor, separate from playback mode. Reverse plays the animation
+  from end to start. Combined with a mode:
+  - Loop + Reverse = reverse-loop (plays backwards forever)
+  - Play-once-disappear + Reverse = plays once backward then
+    disappears
+  - Play-then-freeze + Reverse = plays once backward, freezes at the
+    first frame
+  - Boomerang + Reverse = starts reverse, then ping-pongs
+- **gif reverse playback** via cursor math in
+  `_resolveFrameIndex` (`runtime-gif-playback.js`). Boomerang
+  ping-pongs the cursor across `[0, 2 * totalDurationMs)`; the
+  second half mirrors back so the same frame-walk produces a
+  reverse playthrough. No frame buffering needed.
+- **mp4 reverse playback** via server-side ffmpeg pre-compute. New
+  `/api/animation-reverse?asset=<path>` endpoint
+  (`server.mjs::getOrEncodeReverseMp4`) spawns `ffmpeg -vf reverse`
+  on first request, caches the output under
+  `resources/.reverse-cache/<basename>-<mtime>.mp4`. Subsequent
+  requests serve from disk (typical: 1.8s first encode, 5ms cache
+  hit). Path-traversal guarded; in-flight encodes deduped via a
+  shared promise.
+- **mp4 boomerang** via src-swap on `ended`. The lifecycle handler
+  alternates between the forward asset URL and the
+  `/api/animation-reverse?...` URL so the same `<video>` element
+  alternates direction. Brief load-and-play stall (50-300ms) at
+  each swap is bridged by the Phase 57 fallback canvas.
+- New schema field `playbackDirection` on every gif/mp4 animation
+  definition (default `"forward"`). Persisted to disk; carried
+  through `createAnimation` → instance → render.
+
+### Notes
+- Phase 8 boomerang lesson (`P8-T47-REVERSE-ROOT-CAUSE.md`) honored:
+  zero `video.currentTime` seeks per rAF. mp4 reverse uses
+  pre-encoded files via ffmpeg; mp4 boomerang src-swaps between
+  forward and reverse files at EOS.
+- Still deferred to Phase 59: reverse-then-X sub-options of
+  play-then-freeze (the on-retrigger reverse-playback). These need
+  per-instance phase tracking (frozen-last → reverse → frozen-first /
+  disappeared) plus the dashboard per-trigger mode override.
+
 ## [1.2.0] — 2026-06-04
 
 Phase 58 — Per-animation playback modes. Operator can now configure

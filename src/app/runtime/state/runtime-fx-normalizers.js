@@ -55,6 +55,15 @@
     "reverse-then-freeze-first",
     "reverse-then-disappear",
   ]);
+  // Phase 58 Wave 2.5: per-animation direction. Independent of
+  // playbackMode — applies as the INITIAL direction. Loop+reverse
+  // = reverse-loop. Boomerang+reverse = start reverse, alternate.
+  const VALID_PLAYBACK_DIRECTION = new Set(["forward", "reverse"]);
+  function normalizePlaybackDirection(definition) {
+    const raw = definition?.playbackDirection;
+    if (typeof raw === "string" && VALID_PLAYBACK_DIRECTION.has(raw)) return raw;
+    return "forward";
+  }
   function normalizePlaybackMode(definition) {
     const raw = definition?.playbackMode;
     if (typeof raw === "string" && VALID_PLAYBACK_MODES.has(raw)) return raw;
@@ -126,6 +135,7 @@
       // See 58-CONTEXT.md for the state machine and decisions.
       playbackMode: normalizePlaybackMode(definition),
       onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key from the design-system set.
@@ -289,6 +299,7 @@
       // semantics regardless of this field).
       playbackMode: normalizePlaybackMode(definition),
       onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key (see Inside normalizer).
@@ -523,6 +534,7 @@
       // (gif/mp4 only; coded room effects keep their own lifecycle).
       playbackMode: normalizePlaybackMode(definition),
       onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };

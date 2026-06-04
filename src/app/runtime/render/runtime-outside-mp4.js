@@ -124,6 +124,18 @@
     return getMediaVideoElement(roomVideoCacheByPath, path);
   }
 
+  // Phase 58 Wave 3: returns the asset URL to use as <video>.src
+  // depending on the requested initial direction. For direction=reverse
+  // returns the ffmpeg-reverse-cached URL served by the server's
+  // /api/animation-reverse endpoint. For direction=forward returns the
+  // raw asset path unchanged.
+  function resolveMp4AssetUrlForDirection(assetPath, direction) {
+    if (direction !== "reverse") return assetPath;
+    const trimmed = String(assetPath || "").trim();
+    if (!trimmed.startsWith("/resources/animations/") || !/\.mp4$/i.test(trimmed)) return assetPath;
+    return `/api/animation-reverse?asset=${encodeURIComponent(trimmed)}`;
+  }
+
   function prewarmBoardOutsideMp4Asset(boardId, { reason = "board-switch" } = {}) {
     const definition = ctx.getSelectedOutsideAnimationDefinition(boardId);
     if (!definition || definition.assetType !== "mp4") {
@@ -385,7 +397,7 @@
     playbackState.lastDrawAtMs = performance.now();
   }
 
-  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop" } = {}) {
+  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null } = {}) {
     if (!video) {
       return null;
     }
@@ -403,11 +415,16 @@
     // frame (play-then-freeze) or trigger cleanup (play-once-disappear).
     // Loop and boomerang stay on the native loop path so the underlying
     // mp4 keeps producing decoded frames continuously.
-    const useNativeLoop = playbackMode === "loop" || playbackMode === "boomerang";
+    // Phase 58 Wave 3: boomerang uses src-swap on ended, so native
+    // loop is OFF for boomerang too (only true loop uses native loop).
+    const useNativeLoop = playbackMode === "loop";
     video.loop = useNativeLoop;
     video.muted = true;
     video.playsInline = true;
-    attachMp4LifecycleHandlers(video, playbackMode);
+    attachMp4LifecycleHandlers(video, playbackMode, {
+      forwardSrc: boomerangForwardSrc,
+      reverseSrc: boomerangReverseSrc,
+    });
 
     if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
       video.defaultPlaybackRate = targetRate;
@@ -518,25 +535,80 @@
   // handler reads the current mode at ended-event time (not the bind-
   // time mode, which may be stale if the operator switched modes
   // mid-playback).
-  function attachMp4LifecycleHandlers(video, playbackMode) {
+  function attachMp4LifecycleHandlers(video, playbackMode, opts = {}) {
     if (!video) return;
     // Update the latest-mode marker every call so the handler reads
     // the current value even if mode changed since the last bind.
     video._tt58PlaybackMode = playbackMode;
+    // Phase 58 Wave 3: also stamp the boomerang src-swap targets.
+    // opts.forwardSrc + opts.reverseSrc are absolute URLs the ended
+    // handler can swap video.src to in alternating order.
+    if (opts.forwardSrc) video._tt58ForwardSrc = opts.forwardSrc;
+    if (opts.reverseSrc) video._tt58ReverseSrc = opts.reverseSrc;
     if (video._tt58EndedBound) return;
     video._tt58EndedBound = true;
     video.addEventListener("ended", () => {
       const currentMode = video._tt58PlaybackMode || "loop";
-      if (currentMode === "loop" || currentMode === "boomerang") return;
-      // play-once-disappear, play-then-freeze: pause-at-end. The
-      // browser already paused (video.loop=false → playback ends at
-      // EOS), but explicitly pause() is defensive against future
-      // playback automation. For play-once-disappear the instance
-      // cleanup is operator-driven via re-trigger (matches Wave 2
-      // CONTEXT.md scope — explicit emit-stop is deferred to Wave 2.5
-      // when the render-to-control authority channel lands).
+      if (currentMode === "loop") return;
+      if (currentMode === "boomerang") {
+        // Phase 58 Wave 3: ping-pong between forward and reverse
+        // cached sources. The src-swap incurs a brief load+play
+        // stall (~50-300ms) — the Phase 57 fallback canvas bridges
+        // this window so the operator sees the last good frame
+        // instead of black.
+        const forward = video._tt58ForwardSrc;
+        const reverse = video._tt58ReverseSrc;
+        if (!forward || !reverse) {
+          // No reverse cached yet — fall back to loop semantics
+          // (re-seek to start, play forward).
+          try { video.currentTime = 0; video.play().catch(() => undefined); } catch { /* ignore */ }
+          return;
+        }
+        // Determine current src by comparing canonical absolute URL.
+        const currentAbs = video.src;
+        const forwardAbs = new URL(forward, window.location.href).href;
+        const next = currentAbs === forwardAbs ? reverse : forward;
+        try {
+          video.src = next;
+          video.currentTime = 0;
+          void video.play().catch(() => undefined);
+        } catch { /* ignore */ }
+        return;
+      }
+      // play-once-disappear, play-then-freeze: pause-at-end so the
+      // canvas continues painting the final frame. The actual cleanup
+      // (removing the running animation instance) for
+      // play-once-disappear is dispatched by the draw loop via
+      // maybeDispatchPlaybackCleanup, which has the animation id in
+      // scope.
       try { video.pause(); } catch { /* ignore */ }
     });
+  }
+
+  // Phase 58 Wave 2.5: render-driven cleanup dispatcher. Called from
+  // the draw loop AFTER painting the animation. For
+  // play-once-disappear, when the underlying media has finished
+  // (mp4 video.ended OR gif cursor past totalDurationMs), emit
+  // stopAnimation exactly once so the running list cleans up.
+  // Idempotency via animation._endedDispatched flag on the instance.
+  function maybeDispatchPlaybackCleanup(animation, mediaSignals) {
+    if (!ctx || !animation || animation._endedDispatched) return;
+    const mode = animation.playbackMode || "loop";
+    if (mode !== "play-once-disappear") return;
+    if (mode === "play-once-disappear" && !mediaSignals?.hasReachedEnd) return;
+    animation._endedDispatched = true;
+    // stopAnimation handles role-aware dispatch (CONTROL emits via WS;
+    // /output/ removes locally + also emits). Server-side stop-pending
+    // dedup catches races between multiple clients observing ended at
+    // slightly different times.
+    try {
+      if (typeof ctx.stopAnimation === "function") {
+        ctx.stopAnimation(animation.id);
+      }
+    } catch (err) {
+      // Defensive — don't break the draw loop on cleanup failures.
+      console.warn("[58] cleanup dispatch failed", err);
+    }
   }
 
   function maybeWrapRoomMp4Loop(video, state) {
@@ -596,7 +668,7 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop" } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null } = {}) {
     if (!video) return null;
     const key = _roomMp4Key(assetRef);
     const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
@@ -609,7 +681,10 @@
     video.loop = false;
     video.muted = true;
     video.playsInline = true;
-    attachMp4LifecycleHandlers(video, playbackMode);
+    attachMp4LifecycleHandlers(video, playbackMode, {
+      forwardSrc: boomerangForwardSrc,
+      reverseSrc: boomerangReverseSrc,
+    });
     if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
       video.defaultPlaybackRate = targetRate;
     }
@@ -747,6 +822,10 @@
     hasNewDecodedFrame,
     markMp4FramePainted,
     ensureOutsideMp4Playback,
+    // Phase 58 Wave 2.5: render-driven cleanup
+    maybeDispatchPlaybackCleanup,
+    // Phase 58 Wave 3: pick forward or reverse cached URL for mp4
+    resolveMp4AssetUrlForDirection,
     // Room MP4 seam machinery (Phase 50 2026-05-25)
     ensureRoomMp4Playback,
     maybeWrapRoomMp4Loop,
