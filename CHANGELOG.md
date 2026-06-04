@@ -12,6 +12,28 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.5] — 2026-06-04
+
+Phase 58 Wave 3.5 — fix the reverse-on-retrigger broadcast so /output/
+actually picks up the phase change.
+
+### Fixed
+- **Re-trigger of a "Freeze, reverse on re-trigger" animation
+  disappeared the instance instead of reversing it.** Root cause:
+  Wave 3.4 emitted a custom `trigger-room-phase` / `trigger-global`
+  with action="phase-advance" mutation, but the server's
+  `LIVE_MUTATION_TYPES` guard silently dropped these unknown action
+  names → the broadcast never reached /output/. Local CONTROL state
+  showed the phase advance but the server-snapshot pipeline
+  overwrote it back. Fix: reuse the existing `edit-room` mutation
+  type with the mutated animation snapshot. The server already
+  knows how to propagate `edit-room`; the snapshot includes
+  `playbackPhase` automatically (spread of all instance fields).
+- Phase-advance now also re-stamps `startedAt` / `startedAtEpochMs`
+  on the existing instance so the render layer treats the phase
+  transition as a new playback lifecycle (and the per-instance
+  cache lookup for the alternate URL gets a clean video element).
+
 ## [1.2.4] — 2026-06-04
 
 Phase 58 Wave 3.4 — implement the reverse-on-retrigger phase

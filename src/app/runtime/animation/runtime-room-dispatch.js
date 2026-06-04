@@ -153,13 +153,23 @@
           )
         ));
         if (candidate) {
+          // Phase 58 Wave 3.5: advance phase, do NOT use a custom
+          // mutation type (server's LIVE_MUTATION_TYPES would reject
+          // unknown actions and silently drop the broadcast). Reuse
+          // edit-room with the mutated snapshot so /output/ clients
+          // pick up the new phase via the standard pipeline.
           candidate.playbackPhase = candidate.playbackPhase === "frozen-last" ? "reverse" : "forward";
           candidate._endedDispatched = false;
           candidate._phaseChangedAt = performance.now();
+          // Re-stamp startedAt so the per-instance video element seeks
+          // back to 0 (instanceId tracking in ensure*Mp4Playback uses
+          // the unchanged id, but the next ensure call detects the
+          // phase change because the cached src URL differs).
+          candidate.startedAt = performance.now();
+          candidate.startedAtEpochMs = Date.now();
           try {
-            void emitLiveMutation("trigger-room-phase", {
+            void emitLiveMutation("edit-room", {
               animationId: candidate.id,
-              playbackPhase: candidate.playbackPhase,
               animation: buildAnimationSnapshotForLiveSync(candidate),
             }).catch(() => undefined);
           } catch { /* defensive */ }

@@ -240,19 +240,17 @@
     // again (frozen-last/first or disappear depending on mode).
     existing._endedDispatched = false;
     existing._phaseChangedAt = performance.now();
-    // Emit a live-sync mutation so /output/ clients pick up the new
-    // phase via the standard snapshot pipeline. Reuses trigger-global
-    // with action="phase-advance" — server side falls back to a noop
-    // for unknown actions but the snapshot it broadcasts includes
-    // the mutated animation entry.
+    // Phase 58 Wave 3.5: use the existing edit-room mutation so the
+    // server accepts the broadcast (custom action types are silently
+    // dropped by the server's LIVE_MUTATION_TYPES guard). edit-room
+    // updates the running instance's snapshot, propagating phase to
+    // /output/ clients via the standard pipeline.
+    existing.startedAt = performance.now();
+    existing.startedAtEpochMs = Date.now();
     try {
       if (typeof ctx.emitLiveMutation === "function") {
-        void ctx.emitLiveMutation("trigger-global", {
-          animationType: existing.type,
-          action: "phase-advance",
-          boardId: existing.boardId,
+        void ctx.emitLiveMutation("edit-room", {
           animationId: existing.id,
-          playbackPhase: existing.playbackPhase,
           animation: typeof ctx.buildAnimationSnapshotForLiveSync === "function"
             ? ctx.buildAnimationSnapshotForLiveSync(existing)
             : existing,
