@@ -98,7 +98,13 @@
       // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
       const roomMp4Direction = animation.playbackDirection || "forward";
       const roomMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
-      const videoEntry = ctx.getRoomVideoElement(roomMp4SrcUrl);
+      // Phase 58 Wave 3.2: per-instance video for non-loop modes so
+      // multiple rooms running the same animation have independent
+      // lifecycles (each gets its own freeze/disappear/boomerang).
+      const videoEntry = ctx.getRoomVideoElement(roomMp4SrcUrl, {
+        instanceId: animation.id,
+        playbackMode: animation.playbackMode || "loop",
+      });
       const video = videoEntry?.video;
       if (video) {
         // Phase 50 (2026-05-25): manual-wrap loop machinery (mirrors
@@ -366,7 +372,11 @@
       // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
       const insideMp4Direction = animation?.playbackDirection || definition?.playbackDirection || "forward";
       const insideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4Direction) || definition.assetRef;
-      const videoEntry = ctx.getOutsideVideoElement(insideMp4SrcUrl);
+      const insideMp4Mode2 = animation?.playbackMode || definition?.playbackMode || "loop";
+      const videoEntry = ctx.getOutsideVideoElement(insideMp4SrcUrl, {
+        instanceId: animation?.id,
+        playbackMode: insideMp4Mode2,
+      });
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
@@ -674,7 +684,11 @@
         // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
         const outsideMp4Direction = animation?.playbackDirection || selectedDefinition?.playbackDirection || "forward";
         const outsideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4Direction) || selectedDefinition.assetRef;
-        const videoEntry = ctx.getOutsideVideoElement(outsideMp4SrcUrl);
+        const outsideMp4Mode2 = animation?.playbackMode || selectedDefinition?.playbackMode || "loop";
+        const videoEntry = ctx.getOutsideVideoElement(outsideMp4SrcUrl, {
+          instanceId: animation?.id,
+          playbackMode: outsideMp4Mode2,
+        });
         if (videoEntry?.video) {
           const video = videoEntry.video;
           const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
@@ -771,6 +785,11 @@
     }
   }
 
+  // Phase 58 Wave 3.2: track instance ids that were alive last frame so
+  // we can release their per-instance video cache entries when they
+  // disappear (stopAnimation, board switch, clear-all, room-not-found).
+  let _previousInstanceIdsSeen = new Set();
+
   function pruneFinishedAnimations(now) {
     const state = ctx.state;
     const before = state.runningAnimations.length;
@@ -817,6 +836,17 @@
       ctx.renderRunningAnimationsList();
       ctx.refreshGlobalButtons();
     }
+    // Phase 58 Wave 3.2: release per-instance mp4 video elements for
+    // instances that vanished since last frame. Without this each
+    // play-then-freeze / boomerang / play-once-disappear leaves a
+    // dedicated <video> element pinned in the cache.
+    const currentIds = new Set(state.runningAnimations.map((anim) => anim.id));
+    for (const prevId of _previousInstanceIdsSeen) {
+      if (!currentIds.has(prevId)) {
+        ctx.releaseMp4VideoElementsForInstance?.(prevId);
+      }
+    }
+    _previousInstanceIdsSeen = currentIds;
     if (
       state.roomDraft.editTargetId &&
       !state.runningAnimations.some((anim) => anim.id === state.roomDraft.editTargetId)

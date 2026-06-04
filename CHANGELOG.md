@@ -12,6 +12,65 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.3] — 2026-06-04
+
+Phase 58 Wave 3.3 — direction bug + per-room independent lifecycle +
+editor UX restructure. Closes the operator-blocking issues from
+Wave 3.1's first round of UAT.
+
+### Fixed
+- **mp4 always played reverse in the dashboard** regardless of the
+  Direction dropdown setting. Root cause: the boomerang src-swap
+  marker (`_tt58ReverseSrc`) persisted across mode changes; the
+  cache-reset skip kept the video pointing at the reverse URL even
+  after the operator switched away from boomerang. Fix is two-sided:
+  the skip-reset condition now also requires `_tt58PlaybackMode ===
+  "boomerang"`, and `attachMp4LifecycleHandlers` clears the boomerang
+  markers whenever the new mode is not boomerang.
+- **Multiple rooms running the same play-then-freeze animation
+  showed only the frozen frame on the 2nd+ rooms.** Root cause: mp4
+  video elements were cached per asset path and shared across all
+  active instances → Room A's at-EOS-frozen video was inherited by
+  Room B's just-triggered instance. Fix: per-instance video element
+  for any non-loop mode (cache key becomes `${path}#${instanceId}`).
+  Each room now has independent lifecycle. Loop mode keeps the
+  shared-per-path behavior (no benefit from desync).
+  Cleanup hook in `pruneFinishedAnimations` releases instance-keyed
+  video elements when the instance leaves the running list, so
+  long-running sessions don't leak `<video>` elements.
+
+### Changed
+- **Animation editor playback dropdown restructured** for clarity.
+  Replaced the confusing 4-mode + 3-sub-option layout with 5
+  self-describing top-level entries under "When ended":
+  - Loop forever
+  - Disappear
+  - Freeze (re-trigger removes)
+  - Freeze, reverse on re-trigger
+  - Boomerang (auto forward & reverse)
+  The "After reverse on re-trigger" sub-dropdown only appears when
+  the reversible-freeze mode is selected (Freeze at first frame /
+  Disappear). Schema (`playbackMode` + `onRetrigger`) is unchanged —
+  the UI just translates to/from a clearer `_uiPlaybackMode` token.
+- **"Direction" dropdown renamed to "Initial direction"** with
+  clearer option labels ("Forward (start to end)" / "Reverse (end to
+  start)") so the operator understands it sets the FIRST direction,
+  not the only one.
+- **Editor preview now restarts on every change** for non-loop modes
+  (slider nudges, sub-option flips, etc.) so the operator always
+  sees a fresh playthrough of the currently-tuned animation. Loop
+  mode keeps the fast-path so the in-flight loop doesn't stutter on
+  numeric changes.
+- **Preview "disappear" outcome is now visualised**: when mode is
+  play-once-disappear, the video / gif canvas hides itself via
+  `style.visibility = hidden` at EOS so the operator sees the
+  disappear semantics literally. Slider nudges restart and re-show.
+- **GIF preview honors mode + direction** in the canvas-driven
+  preview tick (`startGifPreview`). Boomerang ping-pongs the cursor
+  through `_resolveFrameIndex`; reverse direction walks frames
+  backward; play-once-disappear hides the canvas at EOS. Previously
+  the gif preview only ever played forward at native rate.
+
 ## [1.2.2] — 2026-06-04
 
 Phase 58 Wave 3.1 — fix mp4 playback modes and editor preview parity.

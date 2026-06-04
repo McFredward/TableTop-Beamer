@@ -447,39 +447,94 @@
     // appears conditionally when Mode = "play-then-freeze".
     const isMedia = def.assetType === "gif" || def.assetType === "mp4";
     if (isMedia) {
-      // Phase 58 Wave 2.5: initial direction is now a separate per-
-      // animation control. Forward (default) plays from start to end;
-      // Reverse plays from end to start. Combined with Boomerang or
-      // play-then-freeze + reverse-then-X, the direction defines the
-      // FIRST direction of playback.
+      // Phase 58 Wave 3.3: initial direction is a separate per-animation
+      // control. Forward (default) plays start→end; Reverse plays
+      // end→start. The "When ended" dropdown defines what happens AFTER
+      // that initial playthrough (forward OR reverse).
       fields.push({
-        kind: "select", key: "playbackDirection", label: "Direction",
+        kind: "select", key: "playbackDirection", label: "Initial direction",
         options: [
-          { value: "forward", label: "Forward" },
-          { value: "reverse", label: "Reverse" },
+          { value: "forward", label: "Forward (start to end)" },
+          { value: "reverse", label: "Reverse (end to start)" },
         ],
       });
+      // Phase 58 Wave 3.3: the previous 4-mode + 3-sub-option layout
+      // was confusing because "Play once, then freeze" combined with
+      // "reverse-then-disappear" said freeze on the surface but
+      // actually disappeared after re-trigger (operator UAT
+      // 2026-06-04). Restructured into 5 self-explanatory uiMode
+      // entries; the sub-dropdown only appears when the uiMode
+      // explicitly mentions reverse-on-re-trigger.
+      const uiMode = computeUiPlaybackMode(def);
       fields.push({
-        kind: "select", key: "playbackMode", label: "Playback mode",
+        kind: "select", key: "_uiPlaybackMode", label: "When ended",
         options: [
-          { value: "loop",                 label: "Loop (forever)" },
-          { value: "play-once-disappear",  label: "Play once, then disappear" },
-          { value: "play-then-freeze",     label: "Play once, then freeze" },
-          { value: "boomerang",            label: "Boomerang (forward & reverse)" },
+          { value: "loop",                       label: "Loop forever" },
+          { value: "play-once-disappear",        label: "Disappear" },
+          { value: "play-once-freeze",           label: "Freeze (re-trigger removes)" },
+          { value: "play-once-freeze-reversible", label: "Freeze, reverse on re-trigger" },
+          { value: "boomerang",                  label: "Boomerang (auto forward & reverse)" },
         ],
+        // Synthetic field: read/write derives playbackMode + onRetrigger.
+        _uiMode: true,
+        _currentUiValue: uiMode,
       });
-      if (def.playbackMode === "play-then-freeze") {
+      if (uiMode === "play-once-freeze-reversible") {
         fields.push({
-          kind: "select", key: "onRetrigger", label: "On re-trigger",
+          kind: "select", key: "onRetrigger", label: "After reverse on re-trigger",
           options: [
-            { value: "instant-disappear",        label: "Disappear immediately" },
-            { value: "reverse-then-freeze-first", label: "Reverse to first frame, then freeze" },
-            { value: "reverse-then-disappear",   label: "Reverse to first frame, then disappear" },
+            { value: "reverse-then-freeze-first", label: "Freeze at first frame (manual ping-pong)" },
+            { value: "reverse-then-disappear",    label: "Disappear" },
           ],
         });
       }
     }
     return fields;
+  }
+
+  // Phase 58 Wave 3.3: derive the UI-level playback mode from the
+  // stored (playbackMode, onRetrigger) pair. See getDefaultFields for
+  // the mapping rationale.
+  function computeUiPlaybackMode(def) {
+    const mode = String(def?.playbackMode || "loop");
+    const onRetrigger = String(def?.onRetrigger || "instant-disappear");
+    if (mode === "loop") return "loop";
+    if (mode === "play-once-disappear") return "play-once-disappear";
+    if (mode === "boomerang") return "boomerang";
+    if (mode === "play-then-freeze") {
+      if (onRetrigger === "instant-disappear") return "play-once-freeze";
+      return "play-once-freeze-reversible";
+    }
+    return "loop";
+  }
+
+  // Phase 58 Wave 3.3: inverse mapping. Given a uiMode value picked in
+  // the dropdown, return the (playbackMode, onRetrigger) patch the
+  // patchAnimation call must apply.
+  function uiPlaybackModeToPatch(uiMode, prevOnRetrigger) {
+    switch (uiMode) {
+      case "loop":
+        return { playbackMode: "loop", onRetrigger: "instant-disappear" };
+      case "play-once-disappear":
+        return { playbackMode: "play-once-disappear", onRetrigger: "instant-disappear" };
+      case "play-once-freeze":
+        return { playbackMode: "play-then-freeze", onRetrigger: "instant-disappear" };
+      case "play-once-freeze-reversible":
+        // Default to freeze-first if the previous onRetrigger wasn't a
+        // reverse-then-X choice; otherwise preserve the operator's
+        // previous selection so toggling in/out of the uiMode doesn't
+        // lose state.
+        return {
+          playbackMode: "play-then-freeze",
+          onRetrigger: (prevOnRetrigger === "reverse-then-disappear"
+            ? "reverse-then-disappear"
+            : "reverse-then-freeze-first"),
+        };
+      case "boomerang":
+        return { playbackMode: "boomerang", onRetrigger: "instant-disappear" };
+      default:
+        return { playbackMode: "loop", onRetrigger: "instant-disappear" };
+    }
   }
 
   function buildSliderRow(scope, def, boardId, field) {
@@ -694,17 +749,35 @@
       option.textContent = opt.label;
       select.append(option);
     }
-    select.value = String(def[field.key] ?? field.options[0]?.value ?? "");
+    // Phase 58 Wave 3.3: the synthetic uiPlaybackMode field reads its
+    // current value from the field metadata (since it doesn't exist on
+    // the definition) and writes back as a translated patch.
+    if (field._uiMode) {
+      select.value = String(field._currentUiValue ?? field.options[0]?.value ?? "");
+    } else {
+      select.value = String(def[field.key] ?? field.options[0]?.value ?? "");
+    }
     select.addEventListener("change", () => {
+      if (field._uiMode) {
+        const patch = uiPlaybackModeToPatch(select.value, def.onRetrigger);
+        patchAnimation(scope, boardId, def.id, patch);
+        currentPaneKey = null;
+        renderPane();
+        return;
+      }
       patchAnimation(scope, boardId, def.id, { [field.key]: select.value });
       // Changing assetType in the Source card should rebuild the
       // asset-ref caption ("GIF path" vs "Effect key"); easiest way
       // is a full pane rebuild, losing any in-flight caret — but
       // changing assetType is an infrequent, deliberate action.
-      // Phase 58: same treatment for playbackMode — switching to/from
-      // "play-then-freeze" surfaces/hides the "On re-trigger" subfield,
-      // requires pane rebuild for the conditional row to appear.
-      if (field.key === "assetType" || field.key === "playbackMode") {
+      // Phase 58: same treatment for playbackMode + direction — these
+      // change the live-preview semantics and the visible subfields.
+      if (
+        field.key === "assetType"
+        || field.key === "playbackMode"
+        || field.key === "playbackDirection"
+        || field.key === "onRetrigger"
+      ) {
         currentPaneKey = null;
         renderPane();
       }
@@ -897,8 +970,24 @@
       // <video> element gets the new flags applied.
       || Object.prototype.hasOwnProperty.call(patch, "playbackMode")
       || Object.prototype.hasOwnProperty.call(patch, "playbackDirection")
+      || Object.prototype.hasOwnProperty.call(patch, "onRetrigger")
     );
     if (touchesPreviewSource) {
+      renderPreview();
+      return;
+    }
+    // Phase 58 Wave 3.3: for non-loop modes, the preview is supposed
+    // to fully demo each playthrough — but our numeric-patch fast path
+    // would otherwise leave a frozen / disappeared preview untouched
+    // when the operator nudges sliders. Force a full rebuild so the
+    // operator sees the freshly-tuned playthrough every time. Loop
+    // mode keeps the fast path (no visible benefit from rebuilding
+    // mid-loop and it would interrupt the continuous animation).
+    const freshDef = findDefinition(scope, id, boardId);
+    const isNonLoop = freshDef
+      && freshDef.playbackMode
+      && freshDef.playbackMode !== "loop";
+    if (isNonLoop && (freshDef.assetType === "mp4" || freshDef.assetType === "gif")) {
       renderPreview();
       return;
     }

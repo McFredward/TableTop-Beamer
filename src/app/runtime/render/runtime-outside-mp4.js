@@ -54,18 +54,32 @@
     ctx = dependencies;
   }
 
-  function getMediaVideoElement(cacheMap, path) {
+  function getMediaVideoElement(cacheMap, path, opts = {}) {
     const normalizedPath = String(path || "").trim();
     if (!normalizedPath) {
       return null;
     }
+    // Phase 58 Wave 3.2: per-instance video element for non-loop modes
+    // so multiple rooms running the same play-then-freeze animation
+    // have INDEPENDENT lifecycles. Without this, Room B's just-triggered
+    // animation inherits Room A's already-frozen video and shows the
+    // last frame immediately (operator UAT 2026-06-04).
+    // Loop mode keeps the shared per-path cache (legacy behavior;
+    // identical content stays in sync across multiple targets).
+    const usePerInstance =
+      opts.instanceId
+      && opts.playbackMode
+      && opts.playbackMode !== "loop";
+    const cacheKey = usePerInstance
+      ? `${normalizedPath}#${opts.instanceId}`
+      : normalizedPath;
     // Phase 28 B5: resolve the hash-suffixed URL. Map key stays as the raw
     // `normalizedPath` so the asset-picker delete logic and the rest of the
     // render layer continue to find cache entries by canonical path. Only
     // `<video>.src` gets the `?v=<hash>` suffix.
     const resolveHashUrl = () =>
       window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(normalizedPath) ?? normalizedPath;
-    if (!cacheMap.has(normalizedPath)) {
+    if (!cacheMap.has(cacheKey)) {
       const video = document.createElement("video");
       video.src = resolveHashUrl();
       video.crossOrigin = "anonymous";
@@ -73,12 +87,12 @@
       video.muted = true;
       video.loop = false;
       video.playsInline = true;
-      cacheMap.set(normalizedPath, {
+      cacheMap.set(cacheKey, {
         status: "loading",
         video,
         durationSec: null,
       });
-      const entry = cacheMap.get(normalizedPath);
+      const entry = cacheMap.get(cacheKey);
       video.addEventListener("loadedmetadata", () => {
         const durationSec = Number(video.duration);
         if (entry) {
@@ -95,7 +109,7 @@
       // Phase 28 B5: cache hit — re-upload between this and last call may have
       // changed the resolved hash. If so, refresh the element's src so the
       // browser bypasses HTTP cache AND the <video> reloads new bytes.
-      const entry = cacheMap.get(normalizedPath);
+      const entry = cacheMap.get(cacheKey);
       const video = entry?.video;
       if (video) {
         const desired = resolveHashUrl();
@@ -103,15 +117,16 @@
           // src setter is relative; compare canonical absolute strings.
           const currentAbs = video.src;
           const desiredAbs = new URL(desired, window.location.href).href;
-          // Phase 58 Wave 3.1: when boomerang src-swap is in flight,
-          // video.src might be at the reverse-cache URL instead of the
-          // canonical forward URL. Do NOT reset back — that would
-          // cancel the boomerang swap mid-cycle and produce a forever-
-          // forward loop. The flag is stamped by the lifecycle handler.
-          if (video._tt58ReverseSrc) {
+          // Phase 58 Wave 3.1 (refined Wave 3.2): only skip the reset
+          // when the video element is CURRENTLY in boomerang mode AND
+          // its src is at the boomerang reverse URL. Without the mode
+          // check the skip persisted after the operator switched away
+          // from boomerang → mp4 always played reverse even when the
+          // editor said forward (operator UAT 2026-06-04).
+          if (video._tt58PlaybackMode === "boomerang" && video._tt58ReverseSrc) {
             const reverseAbs = new URL(video._tt58ReverseSrc, window.location.href).href;
             if (currentAbs === reverseAbs) {
-              return cacheMap.get(normalizedPath) ?? null;
+              return cacheMap.get(cacheKey) ?? null;
             }
           }
           if (currentAbs !== desiredAbs) {
@@ -124,15 +139,37 @@
         }
       }
     }
-    return cacheMap.get(normalizedPath) ?? null;
+    return cacheMap.get(cacheKey) ?? null;
   }
 
-  function getOutsideVideoElement(path) {
-    return getMediaVideoElement(outsideVideoCacheByPath, path);
+  function getOutsideVideoElement(path, opts) {
+    return getMediaVideoElement(outsideVideoCacheByPath, path, opts);
   }
 
-  function getRoomVideoElement(path) {
-    return getMediaVideoElement(roomVideoCacheByPath, path);
+  function getRoomVideoElement(path, opts) {
+    return getMediaVideoElement(roomVideoCacheByPath, path, opts);
+  }
+
+  // Phase 58 Wave 3.2: cleanup hook for per-instance video elements.
+  // Called from the running-list-prune path so stale instances release
+  // their dedicated video elements instead of leaking. Composite keys
+  // have the form `${path}#${instanceId}`; this function removes any
+  // entries whose suffix matches the supplied instanceId.
+  function releaseMp4VideoElementsForInstance(instanceId) {
+    if (!instanceId) return;
+    const suffix = `#${instanceId}`;
+    for (const cacheMap of [outsideVideoCacheByPath, roomVideoCacheByPath]) {
+      for (const key of Array.from(cacheMap.keys())) {
+        if (key.endsWith(suffix)) {
+          const entry = cacheMap.get(key);
+          try {
+            entry?.video?.pause?.();
+            if (entry?.video) entry.video.src = "";
+          } catch { /* defensive */ }
+          cacheMap.delete(key);
+        }
+      }
+    }
   }
 
   // Phase 58 Wave 3: returns the asset URL to use as <video>.src
@@ -571,11 +608,17 @@
     // Update the latest-mode marker every call so the handler reads
     // the current value even if mode changed since the last bind.
     video._tt58PlaybackMode = playbackMode;
-    // Phase 58 Wave 3: also stamp the boomerang src-swap targets.
-    // opts.forwardSrc + opts.reverseSrc are absolute URLs the ended
-    // handler can swap video.src to in alternating order.
-    if (opts.forwardSrc) video._tt58ForwardSrc = opts.forwardSrc;
-    if (opts.reverseSrc) video._tt58ReverseSrc = opts.reverseSrc;
+    // Phase 58 Wave 3: stamp boomerang src-swap targets only when
+    // we're actually in boomerang mode. Wave 3.2: clear them when
+    // mode is anything else so the cache-skip in getMediaVideoElement
+    // doesn't preserve a stale reverse URL across mode changes.
+    if (playbackMode === "boomerang") {
+      if (opts.forwardSrc) video._tt58ForwardSrc = opts.forwardSrc;
+      if (opts.reverseSrc) video._tt58ReverseSrc = opts.reverseSrc;
+    } else {
+      delete video._tt58ForwardSrc;
+      delete video._tt58ReverseSrc;
+    }
     if (video._tt58EndedBound) return;
     video._tt58EndedBound = true;
     video.addEventListener("ended", () => {
@@ -864,6 +907,8 @@
     maybeDispatchPlaybackCleanup,
     // Phase 58 Wave 3: pick forward or reverse cached URL for mp4
     resolveMp4AssetUrlForDirection,
+    // Phase 58 Wave 3.2: per-instance video element cleanup
+    releaseMp4VideoElementsForInstance,
     // Room MP4 seam machinery (Phase 50 2026-05-25)
     ensureRoomMp4Playback,
     maybeWrapRoomMp4Loop,

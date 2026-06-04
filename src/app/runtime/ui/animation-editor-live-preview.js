@@ -167,8 +167,14 @@
           try { video.src = next; video.currentTime = 0; void video.play().catch(() => undefined); } catch { /* ignore */ }
           return;
         }
-        // play-once-disappear / play-then-freeze: stay paused at EOS.
+        // Phase 58 Wave 3.3: play-once-disappear hides the preview
+        // element entirely so the operator sees the actual "disappear"
+        // outcome. play-then-freeze just pauses at the last frame so
+        // the visible state matches the freeze semantics.
         try { video.pause(); } catch { /* ignore */ }
+        if (m === "play-once-disappear") {
+          video.style.visibility = "hidden";
+        }
       });
       video.addEventListener("error", () => {
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
@@ -345,10 +351,30 @@
       const opacity = Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
       const effective = window.TT_BEAMER_RUNTIME_UTILS.clamp01(opacity * intensity);
+      // Phase 58 Wave 3.3: gif preview honors per-animation
+      // playback mode + initial direction (forward/reverse). Boomerang
+      // ping-pongs natively via the decoder's _resolveFrameIndex math.
+      // For play-once-disappear we hide the canvas after the cursor
+      // walks past total duration; play-then-freeze leaves the last
+      // frame on screen.
+      const previewMode = String(current.playbackMode || "loop");
+      const previewDir = String(current.playbackDirection || "forward");
+      const cursorScaled = age * speed * globalSpeedSafe;
+      const gifTotalSec = gifApi.getGifPlaybackTotalDurationSec
+        ? gifApi.getGifPlaybackTotalDurationSec(path)
+        : 0;
+      const isHidden = previewMode === "play-once-disappear"
+        && gifTotalSec > 0
+        && cursorScaled >= gifTotalSec;
+      if (isHidden) {
+        canvas.style.visibility = "hidden";
+      } else if (canvas.style.visibility === "hidden") {
+        canvas.style.visibility = "visible";
+      }
       c2d.save();
       c2d.fillStyle = "#000";
       c2d.fillRect(0, 0, canvas.width, canvas.height);
-      const frame = gifApi.getGifPlaybackFrame(path, age * speed * globalSpeedSafe);
+      const frame = gifApi.getGifPlaybackFrame(path, cursorScaled, previewMode, previewDir);
       if (frame) {
         c2d.globalAlpha = effective;
         const fw = frame.width;
