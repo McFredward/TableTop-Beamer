@@ -70,6 +70,8 @@
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1),
         opacity: ctx.clampRoomOpacity(animation.opacity),
+        // Phase 58: room-gif honors per-animation playback mode.
+        playbackMode: animation.playbackMode || "loop",
       });
       if (gifRenderConfig.frame) {
         const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
@@ -101,6 +103,11 @@
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
           assetRef,
           targetRate: playbackRate,
+          // Phase 58: per-instance playback mode from the running
+          // animation; controls whether maybeWrapRoomMp4Loop seeks back
+          // at EOS (loop/boomerang) or lets the video freeze
+          // (play-then-freeze, play-once-disappear).
+          playbackMode: animation.playbackMode || "loop",
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
@@ -314,7 +321,10 @@
     const timeline = age * speed;
 
     if (definition?.assetType === "gif") {
-      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline);
+      // Phase 58: inside-gif reads per-animation playback mode from
+      // the running instance (falls back to definition for preview).
+      const insideGifMode = animation?.playbackMode || definition?.playbackMode || "loop";
+      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode);
       if (frame) {
         c.globalAlpha = intensity;
         c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -344,6 +354,10 @@
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
           assetRef: definition.assetRef,
           targetRate,
+          // Phase 58: inside-mp4 reads playbackMode from the running
+          // animation; falls back to definition for control-side
+          // preview paths that don't carry an instance.
+          playbackMode: animation?.playbackMode || definition.playbackMode || "loop",
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
@@ -599,7 +613,9 @@
       }
       if (selectedDefinition.assetType === "gif") {
         ctx.clearOutsideMp4PlaybackState(state.boardId);
-        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline);
+        // Phase 58: outside-gif honors per-instance playback mode.
+        const outsideGifMode = animation?.playbackMode || selectedDefinition.playbackMode || "loop";
+        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline, outsideGifMode);
         if (frame) {
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
           c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -616,6 +632,10 @@
             lifecycleKey: outsideLifecycleKey,
             assetRef: selectedDefinition.assetRef,
             targetRate,
+            // Phase 58: outside mp4 reads playbackMode from the running
+            // animation when available; falls back to definition for
+            // preview paths.
+            playbackMode: animation?.playbackMode || selectedDefinition.playbackMode || "loop",
           });
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);

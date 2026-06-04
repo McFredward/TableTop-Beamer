@@ -263,6 +263,13 @@
     if (!video || !playbackState || video.seeking) {
       return;
     }
+    // Phase 58: non-loop modes must NOT seek back near EOS — let the
+    // video naturally hit ended so attachMp4LifecycleHandlers can
+    // freeze at the last frame.
+    const mode = playbackState.playbackMode;
+    if (mode && mode !== "loop" && mode !== "boomerang") {
+      return;
+    }
     const durationSec = Number(video.duration);
     const currentTime = Number(video.currentTime);
     if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(currentTime)) {
@@ -378,7 +385,7 @@
     playbackState.lastDrawAtMs = performance.now();
   }
 
-  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1 } = {}) {
+  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop" } = {}) {
     if (!video) {
       return null;
     }
@@ -391,9 +398,16 @@
       || previous.lifecycleKey !== normalizedLifecycleKey
       || previous.assetRef !== normalizedAssetRef;
 
-    video.loop = true;
+    // Phase 58: non-loop modes flip video.loop=false so the native
+    // `ended` event fires once and the render path can freeze the last
+    // frame (play-then-freeze) or trigger cleanup (play-once-disappear).
+    // Loop and boomerang stay on the native loop path so the underlying
+    // mp4 keeps producing decoded frames continuously.
+    const useNativeLoop = playbackMode === "loop" || playbackMode === "boomerang";
+    video.loop = useNativeLoop;
     video.muted = true;
     video.playsInline = true;
+    attachMp4LifecycleHandlers(video, playbackMode);
 
     if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
       video.defaultPlaybackRate = targetRate;
@@ -431,6 +445,9 @@
       lastDrawAtMs: previous?.lastDrawAtMs ?? 0,
       videoFrameCallbackBound: previous?.videoFrameCallbackBound ?? false,
       hasVisibleFrame: previousHasVisibleFrame,
+      // Phase 58: stamp mode so maybeWrapOutsideMp4Loop can branch
+      // without needing to plumb the value through the call site.
+      playbackMode,
     };
     bindOutsideMp4FrameCallback(video, playbackState);
     // Phase 57 diag stash — used by recordMp4PaintDiag to query
@@ -495,8 +512,40 @@
     return state.fallbackCanvas;
   }
 
+  // Phase 58: idempotent ended-listener installer. The mp4 video
+  // elements are persistent (one per assetRef) so we must guard against
+  // double-binding. Stores a per-mode flag on the video element so the
+  // handler reads the current mode at ended-event time (not the bind-
+  // time mode, which may be stale if the operator switched modes
+  // mid-playback).
+  function attachMp4LifecycleHandlers(video, playbackMode) {
+    if (!video) return;
+    // Update the latest-mode marker every call so the handler reads
+    // the current value even if mode changed since the last bind.
+    video._tt58PlaybackMode = playbackMode;
+    if (video._tt58EndedBound) return;
+    video._tt58EndedBound = true;
+    video.addEventListener("ended", () => {
+      const currentMode = video._tt58PlaybackMode || "loop";
+      if (currentMode === "loop" || currentMode === "boomerang") return;
+      // play-once-disappear, play-then-freeze: pause-at-end. The
+      // browser already paused (video.loop=false → playback ends at
+      // EOS), but explicitly pause() is defensive against future
+      // playback automation. For play-once-disappear the instance
+      // cleanup is operator-driven via re-trigger (matches Wave 2
+      // CONTEXT.md scope — explicit emit-stop is deferred to Wave 2.5
+      // when the render-to-control authority channel lands).
+      try { video.pause(); } catch { /* ignore */ }
+    });
+  }
+
   function maybeWrapRoomMp4Loop(video, state) {
     if (!video || !state || video.seeking) return;
+    // Phase 58: non-loop modes must NOT seek back to start near EOS —
+    // the wrap would prevent the freeze-at-end semantics from ever
+    // taking effect. Skip the wrap; native EOS + video.loop=false +
+    // attachMp4LifecycleHandlers handle the rest.
+    if (state.playbackMode && state.playbackMode !== "loop" && state.playbackMode !== "boomerang") return;
     const durationSec = Number(video.duration);
     const currentTime = Number(video.currentTime);
     if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(currentTime)) return;
@@ -547,15 +596,20 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1 } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop" } = {}) {
     if (!video) return null;
     const key = _roomMp4Key(assetRef);
     const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
     // Manual-wrap mode: native loop attribute OFF so maybeWrapRoomMp4Loop
     // can preempt the seam-producing native EOS reset.
+    // Phase 58: stamp playbackMode on the playback state so
+    // maybeWrapRoomMp4Loop can skip the wrap for non-loop modes (the
+    // wrap would re-seek to start and prevent the freeze-at-end
+    // behavior).
     video.loop = false;
     video.muted = true;
     video.playsInline = true;
+    attachMp4LifecycleHandlers(video, playbackMode);
     if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
       video.defaultPlaybackRate = targetRate;
     }
@@ -581,6 +635,8 @@
       videoFrameCallbackBound: false,
       hasVisibleFrame: false,
     };
+    // Phase 58: stamp the mode so maybeWrapRoomMp4Loop can branch.
+    state.playbackMode = playbackMode;
     _bindRoomMp4FrameCallback(video, state);
     // Phase 57 diag stash
     state._videoForDiag = video;

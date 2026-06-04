@@ -255,8 +255,22 @@
       : ctx.getInsideFxProfile(state.boardId);
     const matchedDefinition = lookupProfile?.animations?.find((entry) => entry.id === type) ?? null;
     const definitionSoundAssetRef = matchedDefinition?.soundAssetRef ?? "none";
+    // Phase 58: per-animation playback mode from the matching
+    // definition. Non-loop modes (play-once-disappear / play-then-freeze /
+    // boomerang) flip the instance into hold=true so the render layer
+    // can manage video lifecycle without the legacy duration-based
+    // auto-removal racing the freeze/disappear handling.
+    const definitionPlaybackMode = matchedDefinition?.playbackMode ?? "loop";
+    const definitionOnRetrigger = matchedDefinition?.onRetrigger ?? "instant-disappear";
+    const isNonLoopMode = definitionPlaybackMode !== "loop";
     const normalizedDefaultDurationSec = Number(defaultDurationSec);
-    const effectiveDefaultDurationSec = effectiveLoopUntilStopped
+    // Phase 58: non-loop modes always behave as hold=true so the render
+    // layer manages cleanup (pause-at-end for freeze; explicit
+    // stopAnimation for play-once-disappear). Without this override, a
+    // 4s GLOBAL_ONE_SHOT_DURATION_SEC could remove a "play-then-freeze"
+    // instance from the running list before the render layer freezes
+    // the video.
+    const effectiveDefaultDurationSec = (effectiveLoopUntilStopped || isNonLoopMode)
       ? null
       : (Number.isFinite(normalizedDefaultDurationSec) && normalizedDefaultDurationSec > 0
         ? normalizedDefaultDurationSec
@@ -288,6 +302,8 @@
           soundAssetRef: playSound ? definitionSoundAssetRef : "none",
           hold: effectiveDefaultDurationSec === null,
           durationSec: effectiveDefaultDurationSec ?? 0,
+          playbackMode: definitionPlaybackMode,
+          onRetrigger: definitionOnRetrigger,
         });
         void ctx.emitLiveMutation("trigger-global", {
           animationType: type,
@@ -331,6 +347,8 @@
         soundAssetRef: playSound ? definitionSoundAssetRef : "none",
         hold: effectiveDefaultDurationSec === null,
         durationSec: effectiveDefaultDurationSec ?? 0,
+        playbackMode: definitionPlaybackMode,
+        onRetrigger: definitionOnRetrigger,
       });
       ctx.triggerFeedback.textContent = `Pending: ${ctx.getAnimationLabel(type)} start accepted (waiting for snapshot)`;
       void ctx.emitLiveMutation("trigger-global", {

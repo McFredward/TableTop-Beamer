@@ -395,10 +395,19 @@
     }
   }
 
-  function _resolveFrameIndex(entry, elapsedSeconds) {
+  function _resolveFrameIndex(entry, elapsedSeconds, playbackMode = "loop") {
     const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
-    let cursorMs =
-      (((Number(elapsedSeconds) || 0) * 1000) % totalDurationMs + totalDurationMs) % totalDurationMs;
+    const rawCursorMs = (Number(elapsedSeconds) || 0) * 1000;
+    let cursorMs;
+    // Phase 58: non-loop modes (play-once-disappear, play-then-freeze)
+    // clamp the cursor to the final frame instead of wrapping modulo.
+    // boomerang is treated as loop here for Wave 2 — true reverse-walk
+    // arrives in Wave 3.
+    if (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze") {
+      cursorMs = Math.min(Math.max(0, rawCursorMs), totalDurationMs - 1);
+    } else {
+      cursorMs = ((rawCursorMs % totalDurationMs) + totalDurationMs) % totalDurationMs;
+    }
     for (let i = 0; i < entry.frames.length; i += 1) {
       const frame = entry.frames[i];
       if (cursorMs < frame.durationMs) return i;
@@ -407,13 +416,13 @@
     return entry.frames.length - 1;
   }
 
-  function getGifPlaybackFrame(path, elapsedSeconds) {
+  function getGifPlaybackFrame(path, elapsedSeconds, playbackMode = "loop") {
     const entry = ensureGifPlaybackReady(path);
     if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
       _gifProbe("trigger-null", { path, status: entry?.status || "missing" });
       return null;
     }
-    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds);
+    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds, playbackMode);
     const frame = entry.frames[frameIdx];
     if (!frame) return null;
     // ImageDecoder fast-path (dashboard only) stores `bitmap` —
@@ -442,7 +451,7 @@
     const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
     const playbackSpeed = ctx.clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
     return {
-      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed),
+      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed, options.playbackMode || "loop"),
       opacity: ctx.clampRoomOpacity(options.opacity ?? intensity),
     };
   }

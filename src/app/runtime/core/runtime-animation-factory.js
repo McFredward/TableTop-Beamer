@@ -37,6 +37,11 @@
     colorHex = "",
     mode = "",
     direction = "",
+    // Phase 58: per-animation playback mode + on-retrigger sub-option.
+    // Defaults preserve legacy loop behavior for any caller not yet
+    // wired to pass these through. See 58-CONTEXT.md for state machine.
+    playbackMode = "loop",
+    onRetrigger = "instant-disappear",
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -75,6 +80,18 @@
       // unaffected since upsert call sites don't pass these.
       mode: typeof mode === "string" && mode ? mode : undefined,
       direction: typeof direction === "string" && direction ? direction : undefined,
+      // Phase 58 instance-level playback mode (see CONTEXT.md). Carried
+      // from the animation DEFINITION at trigger time so the running
+      // instance keeps the mode it was started with, even if the
+      // operator later edits the definition's mode. Per-trigger
+      // override (Wave 4) will also feed through this same channel.
+      playbackMode: typeof playbackMode === "string" && playbackMode ? playbackMode : "loop",
+      onRetrigger: typeof onRetrigger === "string" && onRetrigger ? onRetrigger : "instant-disappear",
+      // Phase 58 playback phase state. Owned by the render path /
+      // lifecycle observers. Values: forward (default), frozen-last,
+      // reverse (Wave 3), frozen-first (Wave 3). The cleanup path
+      // removes the instance from runningAnimations regardless of phase.
+      playbackPhase: "forward",
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

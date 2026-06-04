@@ -100,6 +100,12 @@
         soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
         hold: true,
         durationMs: null,
+        // Phase 58: carry per-definition playback mode + on-retrigger
+        // onto every dispatched instance (room / cluster / member).
+        // Default to "loop" preserves legacy behavior for animations
+        // not yet configured with a mode.
+        playbackMode: selectedDefinition.playbackMode ?? "loop",
+        onRetrigger: selectedDefinition.onRetrigger ?? "instant-disappear",
       };
 
       if (selectedAssetType === "gif") {
@@ -202,6 +208,8 @@
                     heightScale: draftPayload.heightScale,
                     offsetXScale: draftPayload.offsetXScale,
                     offsetYScale: draftPayload.offsetYScale,
+                    playbackMode: draftPayload.playbackMode,
+                    onRetrigger: draftPayload.onRetrigger,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -317,6 +325,8 @@
           heightScale: draftPayload.heightScale,
           offsetXScale: draftPayload.offsetXScale,
           offsetYScale: draftPayload.offsetYScale,
+          playbackMode: draftPayload.playbackMode,
+          onRetrigger: draftPayload.onRetrigger,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -344,6 +354,8 @@
             heightScale: draftPayload.heightScale,
             offsetXScale: draftPayload.offsetXScale,
             offsetYScale: draftPayload.offsetYScale,
+            playbackMode: draftPayload.playbackMode,
+            onRetrigger: draftPayload.onRetrigger,
             hold: true,
             durationSec: 0,
           });
@@ -462,6 +474,8 @@
                   heightScale: draftPayload.heightScale,
                   offsetXScale: draftPayload.offsetXScale,
                   offsetYScale: draftPayload.offsetYScale,
+                  playbackMode: draftPayload.playbackMode,
+                  onRetrigger: draftPayload.onRetrigger,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -583,6 +597,8 @@
         heightScale: draftPayload.heightScale,
         offsetXScale: draftPayload.offsetXScale,
         offsetYScale: draftPayload.offsetYScale,
+        playbackMode: draftPayload.playbackMode,
+        onRetrigger: draftPayload.onRetrigger,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -612,6 +628,8 @@
           heightScale: draftPayload.heightScale,
           offsetXScale: draftPayload.offsetXScale,
           offsetYScale: draftPayload.offsetYScale,
+          playbackMode: draftPayload.playbackMode,
+          onRetrigger: draftPayload.onRetrigger,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,
