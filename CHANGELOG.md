@@ -12,6 +12,47 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.2] — 2026-06-04
+
+Phase 58 Wave 3.1 — fix mp4 playback modes and editor preview parity.
+
+### Fixed
+- **mp4 play-once-disappear / play-then-freeze actually freeze /
+  disappear** instead of looping. Three converging root causes:
+  - `ensureRoomMp4Playback` / `ensureOutsideMp4Playback`
+    unconditionally called `video.play()` whenever the video was
+    paused — restarting the playback the lifecycle handler had just
+    paused at EOS. Added `isFrozenAtEnd` guard that skips auto-play
+    when `video.ended === true` and mode ∈ {play-once-disappear,
+    play-then-freeze}.
+  - `maybeWrapRoomMp4Loop` / `maybeWrapOutsideMp4Loop` skipped only
+    play-once and play-then-freeze, NOT boomerang — but for
+    boomerang the wrap also preempted the natural EOS so the
+    ended-listener src-swap never fired. Gate tightened to: only
+    plain `loop` keeps the seam-preventing wrap.
+  - `getMediaVideoElement` cache-hit logic detected a `video.src`
+    mismatch (after boomerang src-swap) and reset back to the
+    canonical forward URL → boomerang cycled forever as forward-only
+    loop with rapid ABORTs (operator-observed `[ssr-tab:reqfailed]
+    net::ERR_ABORTED` for both forward and reverse URLs). Cache
+    reset now skipped when the current src matches the stamped
+    boomerang reverse URL.
+- **Re-trigger after play-once-disappear plays from the beginning**
+  instead of inheriting the previous instance's `video.ended=true`
+  state (which would make the new instance freeze immediately). Both
+  ensure functions now stamp `_tt58InstanceId` on the video element;
+  a different id resets `currentTime = 0` so the new playthrough
+  starts fresh.
+- **Editor preview respects per-animation playback mode + direction**
+  (`animation-editor-live-preview.js`). Previously the preview
+  hardcoded `video.loop = true`. Now: `loop` only when mode is
+  `loop`; reverse direction loads the
+  `/api/animation-reverse?asset=...` URL; play-once modes freeze at
+  EOS; boomerang src-swaps. The edit-pane forces a full preview
+  rebuild when `playbackMode` or `playbackDirection` change in the
+  patch so the new flags actually apply (numeric-patch fast path was
+  silently skipping the rebuild for these fields).
+
 ## [1.2.1] — 2026-06-04
 
 Phase 58 follow-up: Wave 2.5 (cleanup-dispatch + bug fix) + Wave 3

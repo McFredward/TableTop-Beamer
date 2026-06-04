@@ -127,6 +127,7 @@
           playbackMode: animation.playbackMode || "loop",
           boomerangForwardSrc: roomMp4Forward,
           boomerangReverseSrc: roomMp4Reverse,
+          instanceId: animation?.id || '',
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
@@ -396,6 +397,7 @@
           playbackMode: insideMp4Mode,
           boomerangForwardSrc: insideMp4Forward,
           boomerangReverseSrc: insideMp4Reverse,
+          instanceId: animation?.id || '',
         });
         // Phase 58 Wave 2.5: cleanup-dispatch for inside-mp4.
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
@@ -691,6 +693,7 @@
             playbackMode: outsideMp4Mode,
             boomerangForwardSrc: outsideMp4Forward,
             boomerangReverseSrc: outsideMp4Reverse,
+            instanceId: animation?.id || '',
           });
           // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
           if (animation) {

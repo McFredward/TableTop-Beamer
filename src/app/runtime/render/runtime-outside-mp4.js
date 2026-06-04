@@ -103,6 +103,17 @@
           // src setter is relative; compare canonical absolute strings.
           const currentAbs = video.src;
           const desiredAbs = new URL(desired, window.location.href).href;
+          // Phase 58 Wave 3.1: when boomerang src-swap is in flight,
+          // video.src might be at the reverse-cache URL instead of the
+          // canonical forward URL. Do NOT reset back — that would
+          // cancel the boomerang swap mid-cycle and produce a forever-
+          // forward loop. The flag is stamped by the lifecycle handler.
+          if (video._tt58ReverseSrc) {
+            const reverseAbs = new URL(video._tt58ReverseSrc, window.location.href).href;
+            if (currentAbs === reverseAbs) {
+              return cacheMap.get(normalizedPath) ?? null;
+            }
+          }
           if (currentAbs !== desiredAbs) {
             video.src = desired;
             try { video.currentTime = 0; } catch { /* DOM may reject */ }
@@ -275,11 +286,13 @@
     if (!video || !playbackState || video.seeking) {
       return;
     }
-    // Phase 58: non-loop modes must NOT seek back near EOS — let the
-    // video naturally hit ended so attachMp4LifecycleHandlers can
-    // freeze at the last frame.
+    // Phase 58: only the explicit "loop" mode keeps the seam-preventing
+    // manual wrap. Boomerang needs the natural EOS so the lifecycle
+    // handler can src-swap forward ⇄ reverse; play-once-disappear and
+    // play-then-freeze need it so the freeze-at-end / cleanup-dispatch
+    // logic actually triggers.
     const mode = playbackState.playbackMode;
-    if (mode && mode !== "loop" && mode !== "boomerang") {
+    if (mode && mode !== "loop") {
       return;
     }
     const durationSec = Number(video.duration);
@@ -397,7 +410,7 @@
     playbackState.lastDrawAtMs = performance.now();
   }
 
-  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null } = {}) {
+  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "" } = {}) {
     if (!video) {
       return null;
     }
@@ -444,7 +457,25 @@
       }
     }
 
-    if (video.paused || didLifecycleChange) {
+    // Phase 58 Wave 3.1: detect new animation instance (re-trigger).
+    // Stamping instanceId on the video element lets us tell apart
+    // "previous instance frozen at EOS" from "fresh trigger" — the
+    // latter must reset currentTime so the new playthrough starts at
+    // the beginning instead of immediately hitting our freeze guard.
+    if (instanceId && video._tt58InstanceId !== instanceId) {
+      video._tt58InstanceId = instanceId;
+      // Reset to start so video.ended falls back to false; the play()
+      // call below kicks off the new instance's playback cleanly.
+      try { video.currentTime = 0; } catch { /* DOM may reject */ }
+    }
+    // Do NOT auto-play when a non-loop mode has intentionally paused
+    // the video at EOS. Without this guard the ensure function (called
+    // every rAF) restarts the video → the operator perceives the
+    // animation as looping despite mode being play-once-disappear or
+    // play-then-freeze.
+    const isFrozenAtEnd = video.ended === true
+      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
+    if (!isFrozenAtEnd && (video.paused || didLifecycleChange)) {
       void video.play().catch(() => undefined);
     }
 
@@ -613,11 +644,10 @@
 
   function maybeWrapRoomMp4Loop(video, state) {
     if (!video || !state || video.seeking) return;
-    // Phase 58: non-loop modes must NOT seek back to start near EOS —
-    // the wrap would prevent the freeze-at-end semantics from ever
-    // taking effect. Skip the wrap; native EOS + video.loop=false +
-    // attachMp4LifecycleHandlers handle the rest.
-    if (state.playbackMode && state.playbackMode !== "loop" && state.playbackMode !== "boomerang") return;
+    // Phase 58: only explicit "loop" keeps the seam-preventing wrap.
+    // Boomerang needs natural EOS so the lifecycle handler src-swaps;
+    // non-loop modes need it so the freeze / cleanup take effect.
+    if (state.playbackMode && state.playbackMode !== "loop") return;
     const durationSec = Number(video.duration);
     const currentTime = Number(video.currentTime);
     if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(currentTime)) return;
@@ -668,7 +698,7 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "" } = {}) {
     if (!video) return null;
     const key = _roomMp4Key(assetRef);
     const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
@@ -697,7 +727,15 @@
         try { video.currentTime = getOutsideMp4LoopStartTime(durationSec); } catch { /* ignore */ }
       }
     }
-    if (video.paused) {
+    // Phase 58 Wave 3.1: same instance-id reset + EOS-pause guard as
+    // ensureOutsideMp4Playback (see comments there).
+    if (instanceId && video._tt58InstanceId !== instanceId) {
+      video._tt58InstanceId = instanceId;
+      try { video.currentTime = 0; } catch { /* DOM may reject */ }
+    }
+    const isFrozenAtEnd = video.ended === true
+      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
+    if (!isFrozenAtEnd && video.paused) {
       void video.play().catch(() => undefined);
     }
     const state = previous ?? {

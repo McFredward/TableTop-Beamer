@@ -129,12 +129,47 @@
       const video = document.createElement("video");
       video.className = "anim-editor-preview-media";
       video.dataset.animEditorPreviewMedia = "mp4";
-      video.src = toResourceUrl(ref);
+      // Phase 58 Wave 3.1: preview respects per-animation mode +
+      // direction. Reverse uses the ffmpeg-cached URL; non-loop modes
+      // stop at EOS instead of looping; boomerang src-swaps on ended.
+      const prevMode = def.playbackMode || "loop";
+      const prevDir = def.playbackDirection || "forward";
+      const previewForwardUrl = toResourceUrl(ref);
+      const previewReverseUrl = `/api/animation-reverse?asset=${encodeURIComponent(ref.startsWith("/") ? ref : `/${ref}`)}`;
+      const initialSrc = prevDir === "reverse" ? previewReverseUrl : previewForwardUrl;
+      video.src = initialSrc;
       video.autoplay = true;
-      video.loop = true;
+      video.loop = prevMode === "loop";
       video.muted = true;
       video.playsInline = true;
       video.setAttribute("playsinline", "");
+      // Mode + boomerang src-swap markers (mirror the render path's
+      // attachMp4LifecycleHandlers protocol so the same ended logic
+      // applies in the editor preview).
+      video._tt58PlaybackMode = prevMode;
+      if (prevMode === "boomerang") {
+        video._tt58ForwardSrc = previewForwardUrl;
+        video._tt58ReverseSrc = previewReverseUrl;
+      }
+      video.addEventListener("ended", () => {
+        const m = video._tt58PlaybackMode || "loop";
+        if (m === "loop") return;
+        if (m === "boomerang") {
+          const fwd = video._tt58ForwardSrc;
+          const rev = video._tt58ReverseSrc;
+          if (!fwd || !rev) {
+            try { video.currentTime = 0; void video.play().catch(() => undefined); } catch { /* ignore */ }
+            return;
+          }
+          const currentAbs = video.src;
+          const fwdAbs = new URL(fwd, window.location.href).href;
+          const next = currentAbs === fwdAbs ? rev : fwd;
+          try { video.src = next; video.currentTime = 0; void video.play().catch(() => undefined); } catch { /* ignore */ }
+          return;
+        }
+        // play-once-disappear / play-then-freeze: stay paused at EOS.
+        try { video.pause(); } catch { /* ignore */ }
+      });
       video.addEventListener("error", () => {
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
       });

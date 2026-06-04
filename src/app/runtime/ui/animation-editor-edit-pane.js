@@ -891,6 +891,12 @@
     const touchesPreviewSource = patch && (
       Object.prototype.hasOwnProperty.call(patch, "assetType")
       || Object.prototype.hasOwnProperty.call(patch, "assetRef")
+      // Phase 58 Wave 3.1: mode + direction change the preview
+      // element's playback semantics (loop attr, initial src for
+      // reverse, ended-handler behavior). Force a full rebuild so the
+      // <video> element gets the new flags applied.
+      || Object.prototype.hasOwnProperty.call(patch, "playbackMode")
+      || Object.prototype.hasOwnProperty.call(patch, "playbackDirection")
     );
     if (touchesPreviewSource) {
       renderPreview();
