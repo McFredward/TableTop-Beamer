@@ -127,6 +127,48 @@
         }
       }
 
+      // Phase 58 Wave 3.4: phase-advance for reversible-freeze room
+      // animations. If the operator re-triggers the same animation in
+      // the same room while a frozen instance exists, transition its
+      // phase instead of creating a new instance. Skips edit mode
+      // (existing edit path replaces the instance entirely) and
+      // cluster mode (cluster phase transitions deferred).
+      if (
+        !state.roomDraft.editTargetId
+        && state.roomDraft.targetType === "room"
+        && targetRoomIds.length === 1
+      ) {
+        const targetRoomId = targetRoomIds[0];
+        const candidate = state.runningAnimations.find((item) => (
+          item
+          && item.scope === "room"
+          && item.boardId === state.boardId
+          && item.roomId === targetRoomId
+          && item.type === draftPayload.type
+          && (item.playbackPhase === "frozen-last" || item.playbackPhase === "frozen-first")
+          && item.playbackMode === "play-then-freeze"
+          && (
+            item.onRetrigger === "reverse-then-freeze-first"
+            || item.onRetrigger === "reverse-then-disappear"
+          )
+        ));
+        if (candidate) {
+          candidate.playbackPhase = candidate.playbackPhase === "frozen-last" ? "reverse" : "forward";
+          candidate._endedDispatched = false;
+          candidate._phaseChangedAt = performance.now();
+          try {
+            void emitLiveMutation("trigger-room-phase", {
+              animationId: candidate.id,
+              playbackPhase: candidate.playbackPhase,
+              animation: buildAnimationSnapshotForLiveSync(candidate),
+            }).catch(() => undefined);
+          } catch { /* defensive */ }
+          triggerFeedback.textContent = `Status: ${draftPayload.animationName} ${candidate.playbackPhase === "reverse" ? "reversing" : "playing"}`;
+          deferRenderRunningList();
+          return;
+        }
+      }
+
       if (getOutputRole() === OUTPUT_ROLE_CONTROL) {
         const pendingCommands = [];
         if (state.roomDraft.editTargetId) {

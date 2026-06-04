@@ -1280,6 +1280,7 @@ const {
   shouldDrawOutsideMp4Now,
   ensureOutsideMp4Playback,
   maybeDispatchPlaybackCleanup,
+  maybeTransitionPlaybackPhase,
   resolveMp4AssetUrlForDirection,
   releaseMp4VideoElementsForInstance,
   ensureRoomMp4Playback,
@@ -2516,6 +2517,8 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   maybeWrapOutsideMp4Loop: (video, playbackState) => maybeWrapOutsideMp4Loop(video, playbackState),
   // Phase 58 Wave 2.5 — render-driven cleanup for play-once-disappear
   maybeDispatchPlaybackCleanup: (animation, mediaSignals) => maybeDispatchPlaybackCleanup(animation, mediaSignals),
+  // Phase 58 Wave 3.4 — playback phase transitions on EOS
+  maybeTransitionPlaybackPhase: (animation, video) => maybeTransitionPlaybackPhase(animation, video),
   // Phase 58 Wave 3 — pick forward / reverse-cached URL for mp4
   resolveMp4AssetUrlForDirection: (assetPath, direction) => resolveMp4AssetUrlForDirection(assetPath, direction),
   // Phase 50 (2026-05-25) — room MP4 seam machinery

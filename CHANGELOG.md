@@ -12,6 +12,57 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.4] — 2026-06-04
+
+Phase 58 Wave 3.4 — implement the reverse-on-retrigger phase
+state machine. Closes the operator-blocking issue from Wave 3.3 UAT
+where re-triggering a "Freeze, reverse on re-trigger" animation
+disappeared the instance instead of reversing it.
+
+### Added
+- **Phase-aware re-trigger** for `play-then-freeze` with
+  `reverse-then-freeze-first` / `reverse-then-disappear`:
+  - First trigger → plays forward → freezes (phase = `frozen-last`)
+  - Re-trigger → transitions phase to `reverse` → plays reverse
+    (using the ffmpeg-cached reverse URL)
+  - When reverse ends:
+    - `reverse-then-freeze-first` → phase = `frozen-first`; further
+      re-trigger transitions to `forward` again (manual ping-pong)
+    - `reverse-then-disappear` → emits `stopAnimation`, removes
+      instance
+- Implemented in two trigger surfaces:
+  - `upsertGlobalAnimation` (inside / outside global triggers) via
+    new `advanceReversibleFreezePhaseIfPossible()` helper called
+    BEFORE the existing stop-on-re-trigger path.
+  - `startRoomAnimationFromDraft` (room scope, single-room target)
+    via inline phase-advance check before the new-instance creation.
+    Cluster mode falls through to existing behavior (cluster phase
+    transitions deferred).
+- New `maybeTransitionPlaybackPhase(animation, video)` helper in
+  `runtime-outside-mp4.js`, called from all three mp4 paint paths
+  after each render tick. Observes `video.ended` and advances the
+  instance's `playbackPhase` based on the configured `onRetrigger`.
+- Render layer now picks the asset URL based on
+  `animation.playbackPhase`:
+  - `forward` / `frozen-last` → forward URL
+  - `reverse` / `frozen-first` → ffmpeg reverse URL
+  Phase transitions automatically swap to the appropriate cached
+  per-instance video element.
+
+### Notes
+- Live-sync emits a `trigger-global` / `trigger-room-phase`
+  mutation with the updated `playbackPhase` so `/output/` clients
+  receive the new phase via the standard snapshot pipeline. Server
+  treats unknown actions as a snapshot-only broadcast, so no server
+  code change required.
+- Per-instance video cache (Wave 3.2) means each phase transition
+  creates a new video element keyed by the new src URL +
+  `instanceId`. Brief load delay (~50-300ms typical) at the
+  transition is bridged by the canvas painting the underlying
+  board image during the gap. Phase 57 fallback canvas does not
+  apply to per-instance elements (would require additional
+  plumbing).
+
 ## [1.2.3] — 2026-06-04
 
 Phase 58 Wave 3.3 — direction bug + per-room independent lifecycle +

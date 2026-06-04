@@ -210,6 +210,63 @@
     setSettingsSubtab(stored || (state.settingsSubtab !== "animations" ? state.settingsSubtab : "") || "board", { persist: false });
   }
 
+  // Phase 58 Wave 3.4: detect re-trigger of a frozen reversible-freeze
+  // instance and mutate its phase in place. Returns true if it
+  // handled the trigger (caller skips the stop path). The render
+  // layer reacts to the new playbackPhase by swapping video.src and
+  // resuming playback in the new direction.
+  function advanceReversibleFreezePhaseIfPossible(existing) {
+    if (!existing) return false;
+    const mode = existing.playbackMode || "loop";
+    if (mode !== "play-then-freeze") return false;
+    const onRet = existing.onRetrigger || "instant-disappear";
+    if (onRet !== "reverse-then-freeze-first" && onRet !== "reverse-then-disappear") {
+      return false;
+    }
+    const phase = existing.playbackPhase || "forward";
+    if (phase !== "frozen-last" && phase !== "frozen-first") {
+      return false;
+    }
+    if (phase === "frozen-last") {
+      existing.playbackPhase = "reverse";
+    } else {
+      // frozen-first → only the freeze-first variant supports the
+      // manual ping-pong (Toggle); reverse-then-disappear never lands
+      // in frozen-first (it disappears at end of reverse).
+      existing.playbackPhase = "forward";
+    }
+    // Phase 58 Wave 3.4: clear the ended-dispatched guard so the
+    // render layer detects the next EOS and transitions the phase
+    // again (frozen-last/first or disappear depending on mode).
+    existing._endedDispatched = false;
+    existing._phaseChangedAt = performance.now();
+    // Emit a live-sync mutation so /output/ clients pick up the new
+    // phase via the standard snapshot pipeline. Reuses trigger-global
+    // with action="phase-advance" — server side falls back to a noop
+    // for unknown actions but the snapshot it broadcasts includes
+    // the mutated animation entry.
+    try {
+      if (typeof ctx.emitLiveMutation === "function") {
+        void ctx.emitLiveMutation("trigger-global", {
+          animationType: existing.type,
+          action: "phase-advance",
+          boardId: existing.boardId,
+          animationId: existing.id,
+          playbackPhase: existing.playbackPhase,
+          animation: typeof ctx.buildAnimationSnapshotForLiveSync === "function"
+            ? ctx.buildAnimationSnapshotForLiveSync(existing)
+            : existing,
+        }).catch(() => undefined);
+      }
+    } catch { /* defensive */ }
+    if (ctx.triggerFeedback) {
+      ctx.triggerFeedback.textContent = `Status: ${ctx.getAnimationLabel?.(existing.type) ?? existing.type} ${existing.playbackPhase === "reverse" ? "reversing" : "playing"}`;
+    }
+    if (typeof ctx.renderRunningAnimationsList === "function") ctx.renderRunningAnimationsList();
+    if (typeof ctx.refreshGlobalButtons === "function") ctx.refreshGlobalButtons();
+    return true;
+  }
+
   function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false, playSound = true } = {}) {
     const state = ctx.state;
     const existing = state.runningAnimations.find(
@@ -276,6 +333,14 @@
       : (Number.isFinite(normalizedDefaultDurationSec) && normalizedDefaultDurationSec > 0
         ? normalizedDefaultDurationSec
         : null);
+    // Phase 58 Wave 3.4: re-trigger of a frozen reversible-freeze
+    // instance should advance the phase (forward→reverse, reverse→
+    // forward) instead of stopping. Operator-confirmed semantic: pick
+    // "Freeze, reverse on re-trigger" and clicks should ping-pong
+    // through forward → frozen-last → reverse → frozen-first → forward.
+    if (existing && advanceReversibleFreezePhaseIfPossible(existing)) {
+      return;
+    }
     if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL) {
       if (existing) {
         ctx.stopAnimation(existing.id);

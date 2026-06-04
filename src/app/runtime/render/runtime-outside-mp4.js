@@ -685,6 +685,54 @@
     }
   }
 
+  // Phase 58 Wave 3.4: phase transition handler for play-then-freeze +
+  // reverse-on-retrigger. Called from the draw loop after each render
+  // tick; observes video.ended and advances the instance's
+  // playbackPhase based on the configured onRetrigger sub-option.
+  //
+  // State machine for play-then-freeze:
+  //   forward (active)        --(ended)-->  frozen-last
+  //   reverse (active)        --(ended)-->  frozen-first         (reverse-then-freeze-first)
+  //   reverse (active)        --(ended)-->  disappear(stop)      (reverse-then-disappear)
+  //   frozen-last  --(operator re-trigger)-->  reverse           (handled by upsertGlobalAnimation)
+  //   frozen-first --(operator re-trigger)-->  forward           (handled by upsertGlobalAnimation)
+  //
+  // Idempotency: only transitions when the phase is an active phase
+  // AND video.ended is true. After transition, the new phase is
+  // frozen-* (or removed) so subsequent calls are no-ops.
+  function maybeTransitionPlaybackPhase(animation, video) {
+    if (!ctx || !animation || !video) return;
+    if (!video.ended) return;
+    const mode = animation.playbackMode || "loop";
+    if (mode !== "play-then-freeze") return;
+    const phase = animation.playbackPhase || "forward";
+    const onRet = animation.onRetrigger || "instant-disappear";
+    if (phase === "forward") {
+      animation.playbackPhase = "frozen-last";
+      return;
+    }
+    if (phase === "reverse") {
+      if (onRet === "reverse-then-freeze-first") {
+        animation.playbackPhase = "frozen-first";
+      } else if (onRet === "reverse-then-disappear") {
+        if (!animation._endedDispatched) {
+          animation._endedDispatched = true;
+          try {
+            if (typeof ctx.stopAnimation === "function") {
+              ctx.stopAnimation(animation.id);
+            }
+          } catch (err) {
+            console.warn("[58] reverse-then-disappear dispatch failed", err);
+          }
+        }
+      } else {
+        // onRet === "instant-disappear" but somehow phase = reverse.
+        // Defensive: treat as frozen-last to avoid getting stuck.
+        animation.playbackPhase = "frozen-last";
+      }
+    }
+  }
+
   function maybeWrapRoomMp4Loop(video, state) {
     if (!video || !state || video.seeking) return;
     // Phase 58: only explicit "loop" keeps the seam-preventing wrap.
@@ -905,6 +953,8 @@
     ensureOutsideMp4Playback,
     // Phase 58 Wave 2.5: render-driven cleanup
     maybeDispatchPlaybackCleanup,
+    // Phase 58 Wave 3.4: playback phase transitions on EOS
+    maybeTransitionPlaybackPhase,
     // Phase 58 Wave 3: pick forward or reverse cached URL for mp4
     resolveMp4AssetUrlForDirection,
     // Phase 58 Wave 3.2: per-instance video element cleanup

@@ -95,8 +95,14 @@
       if (ctx.shouldSkipRoomMp4Frame(animation)) {
         return;
       }
-      // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
-      const roomMp4Direction = animation.playbackDirection || "forward";
+      // Phase 58 Wave 3.4: effective playback direction depends on
+      // playbackPhase (forward/frozen-last → forward URL; reverse/
+      // frozen-first → reverse URL). Phase is set by createAnimation
+      // from playbackDirection and transitioned by ended events and
+      // operator re-triggers (see advanceReversibleFreezePhaseIfPossible).
+      const roomMp4Phase = animation.playbackPhase || "forward";
+      const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
+      const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
       const roomMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
       // Phase 58 Wave 3.2: per-instance video for non-loop modes so
       // multiple rooms running the same animation have independent
@@ -142,6 +148,7 @@
         // Checks video.ended each frame; on transition emits stop
         // exactly once (idempotent via animation._endedDispatched).
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+        ctx.maybeTransitionPlaybackPhase?.(animation, video);
         try {
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
@@ -411,6 +418,7 @@
         });
         // Phase 58 Wave 2.5: cleanup-dispatch for inside-mp4.
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+        ctx.maybeTransitionPlaybackPhase?.(animation, video);
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
@@ -712,6 +720,7 @@
           // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
           if (animation) {
             ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+            ctx.maybeTransitionPlaybackPhase?.(animation, video);
           }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
