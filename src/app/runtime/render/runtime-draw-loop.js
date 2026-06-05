@@ -198,6 +198,22 @@
               }
               ctx.markMp4FramePainted(playbackState);
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+            } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+              // Phase 58 Wave 3.7 (2026-06-05): extended last-resort for
+              // concurrent-load race. With 4+ rooms triggering the same
+              // mp4 simultaneously, readyState briefly drops below 2
+              // before rVFC fires its first frame. During that window
+              // both haveLiveFrame and fallback are false/null →
+              // polygon was painting transparent → operator UAT
+              // "wildes Flackern bei 4+ Animationen". Painting the live
+              // <video> with readyState >= 1 is browser-defined as
+              // safe (draws poster frame or no-ops); strictly better
+              // than transparent.
+              drawRoomAssetImage(c, video, rect);
+              if (ctx.captureRoomMp4FallbackFrame) {
+                ctx.captureRoomMp4FallbackFrame(playbackState, video);
+              }
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
             } else {
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
             }
@@ -471,6 +487,14 @@
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
             ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+          } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+            // Phase 58 Wave 3.7: extended last-resort for concurrent-load
+            // race (see room-mp4 path comment).
+            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            if (ctx.captureRoomMp4FallbackFrame) {
+              ctx.captureRoomMp4FallbackFrame(playbackState, video);
+            }
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
           } else {
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
@@ -775,6 +799,12 @@
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
               ctx.captureOutsideMp4FallbackFrame(playbackState, video);
               ctx.markMp4FramePainted(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
+            } else if (!painted && !isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+              // Phase 58 Wave 3.7: extended last-resort for concurrent-
+              // load race (see room-mp4 path comment).
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
               ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
             } else {
               ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");

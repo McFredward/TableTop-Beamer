@@ -12,6 +12,37 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.8] — 2026-06-05
+
+Phase 58 Wave 3.7b — two defensive fixes after v1.2.7 UAT.
+
+### Fixed
+- **Re-trigger of a "Freeze, reverse on re-trigger" mp4 still
+  disappeared instead of reversing.** Root cause: after the in-place
+  `video.src` swap to the reverse URL, `video.ended` stayed `true`
+  for a microtask window (HTML spec — load() resets resource
+  selection via a queued task, not synchronously). The
+  `isFrozenAtEnd` gate in `ensureRoomMp4Playback` /
+  `ensureOutsideMp4Playback` skipped `play()` on the exact tick we
+  swapped → reverse src loaded but never started. Fix: track a
+  `srcWasSwapped` flag and force-bypass the `isFrozenAtEnd` gate
+  when the swap fired this tick.
+- **Wild flicker across all room polygons with 4+ concurrent
+  animations of the same mp4, until all froze.** Root cause:
+  concurrent `video.load()` + rVFC race. During the first 100–300ms
+  after 4 fresh per-instance video elements load(), `readyState`
+  flips transiently below 2 AND rVFC hasn't fired its first frame
+  yet → `haveLiveFrame=false` AND `fallbackCanvas` empty →
+  `getRoomMp4FallbackSource` returns null → polygon went
+  transparent for that rAF → next rAF readyState recovered → flicker
+  cycle. Fix: extend the v1.1.7 "last-resort live-paint" pattern
+  from the `haveLiveFrame` branch to the `!haveLiveFrame` branch.
+  When fallback canvas is null AND `videoWidth > 0` AND
+  `readyState >= 1` (HAVE_METADATA) AND not seeking, paint the live
+  `<video>` directly. Browser-defined as safe — draws the poster
+  frame or no-ops; strictly better than transparent. Applied to all
+  three mp4 paths (room/inside/outside).
+
 ## [1.2.7] — 2026-06-05
 
 Phase 58 Wave 3.7 — hotfix for the v1.2.6 regression. Re-trigger of a

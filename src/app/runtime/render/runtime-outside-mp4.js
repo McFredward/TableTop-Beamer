@@ -455,6 +455,12 @@
     // ensureRoomMp4Playback. Outside mp4 keeps its board-scoped
     // playback state cache (one outside animation per board) so the
     // fallback canvas survives forward↔reverse transitions.
+    // Phase 58 Wave 3.7: track whether the in-place src swap fired
+    // this tick. See ensureRoomMp4Playback for full rationale —
+    // briefly: video.ended stays true for a microtask window after
+    // video.load(), making isFrozenAtEnd below skip play() on the
+    // exact tick we swapped to the reverse URL.
+    let srcWasSwapped = false;
     if (video && expectedSrcUrl) {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
@@ -462,6 +468,7 @@
           video.src = expectedSrcUrl;
           try { video.currentTime = 0; } catch { /* DOM may reject */ }
           try { video.load(); } catch { /* harmless */ }
+          srcWasSwapped = true;
         }
       } catch { /* defensive */ }
     }
@@ -527,7 +534,8 @@
     // every rAF) restarts the video → the operator perceives the
     // animation as looping despite mode being play-once-disappear or
     // play-then-freeze.
-    const isFrozenAtEnd = video.ended === true
+    const isFrozenAtEnd = !srcWasSwapped
+      && video.ended === true
       && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
     if (!isFrozenAtEnd && (video.paused || didLifecycleChange)) {
       void video.play().catch(() => undefined);
@@ -832,6 +840,14 @@
     // so during the brief reverse-URL fetch window the operator
     // sees the last forward frame instead of an unpainted region
     // (operator UAT 2026-06-05: "es verschwindet direkt").
+    // Phase 58 Wave 3.7: track whether the in-place src swap fired this
+    // tick. After video.load() the resource selection task is queued
+    // async; video.ended remains true for a microtask window. Without
+    // this flag the isFrozenAtEnd gate below would skip play() on the
+    // very tick that swapped to the reverse URL → reverse never started
+    // → operator reported "verschwindet" instead of reverse playback
+    // (operator UAT 2026-06-05, post-v1.2.7).
+    let srcWasSwapped = false;
     if (expectedSrcUrl) {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
@@ -839,6 +855,7 @@
           video.src = expectedSrcUrl;
           try { video.currentTime = 0; } catch { /* DOM may reject */ }
           try { video.load(); } catch { /* harmless */ }
+          srcWasSwapped = true;
         }
       } catch { /* defensive */ }
     }
@@ -873,7 +890,8 @@
       video._tt58InstanceId = instanceId;
       try { video.currentTime = 0; } catch { /* DOM may reject */ }
     }
-    const isFrozenAtEnd = video.ended === true
+    const isFrozenAtEnd = !srcWasSwapped
+      && video.ended === true
       && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
     if (!isFrozenAtEnd && video.paused) {
       void video.play().catch(() => undefined);
