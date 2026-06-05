@@ -428,6 +428,15 @@
       ctx.animEditorPage.hidden = true;
     }
     document.body.removeAttribute("data-animation-editor-open");
+    // Phase 58 Wave 3.7q: re-sync the dashboard FX panels on the way
+    // out — this editor session may have created/renamed/deleted
+    // animation definitions, and the dashboard selects are only
+    // rebuilt by their sync functions. A stale room dropdown made the
+    // first post-editor selection resolve to animations[0] (see
+    // runtime-orchestration.js syncDashboardFxPanels wiring).
+    if (typeof ctx.syncDashboardFxPanels === "function") {
+      try { ctx.syncDashboardFxPanels(); } catch { /* defensive */ }
+    }
     // Return to Settings → Board subtab so the user lands somewhere
     // meaningful (Animations subtab would just re-open the editor).
     if (typeof ctx.setSettingsSubtab === "function") {

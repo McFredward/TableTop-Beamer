@@ -224,12 +224,28 @@
     }
 
     roomAnimationSelect.addEventListener("change", () => {
-      const selected = roomAnimationSelect.value;
+      // Phase 58 Wave 3.7q: when the select's value is EMPTY, fall back
+      // to the current draft id. Assigning select.value an id with no
+      // matching <option> yields "" (HTML spec) — that happened when the
+      // quick-pill picker selected an animation created in the editor
+      // while the dropdown options were still stale, and the ""-path
+      // below then "validated" the selection back to animations[0],
+      // silently overwriting the pill's draft assignment. The draft id
+      // is the selection source of truth at that moment.
+      const rawSelectValue = roomAnimationSelect.value;
+      const selected = rawSelectValue || state.roomDraft.animationId;
       const roomFx = getRoomFxProfile(state.boardId);
       state.roomDraft.animationId = roomFx.animations.some((entry) => entry.id === selected)
         ? selected
         : roomFx.animations[0]?.id ?? "kaputt";
       roomAnimationSelect.value = state.roomDraft.animationId;
+      // PERMANENT [58] diagnostic (user-action frequency): makes a
+      // selection that lands on a different id than the raw select
+      // value explainable from console output.
+      console.warn("[58] select", JSON.stringify({
+        raw: rawSelectValue,
+        resolved: state.roomDraft.animationId,
+      }));
       const selectedDefinition = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
       if (normalizeRoomAssetType(selectedDefinition?.assetType) === "gif") {
         warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });

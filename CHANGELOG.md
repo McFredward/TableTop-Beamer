@@ -12,6 +12,49 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.21] — 2026-06-06
+
+Phase 58 Wave 3.7p+q — gif reverse-on-retrigger + first-selection sync
+after editor return. Operator UAT 2026-06-06.
+
+### Fixed
+- **GIF room animations now honor the playback phases on re-trigger
+  (reverse / frozen-last / frozen-first).** Re-triggering a gif with
+  play-then-freeze + reverse-onRetrigger played it FORWARD from frame 0
+  again — the dispatch-side phase flip already routed for any asset
+  type, but the timeline-based gif renderer ignored
+  `animation.playbackPhase`. The gif timeline now mirrors instead of
+  server-transcoding: phase `reverse` walks the frame cursor backwards
+  from the last frame (identical speed multipliers), `frozen-last` /
+  `frozen-first` clamp to a constant frame with zero per-frame timeline
+  work. A new `maybeTransitionGifPlaybackPhase` (gif equivalent of the
+  mp4 `maybeTransitionPlaybackPhase`, same idempotent style and `[58]
+  phase` log) advances forward→frozen-last at EOS and
+  reverse→frozen-first (or reverse→disappear via a single idempotent
+  stop for reverse-then-disappear). Mid-play taps flip the direction in
+  ANY phase (v1.2.18 parity) and cluster re-triggers flip gif member
+  phases (v1.2.20 parity) — both fall out of the existing dispatch
+  machinery. Inside/outside gif usages and loop / boomerang /
+  play-once-disappear room gifs are unchanged. Also fixed: the
+  orchestration ctx wrapper dropped the `playbackState` third param of
+  the mp4 `maybeTransitionPlaybackPhase` (Wave 3.7i freeze-frame
+  pinning), now forwarded.
+- **First library selection after returning from the animation editor
+  no longer triggers the FIRST animation.** Creating an animation in
+  the editor and returning to the dashboard left the room-animation
+  dropdown's options stale (the editor never re-synced the dashboard
+  panels on close). Selecting the new animation via the Tap-Action
+  pill then assigned `select.value` an id with no matching option —
+  which yields `""` per HTML spec — and the dropdown's change handler
+  "validated" `""` back to `animations[0]`, silently overwriting the
+  pill's just-set draft id; the next room tap fired the first
+  animation in the list. Fixed at the root: the editor's `close()` now
+  re-syncs the dashboard FX panels (room/inside/outside), and the
+  change handler falls back to the current draft id when the select
+  value is empty (defense-in-depth for any other stale-options
+  source). A permanent `[58] select` log (user-action frequency) makes
+  raw→resolved selection mapping visible in the console.
+
 ## [1.2.20] — 2026-06-06
 
 Phase 58 Wave 3.7o — reverse-on-retrigger now works at CLUSTER level.

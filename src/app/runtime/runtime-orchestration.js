@@ -2180,6 +2180,20 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     // has unsaved edits.
     applyLocalConfigToServer: () => applyLocalConfigToServer(),
     discardLocalConfigAndReloadFromServer: () => discardLocalConfigAndReloadFromServer(),
+    // Phase 58 Wave 3.7q: rebuild the dashboard FX panels (room/inside/
+    // outside <select> options + pickers) when the editor closes, so
+    // definitions created/renamed/deleted in the editor are reflected
+    // BEFORE the operator's next dashboard selection. Without this the
+    // room dropdown kept its pre-editor options: the quick-pill click
+    // then set select.value to a missing option ("" per HTML spec) and
+    // the change handler "validated" "" back to animations[0] —
+    // overwriting the just-selected draft id (operator UAT: first
+    // selection after editor return triggered the FIRST animation).
+    syncDashboardFxPanels: () => {
+      syncRoomFxPanel();
+      syncInsideFxPanel();
+      syncOutsideFxPanel();
+    },
   });
 }
 
