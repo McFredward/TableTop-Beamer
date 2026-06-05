@@ -12,6 +12,52 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.11] — 2026-06-05
+
+Phase 58 Wave 3.7e — Bug A finally fixed (6th iteration), found by
+spawning a dedicated debugger after 5 fixes (v1.2.6–1.2.10) failed.
+
+### Fixed
+- **Bug A — re-trigger of a frozen play-then-freeze room animation
+  makes the image DISAPPEAR on the beamer instead of playing reverse.**
+  Real root cause (all 5 prior fixes targeted the wrong layer): the
+  disappear happens on the PROJECTED output (`/ssr` + `/output`, the
+  `final-output` role), not on the dashboard (`control`). On re-trigger,
+  CONTROL sets `playbackPhase=reverse`, re-stamps `startedAtEpochMs`, and
+  broadcasts an `edit-room` mutation. The server bumps the session
+  version and, during interleaved mutation processing, briefly serves a
+  snapshot whose board-filtered `runningAnimations` transiently OMITS the
+  just-re-triggered instance. `applyLiveRuntimeSnapshot` wholesale-
+  replaces `state.runningAnimations` with that array. The v1.2.10
+  in-flight merge that re-inserts a <500ms-old locally-mutated animation
+  (which masked this on the dashboard) was **gated to
+  `OUTPUT_ROLE_CONTROL`**, so the projector got zero protection and
+  dropped the animation → vanish. Opening devtools (`TT_DEBUG_58`) only
+  slowed timing so the omitting snapshot and the re-add snapshot no
+  longer collided in the sub-frame window — the race-vanishes-with-
+  devtools signature. Fix: dropped the `OUTPUT_ROLE_CONTROL` gate on the
+  in-flight merge in `runtime-live-sync-core.js` so it runs on the
+  projector too (the 500ms `startedAtEpochMs` grace + `snapshotIds`
+  de-dup keep it safe; `!isExplicitRemoveMutation` still lets clear-all /
+  stop-animation through). Verified by the debugger via direct
+  snapshot-apply repro: a `final-output` tab dropped a 164ms-old
+  animation (inside the grace window that protects CONTROL) until the
+  gate was removed.
+- **Bug B — flicker on rapid concurrent triggers persists in `/output`
+  though fixed in the dashboard.** Same defect, same fix: the in-flight
+  merge was CONTROL-gated, so `/output` (FINAL role) never got it. The
+  single gate change above resolves both A and B.
+
+### Changed
+- `playbackPhase` / `_endedDispatched` / `_phaseChangedAt` preservation
+  across non-edit-room snapshots now applies on the projector role too
+  (the projector locally derives its playback phase via the draw loop).
+  Live-editor fields (opacity/speed/scale/...) stay CONTROL-only —
+  they're server-authoritative on the projector, so preserving stale
+  copies there would mask legitimate server updates.
+
+---
+
 ## [1.2.10] — 2026-06-05
 
 Phase 58 Wave 3.7d — fixes BOTH remaining bugs via the same root cause:

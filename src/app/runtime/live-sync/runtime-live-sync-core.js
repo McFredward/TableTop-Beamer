@@ -538,10 +538,21 @@
       mutationType === "clear-all"
       || mutationType === "stop-animation";
     let preMergeAnimations = boardBoundRunningAnimations;
-    if (
-      ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
-      && !isExplicitRemoveMutation
-    ) {
+    // Phase 58 Wave 3.7e (2026-06-05): MUST run on the FINAL/projector
+    // role too, not just CONTROL. Bug A (re-triggering a frozen
+    // play-then-freeze room animation makes the frozen image DISAPPEAR
+    // on the beamer instead of playing reverse) is the SAME defect seen
+    // from the projected output: the re-trigger edit-room mutation bumps
+    // the session version, and a transient interleaved snapshot briefly
+    // OMITS the just-re-triggered (freshly re-stamped startedAtEpochMs)
+    // instance. On CONTROL the merge below re-inserted it so it survived;
+    // on FINAL the role gate skipped the merge, so the projector dropped
+    // the animation entirely -> vanish. 5 prior fixes (v1.2.6-1.2.10)
+    // targeted the src-swap / phase-transition machinery (wrong layer);
+    // the actual defect was this role gate. The 500ms startedAtEpochMs
+    // grace + snapshotIds de-dup keep it safe on both roles, and the
+    // !isExplicitRemoveMutation guard preserves clear-all/stop-animation.
+    if (!isExplicitRemoveMutation) {
       const snapshotIds = new Set(
         boardBoundRunningAnimations
           .map((a) => a?.id)
@@ -598,25 +609,40 @@
     // existed before this snapshot — but only on the control client and
     // only when the snapshot is NOT from an edit-room mutation (which
     // carries the authoritative edited values for all clients).
-    if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL && mutationType !== "edit-room") {
+    if (mutationType !== "edit-room") {
       // Phase 58 Wave 3.7d (2026-06-05): playbackPhase added to the
       // preservation list. The phase-advance dispatcher mutates phase
       // locally and broadcasts via edit-room async. A periodic /
       // non-edit-room snapshot arriving DURING the round-trip window
       // would otherwise revert the local mutation to the server's
       // pre-edit value (e.g. "frozen-last" instead of "reverse"),
-      // making the draw loop swap video.src forward↔reverse on
-      // alternating rAFs → video stuck in load() loop → operator UAT
+      // making the draw loop swap video.src forward<->reverse on
+      // alternating rAFs -> video stuck in load() loop -> operator UAT
       // "trotz reverse on re-trigger verschwindet das Bild".
       // _endedDispatched and _phaseChangedAt are render-layer
       // bookkeeping never set by the server; preserve them too.
-      const LOCAL_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
-        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex",
-        "playbackPhase", "_endedDispatched", "_phaseChangedAt"];
+      //
+      // Phase 58 Wave 3.7e (2026-06-05): split by role. The projector
+      // (FINAL) runs its own draw loop and locally DERIVES the playback
+      // phase (forward -> frozen-last -> reverse -> frozen-first) via
+      // maybeTransitionPlaybackPhase, so it needs the same phase/render
+      // bookkeeping preserved across non-edit-room snapshots — otherwise
+      // a stale-phase snapshot mid-reverse can thrash the src on the
+      // beamer. But the live-editor fields (opacity/speed/scale/...) are
+      // only ever locally edited on CONTROL; on the projector they are
+      // server-authoritative, so preserving the projector's stale copies
+      // would mask legitimate server updates. Hence: phase/render fields
+      // on BOTH roles, live-editor fields on CONTROL only.
+      const RENDER_PLAYBACK_FIELDS = ["playbackPhase", "_endedDispatched", "_phaseChangedAt"];
+      const LIVE_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
+        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+      const fieldsToPreserve = ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
+        ? [...LIVE_EDIT_FIELDS, ...RENDER_PLAYBACK_FIELDS]
+        : RENDER_PLAYBACK_FIELDS;
       for (const animation of state.runningAnimations) {
         const previous = previousAnimationsById.get(animation.id);
         if (!previous) continue;
-        for (const field of LOCAL_EDIT_FIELDS) {
+        for (const field of fieldsToPreserve) {
           if (previous[field] !== undefined) {
             animation[field] = previous[field];
           }
