@@ -12,6 +12,52 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.7] — 2026-06-05
+
+Phase 58 Wave 3.7 — hotfix for the v1.2.6 regression. Re-trigger of a
+play-then-freeze animation no longer "disappears"; first trigger plays
+forward instead of jumping straight to the frozen frame.
+
+### Fixed
+- **mp4 room/outside trigger only showed the frozen-last frame; no
+  playback ever happened.** Root cause: the v1.2.6 `expectedSrcUrl`
+  in-place src swap added to `ensureRoomMp4Playback` /
+  `ensureOutsideMp4Playback` fought the pre-existing Phase 28 B5
+  hash-bust swap in `getMediaVideoElement`. Every rAF the two
+  mechanisms swapped `video.src` between the hashed URL
+  (`…/generator_boost.mp4?v=2437bdc3c310`) and the bare phase URL,
+  each calling `video.load()` → readyState never reached 2 → no live
+  frame → fallback canvas showed whatever was last captured (the
+  frozen frame for re-triggers, black for fresh instances). Fix:
+  gate the Phase 28 hash-bust swap on `_tt58PlaybackMode === "loop"`
+  (or undefined). Non-loop modes own `video.src` via the phase swap
+  and the hash-bust is unnecessary for per-instance video elements
+  anyway (re-uploads can't happen mid-playback).
+- **Outside-fx layer was reading `animation.*` from an undefined
+  variable — the surrounding `drawOutsideFxLayer` scope only has
+  `runningInstance`.** Optional-chain masked the ReferenceError but
+  silently fell back to definition defaults, so outside-scope mp4
+  and gif never honored per-instance `playbackMode`,
+  `playbackDirection`, or `playbackPhase`. Replaced `animation?.*`
+  with `runningInstance?.*` in the outside-gif and outside-mp4
+  branches.
+
+## [1.2.6] — 2026-06-05
+
+Phase 58 Wave 3.6 — per-instance playback state + in-place src swap.
+Superseded by v1.2.7 the same day after operator UAT exposed the
+two-sided src swap regression (see v1.2.7 Fixed).
+
+### Fixed (later regressed; see v1.2.7)
+- Multi-room sync of shared frozen frame: `_roomMp4Key` now uses a
+  composite per-instance key (`${assetRef}#${instanceId}`) for
+  non-loop modes so each instance owns its own playback state +
+  fallback canvas + rVFC binding.
+- Phase transition forward↔reverse: introduced `expectedSrcUrl` for
+  in-place `video.src` swap to keep the same playback state across
+  the transition. (This change introduced the swap-fight regression
+  fixed in v1.2.7.)
+
 ## [1.2.5] — 2026-06-04
 
 Phase 58 Wave 3.5 — fix the reverse-on-retrigger broadcast so /output/

@@ -674,13 +674,13 @@
       if (selectedDefinition.assetType === "gif") {
         ctx.clearOutsideMp4PlaybackState(state.boardId);
         // Phase 58: outside-gif honors per-instance playback mode.
-        const outsideGifMode = animation?.playbackMode || selectedDefinition.playbackMode || "loop";
-        const outsideGifDir = animation?.playbackDirection || selectedDefinition.playbackDirection || "forward";
+        const outsideGifMode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
+        const outsideGifDir = runningInstance?.playbackDirection || selectedDefinition.playbackDirection || "forward";
         const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline, outsideGifMode, outsideGifDir);
         // Phase 58 Wave 2.5: cleanup for outside-gif play-once-disappear.
-        if (outsideGifMode === "play-once-disappear" && animation) {
+        if (outsideGifMode === "play-once-disappear" && runningInstance) {
           const totalSec = ctx.getGifPlaybackTotalDurationSec?.(selectedDefinition.assetRef) || 0;
-          ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && timeline.timeline >= totalSec });
+          ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: totalSec > 0 && timeline.timeline >= totalSec });
         }
         if (frame) {
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
@@ -691,18 +691,18 @@
       if (selectedDefinition.assetType === "mp4") {
         // Phase 58 Wave 3.6: cache by BASE assetRef; swap src in-place
         // on phase transitions via expectedSrcUrl.
-        const outsideMp4Phase = animation?.playbackPhase || "forward";
+        const outsideMp4Phase = runningInstance?.playbackPhase || "forward";
         const outsideMp4UseReverseUrl = outsideMp4Phase === "reverse" || outsideMp4Phase === "frozen-first";
         const outsideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4UseReverseUrl ? "reverse" : "forward") || selectedDefinition.assetRef;
-        const outsideMp4Mode2 = animation?.playbackMode || selectedDefinition?.playbackMode || "loop";
+        const outsideMp4Mode2 = runningInstance?.playbackMode || selectedDefinition?.playbackMode || "loop";
         const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef, {
-          instanceId: animation?.id,
+          instanceId: runningInstance?.id,
           playbackMode: outsideMp4Mode2,
         });
         if (videoEntry?.video) {
           const video = videoEntry.video;
           const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
-          const outsideMp4Mode = animation?.playbackMode || selectedDefinition.playbackMode || "loop";
+          const outsideMp4Mode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
           const outsideMp4IsBoomerang = outsideMp4Mode === "boomerang";
           const outsideMp4Forward = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "forward") || selectedDefinition.assetRef : null;
           const outsideMp4Reverse = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "reverse") : null;
@@ -718,12 +718,12 @@
             playbackMode: outsideMp4Mode,
             boomerangForwardSrc: outsideMp4Forward,
             boomerangReverseSrc: outsideMp4Reverse,
-            instanceId: animation?.id || '',
+            instanceId: runningInstance?.id || '',
           });
           // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
-          if (animation) {
-            ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
-            ctx.maybeTransitionPlaybackPhase?.(animation, video);
+          if (runningInstance) {
+            ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: Boolean(video.ended) });
+            ctx.maybeTransitionPlaybackPhase?.(runningInstance, video);
           }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);

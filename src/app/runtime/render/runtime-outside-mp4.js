@@ -112,29 +112,32 @@
       const entry = cacheMap.get(cacheKey);
       const video = entry?.video;
       if (video) {
-        const desired = resolveHashUrl();
-        if (video.src !== desired && desired) {
-          // src setter is relative; compare canonical absolute strings.
-          const currentAbs = video.src;
-          const desiredAbs = new URL(desired, window.location.href).href;
-          // Phase 58 Wave 3.1 (refined Wave 3.2): only skip the reset
-          // when the video element is CURRENTLY in boomerang mode AND
-          // its src is at the boomerang reverse URL. Without the mode
-          // check the skip persisted after the operator switched away
-          // from boomerang → mp4 always played reverse even when the
-          // editor said forward (operator UAT 2026-06-04).
-          if (video._tt58PlaybackMode === "boomerang" && video._tt58ReverseSrc) {
-            const reverseAbs = new URL(video._tt58ReverseSrc, window.location.href).href;
-            if (currentAbs === reverseAbs) {
-              return cacheMap.get(cacheKey) ?? null;
+        // Phase 58 Wave 3.7 fix: when the playback mode owns video.src
+        // (boomerang src-swap on EOS; reverse-on-retrigger phase swap
+        // via ensureRoomMp4Playback's expectedSrcUrl), do NOT fight it
+        // with the Phase 28 hash-bust reset. The two swaps were
+        // round-tripping the src every rAF — video stuck at
+        // readyState=0, never painted, fallback canvas showed last
+        // frozen frame (operator UAT 2026-06-05). Per-instance video
+        // elements only live for one instance — re-uploads of the
+        // asset can't happen mid-playback, so the hash-bust is
+        // unnecessary for non-loop modes anyway.
+        const playbackOwnsSrc =
+          video._tt58PlaybackMode
+          && video._tt58PlaybackMode !== "loop";
+        if (!playbackOwnsSrc) {
+          const desired = resolveHashUrl();
+          if (video.src !== desired && desired) {
+            // src setter is relative; compare canonical absolute strings.
+            const currentAbs = video.src;
+            const desiredAbs = new URL(desired, window.location.href).href;
+            if (currentAbs !== desiredAbs) {
+              video.src = desired;
+              try { video.currentTime = 0; } catch { /* DOM may reject */ }
+              try { video.load(); } catch { /* harmless */ }
+              entry.status = "loading";
+              entry.durationSec = null;
             }
-          }
-          if (currentAbs !== desiredAbs) {
-            video.src = desired;
-            try { video.currentTime = 0; } catch { /* DOM may reject */ }
-            try { video.load(); } catch { /* harmless */ }
-            entry.status = "loading";
-            entry.durationSec = null;
           }
         }
       }
