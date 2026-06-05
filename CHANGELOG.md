@@ -12,6 +12,53 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.10] — 2026-06-05
+
+Phase 58 Wave 3.7d — fixes BOTH remaining bugs via the same root cause:
+snapshot-apply races against locally-pushed / locally-mutated state.
+
+### Fixed
+- **Bug A — re-trigger of play-then-freeze still disappears (4th
+  iteration, this one actually works).** Root cause: the phase-advance
+  dispatcher mutates `candidate.playbackPhase = "reverse"` locally and
+  broadcasts via `edit-room` asynchronously. The CONTROL snapshot-apply
+  pipeline preserves a hardcoded list of `LOCAL_EDIT_FIELDS` across
+  non-edit-room snapshots — and `playbackPhase` was NOT in that list.
+  Any periodic / non-edit-room snapshot arriving during the round-trip
+  window REVERTED the local mutation back to the server's pre-edit
+  value ("frozen-last"). The next rAF saw phase="frozen-last", swapped
+  video.src back to the forward URL, then the edit-room round-trip
+  arrived and swapped it back to reverse, on alternating rAFs → video
+  stuck in `load()` loop → polygon never renders → operator UAT
+  "verschwindet". Fix: added `playbackPhase`, `_endedDispatched`, and
+  `_phaseChangedAt` to the preservation list in
+  `runtime-live-sync-core.js`. v1.2.9's `currentTime >= duration - 0.5`
+  guard in `maybeTransitionPlaybackPhase` is still correct defense in
+  depth (prevents the stale-`ended` race in the render layer too).
+- **Bug B — wild flicker when 4+ animations triggered concurrently
+  (vanishes when devtools is open — classic timing race signature).**
+  Root cause: same family as Bug A — snapshot-apply replaces
+  `state.runningAnimations` wholesale. Operator rapid-clicks N rooms;
+  the client pushes anim1..N to local state and emits N trigger-room
+  mutations. The server processes mutations one at a time and
+  broadcasts a snapshot after each, so snapshot#1 has [anim1],
+  snapshot#2 has [anim1, anim2], etc. Each intermediate snapshot
+  REMOVES the locally-pushed-but-not-yet-broadcast-back animations
+  from state.runningAnimations → polygons render empty → next
+  snapshot brings them back → flicker. Devtools opens slows JS just
+  enough that snapshots arrive after the operator's hand stopped
+  clicking, eliminating the race. Fix: on CONTROL, the snapshot-apply
+  pipeline now MERGES recently-started animations (startedAtEpochMs
+  within the last 500ms) from the previous local state back into the
+  incoming snapshot when not present, treating them as "in-flight."
+  500ms is tight enough that genuine auto-expire (hold:false +
+  durationSec >= 1s) isn't masked.
+- Render-side belt-and-braces: `releaseMp4VideoElementsForInstance`
+  now waits for 500ms of SUSTAINED absence before destroying a
+  per-instance video element. Defensively guards against any
+  remaining transient-snapshot scenario by preventing video element
+  destruction on a single missed frame.
+
 ## [1.2.9] — 2026-06-05
 
 Phase 58 Wave 3.7c — actual fix for "reverse-on-retrigger disappears."

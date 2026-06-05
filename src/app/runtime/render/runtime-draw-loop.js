@@ -862,6 +862,17 @@
   // we can release their per-instance video cache entries when they
   // disappear (stopAnimation, board switch, clear-all, room-not-found).
   let _previousInstanceIdsSeen = new Set();
+  // Phase 58 Wave 3.7d (2026-06-05): track last-seen timestamp per
+  // instance id. With 4+ rapid concurrent triggers the server processes
+  // trigger-room mutations one at a time, each broadcasting a snapshot
+  // that wholesale-replaces state.runningAnimations. Locally-just-
+  // pushed animations momentarily vanish from the snapshot until the
+  // server catches up → release fired → video element destroyed →
+  // next snapshot brings the id back → fresh element + load() →
+  // operator UAT "wild flicker bei 4+ Animationen". Defer release
+  // until an id is absent for a sustained grace window.
+  const _instanceLastSeenAtMs = new Map();
+  const INSTANCE_RELEASE_GRACE_MS = 500;
 
   function pruneFinishedAnimations(now) {
     const state = ctx.state;
@@ -909,14 +920,22 @@
       ctx.renderRunningAnimationsList();
       ctx.refreshGlobalButtons();
     }
-    // Phase 58 Wave 3.2: release per-instance mp4 video elements for
-    // instances that vanished since last frame. Without this each
-    // play-then-freeze / boomerang / play-once-disappear leaves a
-    // dedicated <video> element pinned in the cache.
+    // Phase 58 Wave 3.7d (2026-06-05): release per-instance mp4 video
+    // elements WITH GRACE PERIOD. Wholesale snapshot replacement on
+    // multi-trigger races can transiently omit valid instances; immediate
+    // release destroys their video elements and the next snapshot
+    // re-creates them, causing the operator-reported flicker. Only
+    // release after 500ms of sustained absence.
     const currentIds = new Set(state.runningAnimations.map((anim) => anim.id));
-    for (const prevId of _previousInstanceIdsSeen) {
-      if (!currentIds.has(prevId)) {
-        ctx.releaseMp4VideoElementsForInstance?.(prevId);
+    const nowReleaseMs = performance.now();
+    for (const id of currentIds) {
+      _instanceLastSeenAtMs.set(id, nowReleaseMs);
+    }
+    for (const [id, lastSeenMs] of Array.from(_instanceLastSeenAtMs.entries())) {
+      if (currentIds.has(id)) continue;
+      if (nowReleaseMs - lastSeenMs > INSTANCE_RELEASE_GRACE_MS) {
+        ctx.releaseMp4VideoElementsForInstance?.(id);
+        _instanceLastSeenAtMs.delete(id);
       }
     }
     _previousInstanceIdsSeen = currentIds;

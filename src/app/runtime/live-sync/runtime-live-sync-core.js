@@ -521,7 +521,50 @@
         .map((animation) => [animation.id, animation]),
     );
     const boardBoundRunningAnimations = ctx.filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
-    const primedRunningAnimations = ctx.primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
+    // Phase 58 Wave 3.7d (2026-06-05): preserve locally-pushed animations
+    // that haven't yet round-tripped. Operator UAT: rapid 4+ concurrent
+    // room triggers cause anim2/3/4 to flicker "wild" while the server
+    // processes trigger-room mutations one at a time. Each intermediate
+    // snapshot wholesale-replaces state.runningAnimations and transiently
+    // OMITS the locally-pushed-but-not-yet-broadcast-back instances —
+    // their polygons render empty for 1-3 frames, then re-appear when
+    // the server's snapshot catches up, then disappear again on the next
+    // mutation's snapshot. Bug B vanishes when devtools is open (timing
+    // race window narrows). Fix: on CONTROL, treat previous animations
+    // with a recent startedAtEpochMs as "in-flight" and merge them into
+    // the snapshot if not already present. Skip for explicit-remove
+    // mutations.
+    const isExplicitRemoveMutation =
+      mutationType === "clear-all"
+      || mutationType === "stop-animation";
+    let preMergeAnimations = boardBoundRunningAnimations;
+    if (
+      ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
+      && !isExplicitRemoveMutation
+    ) {
+      const snapshotIds = new Set(
+        boardBoundRunningAnimations
+          .map((a) => a?.id)
+          .filter((id) => typeof id === "string"),
+      );
+      const nowEpochMs = Date.now();
+      const inFlight = [];
+      for (const [id, prev] of previousAnimationsById) {
+        if (snapshotIds.has(id)) continue;
+        const startedAt = Number(prev?.startedAtEpochMs);
+        // 500ms grace window: covers slowest realistic round-trip
+        // (WS queue + server processing + broadcast, typically <100ms).
+        // Tight enough that genuine auto-expire (hold:false +
+        // durationSec >= 1s) isn't masked.
+        if (Number.isFinite(startedAt) && nowEpochMs - startedAt < 500) {
+          inFlight.push(prev);
+        }
+      }
+      if (inFlight.length > 0) {
+        preMergeAnimations = [...boardBoundRunningAnimations, ...inFlight];
+      }
+    }
+    const primedRunningAnimations = ctx.primeGlobalTriggerRuntimeTimestamps(preMergeAnimations, previousAnimationsById);
     const reconciledRunningAnimations = ctx.reconcileHydratedAnimations(primedRunningAnimations);
     const retainedRunningAnimations = ctx.retainActiveSeenOneShotRuns(reconciledRunningAnimations);
     state.runningAnimations = ctx.hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
@@ -556,8 +599,20 @@
     // only when the snapshot is NOT from an edit-room mutation (which
     // carries the authoritative edited values for all clients).
     if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL && mutationType !== "edit-room") {
+      // Phase 58 Wave 3.7d (2026-06-05): playbackPhase added to the
+      // preservation list. The phase-advance dispatcher mutates phase
+      // locally and broadcasts via edit-room async. A periodic /
+      // non-edit-room snapshot arriving DURING the round-trip window
+      // would otherwise revert the local mutation to the server's
+      // pre-edit value (e.g. "frozen-last" instead of "reverse"),
+      // making the draw loop swap video.src forward↔reverse on
+      // alternating rAFs → video stuck in load() loop → operator UAT
+      // "trotz reverse on re-trigger verschwindet das Bild".
+      // _endedDispatched and _phaseChangedAt are render-layer
+      // bookkeeping never set by the server; preserve them too.
       const LOCAL_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
-        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex",
+        "playbackPhase", "_endedDispatched", "_phaseChangedAt"];
       for (const animation of state.runningAnimations) {
         const previous = previousAnimationsById.get(animation.id);
         if (!previous) continue;
