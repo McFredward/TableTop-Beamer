@@ -167,9 +167,20 @@
           // frame (Win32 capture budget preserved).
           // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
           // (see inside-mp4 path comment for full rationale).
-          const hasRvfcR = playbackState && playbackState.videoFrameCallbackBound;
-          const newFrameR = hasRvfcR && ctx.hasNewDecodedFrame(playbackState);
-          const drawNow = hasRvfcR ? newFrameR : (playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true);
+          // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while it
+          // is DEMONSTRABLY delivering (fired within RVFC_FRESH_MS).
+          // Firefox throttles rVFC for N concurrent off-DOM videos to
+          // an irregular 3-13 fires/s → with the old bound-flag gate
+          // the room replayed a frozen fallback between fires and
+          // jumped forward on each fire = operator's flicker/blinking
+          // (phase-58-bugB-flicker.md). When rVFC goes silent >150ms,
+          // degrade to the proven tier time-gate; healthy rVFC
+          // (Chromium/SSR) keeps the newFrame-only gate unchanged.
+          const rvfcFreshR = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+          const newFrameR = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+          const drawNow = playbackState
+            ? (newFrameR || (!rvfcFreshR && ctx.shouldDrawOutsideMp4Now(playbackState)))
+            : true;
           let _diag58Outcome = null;
           if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
@@ -181,10 +192,12 @@
             // fallback canvas on every painted frame — with N concurrent
             // room videos that is N extra full-res blits per rAF, the
             // dominant cost behind the operator's "spürbarer FPS-Einbruch
-            // bei vielen gleichzeitigen Videos". When rVFC is bound the
+            // bei vielen gleichzeitigen Videos". When rVFC is FRESH the
             // fallback stays fresh without this; when it isn't (browser
-            // lacks requestVideoFrameCallback) we still need it here.
-            if (playbackState && !playbackState.videoFrameCallbackBound && ctx.captureRoomMp4FallbackFrame) {
+            // lacks requestVideoFrameCallback OR Firefox starves the
+            // delivery — Phase 58 Wave 3.7h) the paint site must keep
+            // the fallback current itself.
+            if (playbackState && !rvfcFreshR && ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
             if (playbackState) ctx.markMp4FramePainted(playbackState);
@@ -498,9 +511,15 @@
         // rAF, project_win32_ssr_canvas_damage.md). When rVFC is
         // unsupported, hasNewDecodedFrame returns false and the path
         // falls back to the v1.1.4 time-gate.
-        const hasRvfc = playbackState && playbackState.videoFrameCallbackBound;
-        const newFrame = hasRvfc && ctx.hasNewDecodedFrame(playbackState);
-        const gateAllows = hasRvfc ? newFrame : (playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true);
+        // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while fresh
+        // (see room-mp4 path comment — Firefox starvation degrades to
+        // the tier time-gate). Inside path already captures the
+        // fallback on every live paint, so no capture change needed.
+        const rvfcFresh = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+        const newFrame = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+        const gateAllows = playbackState
+          ? (newFrame || (!rvfcFresh && ctx.shouldDrawOutsideMp4Now(playbackState)))
+          : true;
         if (playbackState && haveLiveFrame && gateAllows) {
           c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
           if (ctx.captureRoomMp4FallbackFrame) {
@@ -820,9 +839,12 @@
             && Number(video.videoHeight) > 0;
           // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
           // (see inside-mp4 path comment for full rationale).
-          const hasRvfcO = playbackState && playbackState.videoFrameCallbackBound;
-          const newFrameO = hasRvfcO && ctx.hasNewDecodedFrame(playbackState);
-          const drawNowO = hasRvfcO ? newFrameO : ctx.shouldDrawOutsideMp4Now(playbackState);
+          // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while
+          // fresh (see room-mp4 path comment). Outside path already
+          // captures the fallback on every live paint.
+          const rvfcFreshO = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+          const newFrameO = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+          const drawNowO = newFrameO || (!rvfcFreshO && ctx.shouldDrawOutsideMp4Now(playbackState));
           if (haveLiveFrame && drawNowO) {
             c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.captureOutsideMp4FallbackFrame(playbackState, video);

@@ -12,6 +12,61 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.14] — 2026-06-05
+
+Phase 58 Wave 3.7h — root-defect fixes for Bug A (re-trigger disappear)
+and Bug B (Firefox multi-video flicker). The 8 prior patches
+(v1.2.6–1.2.13) were narrow; the completed debug investigations
+(.planning/debug/phase-58-bugA-firefox.md, phase-58-bugB-flicker.md)
+converged on three root defects, all fixed here. Operator environment is
+FIREFOX — both bugs were invisible in Chromium-only repros.
+
+### Fixed
+- **Bug A root: snapshot omission == removal (live-sync).** Snapshot
+  apply wholesale-replaces `state.runningAnimations`, so a TRANSIENT
+  snapshot omission removed running instances. Prior patches protected
+  only <500ms-old instances + frozen/reverse phases — phase `forward`
+  instances older than 500ms had no protection (evidence: operator's
+  10× Firefox "Ungültige URI" = 10 per-instance videos released after a
+  wholesale wipe). New model in `applyLiveRuntimeSnapshot`: an animation
+  is removed only by explicit remove mutation (stop-animation /
+  clear-all), board mismatch, or SUSTAINED absence (>2s) from snapshots
+  (`absentSinceMsById` grace tracking). Frozen/reverse phases never
+  expire by absence (client-derived); explicit removes clear the
+  bookkeeping and still remove immediately.
+- **Bug B root 1: Firefox rVFC starvation (render layer).** Firefox
+  delivers `requestVideoFrameCallback` for multiple concurrent off-DOM
+  videos only sporadically (3-13 fires/s for a 25fps source at ~5+
+  videos) — the draw-loop gate trusted `videoFrameCallbackBound` and
+  replayed a frozen fallback between fires, then jumped forward on each
+  fire = the operator's flicker/blinking (vanishes with devtools open =
+  scheduling change). New `isRvfcFresh()` (fired within 150ms): the gate
+  is now `newFrame || (!fresh && time-gate)` on room/inside/outside mp4
+  paths, with per-paint fallback capture while rVFC is not fresh.
+  Healthy rVFC (Chromium, SSR) keeps the exact previous behavior.
+- **Bug B root 2: stale playback-state inheritance.** rVFC binding is
+  now tracked per (state, video-element) pair (`_rvfcBoundVideo`) so a
+  new video element under a preserved state always re-binds, and
+  `releaseMp4VideoElementsForInstance` now also purges the per-instance
+  `roomMp4PlaybackStateByKey` entries (previously leaked forever).
+- **Animation id collision across page loads.** Ids were
+  `anim-${counter}` with the counter resetting per page load — a reload
+  or second client reused ids of still-running instances, which then
+  inherited stale video/playback caches (rVFC never bound, previous
+  animation's frozen frame painted forever). Ids now carry a per-load
+  session suffix: `anim-<session>-<counter>`. Ids are opaque strings
+  everywhere; `global-*` ids unchanged.
+
+### Verification
+- Playwright Firefox 148 (isolated server): full re-trigger cycle
+  (forward → frozen-last → reverse → frozen-first → forward →
+  frozen-last) with the instance surviving throughout; 5-room omitting-
+  snapshot survival (<2s) + sustained-absence removal (>2s) + immediate
+  explicit-stop removal; reload-mid-running with fresh rVFC bindings and
+  collision-free ids. 17/17 checks pass.
+
+---
+
 ## [1.2.13] — 2026-06-05
 
 Phase 58 Wave 3.7g — frozen animations must survive snapshot omission.

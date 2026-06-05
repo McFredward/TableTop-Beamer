@@ -22,6 +22,18 @@
   // h31 diagnostic counter for align-grid-snapshot receive logs.
   let _gridSnapApplyLogCount = 0;
 
+  // Phase 58 Wave 3.7h (2026-06-05): absence tracking for the snapshot
+  // in-flight merge. Snapshot apply wholesale-replaces
+  // state.runningAnimations, which made TRANSIENT snapshot omission
+  // indistinguishable from removal — the root design flaw behind 8
+  // narrow patches (v1.2.6-1.2.13). The model is now: a running
+  // animation is removed only by (1) an explicit remove mutation
+  // (stop-animation / clear-all), (2) board mismatch, or (3) SUSTAINED
+  // absence from snapshots (> ABSENCE_REMOVAL_GRACE_MS). Map keyed by
+  // animation id → epoch ms of the FIRST snapshot that omitted it.
+  const absentSinceMsById = new Map();
+  const ABSENCE_REMOVAL_GRACE_MS = 2000;
+
   // Phase-31 h29 (2026-05-06): after applying align-corner-drag, the
   // grid changes via gridState.setPoint — but neither projection
   // mapping's applyTransform (intentionally a no-op since Phase 30) nor
@@ -421,6 +433,12 @@
         }, "")
         : "") ||
       state.boardId;
+    // Phase 58 Wave 3.7h (2026-06-05): board switch invalidates the
+    // absence-grace bookkeeping — previous-board animations are removed
+    // by the board-bound filter below, not by sustained absence.
+    if (selectedBoard !== state.boardId) {
+      absentSinceMsById.clear();
+    }
     state.boardId = selectedBoard;
     state.selectedBoard = selectedBoard;
     state.selectedLayout =
@@ -521,38 +539,44 @@
         .map((animation) => [animation.id, animation]),
     );
     const boardBoundRunningAnimations = ctx.filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
-    // Phase 58 Wave 3.7d (2026-06-05): preserve locally-pushed animations
-    // that haven't yet round-tripped. Operator UAT: rapid 4+ concurrent
-    // room triggers cause anim2/3/4 to flicker "wild" while the server
-    // processes trigger-room mutations one at a time. Each intermediate
-    // snapshot wholesale-replaces state.runningAnimations and transiently
-    // OMITS the locally-pushed-but-not-yet-broadcast-back instances —
-    // their polygons render empty for 1-3 frames, then re-appear when
-    // the server's snapshot catches up, then disappear again on the next
-    // mutation's snapshot. Bug B vanishes when devtools is open (timing
-    // race window narrows). Fix: on CONTROL, treat previous animations
-    // with a recent startedAtEpochMs as "in-flight" and merge them into
-    // the snapshot if not already present. Skip for explicit-remove
-    // mutations.
+    // Phase 58 Wave 3.7h (2026-06-05): absence-grace in-flight merge.
+    // Snapshot apply wholesale-replaces state.runningAnimations, so a
+    // TRANSIENT snapshot omission (interleaved mutation broadcast,
+    // reconnect live-hello, server processing rapid triggers one at a
+    // time) used to equal removal. The previous patches (v1.2.10-13)
+    // protected only <500ms-old instances + frozen/reverse phases —
+    // phase "forward" instances older than 500ms (initial trigger AND
+    // frozen-first→forward re-trigger, 11s+ of playback) had NO
+    // protection. Evidence: operator's 10× Firefox "Ungültige URI"
+    // console lines = 10 per-instance <video> elements released via
+    // src="" after exactly such a wholesale wipe (debug file
+    // phase-58-bugA-firefox.md, 12:30Z + 14:05Z entries).
+    //
+    // The model now: an animation is removed only by
+    //   (1) explicit remove mutation (stop-animation / clear-all),
+    //   (2) board mismatch (board-bound filter), or
+    //   (3) SUSTAINED absence (> ABSENCE_REMOVAL_GRACE_MS = 2s) from
+    //       snapshots — covers genuine server-side expiry without
+    //       letting one omitted snapshot kill a playing instance.
+    // Frozen/reverse playback phases (frozen-last / frozen-first /
+    // reverse) are CLIENT-derived (maybeTransitionPlaybackPhase sets
+    // them in the render layer; the server never originates them) and
+    // never expire by absence — only an explicit remove mutation or a
+    // board switch clears them.
+    //
+    // Runs on EVERY role (CONTROL and FINAL/projector — v1.2.11 lesson:
+    // a CONTROL-only gate made the beamer drop animations the dashboard
+    // kept).
     const isExplicitRemoveMutation =
       mutationType === "clear-all"
       || mutationType === "stop-animation";
     let preMergeAnimations = boardBoundRunningAnimations;
-    // Phase 58 Wave 3.7e (2026-06-05): MUST run on the FINAL/projector
-    // role too, not just CONTROL. Bug A (re-triggering a frozen
-    // play-then-freeze room animation makes the frozen image DISAPPEAR
-    // on the beamer instead of playing reverse) is the SAME defect seen
-    // from the projected output: the re-trigger edit-room mutation bumps
-    // the session version, and a transient interleaved snapshot briefly
-    // OMITS the just-re-triggered (freshly re-stamped startedAtEpochMs)
-    // instance. On CONTROL the merge below re-inserted it so it survived;
-    // on FINAL the role gate skipped the merge, so the projector dropped
-    // the animation entirely -> vanish. 5 prior fixes (v1.2.6-1.2.10)
-    // targeted the src-swap / phase-transition machinery (wrong layer);
-    // the actual defect was this role gate. The 500ms startedAtEpochMs
-    // grace + snapshotIds de-dup keep it safe on both roles, and the
-    // !isExplicitRemoveMutation guard preserves clear-all/stop-animation.
-    if (!isExplicitRemoveMutation) {
+    if (isExplicitRemoveMutation) {
+      // Explicit stop-animation / clear-all must remove immediately;
+      // reset the absence bookkeeping so a later re-trigger of the same
+      // id starts with a clean slate.
+      absentSinceMsById.clear();
+    } else {
       const snapshotIds = new Set(
         boardBoundRunningAnimations
           .map((a) => a?.id)
@@ -561,33 +585,47 @@
       const nowEpochMs = Date.now();
       const inFlight = [];
       for (const [id, prev] of previousAnimationsById) {
-        if (snapshotIds.has(id)) continue;
-        const startedAt = Number(prev?.startedAtEpochMs);
-        // 500ms grace window: covers slowest realistic round-trip
-        // (WS queue + server processing + broadcast, typically <100ms).
-        // Tight enough that genuine auto-expire (hold:false +
-        // durationSec >= 1s) isn't masked.
-        const isRecentInFlight = Number.isFinite(startedAt) && nowEpochMs - startedAt < 500;
-        // Phase 58 Wave 3.7g (2026-06-05): frozen/reverse playback
-        // phases are CLIENT-derived state (maybeTransitionPlaybackPhase
-        // sets them in the render layer; the server never originates
-        // them) and the instances are minutes old by the time the
-        // operator re-triggers — far outside the 500ms grace. When ANY
-        // snapshot transiently omits such an instance (reconnect
-        // live-hello, interleaved mutation, align-profile apply), it was
-        // dropped instantly → release debounce killed its <video>
-        // (src="" → Firefox "Ungültige URI. Laden der Medienressource
-        // fehlgeschlagen" ×N, operator console 2026-06-05) → the frozen
-        // image vanished instead of playing reverse. Preserve them
-        // unconditionally (board-bound); explicit stop-animation /
-        // clear-all still remove them via the isExplicitRemoveMutation
-        // guard above.
+        if (snapshotIds.has(id)) {
+          // Present in the snapshot again → no longer absent.
+          absentSinceMsById.delete(id);
+          continue;
+        }
+        // Only preserve animations bound to the currently selected
+        // board; cross-board leftovers are dropped immediately.
+        const isBoardBound = ctx.filterRunningAnimationsForBoard([prev], selectedBoard).length > 0;
+        if (!isBoardBound) {
+          absentSinceMsById.delete(id);
+          continue;
+        }
+        // Client-held playback phases are preserved unconditionally
+        // (never expire by absence — see model comment above).
         const prevPhase = prev?.playbackPhase;
         const isClientHeldPlaybackPhase =
-          (prevPhase === "frozen-last" || prevPhase === "frozen-first" || prevPhase === "reverse")
-          && ctx.filterRunningAnimationsForBoard([prev], selectedBoard).length > 0;
-        if (isRecentInFlight || isClientHeldPlaybackPhase) {
+          prevPhase === "frozen-last" || prevPhase === "frozen-first" || prevPhase === "reverse";
+        if (isClientHeldPlaybackPhase) {
           inFlight.push(prev);
+          continue;
+        }
+        const firstAbsentAtMs = Number(absentSinceMsById.get(id));
+        if (!Number.isFinite(firstAbsentAtMs)) {
+          // First snapshot that omits this id → stamp and preserve.
+          absentSinceMsById.set(id, nowEpochMs);
+          inFlight.push(prev);
+          continue;
+        }
+        if (nowEpochMs - firstAbsentAtMs < ABSENCE_REMOVAL_GRACE_MS) {
+          // Still within the grace window → preserve.
+          inFlight.push(prev);
+          continue;
+        }
+        // Sustained absence → genuinely gone; drop it.
+        absentSinceMsById.delete(id);
+      }
+      // Hygiene: forget absence stamps for ids that are no longer
+      // tracked locally at all (e.g. removed by pruneFinishedAnimations).
+      for (const id of Array.from(absentSinceMsById.keys())) {
+        if (!previousAnimationsById.has(id) && !snapshotIds.has(id)) {
+          absentSinceMsById.delete(id);
         }
       }
       if (inFlight.length > 0) {

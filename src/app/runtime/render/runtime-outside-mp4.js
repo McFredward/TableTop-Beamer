@@ -173,6 +173,18 @@
         }
       }
     }
+    // Phase 58 Wave 3.7h (2026-06-05): ALSO purge the per-instance
+    // playback states. These were leaking forever — and because
+    // animation ids used to collide across page loads (anim-N counter
+    // reset), a NEW instance reusing an id inherited the stale state:
+    // videoFrameCallbackBound=true blocked the rVFC bind, the stale
+    // fallbackCanvas (previous animation's last frame) replayed
+    // permanently. See phase-58-bugB-flicker.md root cause (2).
+    for (const key of Array.from(roomMp4PlaybackStateByKey.keys())) {
+      if (key.endsWith(suffix)) {
+        roomMp4PlaybackStateByKey.delete(key);
+      }
+    }
   }
 
   // Phase 58 Wave 3: returns the asset URL to use as <video>.src
@@ -364,14 +376,25 @@
   }
 
   function bindOutsideMp4FrameCallback(video, playbackState) {
-    if (!video || !playbackState || playbackState.videoFrameCallbackBound) {
+    // Phase 58 Wave 3.7h (2026-06-05): bind per (state, video-element)
+    // PAIR, not per state. The old boolean `videoFrameCallbackBound`
+    // guard meant a brand-new <video> element attached to a preserved /
+    // stale playback state was NEVER rVFC-bound (counters frozen →
+    // hasNewDecodedFrame false forever → permanent stale-fallback
+    // paint). See phase-58-bugB-flicker.md root cause (2).
+    if (!video || !playbackState || playbackState._rvfcBoundVideo === video) {
       return;
     }
     if (typeof video.requestVideoFrameCallback !== "function") {
       return;
     }
     playbackState.videoFrameCallbackBound = true;
+    playbackState._rvfcBoundVideo = video;
     const onVideoFrame = (_t, metadata) => {
+      // Phase 58 Wave 3.7h: freshness stamp consumed by isRvfcFresh —
+      // lets the draw loop detect Firefox rVFC starvation and degrade
+      // to the time-gate instead of replaying a frozen fallback.
+      playbackState._lastRvfcFireAtMs = performance.now();
       playbackState.lastDecodedFrameAtMs = performance.now();
       playbackState.hasVisibleFrame = true;
       // Phase 57 diag: count rVFC decode events for instrumentation
@@ -439,6 +462,23 @@
     const decoded = Number(playbackState._decodedFrameCount || 0);
     const lastPainted = Number(playbackState._lastPaintedDecodedCount || 0);
     return decoded > lastPainted;
+  }
+
+  // Phase 58 Wave 3.7h (2026-06-05): is the rVFC chain DEMONSTRABLY
+  // delivering? `videoFrameCallbackBound === true` only proves a
+  // registration happened once — Firefox throttles rVFC delivery for
+  // multiple concurrent off-DOM <video> elements to an irregular
+  // 3-13 fires/s for a 25fps source (measured, phase-58-bugB-flicker.md
+  // 15:30Z/16:20Z), so the draw loop must NOT trust the bound flag
+  // alone. 150ms threshold: a healthy ≥12fps source has ≤83ms gaps →
+  // stays in rVFC mode (Chromium/SSR behavior identical to before);
+  // Firefox starvation gaps are typically >150ms → callers degrade to
+  // the proven pre-v1.1.5 tier time-gate with per-paint fallback
+  // capture.
+  const RVFC_FRESH_MS = 150;
+  function isRvfcFresh(playbackState) {
+    if (!playbackState || !playbackState.videoFrameCallbackBound) return false;
+    return performance.now() - Number(playbackState._lastRvfcFireAtMs || 0) < RVFC_FRESH_MS;
   }
 
   // Phase 57 v1.1.5 (2026-06-02): stamp the decoded-frame counter on
@@ -818,10 +858,16 @@
   }
 
   function _bindRoomMp4FrameCallback(video, state) {
-    if (!video || !state || state.videoFrameCallbackBound) return;
+    // Phase 58 Wave 3.7h (2026-06-05): bind per (state, video-element)
+    // PAIR — see bindOutsideMp4FrameCallback comment. A new video
+    // element under a preserved/stale state must always re-bind.
+    if (!video || !state || state._rvfcBoundVideo === video) return;
     if (typeof video.requestVideoFrameCallback !== "function") return;
     state.videoFrameCallbackBound = true;
+    state._rvfcBoundVideo = video;
     const onFrame = (_t, metadata) => {
+      // Phase 58 Wave 3.7h: freshness stamp for isRvfcFresh.
+      state._lastRvfcFireAtMs = performance.now();
       state.lastDecodedFrameAtMs = performance.now();
       state.hasVisibleFrame = true;
       // Phase 57 diag: count rVFC decode events for instrumentation
@@ -1064,6 +1110,8 @@
     // Phase 57 v1.1.5 (2026-06-02) — rVFC-driven paint gates
     hasNewDecodedFrame,
     markMp4FramePainted,
+    // Phase 58 Wave 3.7h (2026-06-05) — rVFC delivery freshness gate
+    isRvfcFresh,
     ensureOutsideMp4Playback,
     // Phase 58 Wave 2.5: render-driven cleanup
     maybeDispatchPlaybackCleanup,

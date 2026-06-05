@@ -7,6 +7,19 @@
 (() => {
   let ctx = null;
   let animationIdCounter = 1;
+  // Phase 58 Wave 3.7h (2026-06-05): per-page-load session suffix so
+  // animation ids are collision-free ACROSS page loads and across
+  // concurrent clients. Bare `anim-${counter}` with the counter
+  // resetting to 1 per load meant a reload (or a second control client,
+  // e.g. the mobile dashboard) reused ids of still-running instances —
+  // the new instance then inherited the stale per-instance video /
+  // playback caches keyed by `${assetRef}#${id}`: rVFC never re-bound,
+  // the previous animation's frozen fallback frame painted forever
+  // (phase-58-bugB-flicker.md root cause 2). Ids are treated as opaque
+  // strings everywhere (server + client compare only), so the format
+  // change is safe; global-* ids are generated separately and unchanged.
+  const animationIdSessionSuffix =
+    `${Date.now().toString(36)}${Math.floor(Math.random() * 0x7fffffff).toString(36)}`;
 
   function init(dependencies) {
     ctx = dependencies;
@@ -49,7 +62,7 @@
     const startedAtEpochMs = Date.now() + normalizedStartDelayMs;
     const effectiveHold = scope === "room" || scope === "cluster" ? true : hold;
     return {
-      id: `anim-${animationIdCounter++}`,
+      id: `anim-${animationIdSessionSuffix}-${animationIdCounter++}`,
       boardId,
       type,
       animationName: String(animationName || "").trim() || undefined,

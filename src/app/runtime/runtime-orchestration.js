@@ -1290,6 +1290,7 @@ const {
   recordMp4PaintDiag,
   hasNewDecodedFrame,
   markMp4FramePainted,
+  isRvfcFresh,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
 window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
@@ -2534,6 +2535,8 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   // Phase 57 v1.1.5 (2026-06-02) — rVFC-driven mp4 paint gating
   hasNewDecodedFrame: (playbackState) => hasNewDecodedFrame(playbackState),
   markMp4FramePainted: (playbackState) => markMp4FramePainted(playbackState),
+  // Phase 58 Wave 3.7h (2026-06-05) — rVFC delivery freshness gate
+  isRvfcFresh: (playbackState) => isRvfcFresh(playbackState),
   getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
   getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
