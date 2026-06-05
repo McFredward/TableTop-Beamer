@@ -66,6 +66,20 @@
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, animation.roomAssetRef, "");
     if (assetType === "gif") {
       const roomGifSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
+      // Phase 58 Wave 3.7p: room-gif playback phases. play-then-freeze
+      // gifs run the same phase state machine as room mp4s — the
+      // dispatch-side re-trigger flip (runtime-room-dispatch.js /
+      // runtime-quick-mode.js) only touches the animation object, so it
+      // already routes for gifs; the timeline below mirrors instead of
+      // server-transcoding: reverse plays the frame cursor backwards
+      // from the last frame, frozen-* clamp to a constant frame.
+      const roomGifIsPlayThenFreeze = (animation.playbackMode || "loop") === "play-then-freeze";
+      if (roomGifIsPlayThenFreeze) {
+        ctx.maybeTransitionGifPlaybackPhase?.(animation, {
+          totalDurationSec: ctx.getGifPlaybackTotalDurationSec?.(assetRef) || 0,
+          elapsedScaledSec: age * roomGifSpeed,
+        });
+      }
       const gifRenderConfig = ctx.resolveRoomGifRenderConfig(animation.type, age, animation.intensity, {
         gifAssetPath: assetRef,
         gifTimelineAgeSec: age,
@@ -74,6 +88,10 @@
         // Phase 58: room-gif honors per-animation playback mode + direction.
         playbackMode: animation.playbackMode || "loop",
         playbackDirection: animation.playbackDirection || "forward",
+        // Phase 58 Wave 3.7p: phase overrides direction (mp4 parity);
+        // empty for non-phase modes so loop/boomerang gifs keep the
+        // pure direction-driven timeline.
+        playbackPhase: roomGifIsPlayThenFreeze ? (animation.playbackPhase || "forward") : "",
       });
       // Phase 58 Wave 2.5: dispatch cleanup for room-gif when
       // play-once-disappear's cursor has passed the total duration.

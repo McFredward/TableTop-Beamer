@@ -1281,6 +1281,7 @@ const {
   ensureOutsideMp4Playback,
   maybeDispatchPlaybackCleanup,
   maybeTransitionPlaybackPhase,
+  maybeTransitionGifPlaybackPhase,
   resolveMp4AssetUrlForDirection,
   // Phase 58 Wave 3.7n — applied-tier probe for frozen-instance pinning
   getAppliedVideoQualityTier,
@@ -2525,7 +2526,11 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   // Phase 58 Wave 2.5 — render-driven cleanup for play-once-disappear
   maybeDispatchPlaybackCleanup: (animation, mediaSignals) => maybeDispatchPlaybackCleanup(animation, mediaSignals),
   // Phase 58 Wave 3.4 — playback phase transitions on EOS
-  maybeTransitionPlaybackPhase: (animation, video) => maybeTransitionPlaybackPhase(animation, video),
+  // Phase 58 Wave 3.7p: forward the playbackState third param (Wave
+  // 3.7i added it for freeze-frame pinning but this wrapper dropped it).
+  maybeTransitionPlaybackPhase: (animation, video, playbackState) => maybeTransitionPlaybackPhase(animation, video, playbackState),
+  // Phase 58 Wave 3.7p — gif timeline phase transitions (room gifs)
+  maybeTransitionGifPlaybackPhase: (animation, signals) => maybeTransitionGifPlaybackPhase(animation, signals),
   // Phase 58 Wave 3 — pick forward / reverse-cached URL for mp4
   // Phase 58 Wave 3.7n — optional qualityTier ("full" | "proxy480")
   resolveMp4AssetUrlForDirection: (assetPath, direction, qualityTier) => resolveMp4AssetUrlForDirection(assetPath, direction, qualityTier),

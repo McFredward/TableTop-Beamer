@@ -961,6 +961,65 @@
     }
   }
 
+  // Phase 58 Wave 3.7p: gif-equivalent of maybeTransitionPlaybackPhase.
+  // The gif render path is timeline-based (no <video>, no `ended`), so
+  // EOS is "the scaled timeline cursor passed the decoded gif's total
+  // duration". Called from the draw loop's room-gif branch each frame
+  // with the SAME elapsedScaledSec the frame resolver consumes, so the
+  // transition fires exactly when the cursor clamps at the boundary.
+  //
+  // State machine (identical to the mp4 one):
+  //   forward (active)  --(cursor >= total)-->  frozen-last
+  //   reverse (active)  --(cursor reaches 0)--> frozen-first         (reverse-then-freeze-first)
+  //   reverse (active)  --(cursor reaches 0)--> disappear(stop)      (reverse-then-disappear)
+  //   frozen-*          --(operator re-trigger)--> reverse/forward   (runtime-room-dispatch.js)
+  //
+  // Idempotency: frozen-* phases return immediately; the disappear
+  // branch is guarded by animation._endedDispatched (mirrors mp4).
+  function maybeTransitionGifPlaybackPhase(animation, { totalDurationSec = 0, elapsedScaledSec = 0 } = {}) {
+    if (!ctx || !animation) return;
+    const mode = animation.playbackMode || "loop";
+    if (mode !== "play-then-freeze") return;
+    // Gif not decoded yet (duration unknown) — can't judge EOS.
+    if (!Number.isFinite(totalDurationSec) || totalDurationSec <= 0) return;
+    const phase = animation.playbackPhase || "forward";
+    if (phase !== "forward" && phase !== "reverse") return; // frozen-* are terminal until re-trigger
+    if (!Number.isFinite(elapsedScaledSec) || elapsedScaledSec < totalDurationSec) return;
+    // Synthetic "video" for the shared [58] phase log: ct/dur carry the
+    // gif timeline cursor + total duration so the log stays grep-able
+    // in the same shape as the mp4 transitions.
+    const timelineForLog = { currentTime: elapsedScaledSec, duration: totalDurationSec };
+    if (phase === "forward") {
+      animation.playbackPhase = "frozen-last";
+      _logPhaseTransition(animation, timelineForLog, "forward", "frozen-last");
+      return;
+    }
+    // phase === "reverse"
+    const onRet = animation.onRetrigger || "instant-disappear";
+    if (onRet === "reverse-then-freeze-first") {
+      animation.playbackPhase = "frozen-first";
+      _logPhaseTransition(animation, timelineForLog, "reverse", "frozen-first");
+    } else if (onRet === "reverse-then-disappear") {
+      if (!animation._endedDispatched) {
+        animation._endedDispatched = true;
+        _logPhaseTransition(animation, timelineForLog, "reverse", "disappear");
+        try {
+          if (typeof ctx.stopAnimation === "function") {
+            ctx.stopAnimation(animation.id);
+          }
+        } catch (err) {
+          console.warn("[58] gif reverse-then-disappear dispatch failed", err);
+        }
+      }
+    } else {
+      // onRet === "instant-disappear" but somehow phase = reverse.
+      // Defensive: treat as frozen-last to avoid getting stuck (same
+      // fallback as the mp4 machine).
+      animation.playbackPhase = "frozen-last";
+      _logPhaseTransition(animation, timelineForLog, "reverse", "frozen-last");
+    }
+  }
+
   function maybeWrapRoomMp4Loop(video, state) {
     if (!video || !state || video.seeking) return;
     // Phase 58: only explicit "loop" keeps the seam-preventing wrap.
@@ -1308,6 +1367,7 @@
     maybeDispatchPlaybackCleanup,
     // Phase 58 Wave 3.4: playback phase transitions on EOS
     maybeTransitionPlaybackPhase,
+    maybeTransitionGifPlaybackPhase,
     // Phase 58 Wave 3: pick forward or reverse cached URL for mp4
     resolveMp4AssetUrlForDirection,
     // Phase 58 Wave 3.7n: adaptive video quality — tier applied to a

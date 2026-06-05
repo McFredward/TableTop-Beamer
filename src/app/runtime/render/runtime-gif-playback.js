@@ -395,14 +395,28 @@
     }
   }
 
-  function _resolveFrameIndex(entry, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward") {
+  function _resolveFrameIndex(entry, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward", playbackPhase = "") {
     const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
+    // Phase 58 Wave 3.7p: playbackPhase support for room gifs (the gif
+    // equivalent of the mp4 src-swap to /api/animation-reverse). The
+    // phase is the play-then-freeze state machine field flipped by the
+    // dispatch-side re-trigger logic (runtime-room-dispatch.js). When a
+    // phase is supplied it OVERRIDES the static playbackDirection —
+    // mirrors the mp4 path where the direction is purely a function of
+    // the phase. Frozen phases clamp to a constant frame index with
+    // zero per-frame timeline work (the shared playback canvas below
+    // already short-circuits on an unchanged index).
+    if (playbackPhase === "frozen-last") return entry.frames.length - 1;
+    if (playbackPhase === "frozen-first") return 0;
+    const effectiveDirection = playbackPhase === "reverse"
+      ? "reverse"
+      : (playbackPhase === "forward" ? "forward" : playbackDirection);
     const rawCursorMs = (Number(elapsedSeconds) || 0) * 1000;
     // Phase 58 Wave 2.5: reverse direction maps the cursor onto a
     // mirrored timeline. For loop+reverse: cursor walks from end to
     // start, wraps at 0. For non-loop+reverse: cursor starts at end
     // and walks toward start, clamps at 0 (first frame).
-    const directedCursorMs = playbackDirection === "reverse"
+    const directedCursorMs = effectiveDirection === "reverse"
       ? Math.max(0, totalDurationMs - 1) - rawCursorMs
       : rawCursorMs;
     let cursorMs;
@@ -433,13 +447,13 @@
     return Math.max(0, (Number(entry.totalDurationMs) || 0) / 1000);
   }
 
-  function getGifPlaybackFrame(path, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward") {
+  function getGifPlaybackFrame(path, elapsedSeconds, playbackMode = "loop", playbackDirection = "forward", playbackPhase = "") {
     const entry = ensureGifPlaybackReady(path);
     if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
       _gifProbe("trigger-null", { path, status: entry?.status || "missing" });
       return null;
     }
-    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds, playbackMode, playbackDirection);
+    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds, playbackMode, playbackDirection, playbackPhase);
     const frame = entry.frames[frameIdx];
     if (!frame) return null;
     // ImageDecoder fast-path (dashboard only) stores `bitmap` —
@@ -468,7 +482,11 @@
     const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
     const playbackSpeed = ctx.clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
     return {
-      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed, options.playbackMode || "loop", options.playbackDirection || "forward"),
+      // Phase 58 Wave 3.7p: options.playbackPhase (room gifs with
+      // playbackMode="play-then-freeze" only) overrides the static
+      // direction; empty string keeps legacy direction-driven behavior
+      // for inside/outside gif usages and non-phase modes.
+      frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed, options.playbackMode || "loop", options.playbackDirection || "forward", options.playbackPhase || ""),
       opacity: ctx.clampRoomOpacity(options.opacity ?? intensity),
     };
   }
