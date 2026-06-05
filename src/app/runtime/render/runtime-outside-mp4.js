@@ -1067,7 +1067,19 @@
     }
     // Phase 58 Wave 3.1: same instance-id reset + EOS-pause guard as
     // ensureOutsideMp4Playback (see comments there).
-    if (instanceId && video._tt58InstanceId !== instanceId) {
+    // Phase 58 Wave 3.7l (2026-06-05): loop mode is EXEMPT from the
+    // instance-change rewind. Loop-mode rooms share ONE per-path video
+    // element (getMediaVideoElement keeps the legacy shared cache so
+    // identical content stays in sync across targets), so with N>1
+    // rooms on the same asset each room's per-frame ensure call saw a
+    // DIFFERENT instanceId on the shared element and rewound
+    // currentTime=0 every frame — the video could never advance
+    // (multi-room same-asset loop playback was stuck at frame 0,
+    // showing only fallback stills/black). The Wave 3.1 rewind exists
+    // to restart per-INSTANCE videos (non-loop modes) when a new
+    // animation instance adopts a cached element; for the shared loop
+    // element a restart is wrong by design.
+    if (instanceId && playbackMode !== "loop" && video._tt58InstanceId !== instanceId) {
       video._tt58InstanceId = instanceId;
       try { video.currentTime = 0; } catch { /* DOM may reject */ }
     }

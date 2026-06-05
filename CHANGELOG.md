@@ -12,6 +12,48 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.17] — 2026-06-05
+
+Phase 58 Wave 3.7k/3.7l — the /output/ playback flicker root-caused and
+fixed (resolves the v1.2.16 "Known issues" item), plus the multi-room
+same-asset loop-mode side-bug found during the investigation.
+
+### Fixed
+- **Pressure-skipped rooms paint the fallback frame instead of
+  transparent — SSR /output/ flicker during multi-video playback.**
+  Under sustained runtime pressure level 2 (the SSR tab reaches and
+  HOLDS it for the whole playback window with 8 concurrent 1080p room
+  mp4s: decode + canvas + GL warp + tab capture + software encode),
+  `shouldSkipRoomMp4Frame` bare-returned from `drawRoomComposition` for
+  every PLAYING room on alternating frames. The canvas clears each rAF,
+  so the skipped room's polygon was TRANSPARENT that frame → black in
+  the GL-warped output and the encoded stream; the two seed-parity
+  groups swapped each frame at ~3.5 Hz — the operator's /output/
+  flicker (third occurrence of the "bare return on a clearing canvas"
+  class). The skip is now folded into the live-paint gate: a pressure-
+  skipped frame takes the existing fallback-blit branch (one cheap
+  canvas blit, same cost profile as a frozen paint) instead of leaving
+  the region unpainted. Pressure relief preserved — live full-res
+  paints are still halved at level 2. Measured before/after on an
+  isolated SSR host (per-frame in-tab sampler, 8 videos, p=2
+  sustained): 173 blank room-frames → 0; visible-surface coverage
+  alternation eliminated (mean per-frame delta 2.49 → 0.40 cells, no
+  jumps ≥ 20); frozen-state soak stays byte-stable (v1.2.15 behavior);
+  dashboard at pressure 0 unchanged (loop mp4 paints live at 30/s).
+- **Multi-room same-asset loop mode never played.** Loop-mode rooms
+  share ONE per-path video element, but the Wave 3.1 instance-change
+  rewind in `ensureRoomMp4Playback` reset `currentTime = 0` whenever
+  the ensure call's instanceId differed from the element's stamp — with
+  N>1 rooms on the same asset that rewound the shared video EVERY
+  frame, pinning it at readyState 1 / t=0 forever (rooms showed only
+  fallback stills/black). The rewind is now skipped for loop mode (it
+  exists to restart per-INSTANCE videos when a new animation instance
+  adopts a cached element; the shared loop element must keep its
+  position). Verified: two rooms + same mp4 + loop → both advance in
+  lockstep at 30 live paints/s.
+
+---
+
 ## [1.2.16] — 2026-06-05
 
 Phase 58 Wave 3.7j — Bug A actual root cause: quick-tap toggle, not
