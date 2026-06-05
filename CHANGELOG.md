@@ -12,6 +12,24 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.12] — 2026-06-05
+
+Phase 58 Wave 3.7f — FPS: drop redundant per-frame fallback capture.
+
+### Changed
+- **Room mp4 FPS under many concurrent videos.** The room draw path
+  captured the fallback canvas (a full-resolution `drawImage` of the
+  `<video>`) on EVERY painted frame, on top of `_bindRoomMp4FrameCallback`
+  already capturing on every decoded frame via rVFC. With N concurrent
+  room videos that was N redundant full-res blits per rAF — the dominant
+  cost behind the operator's "spürbarer FPS-Einbruch bei vielen
+  gleichzeitigen Videos". Now the per-live-paint capture only runs when
+  rVFC is NOT bound (browsers lacking `requestVideoFrameCallback`);
+  otherwise the fallback stays fresh from rVFC alone. No change to
+  fallback freshness on Chromium/the SSR tab.
+
+---
+
 ## [1.2.11] — 2026-06-05
 
 Phase 58 Wave 3.7e — Bug A finally fixed (6th iteration), found by

@@ -173,11 +173,18 @@
           let _diag58Outcome = null;
           if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
-            // Refresh fallback frame so the next seek window has a
-            // visually-near substitute. Capture cadence is every rAF
-            // tick — cheap because the fallback canvas sizes to the
-            // video's natural dimensions (typically 1920×1080 or less).
-            if (playbackState && ctx.captureRoomMp4FallbackFrame) {
+            // Phase 58 Wave 3.7f (2026-06-05, FPS): only capture the
+            // fallback frame here when rVFC is NOT driving captures.
+            // _bindRoomMp4FrameCallback already captures the fallback
+            // on every decoded frame (rVFC fire), so this per-live-paint
+            // capture was a redundant full-frame drawImage to the
+            // fallback canvas on every painted frame — with N concurrent
+            // room videos that is N extra full-res blits per rAF, the
+            // dominant cost behind the operator's "spürbarer FPS-Einbruch
+            // bei vielen gleichzeitigen Videos". When rVFC is bound the
+            // fallback stays fresh without this; when it isn't (browser
+            // lacks requestVideoFrameCallback) we still need it here.
+            if (playbackState && !playbackState.videoFrameCallbackBound && ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
             if (playbackState) ctx.markMp4FramePainted(playbackState);
