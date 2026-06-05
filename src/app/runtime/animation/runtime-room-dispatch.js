@@ -225,6 +225,130 @@
         }
       }
 
+      // Phase 58 Wave 3.7o (2026-06-06): CLUSTER-level phase-advance —
+      // the cluster counterpart of the single-room block above (which
+      // was explicitly gated `targetType === "room" && length === 1`,
+      // deferring cluster phase transitions). Operator spec: re-trigger
+      // of a cluster whose members run a play-then-freeze +
+      // reverse-onRetrigger animation must flip the playback direction
+      // of ALL member instances instead of stopping them ("aktuell …
+      // VERSCHWINDEN alle Animationen im Cluster"). Each member is
+      // flipped by ITS OWN phase (per-member mapping, v1.2.18 rules:
+      // forward/unset/frozen-last → reverse; reverse/frozen-first →
+      // forward) so mixed phases — e.g. one room individually
+      // re-triggered between cluster taps — stay independent.
+      // Stagger note: all members flip SIMULTANEOUSLY even when the
+      // cluster instance was started in staggered mode — per-member
+      // staggered reversal is intentionally not implemented (spec
+      // 2026-06-06 allows the simultaneous flip as the simplest
+      // consistent behavior). Per-instance video src swaps (incl.
+      // reverse URLs + adaptive 480p tier) are handled downstream by
+      // the existing expectedSrcUrl machinery — nothing duplicated
+      // here.
+      if (
+        !state.roomDraft.editTargetId
+        && state.roomDraft.targetType === "cluster"
+      ) {
+        const targetClusterId = String(state.roomDraft.targetId || "").trim();
+        const isReverseRetriggerable = (item) => (
+          item
+          && item.playbackMode === "play-then-freeze"
+          && (
+            item.onRetrigger === "reverse-then-freeze-first"
+            || item.onRetrigger === "reverse-then-disappear"
+          )
+        );
+        // v1.2.18 flip mapping (same as the single-room candidate).
+        const flipPhaseOf = (item) => (
+          (item.playbackPhase || "forward") === "forward"
+          || item.playbackPhase === "frozen-last"
+            ? "reverse"
+            : "forward"
+        );
+        const clusterEntry = state.runningAnimations.find((item) => (
+          item
+          && item.scope === "cluster"
+          && item.boardId === state.boardId
+          && String(item.clusterId || "").trim() === targetClusterId
+          && item.type === draftPayload.type
+        )) ?? null;
+        // Member candidates: room-scope instances of the same type that
+        // belong to the running cluster instance (parentClusterRunId)
+        // OR — defensive, e.g. after membership drift — simply sit in
+        // one of the cluster's member rooms. Members in other playback
+        // modes / without a reverse onRetrigger are left untouched.
+        const memberCandidates = state.runningAnimations.filter((item) => (
+          item
+          && item.scope === "room"
+          && item.boardId === state.boardId
+          && item.type === draftPayload.type
+          && isReverseRetriggerable(item)
+          && (
+            (clusterEntry && item.parentClusterRunId === clusterEntry.id)
+            || targetRoomIds.includes(item.roomId)
+          )
+        ));
+        const memberFlips = memberCandidates.map((member) => ({
+          id: member.id,
+          roomId: member.roomId,
+          phaseBefore: member.playbackPhase ?? "forward",
+          phaseAfter: flipPhaseOf(member),
+        }));
+        // PERMANENT diagnostic (mirrors [58] re-trigger for rooms):
+        // user-action frequency only.
+        console.warn("[58] cluster-retrigger", JSON.stringify({
+          clusterId: targetClusterId,
+          type: draftPayload.type,
+          candidateMatched: memberCandidates.length > 0,
+          clusterEntryId: clusterEntry?.id ?? null,
+          memberCount: memberCandidates.length,
+          members: memberFlips,
+        }));
+        if (memberCandidates.length > 0) {
+          for (const member of memberCandidates) {
+            member.playbackPhase = flipPhaseOf(member);
+            member._endedDispatched = false;
+            member._phaseChangedAt = performance.now();
+            // Re-stamp startedAt — same rationale as the single-room
+            // block: the per-instance video element keeps its id, the
+            // next ensure call detects the phase via the changed
+            // expected src URL.
+            member.startedAt = performance.now();
+            member.startedAtEpochMs = Date.now();
+            try {
+              void emitLiveMutation("edit-room", {
+                animationId: member.id,
+                animation: buildAnimationSnapshotForLiveSync(member),
+              }).catch(() => undefined);
+            } catch { /* defensive */ }
+          }
+          // Keep the cluster-scope parent consistent for pad UI /
+          // snapshots: it mirrors the flip mapping applied to its OWN
+          // phase field (it starts unset = forward and alternates with
+          // every cluster re-trigger — intentionally independent of
+          // the members' potentially mixed phases).
+          if (clusterEntry && isReverseRetriggerable(clusterEntry)) {
+            clusterEntry.playbackPhase = flipPhaseOf(clusterEntry);
+            clusterEntry._endedDispatched = false;
+            clusterEntry._phaseChangedAt = performance.now();
+            clusterEntry.startedAt = performance.now();
+            clusterEntry.startedAtEpochMs = Date.now();
+            try {
+              void emitLiveMutation("edit-room", {
+                animationId: clusterEntry.id,
+                animation: buildAnimationSnapshotForLiveSync(clusterEntry),
+              }).catch(() => undefined);
+            } catch { /* defensive */ }
+          }
+          const anyReversing = memberFlips.some((entry) => entry.phaseAfter === "reverse");
+          triggerFeedback.textContent = `Status: ${draftPayload.animationName} ${anyReversing ? "reversing" : "playing"} (cluster, ${memberFlips.length} rooms)`;
+          deferRenderRunningList();
+          return;
+        }
+        // No retriggerable member → fall through to the existing
+        // behavior (fresh cluster dispatch / replace).
+      }
+
       if (getOutputRole() === OUTPUT_ROLE_CONTROL) {
         const pendingCommands = [];
         if (state.roomDraft.editTargetId) {

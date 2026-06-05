@@ -260,12 +260,54 @@
         && (!armedType || String(anim.type || "").trim() === armedType),
     );
     if (matchingTypeEntries.length > 0) {
-      // stopAnimation is defined locally in this module — call it
-      // directly. ctx.stopAnimation isn't forwarded.
-      for (const anim of matchingTypeEntries) {
-        stopAnimation(anim.id);
+      // Phase 58 Wave 3.7o (2026-06-06): cluster equivalent of the
+      // v1.2.16/v1.2.18 quick-tap diversion in
+      // toggleRoomAnimationByQuickTap. This toggle-OFF branch was the
+      // cluster-level interception: re-tapping a cluster pad whose
+      // members run a play-then-freeze + reverse-onRetrigger animation
+      // stopped the cluster entry — collectAnimationStopIds cascades a
+      // cluster stop to ALL member instances, so every animation in
+      // the cluster VANISHED instead of reversing (operator report
+      // 2026-06-06). When the matching cluster entry is retriggerable
+      // (ANY phase, v1.2.18 semantics), divert to the start path →
+      // startRoomAnimationFromDraft → cluster phase-advance candidate
+      // (runtime-room-dispatch.js), which flips each member's
+      // direction. Stopping these clusters remains available via the
+      // quick-mode Clear mode (dispatchClusterClear) and the running
+      // list.
+      const retriggerable = armedType
+        ? matchingTypeEntries.find((anim) => (
+          anim.playbackMode === "play-then-freeze"
+          && (
+            anim.onRetrigger === "reverse-then-freeze-first"
+            || anim.onRetrigger === "reverse-then-disappear"
+          )
+        ))
+        : null;
+      if (!retriggerable) {
+        console.warn("[58] cluster-toggle", JSON.stringify({
+          clusterId: normalizedClusterId,
+          decision: "stop",
+          ids: matchingTypeEntries.map((anim) => anim.id),
+        }));
+        // stopAnimation is defined locally in this module — call it
+        // directly. ctx.stopAnimation isn't forwarded.
+        for (const anim of matchingTypeEntries) {
+          stopAnimation(anim.id);
+        }
+        return;
       }
-      return;
+      console.warn("[58] cluster-toggle", JSON.stringify({
+        clusterId: normalizedClusterId,
+        decision: "retrigger",
+        id: retriggerable.id,
+        phase: retriggerable.playbackPhase ?? "forward",
+        onRetrigger: retriggerable.onRetrigger,
+      }));
+      // Fall through to the start path below — the cluster
+      // phase-advance candidate in startRoomAnimationFromDraft handles
+      // the per-member direction flip and returns without creating
+      // new instances.
     }
     // Start: temporarily flip roomDraft to target this cluster, then
     // call startRoomAnimationFromDraft (the same path the dropdown

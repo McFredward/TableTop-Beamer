@@ -12,6 +12,48 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.20] — 2026-06-06
+
+Phase 58 Wave 3.7o — reverse-on-retrigger now works at CLUSTER level.
+Operator spec 2026-06-06: "wenn Animationen in einem Cluster getriggert
+wurden und dann der Cluster-Room erneut getriggert wird, VERSCHWINDEN
+alle Animationen im Cluster. Gewollt: in allen Räumen des Clusters
+beginnt das Reverse."
+
+### Fixed
+- **Cluster re-trigger flips every member's playback direction instead
+  of stopping the cluster.** The cluster-level equivalent of the
+  v1.2.16 quick-tap bug lived in `dispatchClusterToggle`
+  (runtime-lifecycle-cluster-pads.js): a pad re-tap on a cluster with a
+  running same-type entry took the toggle-OFF branch, and
+  `collectAnimationStopIds` cascades a cluster stop to ALL member
+  instances — every animation in the cluster vanished. When the
+  matching cluster entry runs play-then-freeze with a reverse
+  `onRetrigger` (ANY phase, v1.2.18 semantics), the tap now diverts to
+  the start path, where a new cluster phase-advance candidate block in
+  `startRoomAnimationFromDraft` (the single-room block was explicitly
+  gated `targetType === "room"` — "cluster phase transitions deferred")
+  flips EACH member by ITS OWN phase (forward/unset/frozen-last →
+  reverse; reverse/frozen-first → forward). Mixed phases — e.g. one
+  room individually re-triggered between cluster taps — stay
+  independent per member. The cluster-scope parent entry mirrors the
+  flip on its own phase field for pad-UI/snapshot consistency. Members
+  in other playback modes fall through to the existing toggle-stop, and
+  Clear mode / the running list still stop reverse-retriggerable
+  clusters. Staggered clusters flip all members SIMULTANEOUSLY
+  (per-member staggered reversal intentionally not implemented).
+  Reverse/proxy src swaps (incl. adaptive 480p tier) ride the existing
+  per-instance machinery.
+
+### Added
+- **`[58] cluster-toggle` / `[58] cluster-retrigger` diagnostics** —
+  permanent console.warn on every cluster pad toggle decision
+  (retrigger vs stop) and every cluster dispatch's phase-advance check
+  ({clusterId, candidateMatched, memberCount, per-member
+  {id, roomId, phaseBefore, phaseAfter}}). User-action frequency only.
+
+---
+
 ## [1.2.19] — 2026-06-05
 
 Phase 58 Wave 3.7n — adaptive video quality (operator feature request
