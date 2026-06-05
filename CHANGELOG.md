@@ -12,6 +12,29 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.13] — 2026-06-05
+
+Phase 58 Wave 3.7g — frozen animations must survive snapshot omission.
+
+### Fixed
+- **Bug A, actual gap found via operator console evidence.** Firefox
+  logged "Ungültige URI. Laden der Medienressource fehlgeschlagen" ×5 at
+  re-trigger — that message only comes from
+  `releaseMp4VideoElementsForInstance` setting `video.src = ""`, proving
+  the frozen instances really were dropped from `state.runningAnimations`
+  for >500ms. The v1.2.11 in-flight merge only protects animations whose
+  `startedAtEpochMs` is <500ms old — but a FROZEN play-then-freeze
+  instance is minutes old by the time the operator re-triggers. Any
+  snapshot that transiently omits it (reconnect live-hello, interleaved
+  mutation, align-profile apply) removed it instantly → release debounce
+  killed its video element → frozen image vanished. Fix: instances in a
+  client-derived playback phase (`frozen-last`, `frozen-first`,
+  `reverse`) are now preserved across snapshot omission unconditionally
+  (board-bound via `filterRunningAnimationsForBoard`); explicit
+  `stop-animation` / `clear-all` still remove them.
+
+---
+
 ## [1.2.12] — 2026-06-05
 
 Phase 58 Wave 3.7f — FPS: drop redundant per-frame fallback capture.

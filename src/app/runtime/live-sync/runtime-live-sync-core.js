@@ -567,7 +567,26 @@
         // (WS queue + server processing + broadcast, typically <100ms).
         // Tight enough that genuine auto-expire (hold:false +
         // durationSec >= 1s) isn't masked.
-        if (Number.isFinite(startedAt) && nowEpochMs - startedAt < 500) {
+        const isRecentInFlight = Number.isFinite(startedAt) && nowEpochMs - startedAt < 500;
+        // Phase 58 Wave 3.7g (2026-06-05): frozen/reverse playback
+        // phases are CLIENT-derived state (maybeTransitionPlaybackPhase
+        // sets them in the render layer; the server never originates
+        // them) and the instances are minutes old by the time the
+        // operator re-triggers — far outside the 500ms grace. When ANY
+        // snapshot transiently omits such an instance (reconnect
+        // live-hello, interleaved mutation, align-profile apply), it was
+        // dropped instantly → release debounce killed its <video>
+        // (src="" → Firefox "Ungültige URI. Laden der Medienressource
+        // fehlgeschlagen" ×N, operator console 2026-06-05) → the frozen
+        // image vanished instead of playing reverse. Preserve them
+        // unconditionally (board-bound); explicit stop-animation /
+        // clear-all still remove them via the isExplicitRemoveMutation
+        // guard above.
+        const prevPhase = prev?.playbackPhase;
+        const isClientHeldPlaybackPhase =
+          (prevPhase === "frozen-last" || prevPhase === "frozen-first" || prevPhase === "reverse")
+          && ctx.filterRunningAnimationsForBoard([prev], selectedBoard).length > 0;
+        if (isRecentInFlight || isClientHeldPlaybackPhase) {
           inFlight.push(prev);
         }
       }
