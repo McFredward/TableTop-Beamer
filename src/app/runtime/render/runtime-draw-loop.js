@@ -101,21 +101,23 @@
       // EXCLUSIVELY from the fallback canvas — zero per-frame video
       // work. See the paint branch below for full rationale.
       const roomMp4IsFrozen = roomMp4Phase === "frozen-last" || roomMp4Phase === "frozen-first";
-      // Phase 58 Wave 3.7i: NEVER pressure-skip a frozen instance. The
-      // canvas clears every rAF, so shouldSkipRoomMp4Frame's bare
-      // return leaves the room region TRANSPARENT for that frame —
-      // under sustained pressure (level 2, stride 2) every frozen room
-      // blinked at half the rAF rate. This is the operator-reported
-      // "alle eingefrorenen Räume flackern plötzlich" (UAT 2026-06-05):
-      // v1.2.14 frozen rooms still did full-res per-frame video work,
-      // runtime pressure climbed to level 2 SECONDS after the last
-      // freeze, and the skip stride then strobed all of them at once
-      // (stopped when animations were removed = pressure dropped).
-      // Frozen paint is now a single cheap canvas blit — skipping it
-      // saves nothing and guarantees flicker.
-      if (!roomMp4IsFrozen && ctx.shouldSkipRoomMp4Frame(animation)) {
-        return;
-      }
+      // Phase 58 Wave 3.7k (2026-06-05): the pressure frame-skip no
+      // longer bare-returns here. The canvas clears every rAF, so a
+      // bare return leaves the room region TRANSPARENT for that frame
+      // — under sustained pressure (level 2, stride 2) every PLAYING
+      // room strobed at half the rAF rate on the SSR tab (operator's
+      // /output/ flicker during multi-video playback; third occurrence
+      // of the "bare return on a clearing canvas" class after the
+      // strobo bug and the v1.2.15 frozen-room strobing, which only
+      // exempted FROZEN rooms from this skip). The skip is now folded
+      // into the drawNow gate below (`pressureSkipR`): a pressure-
+      // skipped frame takes the existing fallback-blit branch — one
+      // cheap canvas blit instead of full-res drawImage(video) +
+      // capture — so the pressure relief is preserved but the region
+      // always paints. Side effect (intentional): ensureRoomMp4Playback
+      // / maybeWrapRoomMp4Loop / maybeTransitionPlaybackPhase now also
+      // run on pressure-skipped frames — phase transitions and EOS
+      // handling are cheap and must not be skipped under pressure.
       const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
       const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
       const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
@@ -198,8 +200,13 @@
           // (Chromium/SSR) keeps the newFrame-only gate unchanged.
           const rvfcFreshR = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
           const newFrameR = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+          // Phase 58 Wave 3.7k: pressure skip (see comment at the top
+          // of the mp4 branch). When the skip strides this frame out,
+          // suppress the LIVE paint only — the room then falls into the
+          // fallback-blit branch below and still paints last good frame.
+          const pressureSkipR = !roomMp4IsFrozen && ctx.shouldSkipRoomMp4Frame(animation);
           const drawNow = playbackState
-            ? (newFrameR || (!rvfcFreshR && ctx.shouldDrawOutsideMp4Now(playbackState)))
+            ? (!pressureSkipR && (newFrameR || (!rvfcFreshR && ctx.shouldDrawOutsideMp4Now(playbackState))))
             : true;
           let _diag58Outcome = null;
           if (roomMp4IsFrozen && playbackState && ctx.getRoomMp4FallbackSource) {
