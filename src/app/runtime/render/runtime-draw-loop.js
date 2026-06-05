@@ -170,6 +170,7 @@
           const hasRvfcR = playbackState && playbackState.videoFrameCallbackBound;
           const newFrameR = hasRvfcR && ctx.hasNewDecodedFrame(playbackState);
           const drawNow = hasRvfcR ? newFrameR : (playbackState ? ctx.shouldDrawOutsideMp4Now(playbackState) : true);
+          let _diag58Outcome = null;
           if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
             // Refresh fallback frame so the next seek window has a
@@ -181,11 +182,13 @@
             }
             if (playbackState) ctx.markMp4FramePainted(playbackState);
             ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+            _diag58Outcome = "live";
           } else if (playbackState && ctx.getRoomMp4FallbackSource) {
             const src = ctx.getRoomMp4FallbackSource(playbackState);
             if (src) {
               drawRoomAssetImage(c, src, rect);
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", haveLiveFrame ? "gated-out" : "fallback");
+              _diag58Outcome = haveLiveFrame ? "gated-out" : "fallback";
             } else if (haveLiveFrame) {
               // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
               // canvas not yet captured (first paint after lifecycle
@@ -198,6 +201,7 @@
               }
               ctx.markMp4FramePainted(playbackState);
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "v117-last-resort";
             } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
               // Phase 58 Wave 3.7 (2026-06-05): extended last-resort for
               // concurrent-load race. With 4+ rooms triggering the same
@@ -214,11 +218,38 @@
                 ctx.captureRoomMp4FallbackFrame(playbackState, video);
               }
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "v127-last-resort";
             } else {
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+              _diag58Outcome = "no-frame";
             }
           } else {
             ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+            _diag58Outcome = "no-frame";
+          }
+          // Phase 58 diag: accumulate paint outcomes per instance per
+          // 1000ms window. Logs a single summary line so the operator
+          // can see if any rAF ticks resulted in "no-frame" during
+          // the flicker window.
+          if (window.TT_DEBUG_58 && playbackState) {
+            const d = playbackState._tt58Diag || (playbackState._tt58Diag = {
+              windowStartMs: performance.now(),
+              counts: {},
+            });
+            d.counts[_diag58Outcome] = (d.counts[_diag58Outcome] || 0) + 1;
+            const elapsedMs = performance.now() - d.windowStartMs;
+            if (elapsedMs >= 1000) {
+              console.warn("[58-diag] paint outcomes (1s)", {
+                instanceId: animation.id,
+                phase: animation.playbackPhase,
+                ...d.counts,
+                videoReady: video.readyState,
+                ended: video.ended,
+                paused: video.paused,
+              });
+              d.windowStartMs = performance.now();
+              d.counts = {};
+            }
           }
           c.restore();
         } catch {

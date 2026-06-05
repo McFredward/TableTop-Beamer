@@ -12,6 +12,37 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.9] — 2026-06-05
+
+Phase 58 Wave 3.7c — actual fix for "reverse-on-retrigger disappears."
+
+### Fixed
+- **Bug A revisited (third time's the charm).** After v1.2.7 and
+  v1.2.8 each addressed *symptoms* of the stale `video.ended` race,
+  the actual mechanism is in `maybeTransitionPlaybackPhase`. The
+  draw loop calls it right after `ensureRoomMp4Playback` swaps src
+  and `load()`s the reverse mp4. HTML spec: load() resets resource
+  selection asynchronously, so `video.ended` is observably `true`
+  for the rest of the current rAF. The transition handler gated
+  only on `video.ended` and `phase === "reverse"` → fired
+  immediately → animation jumped to `frozen-first` BEFORE reverse
+  playback ever started → operator UAT "trotz reverse on
+  re-trigger verschwindet das Bild". Fix: require
+  `currentTime >= duration - 0.5s` for the transition to fire.
+  After load() currentTime is 0, so the stale-ended state cannot
+  trigger a spurious transition. When reverse actually completes,
+  currentTime is at the end → transition fires normally.
+
+### Diagnostic
+- Added `window.TT_DEBUG_58` gated console.warn instrumentation in
+  three places to help diagnose Bug B (4+ concurrent flicker —
+  cause still unidentified): `ensureRoomMp4Playback` logs video
+  state on every swap or once per second; phase-advance check logs
+  whether the candidate matched and what same-room animations
+  exist; draw-loop room mp4 logs paint outcomes accumulated per
+  instance per 1000ms window. Enable in browser console with
+  `window.TT_DEBUG_58 = true` before reproducing.
+
 ## [1.2.8] — 2026-06-05
 
 Phase 58 Wave 3.7b — two defensive fixes after v1.2.7 UAT.

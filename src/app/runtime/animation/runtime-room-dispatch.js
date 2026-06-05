@@ -152,6 +152,31 @@
             || item.onRetrigger === "reverse-then-disappear"
           )
         ));
+        if (window.TT_DEBUG_58) {
+          // Phase 58 diag: log which animation in the room is currently
+          // running + whether the phase-advance found a match. Helps
+          // distinguish "no candidate" (fresh trigger creates new
+          // animation) from "candidate found but advance not reached".
+          const samesScope = state.runningAnimations.filter((a) => (
+            a && a.scope === "room"
+            && a.boardId === state.boardId
+            && a.roomId === targetRoomId
+            && a.type === draftPayload.type
+          ));
+          console.warn("[58-diag] re-trigger check", {
+            roomId: targetRoomId,
+            draftType: draftPayload.type,
+            candidateMatched: !!candidate,
+            candidateId: candidate?.id,
+            sameRoomCount: samesScope.length,
+            sameRoom: samesScope.map((a) => ({
+              id: a.id,
+              phase: a.playbackPhase,
+              mode: a.playbackMode,
+              onRetrigger: a.onRetrigger,
+            })),
+          });
+        }
         if (candidate) {
           // Phase 58 Wave 3.5: advance phase, do NOT use a custom
           // mutation type (server's LIVE_MUTATION_TYPES would reject

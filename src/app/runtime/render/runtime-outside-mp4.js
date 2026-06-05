@@ -742,6 +742,25 @@
   function maybeTransitionPlaybackPhase(animation, video) {
     if (!ctx || !animation || !video) return;
     if (!video.ended) return;
+    // Phase 58 Wave 3.7c (2026-06-05): HTML spec — after video.load(),
+    // the resource-selection reset is queued as a task, so video.ended
+    // remains `true` for a microtask window observable by synchronous
+    // callers. Without the cross-check below, the very rAF that swapped
+    // src forward→reverse triggers a spurious phase transition (e.g.
+    // reverse→frozen-first) BEFORE the reverse playback even started
+    // → operator UAT "trotz reverse on re-trigger verschwindet das Bild".
+    // Require currentTime to actually be near duration before treating
+    // `ended` as legitimate; right after load() currentTime is 0.
+    const durationSec = Number(video.duration);
+    const currentSec = Number(video.currentTime);
+    if (
+      !Number.isFinite(durationSec)
+      || durationSec <= 0
+      || !Number.isFinite(currentSec)
+      || currentSec < durationSec - 0.5
+    ) {
+      return;
+    }
     const mode = animation.playbackMode || "loop";
     if (mode !== "play-then-freeze") return;
     const phase = animation.playbackPhase || "forward";
@@ -894,7 +913,35 @@
       && video.ended === true
       && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
     if (!isFrozenAtEnd && video.paused) {
-      void video.play().catch(() => undefined);
+      void video.play().catch((err) => {
+        if (window.TT_DEBUG_58) {
+          console.warn("[58-diag] play() rejected", { instanceId, src: video.src, msg: err?.message });
+        }
+      });
+    }
+    // Phase 58 Wave 3.7 (diag): instrument the room-mp4 playback path
+    // behind window.TT_DEBUG_58 so the operator can paste console
+    // output for forensic analysis. Throttled to once per second per
+    // video element to keep the output legible.
+    if (window.TT_DEBUG_58) {
+      const nowMs = performance.now();
+      const lastLog = Number(video._tt58LastDiagLogMs || 0);
+      if (srcWasSwapped || nowMs - lastLog > 1000) {
+        video._tt58LastDiagLogMs = nowMs;
+        console.warn("[58-diag] room", {
+          instanceId,
+          mode: playbackMode,
+          src: video.src.replace(window.location.origin, ""),
+          expectedSrc: expectedSrcUrl,
+          swapped: srcWasSwapped,
+          ended: video.ended,
+          paused: video.paused,
+          readyState: video.readyState,
+          curTime: Number(video.currentTime.toFixed(2)),
+          duration: Number((video.duration || 0).toFixed(2)),
+          videoWidth: video.videoWidth,
+        });
+      }
     }
     const state = previous ?? {
       key,
