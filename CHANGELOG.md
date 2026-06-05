@@ -12,6 +12,27 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.18] — 2026-06-05
+
+Phase 58 Wave 3.7m — direction flip works mid-playback, not only when
+frozen. Operator UAT after v1.2.17: "Loop-Modus funktioniert, ABER nur
+wenn das video schon am Ende angelangt ist (freezed frame), wenn man
+mitten während dem abspielen drückt, möchte ich dass es trotzdem …
+in der anderen Richtung das video abspielt".
+
+### Changed
+- **Re-trigger of a play-then-freeze instance now flips direction in
+  ANY phase.** Previously the phase-advance candidate (and the v1.2.16
+  quick-tap diversion) only matched frozen-last/frozen-first; a tap
+  mid-playback fell through to tap-to-stop. Now: forward (or unset) /
+  frozen-last → reverse-from-last-frame; reverse / frozen-first →
+  forward-from-first-frame — the src swap enters the other file at its
+  first frame, exactly the requested behavior. Stopping these instances
+  remains available via quick-mode Deactivate/Clear modes and the
+  running list (tap no longer stops them in toggle mode).
+
+---
+
 ## [1.2.17] — 2026-06-05
 
 Phase 58 Wave 3.7k/3.7l — the /output/ playback flicker root-caused and

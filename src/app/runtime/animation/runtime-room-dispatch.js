@@ -139,19 +139,37 @@
         && targetRoomIds.length === 1
       ) {
         const targetRoomId = targetRoomIds[0];
+        // Phase 58 Wave 3.7m (2026-06-05): accept ANY phase, not just
+        // frozen-*. Operator UAT: "wenn man mitten während dem
+        // abspielen drückt, möchte ich dass es trotzdem vom letzten
+        // frame bzw. ersten frame an in der anderen Richtung abspielt"
+        // — a tap mid-playback flips the direction (forward →
+        // reverse-from-last-frame; reverse → forward-from-first-frame),
+        // same as if the playthrough had already frozen. The src swap
+        // in ensureRoomMp4Playback resets currentTime to 0 of the
+        // OTHER file, which is exactly the requested entry point.
         const candidate = state.runningAnimations.find((item) => (
           item
           && item.scope === "room"
           && item.boardId === state.boardId
           && item.roomId === targetRoomId
           && item.type === draftPayload.type
-          && (item.playbackPhase === "frozen-last" || item.playbackPhase === "frozen-first")
           && item.playbackMode === "play-then-freeze"
           && (
             item.onRetrigger === "reverse-then-freeze-first"
             || item.onRetrigger === "reverse-then-disappear"
           )
         ));
+        // forward/frozen-last (incl. unset = forward default) → reverse;
+        // reverse/frozen-first → forward.
+        const nextPhaseForCandidate = candidate
+          ? (
+            (candidate.playbackPhase || "forward") === "forward"
+            || candidate.playbackPhase === "frozen-last"
+              ? "reverse"
+              : "forward"
+          )
+          : null;
         // Phase 58 Wave 3.7i (2026-06-05): PERMANENT diagnostic
         // (operator request — always on). Logs every room-trigger's
         // re-trigger check so a frozen animation that disappears
@@ -171,9 +189,7 @@
           candidateMatched: !!candidate,
           candidateId: candidate?.id ?? null,
           phaseBefore: candidate?.playbackPhase ?? null,
-          phaseAfter: candidate
-            ? (candidate.playbackPhase === "frozen-last" ? "reverse" : "forward")
-            : null,
+          phaseAfter: nextPhaseForCandidate,
           sameRoomCount: samesScope.length,
           sameRoom: samesScope.map((a) => ({
             id: a.id,
@@ -188,7 +204,7 @@
           // unknown actions and silently drop the broadcast). Reuse
           // edit-room with the mutated snapshot so /output/ clients
           // pick up the new phase via the standard pipeline.
-          candidate.playbackPhase = candidate.playbackPhase === "frozen-last" ? "reverse" : "forward";
+          candidate.playbackPhase = nextPhaseForCandidate;
           candidate._endedDispatched = false;
           candidate._phaseChangedAt = performance.now();
           // Re-stamp startedAt so the per-instance video element seeks

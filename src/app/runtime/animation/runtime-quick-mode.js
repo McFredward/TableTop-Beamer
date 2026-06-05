@@ -405,6 +405,11 @@
     // path (→ startRoomAnimationFromDraft → phase-advance → reverse).
     // Actively playing instances keep tap-to-stop semantics.
     const normalizedRoomId = String(roomId || "").trim();
+    // Phase 58 Wave 3.7m (2026-06-05): divert ANY phase, not just
+    // frozen-*. Operator UAT: a tap mid-playback should flip the
+    // direction (forward → reverse, reverse → forward) instead of
+    // stopping. Stopping these instances is still possible via the
+    // quick-mode Deactivate/Clear modes and the running list.
     const retriggerableFrozen = state.runningAnimations.find((a) => (
       a
       && a.scope === "room"
@@ -412,7 +417,6 @@
       && String(a.boardId || "").trim() === String(state.boardId || "").trim()
       && String(a.type || "").trim() === selectedAnimationType
       && a.playbackMode === "play-then-freeze"
-      && (a.playbackPhase === "frozen-last" || a.playbackPhase === "frozen-first")
       && (
         a.onRetrigger === "reverse-then-freeze-first"
         || a.onRetrigger === "reverse-then-disappear"
@@ -423,7 +427,7 @@
         roomId: normalizedRoomId,
         decision: "retrigger",
         id: retriggerableFrozen.id,
-        phase: retriggerableFrozen.playbackPhase,
+        phase: retriggerableFrozen.playbackPhase ?? "forward",
         onRetrigger: retriggerableFrozen.onRetrigger,
       }));
       const retriggered = activateRoomAnimationByQuickTap(roomId);
