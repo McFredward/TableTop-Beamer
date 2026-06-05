@@ -12,6 +12,78 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.15] — 2026-06-05
+
+Phase 58 Wave 3.7i — frozen instances stop doing video work, and the
+runtime gets PERMANENT `[58]` diagnostics. Operator UAT on v1.2.14: all
+8 frozen rooms started flickering SECONDS after freezing ("ein einziges
+Bild zu zeigen sollte keine Last erzeugen" — correct, and that was the
+defect), and re-trigger of a frozen animation still occasionally removed
+it (Firefox "Ungültige URI").
+
+### Fixed
+- **Frozen instances paint exclusively from the frozen fallback frame —
+  zero per-frame video work.** For a video paused at EOS, rVFC stops
+  firing, so the v1.2.14 freshness gate degraded every frozen room to
+  time-gated LIVE `drawImage(video)` + per-paint fallback capture —
+  continuous full-res video work per frozen room. Room, inside, and
+  outside mp4 paths now branch on `playbackPhase` frozen-last /
+  frozen-first and paint only the fallback canvas (one cheap blit per
+  rAF, keeping the Win32 capture budget); the freeze frame is pinned at
+  the phase transition.
+- **Ended-video blank-frame capture guard.** On Firefox, `drawImage` of
+  an ENDED video can intermittently yield a BLANK frame under load
+  (decoder reclaims the buffer); a blank capture clobbered the good
+  fallback and the blank then replayed → flicker. `captureRoomMp4-`/
+  `captureOutsideMp4FallbackFrame` now skip the capture when
+  `video.ended` unless no usable fallback exists yet (first capture).
+- **Frozen rooms are exempt from the pressure frame-skip.** Under
+  runtime pressure level 2, `shouldSkipRoomMp4Frame` bare-returned
+  every 2nd frame — on a canvas that clears each rAF that strobed the
+  whole room region. With v1.2.14's frozen rooms still doing full video
+  work, pressure climbed seconds after the last freeze and ALL frozen
+  rooms blinked at once (stopped when animations were removed =
+  pressure dropped). Frozen paint is now cheap AND never skipped.
+- **Outside-mp4 rVFC chain accumulation (v1.2.14 regression).**
+  `ensureOutsideMp4Playback` recreated its playback-state object every
+  rAF; with Wave 3.7h's per-(state, video) rVFC binding this registered
+  one NEW perpetual capture chain per tick (~60/s), each doing a
+  full-res fallback capture per decoded frame. The state object is now
+  reused (mirrors the room path).
+- **Loop-mode room mp4s with a manifest hash never played (pre-existing
+  since Wave 3.6, verified broken on v1.2.14).** The expectedSrcUrl
+  phase swap compared the hash-suffixed src against the plain forward
+  URL and fought the Phase 28 hash-bust — `video.src` round-tripped
+  every rAF, `readyState` pinned at 0. The swap is now gated to
+  non-loop modes and compares srcs ignoring the `?v=<hash>` suffix.
+
+### Added
+- **Permanent `[58]` console diagnostics (operator request)** — one
+  compact line per event, event-driven only (no per-frame logs):
+  `[58] re-trigger` (every room-trigger's phase-advance check incl.
+  per-instance phase/mode/onRetrigger), `[58] anim-removed` (every
+  snapshot removal with reason: explicit-remove / board-mismatch /
+  sustained-absence + absentMs), `[58] anim-absent-start` /
+  `anim-absent-recovered` (absence-grace tracking), `[58] release-video`
+  (immediately precedes any Firefox "Ungültige URI" line, names the
+  instance), `[58] phase` (playback phase transitions), `[58] src-swap`
+  (forward↔reverse swaps), `[58] prune-release` (release-debounce
+  decisions). Future failures are now explainable from console output.
+
+### Verification
+- Playwright Firefox (isolated server): 5 rooms frozen, 45s soak with
+  2s pixel sampling — all samples non-blank and byte-stable; frozen
+  instance shows 0 decodes/captures over the soak; full re-trigger
+  cycle forward→frozen-last→reverse→frozen-first→forward passes with
+  the same instance id and no release/media errors; `[58]` logs fire on
+  transitions and are absent during steady state. Playwright Chromium:
+  loop-mode room mp4 decodes ~30fps with live pixels (fixed vs the
+  broken v1.2.14 baseline). `npm test`: 383 pass / 14 fail — identical
+  to the pre-change baseline. The re-trigger removal itself could NOT
+  be reproduced locally; the permanent `[58]` logs exist to identify it
+  in the operator environment if it recurs
+  (.planning/debug/_verify_v1215.py).
+
 ## [1.2.14] — 2026-06-05
 
 Phase 58 Wave 3.7h — root-defect fixes for Bug A (re-trigger disappear)

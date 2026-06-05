@@ -92,14 +92,30 @@
       return;
     }
     if (assetType === "mp4") {
-      if (ctx.shouldSkipRoomMp4Frame(animation)) {
-        return;
-      }
       // Phase 58 Wave 3.6: cache video element by BASE assetRef (forward
       // URL) + instanceId. Phase transitions swap video.src in-place
       // via expectedSrcUrl so the fallback canvas + rVFC binding
       // survive (operator UAT 2026-06-05: disappear-on-retrigger fix).
       const roomMp4Phase = animation.playbackPhase || "forward";
+      // Phase 58 Wave 3.7i (2026-06-05): frozen instances paint
+      // EXCLUSIVELY from the fallback canvas — zero per-frame video
+      // work. See the paint branch below for full rationale.
+      const roomMp4IsFrozen = roomMp4Phase === "frozen-last" || roomMp4Phase === "frozen-first";
+      // Phase 58 Wave 3.7i: NEVER pressure-skip a frozen instance. The
+      // canvas clears every rAF, so shouldSkipRoomMp4Frame's bare
+      // return leaves the room region TRANSPARENT for that frame —
+      // under sustained pressure (level 2, stride 2) every frozen room
+      // blinked at half the rAF rate. This is the operator-reported
+      // "alle eingefrorenen Räume flackern plötzlich" (UAT 2026-06-05):
+      // v1.2.14 frozen rooms still did full-res per-frame video work,
+      // runtime pressure climbed to level 2 SECONDS after the last
+      // freeze, and the skip stride then strobed all of them at once
+      // (stopped when animations were removed = pressure dropped).
+      // Frozen paint is now a single cheap canvas blit — skipping it
+      // saves nothing and guarantees flicker.
+      if (!roomMp4IsFrozen && ctx.shouldSkipRoomMp4Frame(animation)) {
+        return;
+      }
       const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
       const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
       const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
@@ -137,6 +153,7 @@
           boomerangForwardSrc: roomMp4Forward,
           boomerangReverseSrc: roomMp4Reverse,
           instanceId: animation?.id || '',
+          playbackPhase: roomMp4Phase,
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
@@ -145,7 +162,10 @@
         // Checks video.ended each frame; on transition emits stop
         // exactly once (idempotent via animation._endedDispatched).
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
-        ctx.maybeTransitionPlaybackPhase?.(animation, video);
+        // Phase 58 Wave 3.7i: pass playbackState so the frozen
+        // transition can pin the freeze frame onto the fallback canvas
+        // at the exact moment the last decoded frame is still good.
+        ctx.maybeTransitionPlaybackPhase?.(animation, video, playbackState);
         try {
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
@@ -182,7 +202,43 @@
             ? (newFrameR || (!rvfcFreshR && ctx.shouldDrawOutsideMp4Now(playbackState)))
             : true;
           let _diag58Outcome = null;
-          if (haveLiveFrame && drawNow) {
+          if (roomMp4IsFrozen && playbackState && ctx.getRoomMp4FallbackSource) {
+            // Phase 58 Wave 3.7i (2026-06-05): FROZEN paint mode. For a
+            // video paused at EOS, rVFC stops firing → isRvfcFresh()
+            // stays false forever → the Wave 3.7h gate painted the LIVE
+            // <video> at time-gate cadence AND captured the fallback on
+            // every such paint. That meant continuous full-res drawImage
+            // work per frozen room (operator UAT 2026-06-05: "ein
+            // einziges Bild zu zeigen sollte keine Last erzeugen"), and
+            // on Firefox drawImage of an ENDED video can intermittently
+            // yield a BLANK frame under load — which overwrote the good
+            // fallback → the frozen-room flicker that spread across all
+            // frozen rooms. Frozen instances now paint EXCLUSIVELY from
+            // the fallback canvas: no drawImage(video), no per-frame
+            // capture. The freeze frame was pinned at the phase
+            // transition (maybeTransitionPlaybackPhase) / by the last
+            // rVFC capture; the one-time capture below only covers a
+            // fallback-less edge (fresh hydration mid-frozen).
+            let frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+            if (!frozenSrc && haveLiveFrame) {
+              ctx.captureRoomMp4FallbackFrame?.(playbackState, video);
+              frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+            }
+            if (frozenSrc) {
+              drawRoomAssetImage(c, frozenSrc, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "fallback");
+              _diag58Outcome = "frozen-fallback";
+            } else if (haveLiveFrame) {
+              // No fallback available at all — painting the live video
+              // is strictly better than leaving the region unpainted.
+              drawRoomAssetImage(c, video, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "frozen-live-last-resort";
+            } else {
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+              _diag58Outcome = "no-frame";
+            }
+          } else if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
             // Phase 58 Wave 3.7f (2026-06-05, FPS): only capture the
             // fallback frame here when rVFC is NOT driving captures.
@@ -443,6 +499,9 @@
       // Phase 58 Wave 3.6: cache by BASE assetRef + instanceId; swap
       // video.src in-place on phase transitions via expectedSrcUrl.
       const insideMp4Phase = animation?.playbackPhase || "forward";
+      // Phase 58 Wave 3.7i: frozen instances paint exclusively from the
+      // fallback canvas (see room-mp4 path comment).
+      const insideMp4IsFrozen = insideMp4Phase === "frozen-last" || insideMp4Phase === "frozen-first";
       const insideMp4UseReverseUrl = insideMp4Phase === "reverse" || insideMp4Phase === "frozen-first";
       const insideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4UseReverseUrl ? "reverse" : "forward") || definition.assetRef;
       const insideMp4Mode2 = animation?.playbackMode || definition?.playbackMode || "loop";
@@ -482,10 +541,12 @@
           boomerangForwardSrc: insideMp4Forward,
           boomerangReverseSrc: insideMp4Reverse,
           instanceId: animation?.id || '',
+          playbackPhase: insideMp4Phase,
         });
         // Phase 58 Wave 2.5: cleanup-dispatch for inside-mp4.
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
-        ctx.maybeTransitionPlaybackPhase?.(animation, video);
+        // Phase 58 Wave 3.7i: pass playbackState (freeze-frame pinning).
+        ctx.maybeTransitionPlaybackPhase?.(animation, video, playbackState);
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
@@ -520,7 +581,24 @@
         const gateAllows = playbackState
           ? (newFrame || (!rvfcFresh && ctx.shouldDrawOutsideMp4Now(playbackState)))
           : true;
-        if (playbackState && haveLiveFrame && gateAllows) {
+        if (insideMp4IsFrozen && playbackState && ctx.getRoomMp4FallbackSource) {
+          // Phase 58 Wave 3.7i: FROZEN paint mode — fallback canvas
+          // only, zero per-frame video work (see room-mp4 comment).
+          let frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+          if (!frozenSrc && haveLiveFrame) {
+            ctx.captureRoomMp4FallbackFrame?.(playbackState, video);
+            frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+          }
+          if (frozenSrc) {
+            c.drawImage(frozenSrc, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "fallback");
+          } else if (haveLiveFrame) {
+            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
+          }
+        } else if (playbackState && haveLiveFrame && gateAllows) {
           c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
           if (ctx.captureRoomMp4FallbackFrame) {
             ctx.captureRoomMp4FallbackFrame(playbackState, video);
@@ -773,6 +851,9 @@
         // Phase 58 Wave 3.6: cache by BASE assetRef; swap src in-place
         // on phase transitions via expectedSrcUrl.
         const outsideMp4Phase = runningInstance?.playbackPhase || "forward";
+        // Phase 58 Wave 3.7i: frozen instances paint exclusively from
+        // the fallback canvas (see room-mp4 path comment).
+        const outsideMp4IsFrozen = outsideMp4Phase === "frozen-last" || outsideMp4Phase === "frozen-first";
         const outsideMp4UseReverseUrl = outsideMp4Phase === "reverse" || outsideMp4Phase === "frozen-first";
         const outsideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4UseReverseUrl ? "reverse" : "forward") || selectedDefinition.assetRef;
         const outsideMp4Mode2 = runningInstance?.playbackMode || selectedDefinition?.playbackMode || "loop";
@@ -800,11 +881,13 @@
             boomerangForwardSrc: outsideMp4Forward,
             boomerangReverseSrc: outsideMp4Reverse,
             instanceId: runningInstance?.id || '',
+            playbackPhase: outsideMp4Phase,
           });
           // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
           if (runningInstance) {
             ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: Boolean(video.ended) });
-            ctx.maybeTransitionPlaybackPhase?.(runningInstance, video);
+            // Phase 58 Wave 3.7i: pass playbackState (freeze-frame pin).
+            ctx.maybeTransitionPlaybackPhase?.(runningInstance, video, playbackState);
           }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
@@ -845,7 +928,20 @@
           const rvfcFreshO = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
           const newFrameO = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
           const drawNowO = newFrameO || (!rvfcFreshO && ctx.shouldDrawOutsideMp4Now(playbackState));
-          if (haveLiveFrame && drawNowO) {
+          if (outsideMp4IsFrozen && playbackState) {
+            // Phase 58 Wave 3.7i: FROZEN paint mode — fallback canvas
+            // only, zero per-frame video work (see room-mp4 comment).
+            let paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
+            if (!paintedFrozen && haveLiveFrame) {
+              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
+            }
+            if (!paintedFrozen && haveLiveFrame) {
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              paintedFrozen = true;
+            }
+            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", paintedFrozen ? "fallback" : "no-frame");
+          } else if (haveLiveFrame && drawNowO) {
             c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.captureOutsideMp4FallbackFrame(playbackState, video);
             ctx.markMp4FramePainted(playbackState);
@@ -963,6 +1059,14 @@
     for (const [id, lastSeenMs] of Array.from(_instanceLastSeenAtMs.entries())) {
       if (currentIds.has(id)) continue;
       if (nowReleaseMs - lastSeenMs > INSTANCE_RELEASE_GRACE_MS) {
+        // Phase 58 Wave 3.7i: permanent diagnostic (operator request) —
+        // logs the release decision so any subsequent [58] release-video
+        // / Firefox "Ungültige URI" line is attributable. Fires once per
+        // disappeared instance.
+        console.warn("[58] prune-release", JSON.stringify({
+          id,
+          msSinceSeen: Math.round(nowReleaseMs - lastSeenMs),
+        }));
         ctx.releaseMp4VideoElementsForInstance?.(id);
         _instanceLastSeenAtMs.delete(id);
       }

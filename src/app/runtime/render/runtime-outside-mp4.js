@@ -161,6 +161,23 @@
   function releaseMp4VideoElementsForInstance(instanceId) {
     if (!instanceId) return;
     const suffix = `#${instanceId}`;
+    const releasedKeys = [];
+    for (const cacheMap of [outsideVideoCacheByPath, roomVideoCacheByPath]) {
+      for (const key of Array.from(cacheMap.keys())) {
+        if (key.endsWith(suffix)) {
+          releasedKeys.push(key);
+        }
+      }
+    }
+    // Phase 58 Wave 3.7i (2026-06-05): PERMANENT diagnostic (operator
+    // request). This line immediately precedes any Firefox "Ungültige
+    // URI. Laden der Medienressource fehlgeschlagen." console error
+    // (caused by the src="" below — the only such site), so the
+    // operator's console shows WHICH instance was released. Pair with
+    // the [58] anim-removed / [58] prune-release logs for the WHY.
+    if (releasedKeys.length > 0) {
+      console.warn("[58] release-video", JSON.stringify({ instanceId, keys: releasedKeys }));
+    }
     for (const cacheMap of [outsideVideoCacheByPath, roomVideoCacheByPath]) {
       for (const key of Array.from(cacheMap.keys())) {
         if (key.endsWith(suffix)) {
@@ -185,6 +202,21 @@
         roomMp4PlaybackStateByKey.delete(key);
       }
     }
+  }
+
+  // Phase 58 Wave 3.7i (2026-06-05): compare video srcs ignoring the
+  // Phase 28 `?v=<hash>` cache-bust suffix. The Wave 3.6 expectedSrcUrl
+  // swap compared the element's hash-suffixed src against the PLAIN
+  // forward URL → mismatch every rAF → swap to plain → the Phase 28
+  // hash-bust in getMediaVideoElement (active for loop mode) swapped
+  // BACK to the hashed URL → src round-trip every frame, video stuck at
+  // readyState=0: loop-mode room mp4s whose asset has a manifest hash
+  // never played (verified pre-existing on v1.2.14 via Playwright
+  // Chromium probe). The hash never changes which CONTENT direction the
+  // src points at, so phase-swap decisions must ignore it.
+  function _srcEqualsIgnoringHash(currentAbsUrl, desiredAbsUrl) {
+    const strip = (u) => String(u || "").replace(/[?&]v=[0-9a-f]+$/i, "");
+    return strip(currentAbsUrl) === strip(desiredAbsUrl);
   }
 
   // Phase 58 Wave 3: returns the asset URL to use as <video>.src
@@ -304,6 +336,16 @@
 
   function captureOutsideMp4FallbackFrame(playbackState, video) {
     if (!playbackState || !video) {
+      return;
+    }
+    // Phase 58 Wave 3.7i (2026-06-05): ended-video blank-frame guard.
+    // On Firefox, drawImage of an ENDED video can intermittently yield
+    // a BLANK frame under load (the decoder reclaims the frame buffer).
+    // Capturing that blank frame would clobber the good frozen fallback
+    // → operator-visible flicker on frozen rooms. Skip the capture when
+    // the video has ended UNLESS the state has no visible frame yet
+    // (first capture is strictly better than nothing).
+    if (video.ended === true && playbackState.hasVisibleFrame && playbackState.fallbackCanvas) {
       return;
     }
     const fallbackState = ensureOutsideMp4FallbackCanvas(playbackState);
@@ -490,7 +532,7 @@
     playbackState.lastDrawAtMs = performance.now();
   }
 
-  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "" } = {}) {
+  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "", playbackPhase = "" } = {}) {
     // Phase 58 Wave 3.6: same phase-transition src-swap as
     // ensureRoomMp4Playback. Outside mp4 keeps its board-scoped
     // playback state cache (one outside animation per board) so the
@@ -501,14 +543,30 @@
     // video.load(), making isFrozenAtEnd below skip play() on the
     // exact tick we swapped to the reverse URL.
     let srcWasSwapped = false;
-    if (video && expectedSrcUrl) {
+    // Phase 58 Wave 3.7i: the expectedSrcUrl swap exists ONLY for the
+    // play-then-freeze forward<->reverse phase transitions. Loop mode
+    // never changes direction — and its shared video element is owned
+    // by the Phase 28 hash-bust, which this swap would fight every rAF
+    // (see _srcEqualsIgnoringHash). Compare hash-insensitively so a
+    // freshly created hash-suffixed element in phase forward is not
+    // spuriously swapped to the plain URL.
+    if (video && expectedSrcUrl && playbackMode !== "loop") {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
-        if (video.src && video.src !== desiredAbs) {
+        if (video.src && !_srcEqualsIgnoringHash(video.src, desiredAbs)) {
+          const fromSrc = String(video.src).replace(window.location.origin, "");
           video.src = expectedSrcUrl;
           try { video.currentTime = 0; } catch { /* DOM may reject */ }
           try { video.load(); } catch { /* harmless */ }
           srcWasSwapped = true;
+          // Phase 58 Wave 3.7i: permanent diagnostic — src swaps only
+          // happen on phase transitions (forward<->reverse), low freq.
+          console.warn("[58] src-swap", JSON.stringify({
+            instanceId,
+            from: fromSrc,
+            to: String(expectedSrcUrl).replace(window.location.origin, ""),
+            phase: playbackPhase || null,
+          }));
         }
       } catch { /* defensive */ }
     }
@@ -581,24 +639,37 @@
       void video.play().catch(() => undefined);
     }
 
-    const previousHasVisibleFrame = previous?.assetRef === normalizedAssetRef
-      ? Boolean(previous?.hasVisibleFrame)
-      : false;
-    const playbackState = {
-      lifecycleKey: normalizedLifecycleKey,
-      assetRef: normalizedAssetRef,
-      fallbackCanvas: previous?.fallbackCanvas ?? null,
-      fallbackCtx: previous?.fallbackCtx ?? null,
-      lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
-      lastDecodedFrameAtMs: previous?.lastDecodedFrameAtMs ?? 0,
-      lastLoopWrapAtMs: previous?.lastLoopWrapAtMs ?? 0,
-      lastDrawAtMs: previous?.lastDrawAtMs ?? 0,
-      videoFrameCallbackBound: previous?.videoFrameCallbackBound ?? false,
-      hasVisibleFrame: previousHasVisibleFrame,
-      // Phase 58: stamp mode so maybeWrapOutsideMp4Loop can branch
-      // without needing to plumb the value through the call site.
-      playbackMode,
+    // Phase 58 Wave 3.7i (2026-06-05): REUSE the previous playback-state
+    // object instead of recreating it every rAF. Wave 3.7h's per
+    // (state, video) rVFC binding (`_rvfcBoundVideo`) made the old
+    // recreate-per-call pattern pathological: every fresh object failed
+    // the `_rvfcBoundVideo === video` identity check, registering ONE
+    // NEW perpetual rVFC capture chain per rAF tick (~60 chains/s,
+    // each doing a full-res fallback capture per decoded frame).
+    // Load accumulated for as long as an outside mp4 was on-screen —
+    // a strong contributor to the operator's "after some seconds all
+    // frozen rooms start flickering" UAT (2026-06-05). The room-mp4
+    // path always reused its state object and is unaffected.
+    const playbackState = previous ?? {
+      fallbackCanvas: null,
+      fallbackCtx: null,
+      lastVisibleFrameAtMs: 0,
+      lastDecodedFrameAtMs: 0,
+      lastLoopWrapAtMs: 0,
+      lastDrawAtMs: 0,
+      videoFrameCallbackBound: false,
+      hasVisibleFrame: false,
     };
+    if (playbackState.assetRef !== normalizedAssetRef) {
+      // Asset changed under the same board key — the captured fallback
+      // shows the OLD asset; invalidate it.
+      playbackState.hasVisibleFrame = false;
+    }
+    playbackState.lifecycleKey = normalizedLifecycleKey;
+    playbackState.assetRef = normalizedAssetRef;
+    // Phase 58: stamp mode so maybeWrapOutsideMp4Loop can branch
+    // without needing to plumb the value through the call site.
+    playbackState.playbackMode = playbackMode;
     bindOutsideMp4FrameCallback(video, playbackState);
     // Phase 57 diag stash — used by recordMp4PaintDiag to query
     // getVideoPlaybackQuality without touching paint sites
@@ -654,6 +725,11 @@
 
   function captureRoomMp4FallbackFrame(state, video) {
     if (!state || !video) return;
+    // Phase 58 Wave 3.7i (2026-06-05): ended-video blank-frame guard —
+    // see captureOutsideMp4FallbackFrame. Prevents a blank ended-video
+    // frame from ever clobbering a good frozen fallback from ANY call
+    // site (paint path, rVFC callback, transition hook).
+    if (video.ended === true && state.hasVisibleFrame && state.fallbackCanvas) return;
     const ready = _ensureRoomMp4FallbackCanvas(state, video);
     if (!ready) return;
     state.fallbackCtx.clearRect(0, 0, state.fallbackCanvas.width, state.fallbackCanvas.height);
@@ -779,7 +855,23 @@
   // Idempotency: only transitions when the phase is an active phase
   // AND video.ended is true. After transition, the new phase is
   // frozen-* (or removed) so subsequent calls are no-ops.
-  function maybeTransitionPlaybackPhase(animation, video) {
+  // Phase 58 Wave 3.7i: optional third param `playbackState` — at the
+  // moment of freezing, the last decoded frame is still good, so this
+  // is the ideal point to make sure the fallback canvas holds the
+  // freeze frame. captureRoomMp4FallbackFrame's ended-guard makes the
+  // call a no-op when a good fallback already exists (the common case:
+  // rVFC captured the final decoded frame during playback).
+  function _logPhaseTransition(animation, video, from, to) {
+    console.warn("[58] phase", JSON.stringify({
+      id: animation?.id ?? null,
+      from,
+      to,
+      ct: Number((Number(video?.currentTime) || 0).toFixed(2)),
+      dur: Number((Number(video?.duration) || 0).toFixed(2)),
+    }));
+  }
+
+  function maybeTransitionPlaybackPhase(animation, video, playbackState = null) {
     if (!ctx || !animation || !video) return;
     if (!video.ended) return;
     // Phase 58 Wave 3.7c (2026-06-05): HTML spec — after video.load(),
@@ -807,14 +899,23 @@
     const onRet = animation.onRetrigger || "instant-disappear";
     if (phase === "forward") {
       animation.playbackPhase = "frozen-last";
+      _logPhaseTransition(animation, video, "forward", "frozen-last");
+      if (playbackState) {
+        try { captureRoomMp4FallbackFrame(playbackState, video); } catch { /* defensive */ }
+      }
       return;
     }
     if (phase === "reverse") {
       if (onRet === "reverse-then-freeze-first") {
         animation.playbackPhase = "frozen-first";
+        _logPhaseTransition(animation, video, "reverse", "frozen-first");
+        if (playbackState) {
+          try { captureRoomMp4FallbackFrame(playbackState, video); } catch { /* defensive */ }
+        }
       } else if (onRet === "reverse-then-disappear") {
         if (!animation._endedDispatched) {
           animation._endedDispatched = true;
+          _logPhaseTransition(animation, video, "reverse", "disappear");
           try {
             if (typeof ctx.stopAnimation === "function") {
               ctx.stopAnimation(animation.id);
@@ -827,6 +928,7 @@
         // onRet === "instant-disappear" but somehow phase = reverse.
         // Defensive: treat as frozen-last to avoid getting stuck.
         animation.playbackPhase = "frozen-last";
+        _logPhaseTransition(animation, video, "reverse", "frozen-last");
       }
     }
   }
@@ -893,7 +995,7 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "" } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "", playbackPhase = "" } = {}) {
     if (!video) return null;
     // Phase 58 Wave 3.6: composite per-instance key — see _roomMp4Key.
     const key = _roomMp4Key(assetRef, instanceId, playbackMode);
@@ -913,14 +1015,28 @@
     // → operator reported "verschwindet" instead of reverse playback
     // (operator UAT 2026-06-05, post-v1.2.7).
     let srcWasSwapped = false;
-    if (expectedSrcUrl) {
+    // Phase 58 Wave 3.7i: gate + hash-insensitive compare — see
+    // ensureOutsideMp4Playback comment. Without the mode gate, the
+    // Phase 28 hash-bust and this swap round-tripped video.src every
+    // rAF for loop-mode room mp4s with a manifest hash (readyState
+    // pinned at 0 → mp4 never played; pre-existing on v1.2.14).
+    if (expectedSrcUrl && playbackMode !== "loop") {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
-        if (video.src && video.src !== desiredAbs) {
+        if (video.src && !_srcEqualsIgnoringHash(video.src, desiredAbs)) {
+          const fromSrc = String(video.src).replace(window.location.origin, "");
           video.src = expectedSrcUrl;
           try { video.currentTime = 0; } catch { /* DOM may reject */ }
           try { video.load(); } catch { /* harmless */ }
           srcWasSwapped = true;
+          // Phase 58 Wave 3.7i: permanent diagnostic — src swaps only
+          // happen on phase transitions (forward<->reverse), low freq.
+          console.warn("[58] src-swap", JSON.stringify({
+            instanceId,
+            from: fromSrc,
+            to: String(expectedSrcUrl).replace(window.location.origin, ""),
+            phase: playbackPhase || null,
+          }));
         }
       } catch { /* defensive */ }
     }

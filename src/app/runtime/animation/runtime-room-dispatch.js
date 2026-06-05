@@ -152,31 +152,36 @@
             || item.onRetrigger === "reverse-then-disappear"
           )
         ));
-        if (window.TT_DEBUG_58) {
-          // Phase 58 diag: log which animation in the room is currently
-          // running + whether the phase-advance found a match. Helps
-          // distinguish "no candidate" (fresh trigger creates new
-          // animation) from "candidate found but advance not reached".
-          const samesScope = state.runningAnimations.filter((a) => (
-            a && a.scope === "room"
-            && a.boardId === state.boardId
-            && a.roomId === targetRoomId
-            && a.type === draftPayload.type
-          ));
-          console.warn("[58-diag] re-trigger check", {
-            roomId: targetRoomId,
-            draftType: draftPayload.type,
-            candidateMatched: !!candidate,
-            candidateId: candidate?.id,
-            sameRoomCount: samesScope.length,
-            sameRoom: samesScope.map((a) => ({
-              id: a.id,
-              phase: a.playbackPhase,
-              mode: a.playbackMode,
-              onRetrigger: a.onRetrigger,
-            })),
-          });
-        }
+        // Phase 58 Wave 3.7i (2026-06-05): PERMANENT diagnostic
+        // (operator request — always on). Logs every room-trigger's
+        // re-trigger check so a frozen animation that disappears
+        // instead of reversing is explainable from console output:
+        // candidateMatched=false + a frozen same-room instance in
+        // `sameRoom` means the phase-advance was bypassed. User-action
+        // frequency only.
+        const samesScope = state.runningAnimations.filter((a) => (
+          a && a.scope === "room"
+          && a.boardId === state.boardId
+          && a.roomId === targetRoomId
+          && a.type === draftPayload.type
+        ));
+        console.warn("[58] re-trigger", JSON.stringify({
+          roomId: targetRoomId,
+          type: draftPayload.type,
+          candidateMatched: !!candidate,
+          candidateId: candidate?.id ?? null,
+          phaseBefore: candidate?.playbackPhase ?? null,
+          phaseAfter: candidate
+            ? (candidate.playbackPhase === "frozen-last" ? "reverse" : "forward")
+            : null,
+          sameRoomCount: samesScope.length,
+          sameRoom: samesScope.map((a) => ({
+            id: a.id,
+            phase: a.playbackPhase ?? null,
+            mode: a.playbackMode ?? null,
+            onRetrigger: a.onRetrigger ?? null,
+          })),
+        }));
         if (candidate) {
           // Phase 58 Wave 3.5: advance phase, do NOT use a custom
           // mutation type (server's LIVE_MUTATION_TYPES would reject

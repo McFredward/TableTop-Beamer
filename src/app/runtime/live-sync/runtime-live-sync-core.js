@@ -575,6 +575,23 @@
       // Explicit stop-animation / clear-all must remove immediately;
       // reset the absence bookkeeping so a later re-trigger of the same
       // id starts with a clean slate.
+      // Phase 58 Wave 3.7i: PERMANENT diagnostic (operator request) —
+      // log every removal of a previously-present animation with its
+      // reason, so a disappearing instance is explainable from console
+      // output. Fires only on anomalies/user actions, never per frame.
+      const explicitSnapshotIds = new Set(
+        boardBoundRunningAnimations.map((a) => a?.id).filter((id) => typeof id === "string"),
+      );
+      for (const [id, prev] of previousAnimationsById) {
+        if (!explicitSnapshotIds.has(id)) {
+          console.warn("[58] anim-removed", JSON.stringify({
+            id,
+            phase: prev?.playbackPhase ?? null,
+            reason: "explicit-remove",
+            mutationType,
+          }));
+        }
+      }
       absentSinceMsById.clear();
     } else {
       const snapshotIds = new Set(
@@ -587,6 +604,15 @@
       for (const [id, prev] of previousAnimationsById) {
         if (snapshotIds.has(id)) {
           // Present in the snapshot again → no longer absent.
+          if (absentSinceMsById.has(id)) {
+            // Phase 58 Wave 3.7i: permanent diagnostic — transient
+            // omission recovered (this is the case the grace window
+            // exists for).
+            console.warn("[58] anim-absent-recovered", JSON.stringify({
+              id,
+              absentMs: Math.round(nowEpochMs - Number(absentSinceMsById.get(id))),
+            }));
+          }
           absentSinceMsById.delete(id);
           continue;
         }
@@ -594,6 +620,12 @@
         // board; cross-board leftovers are dropped immediately.
         const isBoardBound = ctx.filterRunningAnimationsForBoard([prev], selectedBoard).length > 0;
         if (!isBoardBound) {
+          console.warn("[58] anim-removed", JSON.stringify({
+            id,
+            phase: prev?.playbackPhase ?? null,
+            reason: "board-mismatch",
+            mutationType,
+          }));
           absentSinceMsById.delete(id);
           continue;
         }
@@ -609,6 +641,12 @@
         const firstAbsentAtMs = Number(absentSinceMsById.get(id));
         if (!Number.isFinite(firstAbsentAtMs)) {
           // First snapshot that omits this id → stamp and preserve.
+          // Phase 58 Wave 3.7i: permanent diagnostic — first omission.
+          console.warn("[58] anim-absent-start", JSON.stringify({
+            id,
+            phase: prevPhase ?? null,
+            mutationType,
+          }));
           absentSinceMsById.set(id, nowEpochMs);
           inFlight.push(prev);
           continue;
@@ -619,6 +657,13 @@
           continue;
         }
         // Sustained absence → genuinely gone; drop it.
+        console.warn("[58] anim-removed", JSON.stringify({
+          id,
+          phase: prevPhase ?? null,
+          reason: "sustained-absence",
+          absentMs: Math.round(nowEpochMs - firstAbsentAtMs),
+          mutationType,
+        }));
         absentSinceMsById.delete(id);
       }
       // Hygiene: forget absence stamps for ids that are no longer
