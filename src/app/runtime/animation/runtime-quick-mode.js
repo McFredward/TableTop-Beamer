@@ -392,7 +392,62 @@
     const running = collectQuickTapRoomAnimationIds(roomId, {
       onlyType: selectedAnimationType,
     });
+    // Phase 58 Wave 3.7j (2026-06-05): THE Bug A root cause — found via
+    // the operator's [58] console logs. Tapping a room with a FROZEN
+    // play-then-freeze instance landed in this toggle-OFF branch and
+    // stopped it (explicit stop-animation), so the phase-advance
+    // candidate logic in startRoomAnimationFromDraft was NEVER reached.
+    // 9 prior live-sync/render fixes (v1.2.6–1.2.15) couldn't help:
+    // the [58] anim-removed logs showed reason:"explicit-remove",
+    // mutationType:"stop-animation", and the [58] re-trigger candidate
+    // log only ever fired for empty rooms (sameRoomCount:0). Fix: a
+    // frozen re-triggerable instance routes the tap to the activate
+    // path (→ startRoomAnimationFromDraft → phase-advance → reverse).
+    // Actively playing instances keep tap-to-stop semantics.
+    const normalizedRoomId = String(roomId || "").trim();
+    const retriggerableFrozen = state.runningAnimations.find((a) => (
+      a
+      && a.scope === "room"
+      && String(a.roomId || "").trim() === normalizedRoomId
+      && String(a.boardId || "").trim() === String(state.boardId || "").trim()
+      && String(a.type || "").trim() === selectedAnimationType
+      && a.playbackMode === "play-then-freeze"
+      && (a.playbackPhase === "frozen-last" || a.playbackPhase === "frozen-first")
+      && (
+        a.onRetrigger === "reverse-then-freeze-first"
+        || a.onRetrigger === "reverse-then-disappear"
+      )
+    ));
+    if (retriggerableFrozen) {
+      console.warn("[58] quick-toggle", JSON.stringify({
+        roomId: normalizedRoomId,
+        decision: "retrigger",
+        id: retriggerableFrozen.id,
+        phase: retriggerableFrozen.playbackPhase,
+        onRetrigger: retriggerableFrozen.onRetrigger,
+      }));
+      const retriggered = activateRoomAnimationByQuickTap(roomId);
+      if (retriggered?.ok) {
+        return {
+          ok: true,
+          action: "toggle",
+          roomLabel: retriggered.roomLabel,
+          result: "retriggered",
+        };
+      }
+      return retriggered ?? {
+        ok: false,
+        action: "toggle",
+        roomLabel: getQuickModeRoomLabel(roomId),
+        reason: "retrigger-failed",
+      };
+    }
     if (running.length > 0) {
+      console.warn("[58] quick-toggle", JSON.stringify({
+        roomId: normalizedRoomId,
+        decision: "stop",
+        ids: running,
+      }));
       for (const animationId of running) {
         ctx.stopAnimation(animationId);
       }

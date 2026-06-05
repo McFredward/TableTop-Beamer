@@ -12,6 +12,36 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.16] — 2026-06-05
+
+Phase 58 Wave 3.7j — Bug A actual root cause: quick-tap toggle, not
+live-sync. Found via the operator's v1.2.15 `[58]` console logs.
+
+### Fixed
+- **Bug A — re-trigger removed the frozen animation instead of playing
+  reverse.** The operator's `[58]` logs showed the smoking gun: every
+  removal was `reason:"explicit-remove", mutationType:"stop-animation"`,
+  and the `[58] re-trigger` candidate log only ever fired for EMPTY
+  rooms (`sameRoomCount:0`). Tapping a room with a running/frozen
+  instance never reached `startRoomAnimationFromDraft` (where the
+  Wave 3.4 phase-advance lives) — `toggleRoomAnimationByQuickTap`
+  intercepted the tap and STOPPED the instance (tap-to-toggle
+  semantics). That's why 9 live-sync/render fixes (v1.2.6–1.2.15)
+  changed nothing and why every debugger repro (which called the
+  dispatch function directly) passed. Fix: when the tapped room holds a
+  frozen (`frozen-last`/`frozen-first`) play-then-freeze instance with a
+  reverse `onRetrigger`, the tap now routes to the activate path →
+  phase-advance → reverse playback. Actively playing instances keep
+  tap-to-stop. New `[58] quick-toggle` log shows the decision
+  (retrigger vs stop) for every tap on an occupied room.
+
+### Known issues
+- /output/ (SSR) still shows flicker WHILE videos play (dashboard clean
+  since v1.2.15; frozen state clean on both). Under investigation —
+  likely SSR-capture-side, distinct from the fixed dashboard mechanisms.
+
+---
+
 ## [1.2.15] — 2026-06-05
 
 Phase 58 Wave 3.7i — frozen instances stop doing video work, and the
