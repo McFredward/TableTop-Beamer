@@ -12,6 +12,59 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.19] — 2026-06-05
+
+Phase 58 Wave 3.7n — adaptive video quality (operator feature request
+2026-06-05): "Einen (optionalen) Modus, in dem die Videos automatisch
+runterskalieren und z.B. eine 480p-Variante nutzen, sobald erkannt
+wird, dass es massive Framedrops gibt." Per-instance playback
+(play-then-freeze) means N rooms = N×1080p decoders; 2-3 rooms already
+dropped fps badly, and the operator wants 10+ rooms via clusters.
+Permanent quality reduction was explicitly rejected — the tier adapts.
+
+### Added
+- **Adaptive video quality (default ON).** A global quality tier for
+  non-loop room mp4 instances. Under sustained distress (rAF fps EMA
+  < 20 OR runtime pressure level ≥ 2 continuously for ≥ 2.5 s, with
+  ≥ 2 actively playing room-mp4 instances) the runtime downswitches
+  every playing instance to a server-encoded 480p proxy variant.
+  Mid-play swaps preserve playback position (currentTime is captured,
+  re-applied on `loadedmetadata`, clamped to duration; the fallback
+  canvas bridges the load window). FROZEN instances never swap
+  mid-freeze — they adopt the current tier on their next phase change.
+  Upswitch back to full resolution requires sustained health (fps > 28
+  AND pressure 0 for ≥ 10 s) AND ≤ 1 playing instance — the anti-
+  oscillation hysteresis: while a heavy multi-video scene is still
+  playing, returning to full would immediately re-create the distress;
+  in practice recovery lands once the burst is frozen/over, and new
+  instances then start at full quality. Loop-mode room mp4s are exempt
+  by design (they share ONE decoder per asset across rooms — no
+  N×decoder pressure — and their src is owned by the Phase 28
+  hash-bust).
+- **`GET /api/animation-proxy?asset=…&height=480`** — ffmpeg-downscaled
+  proxy variant (`-vf scale=-2:<h>`, fps preserved, h264, audio
+  dropped) of a `/resources/animations/*.mp4` asset. Height whitelist
+  360/480/720 (default 480; anything else → 400). Cached at
+  `resources/.proxy-cache/<basename>-<mtimeMs>-h<height>.mp4` with the
+  same validation, in-flight dedup, and atomic temp-file rename as the
+  Phase 58 reverse cache. Encode start/done logged server-side
+  (`[58] proxy encode …`).
+- **`/api/animation-reverse` optional `height` param** — encodes
+  reverse + downscale in one pass (`-vf reverse,scale=-2:<h>`), cached
+  under a height-suffixed key, so the reverse-on-retrigger cycle stays
+  seamless at the proxy tier. Without the param the endpoint is
+  byte-identical to before (backward compatible).
+- **Settings → System toggle "Adaptive Video-Qualität (auto 480p bei
+  Framedrops)"** — per-client persisted flag (localStorage
+  `tt-beamer.adaptive-video-quality.v1`). Note: the flag is per
+  rendering client (dashboard, /output/, SSR tab each have their own
+  localStorage); default is ON everywhere.
+- **`[58] quality` / `[58] quality-swap` diagnostics** — permanent
+  console.warn on every tier change ({from, to, reason, fps, pressure,
+  activeMp4Count}) and on every position-preserving src swap.
+
+---
+
 ## [1.2.18] — 2026-06-05
 
 Phase 58 Wave 3.7m — direction flip works mid-playback, not only when

@@ -58,6 +58,16 @@ const REVERSE_CACHE_DIR = path.join(RESOURCES_DIR, ".reverse-cache");
 // Track in-flight encodes so concurrent requests for the same asset
 // don't spawn duplicate ffmpeg processes.
 const REVERSE_ENCODE_INFLIGHT = new Map();
+// Phase 58 Wave 3.7n (2026-06-05): server-side cache for ffmpeg
+// downscaled "proxy" mp4 variants (adaptive video quality). Keyed by
+// source filename + mtime + target height; cache miss spawns
+// ffmpeg -vf scale=-2:<height> synchronously. Mirrors the
+// REVERSE_CACHE_DIR pattern above 1:1.
+const PROXY_CACHE_DIR = path.join(RESOURCES_DIR, ".proxy-cache");
+const PROXY_ENCODE_INFLIGHT = new Map();
+// Allowed proxy heights. 480 is the adaptive controller's default
+// downswitch target; 360/720 are available for manual tuning.
+const PROXY_ALLOWED_HEIGHTS = new Set([360, 480, 720]);
 // Phase 28 B5 — central asset manifest with sha256[:12] cache-busting tokens.
 const ASSET_MANIFEST_PATH = path.join(ROOT_DIR, "config", "asset-manifest.json");
 const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
@@ -2075,11 +2085,13 @@ function sendJson(res, statusCode, body) {
 //
 // Concurrent requests for the same key share the in-flight promise
 // via REVERSE_ENCODE_INFLIGHT — no duplicate ffmpeg processes.
-async function getOrEncodeReverseMp4(assetUrl) {
+// Phase 58 Wave 3.7n: shared validation for the animation-mp4 encode
+// endpoints (reverse + proxy). Must be /resources/animations/*.mp4 —
+// same surface as the operator-upload endpoint. Path traversal blocked
+// by prefix + extension check. Returns the absolute source path plus
+// the cache-key ingredients (sanitized basename + mtime key).
+async function _resolveAnimationMp4Source(assetUrl) {
   const trimmed = String(assetUrl || "").trim();
-  // Validate: must be /resources/animations/*.mp4 — same surface as
-  // the operator-upload endpoint. Path traversal blocked by prefix
-  // + extension check.
   if (!trimmed.startsWith("/resources/animations/") || !/\.mp4$/i.test(trimmed)) {
     throw new Error(`invalid asset path: ${trimmed}`);
   }
@@ -2094,14 +2106,17 @@ async function getOrEncodeReverseMp4(assetUrl) {
   } catch {
     throw new Error(`asset not found: ${trimmed}`);
   }
-  const basename = path.basename(sourceAbsPath, ".mp4");
+  const basename = path.basename(sourceAbsPath, ".mp4").replace(/[^a-zA-Z0-9._-]/g, "_");
   // Cache filename includes mtime so source replacement auto-invalidates.
   const mtimeKey = Math.floor(sourceStat.mtimeMs);
-  const cacheFile = path.join(
-    REVERSE_CACHE_DIR,
-    `${basename.replace(/[^a-zA-Z0-9._-]/g, "_")}-${mtimeKey}.mp4`,
-  );
+  return { sourceAbsPath, basename, mtimeKey };
+}
 
+// Phase 58 Wave 3.7n: shared cache-or-encode runner for the ffmpeg
+// mp4 variants. Checks the on-disk cache, dedups concurrent requests
+// via the supplied in-flight map, encodes to a temp file and renames
+// atomically so a partial encode is never observable as a cache hit.
+async function _getOrEncodeMp4Variant({ cacheDir, cacheFile, inflightMap, ffmpegVf, sourceAbsPath, label }) {
   // Cache hit?
   try {
     const cacheStat = await stat(cacheFile);
@@ -2113,18 +2128,22 @@ async function getOrEncodeReverseMp4(assetUrl) {
   }
 
   // In-flight dedup
-  if (REVERSE_ENCODE_INFLIGHT.has(cacheFile)) {
-    return REVERSE_ENCODE_INFLIGHT.get(cacheFile);
+  if (inflightMap.has(cacheFile)) {
+    return inflightMap.get(cacheFile);
   }
 
   const encodePromise = (async () => {
-    await mkdir(REVERSE_CACHE_DIR, { recursive: true });
+    await mkdir(cacheDir, { recursive: true });
     // Write to a temp file first so partial encodes never get served.
     const tmpFile = `${cacheFile}.tmp-${process.pid}-${Date.now()}`;
+    const startedAt = Date.now();
+    // Phase 58 Wave 3.7n: permanent encode diagnostics (mirrors the
+    // [58] console.warn pattern on the client).
+    console.warn(`[58] ${label} encode start`, JSON.stringify({ source: path.basename(sourceAbsPath), vf: ffmpegVf }));
     await new Promise((resolve, reject) => {
       // -f mp4 forces format detection — the temp filename doesn't
       // carry a .mp4 extension at the very end (it has .tmp-PID-TS).
-      const args = ["-y", "-i", sourceAbsPath, "-vf", "reverse", "-an", "-f", "mp4", tmpFile];
+      const args = ["-y", "-i", sourceAbsPath, "-vf", ffmpegVf, "-an", "-f", "mp4", tmpFile];
       const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
       let stderr = "";
       proc.stderr.on("data", (chunk) => { stderr += String(chunk); });
@@ -2137,15 +2156,66 @@ async function getOrEncodeReverseMp4(assetUrl) {
     // Atomic rename so partial-temp never observable as cache file.
     const { rename } = await import("node:fs/promises");
     await rename(tmpFile, cacheFile);
+    console.warn(`[58] ${label} encode done`, JSON.stringify({
+      source: path.basename(sourceAbsPath),
+      cacheFile: path.basename(cacheFile),
+      tookMs: Date.now() - startedAt,
+    }));
     return cacheFile;
   })();
 
-  REVERSE_ENCODE_INFLIGHT.set(cacheFile, encodePromise);
+  inflightMap.set(cacheFile, encodePromise);
   try {
     return await encodePromise;
   } finally {
-    REVERSE_ENCODE_INFLIGHT.delete(cacheFile);
+    inflightMap.delete(cacheFile);
   }
+}
+
+// Phase 58 Wave 3.7n: optional `height` — when given (whitelist
+// {360,480,720}) the reverse encode also downscales in the same pass
+// (`-vf reverse,scale=-2:<h>`), cached under a height-suffixed key.
+// Without the param behavior is byte-identical to the pre-3.7n
+// reverse cache (backward compatible).
+async function getOrEncodeReverseMp4(assetUrl, height = 0) {
+  const { sourceAbsPath, basename, mtimeKey } = await _resolveAnimationMp4Source(assetUrl);
+  const normalizedHeight = Number(height) || 0;
+  if (normalizedHeight && !PROXY_ALLOWED_HEIGHTS.has(normalizedHeight)) {
+    throw new Error(`invalid height: ${height}`);
+  }
+  const heightSuffix = normalizedHeight ? `-h${normalizedHeight}` : "";
+  const cacheFile = path.join(REVERSE_CACHE_DIR, `${basename}-${mtimeKey}${heightSuffix}.mp4`);
+  return _getOrEncodeMp4Variant({
+    cacheDir: REVERSE_CACHE_DIR,
+    cacheFile,
+    inflightMap: REVERSE_ENCODE_INFLIGHT,
+    ffmpegVf: normalizedHeight ? `reverse,scale=-2:${normalizedHeight}` : "reverse",
+    sourceAbsPath,
+    label: "reverse",
+  });
+}
+
+// Phase 58 Wave 3.7n: ffmpeg-driven downscaled "proxy" variant for
+// adaptive video quality. Keeps fps and h264 (ffmpeg defaults for
+// -f mp4), drops audio, scales to the requested height with width
+// auto-derived (-2 keeps it even, required by h264). Serves the
+// /api/animation-proxy endpoint; same cache + in-flight pattern as
+// the reverse encoder.
+async function getOrEncodeProxyMp4(assetUrl, height = 480) {
+  const { sourceAbsPath, basename, mtimeKey } = await _resolveAnimationMp4Source(assetUrl);
+  const normalizedHeight = Number(height) || 480;
+  if (!PROXY_ALLOWED_HEIGHTS.has(normalizedHeight)) {
+    throw new Error(`invalid height: ${height}`);
+  }
+  const cacheFile = path.join(PROXY_CACHE_DIR, `${basename}-${mtimeKey}-h${normalizedHeight}.mp4`);
+  return _getOrEncodeMp4Variant({
+    cacheDir: PROXY_CACHE_DIR,
+    cacheFile,
+    inflightMap: PROXY_ENCODE_INFLIGHT,
+    ffmpegVf: `scale=-2:${normalizedHeight}`,
+    sourceAbsPath,
+    label: "proxy",
+  });
 }
 
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
@@ -3925,11 +3995,24 @@ const server = createServer(async (req, res) => {
     // synchronously encodes; subsequent calls serve from cache.
     // Used by the runtime when the operator picks Direction=Reverse
     // or playbackMode=Boomerang on a mp4-based animation.
+    // Phase 58 Wave 3.7n: optional `height` query param (whitelist
+    // 360/480/720) — encodes reverse + downscale in one pass for the
+    // adaptive-video-quality proxy tier. Without the param the
+    // behavior is unchanged (full-resolution reverse).
     if (req.method === "GET" && routePath === "/api/animation-reverse") {
       const requestUrl = new URL(req.url || "", "http://localhost");
       const assetParam = requestUrl.searchParams.get("asset") || "";
+      const heightParam = requestUrl.searchParams.get("height");
+      let height = 0;
+      if (heightParam !== null && heightParam !== "") {
+        height = Number(heightParam);
+        if (!PROXY_ALLOWED_HEIGHTS.has(height)) {
+          sendJson(res, 400, { ok: false, reason: "invalid-height", detail: `height must be one of ${[...PROXY_ALLOWED_HEIGHTS].join(", ")}` });
+          return;
+        }
+      }
       try {
-        const cacheFile = await getOrEncodeReverseMp4(assetParam);
+        const cacheFile = await getOrEncodeReverseMp4(assetParam, height);
         const cacheStat = await stat(cacheFile);
         res.writeHead(200, {
           "content-type": "video/mp4",
@@ -3944,6 +4027,46 @@ const server = createServer(async (req, res) => {
         });
       } catch (err) {
         sendJson(res, 500, { ok: false, reason: "reverse-encode-failed", detail: err?.message || String(err) });
+      }
+      return;
+    }
+
+    // Phase 58 Wave 3.7n: downscaled "proxy" mp4 variant for adaptive
+    // video quality. `asset` = URL path like
+    // "/resources/animations/snow.mp4"; `height` optional (default 480,
+    // whitelist 360/480/720). First call synchronously encodes
+    // (ffmpeg -vf scale=-2:<h>, fps preserved, audio dropped);
+    // subsequent calls serve from PROXY_CACHE_DIR. Used by the runtime
+    // when the adaptive quality controller downswitches under
+    // sustained framedrops.
+    if (req.method === "GET" && routePath === "/api/animation-proxy") {
+      const requestUrl = new URL(req.url || "", "http://localhost");
+      const assetParam = requestUrl.searchParams.get("asset") || "";
+      const heightParam = requestUrl.searchParams.get("height");
+      let height = 480;
+      if (heightParam !== null && heightParam !== "") {
+        height = Number(heightParam);
+        if (!PROXY_ALLOWED_HEIGHTS.has(height)) {
+          sendJson(res, 400, { ok: false, reason: "invalid-height", detail: `height must be one of ${[...PROXY_ALLOWED_HEIGHTS].join(", ")}` });
+          return;
+        }
+      }
+      try {
+        const cacheFile = await getOrEncodeProxyMp4(assetParam, height);
+        const cacheStat = await stat(cacheFile);
+        res.writeHead(200, {
+          "content-type": "video/mp4",
+          "content-length": String(cacheStat.size),
+          "accept-ranges": "bytes",
+          "cache-control": "public, max-age=86400",
+        });
+        const stream = createReadStream(cacheFile);
+        stream.pipe(res);
+        stream.on("error", () => {
+          try { res.destroy(); } catch { /* ignore */ }
+        });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "proxy-encode-failed", detail: err?.message || String(err) });
       }
       return;
     }

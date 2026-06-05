@@ -1282,6 +1282,8 @@ const {
   maybeDispatchPlaybackCleanup,
   maybeTransitionPlaybackPhase,
   resolveMp4AssetUrlForDirection,
+  // Phase 58 Wave 3.7n — applied-tier probe for frozen-instance pinning
+  getAppliedVideoQualityTier,
   releaseMp4VideoElementsForInstance,
   ensureRoomMp4Playback,
   maybeWrapRoomMp4Loop,
@@ -1392,6 +1394,10 @@ const {
   shouldSkipRoomMp4Frame,
   getRuntimeVisualCaps,
   recordRuntimeFrameCost,
+  // Phase 58 Wave 3.7n — adaptive video quality controller (the
+  // settings toggle is wired directly against TT_BEAMER_RUNTIME_PERF
+  // in runtime-wire-room-audio-binders.js)
+  getAdaptiveVideoQualityTier,
 } = window.TT_BEAMER_RUNTIME_PERF;
 
 window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
@@ -2521,7 +2527,11 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   // Phase 58 Wave 3.4 — playback phase transitions on EOS
   maybeTransitionPlaybackPhase: (animation, video) => maybeTransitionPlaybackPhase(animation, video),
   // Phase 58 Wave 3 — pick forward / reverse-cached URL for mp4
-  resolveMp4AssetUrlForDirection: (assetPath, direction) => resolveMp4AssetUrlForDirection(assetPath, direction),
+  // Phase 58 Wave 3.7n — optional qualityTier ("full" | "proxy480")
+  resolveMp4AssetUrlForDirection: (assetPath, direction, qualityTier) => resolveMp4AssetUrlForDirection(assetPath, direction, qualityTier),
+  // Phase 58 Wave 3.7n — adaptive video quality
+  getAdaptiveVideoQualityTier: () => getAdaptiveVideoQualityTier(),
+  getAppliedVideoQualityTier: (video) => getAppliedVideoQualityTier(video),
   // Phase 50 (2026-05-25) — room MP4 seam machinery
   ensureRoomMp4Playback: (video, opts) => ensureRoomMp4Playback(video, opts),
   maybeWrapRoomMp4Loop: (video, state) => maybeWrapRoomMp4Loop(video, state),

@@ -224,11 +224,39 @@
   // returns the ffmpeg-reverse-cached URL served by the server's
   // /api/animation-reverse endpoint. For direction=forward returns the
   // raw asset path unchanged.
-  function resolveMp4AssetUrlForDirection(assetPath, direction) {
-    if (direction !== "reverse") return assetPath;
+  // Phase 58 Wave 3.7n: optional third param `qualityTier` — when
+  // "proxy480" (adaptive video quality downswitch) the forward URL
+  // routes through /api/animation-proxy?height=480 and the reverse URL
+  // carries &height=480, both server-side ffmpeg caches. Omitted /
+  // "full" keeps the pre-3.7n behavior (backward compatible).
+  const ADAPTIVE_PROXY_HEIGHT = 480;
+  function resolveMp4AssetUrlForDirection(assetPath, direction, qualityTier = "full") {
     const trimmed = String(assetPath || "").trim();
-    if (!trimmed.startsWith("/resources/animations/") || !/\.mp4$/i.test(trimmed)) return assetPath;
+    const isServableMp4 = trimmed.startsWith("/resources/animations/") && /\.mp4$/i.test(trimmed);
+    const useProxy = qualityTier === "proxy480" && isServableMp4;
+    if (direction !== "reverse") {
+      if (useProxy) {
+        return `/api/animation-proxy?asset=${encodeURIComponent(trimmed)}&height=${ADAPTIVE_PROXY_HEIGHT}`;
+      }
+      return assetPath;
+    }
+    if (!isServableMp4) return assetPath;
+    if (useProxy) {
+      return `/api/animation-reverse?asset=${encodeURIComponent(trimmed)}&height=${ADAPTIVE_PROXY_HEIGHT}`;
+    }
     return `/api/animation-reverse?asset=${encodeURIComponent(trimmed)}`;
+  }
+
+  // Phase 58 Wave 3.7n: which quality tier is CURRENTLY applied to a
+  // video element's src? Both proxy-tier URL shapes carry a height
+  // query param (/api/animation-proxy?…&height=480 and
+  // /api/animation-reverse?…&height=480); the full tier never does.
+  // Used by the draw loop to keep FROZEN instances pinned at their
+  // applied tier — a tier change must not src-swap a frozen instance
+  // (it swaps naturally on the next phase change).
+  function getAppliedVideoQualityTier(video) {
+    const src = String(video?.src || "");
+    return /[?&]height=\d+/.test(src) ? "proxy480" : "full";
   }
 
   function prewarmBoardOutsideMp4Asset(boardId, { reason = "board-switch" } = {}) {
@@ -1025,18 +1053,53 @@
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
         if (video.src && !_srcEqualsIgnoringHash(video.src, desiredAbs)) {
           const fromSrc = String(video.src).replace(window.location.origin, "");
-          video.src = expectedSrcUrl;
-          try { video.currentTime = 0; } catch { /* DOM may reject */ }
-          try { video.load(); } catch { /* harmless */ }
-          srcWasSwapped = true;
-          // Phase 58 Wave 3.7i: permanent diagnostic — src swaps only
-          // happen on phase transitions (forward<->reverse), low freq.
-          console.warn("[58] src-swap", JSON.stringify({
-            instanceId,
-            from: fromSrc,
-            to: String(expectedSrcUrl).replace(window.location.origin, ""),
-            phase: playbackPhase || null,
-          }));
+          // Phase 58 Wave 3.7n: distinguish DIRECTION swaps (forward ⇄
+          // reverse phase transitions — playback restarts at 0 by
+          // design) from QUALITY-ONLY swaps (same direction, adaptive
+          // tier change full ⇄ proxy480 — playback position must be
+          // PRESERVED so the operator sees no restart). Direction is
+          // identified by the /api/animation-reverse route; the tier
+          // only changes the height query param / proxy route.
+          const currentIsReverse = /\/api\/animation-reverse\b/.test(String(video.src));
+          const desiredIsReverse = /\/api\/animation-reverse\b/.test(desiredAbs);
+          const isQualityOnlySwap = currentIsReverse === desiredIsReverse;
+          if (isQualityOnlySwap) {
+            const resumeAtSec = Math.max(0, Number(video.currentTime) || 0);
+            const wasPlaying = !video.paused && !video.ended;
+            video.src = expectedSrcUrl;
+            try { video.load(); } catch { /* harmless */ }
+            video.addEventListener("loadedmetadata", () => {
+              try {
+                const durationSec = Number(video.duration);
+                video.currentTime = Number.isFinite(durationSec) && durationSec > 0
+                  ? Math.min(resumeAtSec, Math.max(0, durationSec - 0.05))
+                  : resumeAtSec;
+              } catch { /* DOM may reject */ }
+              if (wasPlaying) void video.play().catch(() => undefined);
+            }, { once: true });
+            srcWasSwapped = true;
+            // Phase 58 Wave 3.7n: permanent diagnostic — quality swaps
+            // only happen on adaptive tier changes, low freq.
+            console.warn("[58] quality-swap", JSON.stringify({
+              instanceId,
+              from: fromSrc,
+              to: String(expectedSrcUrl).replace(window.location.origin, ""),
+              resumeAtSec: Number(resumeAtSec.toFixed(2)),
+            }));
+          } else {
+            video.src = expectedSrcUrl;
+            try { video.currentTime = 0; } catch { /* DOM may reject */ }
+            try { video.load(); } catch { /* harmless */ }
+            srcWasSwapped = true;
+            // Phase 58 Wave 3.7i: permanent diagnostic — src swaps only
+            // happen on phase transitions (forward<->reverse), low freq.
+            console.warn("[58] src-swap", JSON.stringify({
+              instanceId,
+              from: fromSrc,
+              to: String(expectedSrcUrl).replace(window.location.origin, ""),
+              phase: playbackPhase || null,
+            }));
+          }
         }
       } catch { /* defensive */ }
     }
@@ -1247,6 +1310,9 @@
     maybeTransitionPlaybackPhase,
     // Phase 58 Wave 3: pick forward or reverse cached URL for mp4
     resolveMp4AssetUrlForDirection,
+    // Phase 58 Wave 3.7n: adaptive video quality — tier applied to a
+    // video element's current src (full | proxy480)
+    getAppliedVideoQualityTier,
     // Phase 58 Wave 3.2: per-instance video element cleanup
     releaseMp4VideoElementsForInstance,
     // Room MP4 seam machinery (Phase 50 2026-05-25)

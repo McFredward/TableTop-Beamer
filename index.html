@@ -646,6 +646,15 @@
           <input id="animation-speed" type="range" min="0.5" max="2.5" step="0.05" value="1" />
         </label>
         <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
+        <!-- Phase 58 Wave 3.7n: adaptive video quality. Per-client
+             persisted flag (localStorage); the runtime downswitches
+             room mp4 playback to a server-encoded 480p proxy under
+             sustained framedrops and recovers automatically. -->
+        <label class="inline-checkbox">
+          <input id="adaptive-video-quality-toggle" type="checkbox" checked />
+          Adaptive Video-Qualität (auto 480p bei Framedrops)
+        </label>
+        <p id="adaptive-video-quality-status" class="status-line" aria-live="polite">Adaptive Video-Qualität: an</p>
       </section>
 
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"

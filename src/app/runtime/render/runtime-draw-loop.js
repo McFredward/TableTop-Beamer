@@ -120,12 +120,25 @@
       // handling are cheap and must not be skipped under pressure.
       const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
       const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
-      const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
       const videoEntry = ctx.getRoomVideoElement(assetRef, {
         instanceId: animation.id,
         playbackMode: animation.playbackMode || "loop",
       });
       const video = videoEntry?.video;
+      // Phase 58 Wave 3.7n: adaptive video quality. The desired src is
+      // a single function of (direction, quality tier). Playing
+      // instances follow the GLOBAL adaptive tier (downswitch to the
+      // 480p proxy under sustained framedrops; ensureRoomMp4Playback
+      // performs the position-preserving quality swap). FROZEN
+      // instances are pinned to the tier already applied to their
+      // element — swapping a frozen video would discard its decoded
+      // freeze state for zero benefit; they adopt the current tier on
+      // the next phase change.
+      const roomMp4IsFrozenForTier = roomMp4IsFrozen && video;
+      const roomMp4QualityTier = roomMp4IsFrozenForTier
+        ? (ctx.getAppliedVideoQualityTier?.(video) || "full")
+        : (ctx.getAdaptiveVideoQualityTier?.() || "full");
+      const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction, roomMp4QualityTier) || assetRef;
       if (video) {
         // Phase 50 (2026-05-25): manual-wrap loop machinery (mirrors
         // outside MP4) to eliminate the SSR-visible seam at video EOS.
@@ -141,8 +154,10 @@
         // Phase 58 Wave 3: for boomerang, pre-compute both forward
         // and reverse URLs so the ended handler can src-swap.
         const roomMp4IsBoomerang = (animation.playbackMode || "loop") === "boomerang";
-        const roomMp4Forward = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "forward") || assetRef : null;
-        const roomMp4Reverse = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "reverse") : null;
+        // Phase 58 Wave 3.7n: boomerang fwd/rev URLs carry the current
+        // quality tier too, so the EOS ping-pong stays on-tier.
+        const roomMp4Forward = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "forward", roomMp4QualityTier) || assetRef : null;
+        const roomMp4Reverse = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "reverse", roomMp4QualityTier) : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
           assetRef,
           expectedSrcUrl: roomMp4ExpectedSrcUrl,

@@ -573,6 +573,30 @@
       setDiagnosticOverlay(diagnosticOverlayToggle.checked);
     });
 
+    // Phase 58 Wave 3.7n — adaptive video quality toggle. Per-client
+    // persisted flag (localStorage key tt-beamer.adaptive-video-
+    // quality.v1, default ON). Queried directly from the DOM (same
+    // pattern as the apply/discard global-config buttons above); the
+    // controller itself lives in TT_BEAMER_RUNTIME_PERF.
+    (function wireAdaptiveVideoQualityToggle() {
+      const toggle = document.getElementById("adaptive-video-quality-toggle");
+      if (!toggle) return;
+      const statusLine = document.getElementById("adaptive-video-quality-status");
+      const perfApi = window.TT_BEAMER_RUNTIME_PERF;
+      const reflect = () => {
+        const enabled = perfApi?.isAdaptiveVideoQualityEnabled?.() !== false;
+        toggle.checked = enabled;
+        if (statusLine) {
+          statusLine.textContent = `Adaptive Video-Qualität: ${enabled ? "an (480p bei Framedrops)" : "aus (immer volle Auflösung)"}`;
+        }
+      };
+      reflect();
+      toggle.addEventListener("change", () => {
+        perfApi?.setAdaptiveVideoQualityEnabled?.(toggle.checked);
+        reflect();
+      });
+    })();
+
     // Phase 31 Plan 05 (publishability) — wire the System & Performance
     // subtab Server-side Rendering section to live-sync. Initialised once
     // here per ctx; the panel module no-ops if its DOM section is absent

@@ -30,6 +30,11 @@ start.log
 # demand by src/server/ssr-stream-publisher.mjs:ensureMediasoupClientBundle.
 public/vendor/
 
+# Phase 58 — server-side ffmpeg caches (reverse + adaptive-quality
+# proxy variants). Regenerated on demand; keyed by source mtime.
+resources/.reverse-cache/
+resources/.proxy-cache/
+
 # Local environment
 .env
 .env.*
