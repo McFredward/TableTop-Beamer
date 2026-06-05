@@ -447,7 +447,21 @@
     playbackState.lastDrawAtMs = performance.now();
   }
 
-  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "" } = {}) {
+  function ensureOutsideMp4Playback(video, { boardId, lifecycleKey = "", assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "" } = {}) {
+    // Phase 58 Wave 3.6: same phase-transition src-swap as
+    // ensureRoomMp4Playback. Outside mp4 keeps its board-scoped
+    // playback state cache (one outside animation per board) so the
+    // fallback canvas survives forward↔reverse transitions.
+    if (video && expectedSrcUrl) {
+      try {
+        const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
+        if (video.src && video.src !== desiredAbs) {
+          video.src = expectedSrcUrl;
+          try { video.currentTime = 0; } catch { /* DOM may reject */ }
+          try { video.load(); } catch { /* harmless */ }
+        }
+      } catch { /* defensive */ }
+    }
     if (!video) {
       return null;
     }
@@ -550,8 +564,22 @@
   // canvas matches the video's natural dimensions; drawImage handles
   // any rect transformation downstream via drawRoomAssetImage.
 
-  function _roomMp4Key(assetRef) {
-    return String(assetRef || "").trim() || "?";
+  // Phase 58 Wave 3.6: composite key (assetRef + instanceId) for
+  // non-loop modes so each running animation instance gets its OWN
+  // playback state (fallback canvas, rVFC binding, mode marker).
+  // Without this, multiple rooms running the same mp4 with
+  // play-then-freeze share state — Room A's rVFC binding wins, Room
+  // A's fallback canvas leaks into Room B's polygon, and the wrap /
+  // freeze logic uses whichever room last called ensureRoomMp4Playback.
+  // Operator UAT 2026-06-05: "die Räume syncen sich, jeder Raum
+  // zeigt das gefreezte Bild des anderen". Loop mode keeps the
+  // shared-per-path key (multi-room loop sync is intentional).
+  function _roomMp4Key(assetRef, instanceId, playbackMode) {
+    const ref = String(assetRef || "").trim() || "?";
+    if (instanceId && playbackMode && playbackMode !== "loop") {
+      return `${ref}#${instanceId}`;
+    }
+    return ref;
   }
 
   function _ensureRoomMp4FallbackCanvas(state, video) {
@@ -789,10 +817,28 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "" } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "" } = {}) {
     if (!video) return null;
-    const key = _roomMp4Key(assetRef);
+    // Phase 58 Wave 3.6: composite per-instance key — see _roomMp4Key.
+    const key = _roomMp4Key(assetRef, instanceId, playbackMode);
     const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
+    // Phase 58 Wave 3.6: phase transitions (forward → reverse on
+    // re-trigger; reverse → forward) swap video.src in-place INSTEAD
+    // of creating a new playback state under a different cache key.
+    // Keeping the same playback state preserves the fallback canvas
+    // so during the brief reverse-URL fetch window the operator
+    // sees the last forward frame instead of an unpainted region
+    // (operator UAT 2026-06-05: "es verschwindet direkt").
+    if (expectedSrcUrl) {
+      try {
+        const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
+        if (video.src && video.src !== desiredAbs) {
+          video.src = expectedSrcUrl;
+          try { video.currentTime = 0; } catch { /* DOM may reject */ }
+          try { video.load(); } catch { /* harmless */ }
+        }
+      } catch { /* defensive */ }
+    }
     // Manual-wrap mode: native loop attribute OFF so maybeWrapRoomMp4Loop
     // can preempt the seam-producing native EOS reset.
     // Phase 58: stamp playbackMode on the playback state so

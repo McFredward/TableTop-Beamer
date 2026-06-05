@@ -95,19 +95,15 @@
       if (ctx.shouldSkipRoomMp4Frame(animation)) {
         return;
       }
-      // Phase 58 Wave 3.4: effective playback direction depends on
-      // playbackPhase (forward/frozen-last → forward URL; reverse/
-      // frozen-first → reverse URL). Phase is set by createAnimation
-      // from playbackDirection and transitioned by ended events and
-      // operator re-triggers (see advanceReversibleFreezePhaseIfPossible).
+      // Phase 58 Wave 3.6: cache video element by BASE assetRef (forward
+      // URL) + instanceId. Phase transitions swap video.src in-place
+      // via expectedSrcUrl so the fallback canvas + rVFC binding
+      // survive (operator UAT 2026-06-05: disappear-on-retrigger fix).
       const roomMp4Phase = animation.playbackPhase || "forward";
       const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
       const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
-      const roomMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
-      // Phase 58 Wave 3.2: per-instance video for non-loop modes so
-      // multiple rooms running the same animation have independent
-      // lifecycles (each gets its own freeze/disappear/boomerang).
-      const videoEntry = ctx.getRoomVideoElement(roomMp4SrcUrl, {
+      const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction) || assetRef;
+      const videoEntry = ctx.getRoomVideoElement(assetRef, {
         instanceId: animation.id,
         playbackMode: animation.playbackMode || "loop",
       });
@@ -130,7 +126,8 @@
         const roomMp4Forward = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "forward") || assetRef : null;
         const roomMp4Reverse = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "reverse") : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
-          assetRef: roomMp4SrcUrl,
+          assetRef,
+          expectedSrcUrl: roomMp4ExpectedSrcUrl,
           targetRate: playbackRate,
           // Phase 58: per-instance playback mode from the running
           // animation; controls whether maybeWrapRoomMp4Loop seeks back
@@ -376,11 +373,13 @@
     }
 
     if (definition?.assetType === "mp4") {
-      // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
-      const insideMp4Direction = animation?.playbackDirection || definition?.playbackDirection || "forward";
-      const insideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4Direction) || definition.assetRef;
+      // Phase 58 Wave 3.6: cache by BASE assetRef + instanceId; swap
+      // video.src in-place on phase transitions via expectedSrcUrl.
+      const insideMp4Phase = animation?.playbackPhase || "forward";
+      const insideMp4UseReverseUrl = insideMp4Phase === "reverse" || insideMp4Phase === "frozen-first";
+      const insideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4UseReverseUrl ? "reverse" : "forward") || definition.assetRef;
       const insideMp4Mode2 = animation?.playbackMode || definition?.playbackMode || "loop";
-      const videoEntry = ctx.getOutsideVideoElement(insideMp4SrcUrl, {
+      const videoEntry = ctx.getOutsideVideoElement(definition.assetRef, {
         instanceId: animation?.id,
         playbackMode: insideMp4Mode2,
       });
@@ -406,7 +405,8 @@
         const insideMp4Forward = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "forward") || definition.assetRef : null;
         const insideMp4Reverse = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "reverse") : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
-          assetRef: insideMp4SrcUrl,
+          assetRef: definition.assetRef,
+          expectedSrcUrl: insideMp4ExpectedSrcUrl,
           targetRate,
           // Phase 58: inside-mp4 reads playbackMode from the running
           // animation; falls back to definition for control-side
@@ -689,11 +689,13 @@
         return;
       }
       if (selectedDefinition.assetType === "mp4") {
-        // Phase 58 Wave 3: pick reverse-cached URL when direction=reverse.
-        const outsideMp4Direction = animation?.playbackDirection || selectedDefinition?.playbackDirection || "forward";
-        const outsideMp4SrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4Direction) || selectedDefinition.assetRef;
+        // Phase 58 Wave 3.6: cache by BASE assetRef; swap src in-place
+        // on phase transitions via expectedSrcUrl.
+        const outsideMp4Phase = animation?.playbackPhase || "forward";
+        const outsideMp4UseReverseUrl = outsideMp4Phase === "reverse" || outsideMp4Phase === "frozen-first";
+        const outsideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4UseReverseUrl ? "reverse" : "forward") || selectedDefinition.assetRef;
         const outsideMp4Mode2 = animation?.playbackMode || selectedDefinition?.playbackMode || "loop";
-        const videoEntry = ctx.getOutsideVideoElement(outsideMp4SrcUrl, {
+        const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef, {
           instanceId: animation?.id,
           playbackMode: outsideMp4Mode2,
         });
@@ -707,7 +709,8 @@
           const playbackState = ctx.ensureOutsideMp4Playback(video, {
             boardId: state.boardId,
             lifecycleKey: outsideLifecycleKey,
-            assetRef: outsideMp4SrcUrl,
+            assetRef: selectedDefinition.assetRef,
+            expectedSrcUrl: outsideMp4ExpectedSrcUrl,
             targetRate,
             // Phase 58: outside mp4 reads playbackMode from the running
             // animation when available; falls back to definition for
