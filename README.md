@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-1.1.7-7c3aed.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-1.2.24-7c3aed.svg)](#project-status)
 
 <br>
 
@@ -70,7 +70,9 @@ at once.
   animation library.
 - 🎯 **In-browser projection mapping.** A WebGL-accelerated mesh-warp grid you
   drag, rotate, and scale until the projection sits perfectly on the physical
-  board. Profiles are saved per-board on the server.
+  board. Profiles are saved per-board on the server. Corner scale handles stay
+  reachable even at extreme zoom (they clamp into the viewport rather than
+  disappearing off-screen).
   <div align="center">
   <img src="./readme-assets/align_mode.gif" width="75%" />
   </div>
@@ -80,6 +82,13 @@ at once.
   <div align="center">
   <img src="./readme-assets/edit_animations.gif" width="75%" />
   </div>
+- 🎬 **Per-animation playback modes.** Each GIF or MP4 can be set to loop,
+  play-once-disappear, play-then-freeze, or boomerang. Freeze mode supports
+  re-trigger to reverse: tap again and the animation plays backward, freezing
+  at the first frame or disappearing. An initial direction control lets you
+  start any animation in reverse. Works on room, inside, and outside scopes,
+  for single rooms and clusters, on dashboard and `/output/` alike. Re-triggering
+  flips direction mid-play — no need to wait for the freeze.
 - 🧩 **Rooms, play areas, clusters.** Paint any polygonal region. Group rooms
   so one tap fires across many at once.
   <div align="center">
@@ -88,7 +97,7 @@ at once.
 - 🔊 **Per-animation sounds** with global master volume.
 - 💾 **Self-contained board packages.** Export everything as a single `.zip`;
   re-import on another machine, nothing else required.
-- 🥧 **Server-Side-Rendering.** The output path is build and optimized for a "weak" thin client like a Raspberry-Pi.
+- 🥧 **Server-Side-Rendering.** The output path is built and optimised for a "weak" thin client like a Raspberry Pi. Adaptive video quality (default on) automatically downswitches playing MP4 instances to a 480p proxy under sustained frame-drop pressure, with position-preserving mid-play swaps, and recovers to full resolution once load drops.
 
 ---
 
@@ -151,6 +160,11 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
   (H.264 / VP9), pick a content-hint (detail / motion / auto), and step
   the bitrate up to Maximum (30 Mbit) or down to Low (3 Mbit) if you see
   jitter.
+- **Adaptive video quality** — when multiple play-then-freeze MP4 rooms are
+  active simultaneously, the runtime automatically downswitches to 480p proxy
+  variants under frame-drop pressure. The toggle is in Settings → System
+  ("Adaptive Video-Qualität (auto 480p bei Framedrops)") and is on by default. You can disable it if you
+  prefer consistent full resolution regardless of load.
 
 ---
 

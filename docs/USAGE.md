@@ -18,12 +18,14 @@ for the high-level overview see the [README](../README.md).
 - [Settings panel](#settings-panel)
 - [Rooms, play areas, clusters](#rooms-play-areas-clusters)
 - [Animation editor](#animation-editor)
+- [Playback modes](#playback-modes)
 - [Built-in animations](#built-in-animations)
 - [Sounds](#sounds)
 - [Custom assets (GIF / MP4 / audio)](#custom-assets-gif--mp4--audio)
 - [Boards](#boards)
 - [Export / Import](#export--import)
 - [Data layout (where things live on disk)](#data-layout-where-things-live-on-disk)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -76,6 +78,12 @@ whatever you're aligning — the position is remembered per profile.
 | **Scale** | Square teal button further out at each corner | Drags toward / away from the centre to scale the whole grid proportionally. |
 | **Squish bar** | Slim teal bar on each outer side | Compresses or stretches the grid along that axis with the **opposite side anchored** — the board doesn't translate, only the area between. |
 
+> **Tip — extreme zoom:** At high zoom the scale handles (⤢) automatically
+> flip inward and clamp to the viewport edge so they stay reachable when
+> the natural outward position would fall off-screen. Drag math is
+> unaffected — dragging a repositioned handle applies the exact same
+> transform as dragging from the true corner.
+
 ### Right-click menu
 
 The grid is defined by lines (horizontal + vertical); intersections are just
@@ -118,13 +126,29 @@ does:
 
 | Mode | Behavior |
 |---|---|
-| **Toggle** *(default)* | First tap fires the armed animation, second tap stops it. |
+| **Toggle** *(default)* | First tap fires the armed animation, second tap stops it — **except** for `Freeze, reverse on re-trigger` animations (see below). |
 | **Clear** | Tapping a room stops every animation in that room. |
 | **Select** | Picks the animation to fire next without triggering it. |
 
 When the armed animation is the **Solid color** effect, an inline color picker
 appears in the panel so you can change the colour without leaving the
 dashboard.
+
+### Tap behavior for play-then-freeze + reverse-on-retrigger animations
+
+Animations configured as **Freeze, reverse on re-trigger** have different
+tap semantics in Toggle mode:
+
+- **Tap while playing or frozen** — flips the playback direction
+  (forward → reverse, reverse → forward) instead of stopping. The
+  direction flip works at any point during playback, not only after the
+  animation has reached its frozen state.
+- **First frame continuity** — the frozen image holds through the
+  direction flip; there is no blank frame during the transition.
+- **Stopping** these animations is done via quick-mode **Clear**, or
+  from the running animations list — tap-to-stop is intentionally
+  disabled for them in Toggle mode.
+- **Loop animations** keep the standard tap-to-toggle behavior.
 
 ---
 
@@ -140,6 +164,12 @@ A column of mini-render-surfaces sits to the **left of the board**, labelled
   flicker can all run on one cluster simultaneously.
 - Scrolls if you have more clusters than fit, with touch-momentum on mobile.
 
+**Re-triggering a cluster** with a `Freeze, reverse on re-trigger` animation
+running flips the direction of **every member room**, each from its own
+current playback phase. Member rooms that were individually re-triggered
+between cluster taps keep their independent phase — the cluster tap does not
+force them into sync.
+
 The pads are dashboard-only and not visible in `/output`.
 
 ---
@@ -152,7 +182,7 @@ Settings has three subtabs:
 |---|---|
 | **Board** | Rooms, polygons, play areas, clusters, board catalog, zoom, per-board export / import |
 | **Animations** | The full-page animation editor |
-| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings |
+| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings (incl. adaptive video quality) |
 
 ---
 
@@ -206,7 +236,7 @@ Each animation definition exposes:
 - **Source** — built-in name, or a file under `resources/`
 - **Sound** — event sound that plays on start (per-definition)
 - **Intensity / Speed / Opacity** — per-type tweakable ranges
-- **Loop until stopped** — for one-shot effects you want to hold
+- **Playback configuration** *(GIF and MP4 only)* — see [Playback modes](#playback-modes) below
 - **Transform defaults** *(Room only)* — rotation, stretch-to-polygon,
   width / height scale, X / Y offset
 - **Color** *(Solid color effect)* — colour swatch picked once at edit time
@@ -231,6 +261,62 @@ Editor topbar controls:
 or down, drop where you want it. The new order persists to the server
 and propagates to the Tap-Action picker + Dashboard global buttons
 immediately.
+
+---
+
+## Playback modes
+
+GIF and MP4 animations expose a **playback configuration** block in the
+editor's Defaults card. Both asset types support all modes — MP4 reverse
+is pre-computed on the server the first time it is needed (brief one-time
+encode per asset, typically 1–5 s depending on file length); GIF reverse
+is instantaneous (cursor math, no encoding).
+
+### Initial direction
+
+The **Initial direction** dropdown sets which end of the animation plays
+first:
+
+| Option | Behavior |
+|---|---|
+| **Forward (start to end)** *(default)* | Plays from frame 1 to the last frame. |
+| **Reverse (end to start)** | Plays from the last frame back to frame 1. |
+
+This is independent of the *When ended* mode — a reverse-direction loop
+plays backwards continuously; a reverse-direction play-then-freeze plays
+once backwards and then holds the first frame.
+
+### When ended
+
+The **When ended** dropdown controls what happens after the initial
+playthrough completes:
+
+| Option | What happens at end of playback |
+|---|---|
+| **Loop forever** | Restarts from the beginning continuously. |
+| **Disappear** | Removes the animation from the room. |
+| **Freeze (re-trigger removes)** | Holds the final frame. Tapping the room again (Toggle mode) removes it. |
+| **Freeze, reverse on re-trigger** | Holds the final frame. Re-triggering plays reverse; when reverse ends, see *After reverse on re-trigger* below. |
+| **Boomerang (auto forward & reverse)** | Ping-pongs automatically between forward and reverse without any tap. |
+
+When **Freeze, reverse on re-trigger** is selected, a second dropdown
+appears:
+
+| After reverse on re-trigger | What happens when reverse completes |
+|---|---|
+| **Freeze at first frame (manual ping-pong)** | Holds the first frame. Another re-trigger plays forward again — manual ping-pong. |
+| **Disappear** | Removes the animation after the reverse playthrough. |
+
+### Editor live preview
+
+The preview in the editor honors the configured mode and direction:
+- Non-loop modes restart on every slider or dropdown change so you always
+  see a full playthrough of the current settings.
+- **Disappear** mode hides the preview canvas at end-of-sequence, mirroring
+  what the board will show.
+- **Boomerang** ping-pongs the preview cursor through forward then reverse.
+- **Reverse** direction walks frames backward in the preview at the same
+  speed as the forward setting.
 
 ---
 
@@ -266,9 +352,37 @@ editor). Global audio enable + master volume lives in **Settings → System**.
 
 ## Custom assets (GIF / MP4 / audio)
 
-Upload your own GIFs, MP4 loops, and audio files directly from the
+Upload your own GIFs, MP4s, and audio files directly from the
 animation editor's source picker — they land under `resources/animations/`
 or `resources/sounds/` and become available for every board.
+
+Both GIF and MP4 assets support all playback modes including reverse and
+boomerang. For MP4, the server pre-computes a reversed copy on first use
+(cached under `resources/.reverse-cache/`); the encode runs once per asset
+and subsequent uses are instant. GIF reverse requires no pre-compute.
+
+---
+
+## Adaptive video quality
+
+When many rooms are running MP4 animations simultaneously, the rendering
+load from concurrent video decoders can cause frame drops. TT-Beamer
+monitors frame rate and automatically switches active videos to a
+server-encoded 480p proxy variant when sustained distress is detected,
+then recovers to full resolution when load drops.
+
+- **Toggle:** **Settings → System → Adaptive Video-Qualität (auto 480p
+  bei Framedrops)** — enabled by default. The setting is per rendering
+  client (dashboard, `/output/`, and the SSR tab each have their own
+  stored preference).
+- **Switching is seamless:** playback position is preserved when switching
+  tiers mid-play. Frozen instances do not swap mid-freeze; they pick up
+  the current tier on their next phase change.
+- **Recovery:** the system returns to full resolution once frame rate is
+  healthy and the number of concurrently playing videos drops — designed
+  to recover after a burst rather than oscillate.
+- **Loop-mode MP4s** are exempt — they share one decoder across all rooms
+  using the same asset and do not create N×decoder pressure.
 
 ---
 
@@ -328,6 +442,8 @@ config/
 
 resources/
 ├── animations/                     # shared GIFs + MP4s
+├── .reverse-cache/                 # server-encoded reversed MP4 variants (auto-generated)
+├── .proxy-cache/                   # server-encoded downscaled proxy MP4 variants (auto-generated)
 └── sounds/                         # shared audio files
 ```
 
@@ -337,3 +453,31 @@ media in `/resources/` is left alone.
 > `config/projection-profiles.json` is **local-only** (in `.gitignore`) —
 > calibration is per-install. Saving a profile in align mode writes to
 > this file on your server.
+
+---
+
+## Troubleshooting
+
+### Reading the console logs
+
+TT-Beamer emits permanent `[58]`-prefixed console messages (visible in
+the browser's developer tools on both the dashboard and `/output/`) that
+explain key playback lifecycle events in real time:
+
+| Log tag | What it reports |
+|---|---|
+| `[58] re-trigger` | Every room-trigger's phase-advance check — which animation matched, its current phase, mode, and on-retrigger setting. |
+| `[58] anim-removed` | Every animation removal, with the reason (`explicit-remove`, `board-mismatch`, or `sustained-absence`) and absence duration. |
+| `[58] phase` | Playback phase transitions (forward → frozen-last → reverse → frozen-first, etc.). |
+| `[58] src-swap` | Forward ↔ reverse URL swaps for play-then-freeze and boomerang animations. |
+| `[58] quality` / `[58] quality-swap` | Adaptive quality tier changes and the position-preserving src swap that goes with them. |
+| `[58] quick-toggle` | Every tap on an occupied room — whether the tap was routed to retrigger (direction flip) or stop. |
+| `[58] cluster-toggle` / `[58] cluster-retrigger` | Every cluster pad toggle decision and the per-member phase-advance outcome. |
+| `[58] anim-absent-start` / `[58] anim-absent-recovered` | Grace-period tracking when a snapshot transiently omits a running animation. |
+| `[58] prune-release` | Video element release decisions. |
+| `[58] release-video` | Immediately before a video element is released — useful for correlating browser media-load errors. |
+
+These logs fire on events only (never per-frame) and are always on.
+When reporting a playback issue, paste the `[58]` lines from the console
+— they identify what was removed and why, which phase was active, and
+whether a quality switch was in progress.

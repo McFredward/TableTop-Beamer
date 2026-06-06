@@ -10,6 +10,46 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## Release-Rollup 1.1.4 → 1.2.24 (Kurzfassung für Release-Notes)
+
+**Per-Animation Playback-Modi (Phase 58).** Jede Raum-Animation kann
+jetzt konfiguriert werden mit: `Loop`, `Play once (disappear)`,
+`Play then freeze`, `Boomerang` sowie Re-Trigger-Verhalten
+(`reverse, then freeze first` / `reverse, then disappear`) und
+Initial-Richtung (vorwärts/rückwärts). Gilt für **mp4 UND gif**,
+Einzelräume UND Cluster, Dashboard UND Beamer-Output. Ein erneuter
+Trigger dreht die Abspielrichtung — auch mitten im Abspielen — nahtlos
+und ohne Aufblitzen; Cluster-Trigger drehen jeden Raum individuell von
+seiner eigenen Phase aus.
+
+- mp4-Reverse wird server-seitig einmalig vorberechnet und gecacht
+  (`/api/animation-reverse`); gif-Reverse läuft ohne Transcoding über
+  Timeline-Spiegelung.
+- **Adaptive Video-Qualität:** Bei anhaltenden Framedrops mit vielen
+  parallelen Videos schalten Raum-Videos automatisch und
+  positionserhaltend auf eine 480p-Variante um (`/api/animation-proxy`,
+  gecacht) und später wieder zurück. Abschaltbar unter
+  Einstellungen → System. Macht 10+ parallele Räume praktikabel.
+- **Stream-/SSR-Stabilität:** Strobo- und Flacker-Fixes auf Dashboard
+  und `/output/` (u.a. Pressure-Frameskip malt nie mehr transparent),
+  gefrorene Animationen erzeugen null Render-Last, Firefox-spezifische
+  Frame-Callback-Aushungerung kompensiert, Vulkan-Backend für
+  SSR-Video-Playback.
+- **Robuste Live-Sync:** Laufende/gefrorene Animationen können nicht
+  mehr durch Snapshot-Races verschwinden (Absence-Grace-Modell:
+  Entfernung nur durch explizites Stop/Clear, Board-Wechsel oder
+  anhaltende Abwesenheit).
+- **Align-Modus:** Ecken-Skalierungs-Handles bleiben bei extremem Zoom
+  im sichtbaren Bereich (wie der Rotations-Handle) — das Board ist
+  immer skalierbar.
+- **Editor:** Überarbeitete Playback-Dropdowns, Live-Vorschau
+  respektiert Modus + Richtung; Loop-Animationen in mehreren Räumen
+  gefixt; Auswahl einer frisch erstellten Animation greift sofort.
+- **Diagnose:** Permanente `[58]`-Konsolen-Logs erklären jeden
+  Playback-Lebenszyklus (Phasenwechsel, Entfernungen mit Grund,
+  Qualitätswechsel) — Fehlerberichte sind direkt aus der Console
+  belegbar.
+
 ---
 
 ## [1.2.24] — 2026-06-06
