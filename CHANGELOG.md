@@ -52,6 +52,11 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.32] — 2026-06-06
+
+**city-workers: Obergrenze fürs Schritttempo + fast gerades Stapfen (Phase 58-w3.8d).**
+Die schnellsten Figuren laufen jetzt max. ≈ 4,5 px/s auf dem 133-px-Hex (vorher bis ≈ 7,9; Gruppenmitglieder liefen auf gestreckten Streurouten bis ~2× Leader-Tempo), beladene Figuren bleiben die langsamsten; das seitliche Hin-und-her-Schwenken ist auf einen Hauch Drift reduziert (max. Abweichung von der Geraden 10,4 % → 2,8 %), Heading-Wackeln erneut halbiert.
+
 ## [1.2.31] — 2026-06-06
 
 **city-workers: Per-Figur-Varianz (Phase 58-w3.8c).** Die Bewohner der
