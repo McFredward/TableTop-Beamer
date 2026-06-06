@@ -6386,6 +6386,9 @@
           "mode": "immersive",
           "direction": "reverse",
           "soundEnabled": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         }
@@ -6408,6 +6411,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": false,
+          "playbackMode": "play-once-disappear",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         },
@@ -6419,6 +6425,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": false,
+          "playbackMode": "play-once-disappear",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         },
@@ -6430,6 +6439,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": false,
+          "playbackMode": "play-once-disappear",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         }
@@ -6461,6 +6473,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": true,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6481,6 +6496,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6501,6 +6519,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6521,6 +6542,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6541,6 +6565,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6561,6 +6588,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6581,6 +6611,9 @@
           "soundVolume": 1,
           "colorHex": "#ffffff",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": "picker"
         },
         {
@@ -6601,6 +6634,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6621,6 +6657,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         }
       ]

@@ -5163,12 +5163,12 @@
             0.774188318917832
           ],
           [
-            0.8577387644616531,
-            0.987094495617935
+            0.8577900131376456,
+            1
           ],
           [
-            0.7642005637560657,
-            0.987094495617935
+            0.7639443203761034,
+            1
           ],
           [
             0.7639364505344906,
@@ -5228,11 +5228,11 @@
           ],
           [
             0.5497643266635182,
-            0.987094495617935
+            1
           ],
           [
-            0.4531748352231586,
-            0.987094495617935
+            0.4532993266274466,
+            1
           ],
           [
             0.45319280832265824,
@@ -5291,12 +5291,12 @@
             0.9090144034168525
           ],
           [
-            0.25913490651959303,
-            0.987094495617935
+            0.259088404768239,
+            1
           ],
           [
-            0.1648451274967932,
-            0.987094495617935
+            0.16511952673763983,
+            1
           ],
           [
             0.1646264472759024,
@@ -5951,12 +5951,12 @@
             0.0779738046527966
           ],
           [
-            0.34007470223709135,
-            0.012905504382064947
+            0.34096078687614,
+            0
           ],
           [
-            0.42923242899094977,
-            0.012905504382064947
+            0.4289370674446002,
+            0
           ],
           [
             0.42926235408938124,
@@ -6563,7 +6563,7 @@
         ]
       }
     ],
-    "selectedPlayAreaId": "play-area-4",
+    "selectedPlayAreaId": "play-area-1",
     "outsideFx": {
       "enabled": true,
       "selectedAnimationId": "outside-sandstorm",
@@ -6578,6 +6578,9 @@
           "mode": "standard",
           "direction": "forward",
           "soundEnabled": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         }
@@ -6600,6 +6603,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": true,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         },
@@ -6611,6 +6617,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": false,
+          "playbackMode": "play-once-disappear",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         },
@@ -6622,6 +6631,9 @@
           "intensity": 1,
           "speed": 1,
           "loopUntilStopped": false,
+          "playbackMode": "play-once-disappear",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": null
         }
@@ -6653,6 +6665,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": "power"
         },
         {
@@ -6673,6 +6688,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6693,6 +6711,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6713,6 +6734,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6733,6 +6757,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6753,6 +6780,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6773,6 +6803,9 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         },
         {
@@ -6793,6 +6826,9 @@
           "soundVolume": 1,
           "colorHex": "#ffffff",
           "breaksSolidColor": false,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
           "icon": null
         }
       ]

@@ -1,30 +1,30 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-05-25T13:15:02.963Z",
+  "savedAt": "2026-06-06T09:00:05.458Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
     "volume": 0.7
   },
   "animationSpeed": 1,
-  "diagnosticOverlay": false,
+  "diagnosticOverlay": true,
   "projectionMapping": {
     "corners": {
       "topLeft": {
-        "x": 19.16666666666667,
-        "y": 15.277777777777777
+        "x": 19.464045589586416,
+        "y": 3.687410762204635
       },
       "topRight": {
-        "x": 75.57291666666667,
-        "y": 15.277777777777777
+        "x": 76.44741274374691,
+        "y": 3.687410762204635
       },
       "bottomRight": {
-        "x": 75.57291666666667,
-        "y": 85.55555555555556
+        "x": 76.44741274374691,
+        "y": 98.15740746894024
       },
       "bottomLeft": {
-        "x": 19.16666666666667,
-        "y": 85.55555555555556
+        "x": 19.464045589586416,
+        "y": 98.15740746894024
       }
     }
   },
