@@ -52,6 +52,43 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.27] — 2026-06-06
+
+Phase 58 Wave 3.7x+y — "Heat"-Feinschliff + neue Coded-Raum-Animation
+"City Workers" für das Frostpunk-Board (Operator-Spec 2026-06-06).
+
+### Changed
+- **„Generator Heat" → „Heat", Glut-Partikel entfernt** — die
+  aufsteigenden Glut-„Bläschen" brachen die Immersion und sind komplett
+  raus; der atmende radiale Glow und die Heat-Shimmer-Streifen bleiben
+  unverändert. Kanonischer Effekt-Key ist jetzt `heat` (Editor-Label
+  „Heat"); der alte Key `generator-heat` funktioniert weiter als
+  Rückwärts-Kompatibilitäts-Alias — bestehende Animationen rendern
+  unverändert und werden beim nächsten Speichern transparent auf
+  `heat` normalisiert.
+
+### Added
+- **Neuer Coded-Effekt „City Workers"** — winzige Top-Down-Bewohner
+  beleben die Kraterstadt: dunkle Silhouetten (Schulter-Ellipse +
+  Kopfpunkt in Laufrichtung + weicher Schatten, kalt-blaugrau getönt),
+  die zwischen 2-4 geseedeten Ankerpunkten um das Zentrum stapfen, an
+  den Ankern stehenbleiben und mit rhythmischem Werkzeug-Ruckeln
+  „arbeiten", dann weich aus-/einblenden. Bewusst spärlich („hin und
+  wieder"): lange Off-Stage-Phasen pro Figur, meist nur 0-2 Figuren in
+  Bewegung, ruhige Perioden inklusive. Figurengröße relativ zum
+  Raum-Polygon mit absoluten Grenzen (≈2,5 % der Polygonbreite,
+  2-7 px) — Bewohner bleiben klein gegenüber den Gebäuden. Wenige
+  Figuren tragen eine gedämpfte warme Laterne (Tint-Farbe einstellbar,
+  Standard `#c98a4b`). Regler: Intensity = Bewohnerzahl (Standard ~4
+  bei 0,8), Speed = Geh-/Arbeitstempo, Opacity gesamt. Komplett
+  deterministisch (kein Per-Frame-Zufall — Dashboard, /output und SSR
+  identisch); eine ultraschwache kalte Vignette malt in jedem Frame
+  (SSR-Strobo-Schutz). Im Animation-Editor als „City Workers" unter
+  Effect (coded) wählbar, inkl. Live-Preview und neuem
+  Zwei-Figuren-Icon.
+
+---
+
 ## [1.2.26] — 2026-06-06
 
 Phase 58 Wave 3.7w — Neue Coded-Raum-Animation "Generator Heat" für das

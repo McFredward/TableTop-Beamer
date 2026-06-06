@@ -3,7 +3,7 @@
 // Owns drawEffectVisual — the dispatcher for coded (non-gif/mp4)
 // room and outside effects: outside-space parallax star field,
 // hull-flicker, intruder-alert pulse, power-outage, special-slime,
-// special-scanning, heat (alias: generator-heat).
+// special-scanning, heat (alias: generator-heat), city-workers.
 //
 // Dependencies injected via ctx:
 //   state                   — for default boardId
@@ -41,6 +41,100 @@
     waveFreq: 1.2 + heatHash01(i + 801) * 1.2,   // wave cycles over room height
     parallax: 0.55 + heatHash01(i + 901) * 0.9,  // per-streak rise-speed multiplier
   }));
+
+  // ---- city-workers static tables (Phase 58-w3.7y) -----------------
+  // Tiny top-down inhabitants for the Frostpunk crater city. Same
+  // determinism contract as the heat tables above: every per-figure
+  // parameter is seeded ONCE at module load via heatHash01, so all
+  // clients (dashboard, /output, SSR tab) derive identical figures and
+  // identical positions for a given `age`. NO Math.random in the draw
+  // path.
+  //
+  // Behaviour model: each figure lives on a slow repeating cycle —
+  // a long off-stage ("indoors") stretch, then fade in at the first
+  // anchor, alternate WORK (stationary, rhythmic tool jitter) and
+  // WALK (slow trudge to the next anchor) segments through 2-4
+  // seeded anchor points, then fade out. Hidden fractions + phase
+  // offsets are staggered so usually only a couple of figures are
+  // visible and 0-2 are actually moving — "hin und wieder", not an
+  // ant farm.
+  const WORKER_MAX = 12;
+  const WORKER_FIGURES = Array.from({ length: WORKER_MAX }, (_, i) => {
+    const anchorCount = 2 + Math.floor(heatHash01(i + 1009) * 3); // 2..4
+    const anchors = Array.from({ length: anchorCount }, (_, k) => {
+      const seed = i * 31 + k * 7;
+      // Polar offsets around the room centroid in unit-disc coords
+      // (scaled by the half-extents at draw time). Radius biased to
+      // centroid-plus-ring: workers cluster around the generator /
+      // building footprint, not the polygon rim.
+      const ang = heatHash01(seed + 2003) * Math.PI * 2;
+      const rad = 0.16 + heatHash01(seed + 3001) * 0.6; // 0.16..0.76
+      return [Math.cos(ang) * rad, Math.sin(ang) * rad];
+    });
+    return {
+      anchors,
+      cycleDur: 38 + heatHash01(i + 4001) * 34,        // 38-72 s full cycle @ speed 1
+      phase: heatHash01(i + 5003),                     // cycle offset 0..1
+      hiddenFrac: 0.40 + heatHash01(i + 6007) * 0.24,  // 40-64% of cycle off-stage
+      walkShare: 0.32 + heatHash01(i + 7001) * 0.16,   // active time spent walking
+      stepFreq: 5.0 + heatHash01(i + 8009) * 2.6,      // walk-shuffle oscillation
+      workFreq: 1.0 + heatHash01(i + 9001) * 0.8,      // tool-motion rhythm Hz-ish
+      sizeJitter: 0.85 + heatHash01(i + 10007) * 0.3,
+      hasLantern: heatHash01(i + 11003) < 0.28,        // sparse warm accent
+      lanternSide: heatHash01(i + 12007) < 0.5 ? -1 : 1,
+    };
+  });
+
+  // Resolve a figure's pose for normalized cycle time t (0..1).
+  // Returns null while the figure is off-stage; otherwise
+  // { px, py, heading, fade, walking, workPulse } in unit-disc
+  // coordinates (caller scales by room half-extents).
+  function workerPoseAt(fig, t, safeAge, figIndex) {
+    if (t < fig.hiddenFrac) return null;
+    const u = (t - fig.hiddenFrac) / (1 - fig.hiddenFrac); // active progress 0..1
+    // Smooth fade in/out at the cycle boundaries (no popping).
+    const FADE = 0.08;
+    const fade = u < FADE ? u / FADE : u > 1 - FADE ? (1 - u) / FADE : 1;
+    const anchors = fig.anchors;
+    const legs = anchors.length - 1;
+    // Segment layout across active time: work0,walk0,work1,walk1,…workN.
+    const walkSeg = fig.walkShare / legs;
+    const workSeg = (1 - fig.walkShare) / anchors.length;
+    let rem = u;
+    for (let k = 0; k < anchors.length; k += 1) {
+      // WORK at anchor k
+      if (rem < workSeg) {
+        const a = anchors[k];
+        const toward = anchors[Math.min(k + 1, anchors.length - 1)];
+        const from = anchors[Math.max(k - 1, 0)];
+        const dirX = k < anchors.length - 1 ? toward[0] - a[0] : a[0] - from[0];
+        const dirY = k < anchors.length - 1 ? toward[1] - a[1] : a[1] - from[1];
+        const heading = Math.atan2(dirY, dirX);
+        // Rhythmic tool motion: biased half-sine so it reads as a
+        // repeated "strike/shovel" lean rather than a symmetric wiggle.
+        const strike = Math.sin(safeAge * Math.PI * 2 * fig.workFreq + figIndex * 1.7);
+        const workPulse = Math.max(0, strike) * Math.max(0, strike);
+        return { px: a[0], py: a[1], heading, fade, walking: false, workPulse };
+      }
+      rem -= workSeg;
+      if (k >= legs) break;
+      // WALK leg k -> k+1
+      if (rem < walkSeg) {
+        const p = rem / walkSeg;
+        const eased = p * p * (3 - 2 * p); // smoothstep: settle in/out of anchors
+        const a = anchors[k];
+        const b = anchors[k + 1];
+        const px = a[0] + (b[0] - a[0]) * eased;
+        const py = a[1] + (b[1] - a[1]) * eased;
+        const heading = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        return { px, py, heading, fade, walking: true, workPulse: 0 };
+      }
+      rem -= walkSeg;
+    }
+    // Numeric edge (u === 1): hold the last anchor.
+    const last = anchors[anchors.length - 1];
+    return { px: last[0], py: last[1], heading: 0, fade, walking: false, workPulse: 0 };
+  }
 
   // Shared gate function for the hull-flicker coded effect.
   // Deterministic in (age, speed, intensity); matches the exact timeline
@@ -451,6 +545,132 @@
         c.stroke();
       }
 
+      c.globalCompositeOperation = prevComposite;
+      return;
+    }
+
+    if (type === "city-workers") {
+      // Phase 58-w3.7y — sparse top-down inhabitants animating the
+      // Frostpunk crater city. Dark, slow, occasional: tiny near-black
+      // silhouettes (shoulders ellipse + head dot + soft shadow) that
+      // trudge between seeded anchor points, pause to "work", and fade
+      // out again. Knobs: intensity = inhabitant count, speed = pace
+      // (caller pre-scales age), opacity standard, colorHex = lantern
+      // tint. Caller has clipped to the room polygon already.
+      const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
+      const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
+      const overall = Math.max(0, Math.min(1, opacityOption));
+      const safeAge = Number.isFinite(age) ? Math.max(0, age) : 0;
+      const hex = typeof options.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(options.colorHex)
+        ? options.colorHex
+        : "#c98a4b"; // default muted lantern ember
+      const lr = parseInt(hex.slice(1, 3), 16);
+      const lg = parseInt(hex.slice(3, 5), 16);
+      const lb = parseInt(hex.slice(5, 7), 16);
+
+      // Guaranteed ambient base layer — SSR trap: with every figure
+      // off-stage this branch would otherwise paint NOTHING for many
+      // seconds and the encoded stream strobes black. An ultra-faint
+      // cold vignette always paints; the slow breath keeps the canvas
+      // state changing for Win32 tab-capture damage tracking too.
+      const baseBreath = (Math.sin(safeAge * 0.31) + 1) / 2; // 0..1, ~20 s period
+      const baseAlpha = Math.max(0.02, (0.030 + baseBreath * 0.012) * overall);
+      const vignetteRadius = Math.max(12, Math.hypot(roomWidth, roomHeight) * 0.58);
+      const vignette = c.createRadialGradient(
+        roomX, roomY, Math.max(2, vignetteRadius * 0.25),
+        roomX, roomY, vignetteRadius,
+      );
+      vignette.addColorStop(0, "rgba(10, 16, 28, 0)");
+      vignette.addColorStop(1, `rgba(10, 16, 28, ${baseAlpha})`);
+      c.fillStyle = vignette;
+      c.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
+
+      // Inhabitant count — sparse by design: ~4 figures at the 0.8
+      // default intensity, capped by the runtime quality scale. Only
+      // a fraction of them are on-stage at any moment (hiddenFrac).
+      const figureCount = Math.max(1, Math.min(
+        WORKER_MAX,
+        Math.round(4.5 * intensitySafe * visualCaps.nonCriticalDensityScale),
+      ));
+      // Figure length relative to the polygon with absolute clamps —
+      // workers must stay SMALL against the building art on the tiles.
+      const baseFigLen = Math.max(2, Math.min(7, roomWidth * 0.025));
+      const halfW = roomWidth * 0.5;
+      const halfH = roomHeight * 0.5;
+      const prevComposite = c.globalCompositeOperation;
+
+      for (let i = 0; i < figureCount; i += 1) {
+        const fig = WORKER_FIGURES[i];
+        const t = (safeAge / fig.cycleDur + fig.phase) % 1;
+        const pose = workerPoseAt(fig, t, safeAge, i);
+        if (!pose) continue; // off-stage — vignette above already painted
+        const figLen = baseFigLen * fig.sizeJitter;
+        const alpha = 0.82 * pose.fade * overall;
+        if (alpha <= 0.01) continue;
+
+        let x = roomX + pose.px * halfW;
+        let y = roomY + pose.py * halfH;
+        let heading = pose.heading;
+        if (pose.walking) {
+          // Walk shuffle: tiny oscillation along the movement axis +
+          // a hint of perpendicular bob — reads as trudging steps.
+          const step = Math.sin(safeAge * fig.stepFreq + i * 2.3);
+          x += Math.cos(heading) * step * figLen * 0.10;
+          y += Math.sin(heading) * step * figLen * 0.10;
+          x += -Math.sin(heading) * Math.sin(safeAge * fig.stepFreq * 0.5 + i) * figLen * 0.05;
+          y += Math.cos(heading) * Math.sin(safeAge * fig.stepFreq * 0.5 + i) * figLen * 0.05;
+        } else {
+          // Working: lean rhythmically along the facing axis (strike /
+          // shovel motion) — subtle, the figure stays put.
+          x += Math.cos(heading) * pose.workPulse * figLen * 0.14;
+          y += Math.sin(heading) * pose.workPulse * figLen * 0.14;
+          heading += Math.sin(safeAge * 0.23 + i * 0.9) * 0.18; // slow stance sway
+        }
+
+        c.save();
+        c.translate(x, y);
+        c.rotate(heading);
+        // Faint soft shadow, slightly offset — sells "seen from above".
+        c.fillStyle = `rgba(0, 0, 0, ${(alpha * 0.35).toFixed(3)})`;
+        c.beginPath();
+        c.ellipse(figLen * 0.06, figLen * 0.22, figLen * 0.62, figLen * 0.40, 0, 0, Math.PI * 2);
+        c.fill();
+        // Shoulders — near-black with a cold blue-grey tint, wider
+        // across the walking axis than along it (top-down torso).
+        c.fillStyle = `rgba(15, 19, 27, ${alpha.toFixed(3)})`;
+        c.beginPath();
+        c.ellipse(0, 0, figLen * 0.34, figLen * 0.52, 0, 0, Math.PI * 2);
+        c.fill();
+        // Head dot, offset toward the walking direction.
+        c.fillStyle = `rgba(9, 12, 18, ${Math.min(1, alpha * 1.1).toFixed(3)})`;
+        c.beginPath();
+        c.arc(figLen * 0.22, 0, figLen * 0.24, 0, Math.PI * 2);
+        c.fill();
+        // Sparse warm accent: a faint hand lantern on a few figures.
+        // Additive so the glow lifts instead of muddying; restore the
+        // caller's composite afterwards (it may already be 'lighter'
+        // via the room concurrency lift — never downgrade it).
+        if (fig.hasLantern) {
+          c.globalCompositeOperation = "lighter";
+          const lanternX = figLen * 0.10;
+          const lanternY = fig.lanternSide * figLen * 0.5;
+          const flicker = 0.8 + 0.2 * Math.sin(safeAge * 6.3 + i * 3.1);
+          const glowR = figLen * 1.15;
+          const glow = c.createRadialGradient(lanternX, lanternY, 0.2, lanternX, lanternY, glowR);
+          glow.addColorStop(0, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.30 * flicker).toFixed(3)})`);
+          glow.addColorStop(1, `rgba(${lr}, ${lg}, ${lb}, 0)`);
+          c.fillStyle = glow;
+          c.beginPath();
+          c.arc(lanternX, lanternY, glowR, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.55 * flicker).toFixed(3)})`;
+          c.beginPath();
+          c.arc(lanternX, lanternY, Math.max(0.5, figLen * 0.13), 0, Math.PI * 2);
+          c.fill();
+          c.globalCompositeOperation = prevComposite;
+        }
+        c.restore();
+      }
       c.globalCompositeOperation = prevComposite;
       return;
     }

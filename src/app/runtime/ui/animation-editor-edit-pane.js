@@ -620,7 +620,8 @@
     // alias to "heat" (Phase 58-w3.7x rename), so pre-rename
     // definitions get the same tint card.
     const isHeat = coded === "heat";
-    if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isHeat) return null;
+    const isCityWorkers = coded === "city-workers";
+    if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isHeat && !isCityWorkers) return null;
 
     const card = document.createElement("section");
     card.className = "anim-editor-card";
@@ -629,16 +630,16 @@
     eyebrow.textContent = "Coded effect";
     card.append(eyebrow);
 
-    if (isSolidColor || isHeat) {
+    if (isSolidColor || isHeat || isCityWorkers) {
       const label = document.createElement("label");
       label.className = "anim-editor-field-label";
       const cap = document.createElement("span");
-      cap.textContent = isHeat ? "Heat tint" : "Color";
+      cap.textContent = isHeat ? "Heat tint" : isCityWorkers ? "Lantern tint" : "Color";
       const picker = document.createElement("input");
       picker.type = "color";
-      // heat defaults to its ember-orange core; solid-color keeps the
-      // legacy red default.
-      const fallbackHex = isHeat ? "#ff7a1a" : "#ff0000";
+      // heat defaults to its ember-orange core; city-workers to the
+      // muted lantern ember; solid-color keeps the legacy red default.
+      const fallbackHex = isHeat ? "#ff7a1a" : isCityWorkers ? "#c98a4b" : "#ff0000";
       picker.value = /^#[0-9a-f]{6}$/i.test(def.colorHex) ? def.colorHex : fallbackHex;
       picker.addEventListener("input", () => {
         patchAnimation(scope, boardId, def.id, { colorHex: picker.value });
@@ -717,14 +718,16 @@
       select.addEventListener("change", () => {
         const patch = { assetRef: select.value };
         // heat (Phase 58-w3.7w, renamed from "generator-heat" in
-        // w3.7x — the alias can still appear as a legacy option) seeds
-        // its ember-orange tint when the definition still carries the
-        // legacy solid-color red default (every fresh definition does)
-        // or no color at all — the operator picked "heat", not
-        // "alarm". An explicitly chosen non-default color is preserved.
+        // w3.7x — the alias can still appear as a legacy option) and
+        // city-workers (w3.7y) seed their muted default tints when the
+        // definition still carries the legacy solid-color red default
+        // (every fresh definition does) or no color at all — the
+        // operator picked "heat"/"workers", not "alarm". An explicitly
+        // chosen non-default color is preserved.
         const tintSeedByEffect = {
           "heat": "#ff7a1a",
           "generator-heat": "#ff7a1a",
+          "city-workers": "#c98a4b",
         };
         const tintSeed = tintSeedByEffect[select.value];
         if (tintSeed) {

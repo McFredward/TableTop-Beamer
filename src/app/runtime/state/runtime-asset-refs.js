@@ -38,6 +38,7 @@
       "special-scanning",
       "solid-color",
       "heat",
+      "city-workers",
     ]));
   }
 
