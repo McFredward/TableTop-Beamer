@@ -52,6 +52,47 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.28] — 2026-06-06
+
+Phase 58 Wave 3.7z — "City Workers"-Iteration nach Operator-Feedback
+(2026-06-06): Per-Raum-Zufälligkeit, Gruppen, menschlicher Gang.
+
+### Changed
+- **City Workers: jeder Raum sieht anders aus** — die Figurentabellen
+  werden nicht mehr nur über den Figuren-Index geseedet (Cluster-Start
+  zeigte in jedem Raum dieselbe Szene), sondern pro Raum aus einem
+  FNV-1a-Hash der Raum-ID × Figuren-Index: eigenes Anker-Layout,
+  eigene Zyklus-Offsets, eigene Bevölkerungsdichte (countScale
+  ×0,75-1,3) pro Raum. Gleiche Raum-ID ⇒ weiterhin deterministisch
+  identische Szene auf Dashboard, /output und SSR
+  (pixel-hash-verifiziert); Szenen sind pro Raum memoisiert
+  (gedeckelter Cache).
+- **Gruppen-Events** — etwa die Hälfte der Räume (raum-geseedet)
+  bekommt eine Gruppe von 2-4 Figuren mit gemeinsamer Route:
+  Leader-Anker + kleiner Streuversatz pro Mitglied und Anker (sie
+  laufen locker parallel und streuen an den Arbeitspunkten
+  auseinander), gemeinsame Zyklusdauer/Versteck-Phase mit minimalem
+  Phasen-Lag pro Mitglied — die Gruppe erscheint als gelegentliches
+  Event zusammen, "atmet" aber durch individuelle Gang-Seeds. Figur 0
+  bleibt immer Einzelgänger; Laternen tragen nur Nicht-Gruppen-Figuren.
+- **Menschlicher Gang statt "Fahrzeug"** — Punkt-zu-Punkt-Bewegung
+  humanisiert: (a) mäandernde Pfade (zwei inkommensurable Sinuswellen
+  als seitlicher Drift um die Gerade, an beiden Ankern festgepinnt),
+  Blickrichtung folgt der Kurven-Tangente statt starr aufs Ziel;
+  (b) variables Schritttempo — Smoothstep-Easing in und aus jedem
+  Stopp, subtiler Beschleunigungs-/Verzögerungszyklus, bei einigen
+  Figuren ein kurzes Zögern auf halbem Weg; (c) Körper-Bob quer zur
+  Laufachse + leichtes Heading-Wackeln im Schritt-Rhythmus, Amplitude
+  skaliert mit dem aktuellen Tempo (Figur "setzt sich" beim Einlaufen
+  in einen Stopp). Alles weiterhin rein deterministisch aus `age` +
+  Seeds (kein per-Frame Math.random); Always-Paint-Vignette und
+  Knob-Semantik (Intensity = Anzahl, Speed = Tempo) unverändert.
+  Trajektorien-Messung am echten Render: Tempo-Rampe 1→26 px/s rein,
+  30→2 px/s raus, max. seitliche Abweichung ~17 % der Sehne —
+  "gehen, nicht fahren".
+
+---
+
 ## [1.2.27] — 2026-06-06
 
 Phase 58 Wave 3.7x+y — "Heat"-Feinschliff + neue Coded-Raum-Animation

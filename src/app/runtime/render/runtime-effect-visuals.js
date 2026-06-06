@@ -42,13 +42,22 @@
     parallax: 0.55 + heatHash01(i + 901) * 0.9,  // per-streak rise-speed multiplier
   }));
 
-  // ---- city-workers static tables (Phase 58-w3.7y) -----------------
+  // ---- city-workers tables (Phase 58-w3.7y, per-room w3.7z) --------
   // Tiny top-down inhabitants for the Frostpunk crater city. Same
   // determinism contract as the heat tables above: every per-figure
-  // parameter is seeded ONCE at module load via heatHash01, so all
+  // parameter is derived from PURE seeded hashes (heatHash01), so all
   // clients (dashboard, /output, SSR tab) derive identical figures and
   // identical positions for a given `age`. NO Math.random in the draw
   // path.
+  //
+  // Phase 58-w3.7z (operator feedback): figures used to be seeded by
+  // FIGURE INDEX only, so a cluster start rendered the SAME scene in
+  // every room. Scenes are now seeded by (room id × figure index):
+  // each room gets its own anchor layout, population scale, cycle
+  // offsets and group event — different rooms look different, while
+  // the same room still renders identically on dashboard, /output and
+  // SSR (room ids come from the shared board catalog). Scenes are
+  // memoized per room id; the cache is bounded and rebuilt cheaply.
   //
   // Behaviour model: each figure lives on a slow repeating cycle —
   // a long off-stage ("indoors") stretch, then fade in at the first
@@ -57,33 +66,161 @@
   // seeded anchor points, then fade out. Hidden fractions + phase
   // offsets are staggered so usually only a couple of figures are
   // visible and 0-2 are actually moving — "hin und wieder", not an
-  // ant farm.
+  // ant farm. Some rooms additionally get a GROUP event (w3.7z):
+  // 2-4 figures sharing one route with per-member anchor scatter and
+  // slightly lagged phases, so they trudge loosely together and
+  // disperse around the work spots.
   const WORKER_MAX = 12;
-  const WORKER_FIGURES = Array.from({ length: WORKER_MAX }, (_, i) => {
-    const anchorCount = 2 + Math.floor(heatHash01(i + 1009) * 3); // 2..4
-    const anchors = Array.from({ length: anchorCount }, (_, k) => {
-      const seed = i * 31 + k * 7;
-      // Polar offsets around the room centroid in unit-disc coords
-      // (scaled by the half-extents at draw time). Radius biased to
-      // centroid-plus-ring: workers cluster around the generator /
-      // building footprint, not the polygon rim.
-      const ang = heatHash01(seed + 2003) * Math.PI * 2;
-      const rad = 0.16 + heatHash01(seed + 3001) * 0.6; // 0.16..0.76
+  const WORKER_SCENE_CACHE = new Map();
+  const WORKER_SCENE_CACHE_MAX = 96;
+
+  // FNV-1a over the room-id string → 32-bit uint, folded into the
+  // sin-hash domain. Pure string math — stable across clients.
+  function workerRoomSeed(roomKey) {
+    let h = 2166136261;
+    const s = String(roomKey);
+    for (let idx = 0; idx < s.length; idx += 1) {
+      h ^= s.charCodeAt(idx);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0) % 100000;
+  }
+
+  // Polar anchor offsets around the room centroid in unit-disc coords
+  // (scaled by the half-extents at draw time). Radius biased to
+  // centroid-plus-ring: workers cluster around the generator /
+  // building footprint, not the polygon rim.
+  function buildWorkerAnchors(rh, base, count) {
+    return Array.from({ length: count }, (_, k) => {
+      const seed = base + k * 7;
+      const ang = rh(seed + 2003) * Math.PI * 2;
+      const rad = 0.16 + rh(seed + 3001) * 0.6; // 0.16..0.76
       return [Math.cos(ang) * rad, Math.sin(ang) * rad];
     });
-    return {
-      anchors,
-      cycleDur: 38 + heatHash01(i + 4001) * 34,        // 38-72 s full cycle @ speed 1
-      phase: heatHash01(i + 5003),                     // cycle offset 0..1
-      hiddenFrac: 0.40 + heatHash01(i + 6007) * 0.24,  // 40-64% of cycle off-stage
-      walkShare: 0.32 + heatHash01(i + 7001) * 0.16,   // active time spent walking
-      stepFreq: 5.0 + heatHash01(i + 8009) * 2.6,      // walk-shuffle oscillation
-      workFreq: 1.0 + heatHash01(i + 9001) * 0.8,      // tool-motion rhythm Hz-ish
-      sizeJitter: 0.85 + heatHash01(i + 10007) * 0.3,
-      hasLantern: heatHash01(i + 11003) < 0.28,        // sparse warm accent
-      lanternSide: heatHash01(i + 12007) < 0.5 ? -1 : 1,
+  }
+
+  function getWorkerScene(roomKey) {
+    const cached = WORKER_SCENE_CACHE.get(roomKey);
+    if (cached) return cached;
+    const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
+    const rh = (n) => heatHash01(n + seedBase);
+
+    // Group event (w3.7z): roughly half the rooms get one — 2-4
+    // figures sharing a leader route. Figure 0 is always a single, so
+    // even the smallest population mixes singles and group members.
+    const hasGroup = rh(13007) < 0.55;
+    const groupSize = hasGroup ? 2 + Math.floor(rh(13013) * 3) : 0; // 2..4
+    const GROUP_START = 1;
+    let groupAnchors = null;
+    let groupCycle = null;
+    if (hasGroup) {
+      groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2)); // 2..3 stops
+      groupCycle = {
+        cycleDur: 44 + rh(15203) * 30,            // shared so the group moves together
+        phase: rh(15307),
+        hiddenFrac: 0.52 + rh(15401) * 0.18,      // group events stay occasional
+        walkShare: 0.36 + rh(15501) * 0.14,
+      };
+    }
+
+    const figures = Array.from({ length: WORKER_MAX }, (_, i) => {
+      const inGroup = hasGroup && i >= GROUP_START && i < GROUP_START + groupSize;
+      let anchors;
+      let cycleDur;
+      let phase;
+      let hiddenFrac;
+      let walkShare;
+      if (inGroup) {
+        const member = i - GROUP_START;
+        // Member route = leader route + small per-anchor scatter, so
+        // the walk legs run loosely parallel (no formation lockstep)
+        // and the group naturally disperses around each work spot.
+        anchors = groupAnchors.map((a, k) => {
+          const sa = rh(i * 311 + k * 41 + 16001) * Math.PI * 2;
+          const sr = 0.035 + rh(i * 311 + k * 41 + 16007) * 0.075;
+          return [a[0] + Math.cos(sa) * sr, a[1] + Math.sin(sa) * sr];
+        });
+        cycleDur = groupCycle.cycleDur;
+        // Tiny per-member phase lag — they arrive within a couple of
+        // seconds of each other instead of marching in sync.
+        phase = (groupCycle.phase + member * 0.006 + rh(i + 16101) * 0.010) % 1;
+        hiddenFrac = groupCycle.hiddenFrac;
+        walkShare = groupCycle.walkShare;
+      } else {
+        anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3));
+        cycleDur = 38 + rh(i + 4001) * 34;        // 38-72 s full cycle @ speed 1
+        phase = rh(i + 5003);                     // cycle offset 0..1
+        hiddenFrac = 0.40 + rh(i + 6007) * 0.24;  // 40-64% of cycle off-stage
+        walkShare = 0.32 + rh(i + 7001) * 0.16;   // active time spent walking
+      }
+      return {
+        anchors,
+        cycleDur,
+        phase,
+        hiddenFrac,
+        walkShare,
+        inGroup,
+        stepFreq: 5.0 + rh(i + 8009) * 2.6,       // step oscillation rate
+        workFreq: 1.0 + rh(i + 9001) * 0.8,       // tool-motion rhythm Hz-ish
+        sizeJitter: 0.85 + rh(i + 10007) * 0.3,
+        // Group members: only the leader may carry the lantern, so a
+        // group doesn't read as a lantern parade.
+        hasLantern: inGroup ? false : rh(i + 11003) < 0.28,
+        lanternSide: rh(i + 12007) < 0.5 ? -1 : 1,
+        // Humanized gait seeds (w3.7z) — see workerWalkPoint.
+        meanderScale: 0.07 + rh(i + 17001) * 0.10,   // lateral drift, × leg length
+        meanderFreq: 1.2 + rh(i + 17011) * 1.6,      // drift waves per leg
+        meanderPhase: rh(i + 17021) * Math.PI * 2,
+        paceAmp: 0.09 + rh(i + 17031) * 0.10,        // stride accel/decel depth
+        paceFreq: 2 + rh(i + 17041) * 2.5,           // pace cycles per leg
+        pacePhase: rh(i + 17051) * Math.PI * 2,
+        hesitate: rh(i + 17061) < 0.45 ? 0.5 + rh(i + 17071) * 0.5 : 0,
+        hesitateAt: 0.30 + rh(i + 17081) * 0.40,     // where mid-path stall sits
+        gaitSeed: rh(i + 17091) * Math.PI * 2,       // bob/wobble phase offset
+      };
+    });
+
+    const scene = {
+      figures,
+      // Per-room population variance: ×0.75..1.3 on top of intensity.
+      countScale: 0.75 + rh(14009) * 0.55,
     };
-  });
+    if (WORKER_SCENE_CACHE.size >= WORKER_SCENE_CACHE_MAX) WORKER_SCENE_CACHE.clear();
+    WORKER_SCENE_CACHE.set(roomKey, scene);
+    return scene;
+  }
+
+  // Warped walk progress along a leg (w3.7z "walking, not driving"):
+  // smoothstep easing into/out of the stops, a subtle seeded
+  // accelerate/decelerate stride cycle (pinned to 0 at both
+  // endpoints), and for some figures a brief gaussian mid-path
+  // hesitation — the figure stalls, shifts weight, then carries on.
+  function workerWalkProgress(fig, p) {
+    let e = p * p * (3 - 2 * p);
+    e += Math.sin(p * Math.PI * 2 * fig.paceFreq + fig.pacePhase) * fig.paceAmp * p * (1 - p);
+    if (fig.hesitate > 0) {
+      const d = (p - fig.hesitateAt) / 0.09;
+      e -= fig.hesitate * 0.05 * Math.exp(-d * d) * Math.sin(Math.PI * p);
+    }
+    return Math.max(0, Math.min(1, e));
+  }
+
+  // Walk-leg position with meander: two incommensurate sinusoids give
+  // a noise-like lateral drift around the straight line; the sin(πp)
+  // envelope pins the path to the anchors at both ends. Returns
+  // unit-disc coords.
+  function workerWalkPoint(fig, a, b, p) {
+    const e = workerWalkProgress(fig, p);
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1e-4;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const lat = (Math.sin(p * Math.PI * 2 * fig.meanderFreq + fig.meanderPhase) * 0.7
+      + Math.sin(p * Math.PI * 2 * fig.meanderFreq * 2.33 + fig.meanderPhase * 1.7 + 1.1) * 0.3)
+      * Math.sin(p * Math.PI) * fig.meanderScale * len;
+    return [a[0] + dx * e + nx * lat, a[1] + dy * e + ny * lat];
+  }
 
   // Resolve a figure's pose for normalized cycle time t (0..1).
   // Returns null while the figure is off-stage; otherwise
@@ -118,16 +255,30 @@
       }
       rem -= workSeg;
       if (k >= legs) break;
-      // WALK leg k -> k+1
+      // WALK leg k -> k+1 — curved, pace-varied path (w3.7z). Heading
+      // follows the meander tangent (sampled numerically) so the body
+      // gently corrects course along the curve instead of pointing
+      // rigidly at the destination; `pace` (normalized stride speed,
+      // ~1 = average leg speed) feeds the step-bob amplitude in the
+      // draw branch so the figure settles when easing into a stop.
       if (rem < walkSeg) {
         const p = rem / walkSeg;
-        const eased = p * p * (3 - 2 * p); // smoothstep: settle in/out of anchors
         const a = anchors[k];
         const b = anchors[k + 1];
-        const px = a[0] + (b[0] - a[0]) * eased;
-        const py = a[1] + (b[1] - a[1]) * eased;
-        const heading = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        return { px, py, heading, fade, walking: true, workPulse: 0 };
+        const pt = workerWalkPoint(fig, a, b, p);
+        const EPS = 0.015;
+        const ahead = workerWalkPoint(fig, a, b, Math.min(1, p + EPS));
+        const ddx = ahead[0] - pt[0];
+        const ddy = ahead[1] - pt[1];
+        const stepLen = Math.hypot(ddx, ddy);
+        const legLen = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-4;
+        // During a hesitation stall the tangent degenerates — fall
+        // back to the leg direction instead of atan2(0,0) snapping.
+        const heading = stepLen > legLen * EPS * 0.2
+          ? Math.atan2(ddy, ddx)
+          : Math.atan2(b[1] - a[1], b[0] - a[0]);
+        const pace = Math.min(1.8, stepLen / (legLen * EPS));
+        return { px: pt[0], py: pt[1], heading, fade, walking: true, workPulse: 0, pace };
       }
       rem -= walkSeg;
     }
@@ -585,12 +736,18 @@
       c.fillStyle = vignette;
       c.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
 
+      // Per-room scene (w3.7z): seeded from the room id shared by all
+      // clients via the board catalog (room.id; cluster pads pass a
+      // synthetic id, the editor live-preview falls back to a stable
+      // default — both still deterministic).
+      const scene = getWorkerScene(String(room?.id ?? options.roomId ?? "preview"));
       // Inhabitant count — sparse by design: ~4 figures at the 0.8
-      // default intensity, capped by the runtime quality scale. Only
-      // a fraction of them are on-stage at any moment (hiddenFrac).
+      // default intensity, scaled per room (countScale ×0.75..1.3) and
+      // capped by the runtime quality scale. Only a fraction of them
+      // are on-stage at any moment (hiddenFrac).
       const figureCount = Math.max(1, Math.min(
         WORKER_MAX,
-        Math.round(4.5 * intensitySafe * visualCaps.nonCriticalDensityScale),
+        Math.round(4.5 * intensitySafe * scene.countScale * visualCaps.nonCriticalDensityScale),
       ));
       // Figure length relative to the polygon with absolute clamps —
       // workers must stay SMALL against the building art on the tiles.
@@ -600,7 +757,7 @@
       const prevComposite = c.globalCompositeOperation;
 
       for (let i = 0; i < figureCount; i += 1) {
-        const fig = WORKER_FIGURES[i];
+        const fig = scene.figures[i];
         const t = (safeAge / fig.cycleDur + fig.phase) % 1;
         const pose = workerPoseAt(fig, t, safeAge, i);
         if (!pose) continue; // off-stage — vignette above already painted
@@ -612,13 +769,24 @@
         let y = roomY + pose.py * halfH;
         let heading = pose.heading;
         if (pose.walking) {
-          // Walk shuffle: tiny oscillation along the movement axis +
-          // a hint of perpendicular bob — reads as trudging steps.
-          const step = Math.sin(safeAge * fig.stepFreq + i * 2.3);
-          x += Math.cos(heading) * step * figLen * 0.10;
-          y += Math.sin(heading) * step * figLen * 0.10;
-          x += -Math.sin(heading) * Math.sin(safeAge * fig.stepFreq * 0.5 + i) * figLen * 0.05;
-          y += Math.cos(heading) * Math.sin(safeAge * fig.stepFreq * 0.5 + i) * figLen * 0.05;
+          // Walk shuffle (humanized, w3.7z): along-axis stride pulse +
+          // perpendicular body bob at half the step rate, both scaled
+          // by the CURRENT pace from the warped progress — the bob
+          // swells mid-stride and settles as the figure eases into a
+          // stop or hesitates, so starts/stops read as weight shifts
+          // instead of a vehicle braking. Constant step frequency
+          // (amplitude carries the pace cue) keeps the oscillators
+          // free of phase drift — fully deterministic in `age`.
+          const pace = Math.max(0, Math.min(1.8, Number.isFinite(pose.pace) ? pose.pace : 1));
+          const stepPhase = safeAge * fig.stepFreq + i * 2.3;
+          const along = Math.sin(stepPhase) * figLen * (0.04 + 0.07 * pace);
+          x += Math.cos(heading) * along;
+          y += Math.sin(heading) * along;
+          const bob = Math.sin(stepPhase * 0.5 + fig.gaitSeed) * figLen * (0.025 + 0.05 * pace);
+          x += -Math.sin(heading) * bob;
+          y += Math.cos(heading) * bob;
+          // Slight heading wobble synced to the step cycle.
+          heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.10 * (0.4 + 0.6 * pace);
         } else {
           // Working: lean rhythmically along the facing axis (strike /
           // shovel motion) — subtle, the figure stays put.
@@ -736,5 +904,9 @@
     computePowerOutageGate,
     isPowerOutageLampOff,
     withPreviewCanvas,
+    // w3.7z verification hook: deterministic per-room scene + pose
+    // sampling for diag scripts (per-room variety / trajectory
+    // evidence). Render path never reads this.
+    __cityWorkersDiag: { getWorkerScene, workerPoseAt },
   };
 })();
