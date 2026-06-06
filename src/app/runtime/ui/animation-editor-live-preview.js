@@ -292,6 +292,15 @@
         // option (sync has no meaning in the single-room preview —
         // the preview always runs on its own clock).
         heatShowSource: current.heatShowSource !== false,
+        // Phase 58-w3.8i: preview reflects the merged city-workers
+        // options. The raw assetRef is passed as the type below, so
+        // legacy "city-workers-lit" definitions preview lit even
+        // before normalization fills workerStyle.
+        workerStyle: current.workerStyle,
+        workerCount: current.workerCount ?? null,
+        workerGroups: current.workerGroups,
+        workerLanternShare: current.workerLanternShare,
+        workerTrails: current.workerTrails !== false,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {

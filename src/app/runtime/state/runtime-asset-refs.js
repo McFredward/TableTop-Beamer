@@ -38,10 +38,12 @@
       "special-scanning",
       "solid-color",
       "heat",
+      // Phase 58-w3.8i: ONE merged "City Workers" entry. The w3.8e
+      // "city-workers-lit" A/B key is now a backward-compat ALIAS (see
+      // ROOM_CODED_ASSET_ALIASES) — the lit look lives on as the
+      // per-definition "Darstellung: Beleuchtet (Beamer)" option
+      // (workerStyle), so the editor's Effect dropdown lists one key.
       "city-workers",
-      // Phase 58-w3.8e: projection-readable A/B variant — same engine
-      // as city-workers, lit render style (see runtime-effect-visuals).
-      "city-workers-lit",
     ]));
   }
 
@@ -54,6 +56,13 @@
   // runtime-active-animations.json may still carry the old key.
   const ROOM_CODED_ASSET_ALIASES = {
     "generator-heat": "heat",
+    // Phase 58-w3.8i: the w3.8e A/B variant key folds into the merged
+    // configurable city-workers effect. Definitions saved with the lit
+    // key keep rendering lit: normalizeRoomAnimationDefinition derives
+    // workerStyle "lit" from the RAW assetRef before this alias
+    // rewrites it (and drawEffectVisual keeps a last-resort type
+    // check for un-normalized callers / pre-merge snapshot instances).
+    "city-workers-lit": "city-workers",
   };
 
   function normalizeRoomCodedAssetRef(assetRef, fallbackAssetRef = "intruder-alert") {

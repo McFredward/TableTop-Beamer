@@ -221,21 +221,57 @@
     };
   }
 
-  function getWorkerScene(roomKey) {
-    const cached = WORKER_SCENE_CACHE.get(roomKey);
+  // Group-frequency presets (Phase 58-w3.8i "Gruppen"): prob is the
+  // per-room chance of a group event existing at all, hiddenBase/Span
+  // the seconds the group stays off-stage between appearances. The
+  // "normal" row carries the EXACT historical constants (0.55 / 70+70)
+  // so default definitions keep rendering identically.
+  const WORKER_GROUP_TUNING = {
+    off: { prob: 0, hiddenBase: 70, hiddenSpan: 70 },
+    rare: { prob: 0.30, hiddenBase: 110, hiddenSpan: 90 },
+    normal: { prob: 0.55, hiddenBase: 70, hiddenSpan: 70 },
+    frequent: { prob: 0.85, hiddenBase: 35, hiddenSpan: 40 },
+  };
+
+  function normalizeWorkerGroupsOption(value) {
+    return Object.prototype.hasOwnProperty.call(WORKER_GROUP_TUNING, value) ? value : "normal";
+  }
+
+  // Phase 58-w3.8i: the scene is now parametrized by the merged
+  // effect's per-definition options that affect SEEDING (group
+  // frequency, lantern share). They join the cache key — the cache
+  // stays bounded and deterministic; same options ⇒ same scene on
+  // every client. Defaults reproduce the historical constants
+  // byte-for-byte (groups "normal", lanternShare 30 ⇒ bias
+  // 0.22 + rh·0.16 exactly).
+  function getWorkerScene(roomKey, sceneOpts = null) {
+    const groupsOpt = normalizeWorkerGroupsOption(sceneOpts?.groups);
+    const lanternShareRaw = Number(sceneOpts?.lanternShare);
+    const lanternShare = Number.isFinite(lanternShareRaw)
+      ? Math.max(0, Math.min(100, lanternShareRaw))
+      : 30;
+    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}`;
+    const cached = WORKER_SCENE_CACHE.get(cacheKey);
     if (cached) return cached;
     const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
     const rh = (n) => heatHash01(n + seedBase);
 
-    // Per-room lantern density (w3.8c): some rooms read as a lit
-    // work detail (~38% of singles carry), others as a dark shift
-    // (~22%) — part of the per-room scene identity like countScale.
-    const lanternBias = 0.22 + rh(14021) * 0.16;
+    // Per-room lantern density (w3.8c, parametrized in w3.8i): the
+    // "Laternen-Anteil" option shifts the whole band; the seeded ±8%
+    // per-room jitter stays — some rooms read as a lit work detail,
+    // others as a dark shift. At the 30% default this is the exact
+    // historical 0.22 + rh·0.16 band.
+    // Integer arithmetic before the division so the 30% default yields
+    // EXACTLY the historical 0.22 + rh·0.16 (30/100 - 0.08 differs in
+    // the last float bit and would break the byte-identity contract).
+    const lanternBias = Math.max(0, Math.min(1, (lanternShare - 8) / 100 + rh(14021) * 0.16));
 
-    // Group event (w3.7z): roughly half the rooms get one — 2-4
-    // figures sharing a leader route. Figure 0 is always a single, so
-    // even the smallest population mixes singles and group members.
-    const hasGroup = rh(13007) < 0.55;
+    // Group event (w3.7z, frequency option w3.8i): "normal" gives
+    // roughly half the rooms one — 2-4 figures sharing a leader
+    // route. Figure 0 is always a single, so even the smallest
+    // population mixes singles and group members.
+    const groupTuning = WORKER_GROUP_TUNING[groupsOpt];
+    const hasGroup = groupTuning.prob > 0 && rh(13007) < groupTuning.prob;
     const groupSize = hasGroup ? 2 + Math.floor(rh(13013) * 3) : 0; // 2..4
     const GROUP_START = 1;
     let groupAnchors = null;
@@ -248,7 +284,10 @@
       groupCycle = workerCycleTiming(groupAnchors, {
         trudgeSpeed: WORKER_TRUDGE_SPEED_MIN + rh(15203) * WORKER_TRUDGE_SPEED_SPAN,
         workDurPerStop: 9 + rh(15211) * 7,
-        hiddenDur: 70 + rh(15401) * 70,           // group events stay occasional
+        // Off-stage stretch from the frequency preset — "normal"
+        // keeps the historical 70-140 s ("group events stay
+        // occasional"), "rare"/"frequent" stretch/compress it.
+        hiddenDur: groupTuning.hiddenBase + rh(15401) * groupTuning.hiddenSpan,
       });
       groupCycle.phase = rh(15307);
     }
@@ -394,12 +433,15 @@
 
     const scene = {
       figures,
-      // Per-room population variance: ×0.75..1.3 on top of intensity.
+      // Per-room population variance: ×0.75..1.3 on top of the
+      // configured count (w3.8i) — rooms keep individual densities.
       countScale: 0.75 + rh(14009) * 0.55,
       lanternBias, // exposed for diag — per-room lantern density
+      hasGroup,    // exposed for diag — group-frequency option evidence
+      groupSize,
     };
     if (WORKER_SCENE_CACHE.size >= WORKER_SCENE_CACHE_MAX) WORKER_SCENE_CACHE.clear();
-    WORKER_SCENE_CACHE.set(roomKey, scene);
+    WORKER_SCENE_CACHE.set(cacheKey, scene);
     return scene;
   }
 
@@ -1054,10 +1096,20 @@
       // age), opacity standard, colorHex = lantern flame tint. Caller
       // has clipped to the room polygon already.
       //
-      // w3.8e: "city-workers-lit" is the projection-readable A/B
-      // variant — identical engine and geometry, painting switched by
-      // the render style objects above (see their block comment).
-      const style = type === "city-workers-lit" ? WORKER_STYLE_LIT : WORKER_STYLE_DARK;
+      // w3.8e shipped "city-workers-lit" as a separate registry key;
+      // w3.8i merges both variants into ONE configurable effect. The
+      // render style now comes from options.workerStyle ("dark" |
+      // "lit", per-definition "Darstellung" select). "city-workers-lit"
+      // remains a BACKWARD-COMPAT ALIAS (runtime-asset-refs maps it to
+      // city-workers; the normalizer derives workerStyle "lit" from
+      // the raw ref) — the type check below stays as a last-resort for
+      // un-normalized callers (e.g. the editor live preview passes the
+      // raw assetRef straight in, old snapshot instances carry no
+      // workerStyle field).
+      const style = options.workerStyle === "lit"
+        || (options.workerStyle !== "dark" && type === "city-workers-lit")
+        ? WORKER_STYLE_LIT
+        : WORKER_STYLE_DARK;
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const overall = Math.max(0, Math.min(1, opacityOption));
@@ -1089,12 +1141,24 @@
       // Per-room scene (w3.7z): seeded from the room id shared by all
       // clients via the board catalog (room.id; cluster pads pass a
       // synthetic id, the editor live-preview falls back to a stable
-      // default — both still deterministic).
-      const scene = getWorkerScene(String(room?.id ?? options.roomId ?? "preview"));
-      // Inhabitant count — sparse by design: ~4 figures at the 0.8
-      // default intensity, scaled per room (countScale ×0.75..1.3).
-      // Only a fraction of them are on-stage at any moment
-      // (hiddenFrac).
+      // default — both still deterministic). w3.8i: the seeding-
+      // relevant options (group frequency, lantern share) parametrize
+      // the scene; defaults reproduce the historical look exactly.
+      const workerRoomKey = String(room?.id ?? options.roomId ?? "preview");
+      const scene = getWorkerScene(workerRoomKey, {
+        groups: options.workerGroups,
+        lanternShare: options.workerLanternShare,
+      });
+      // Inhabitant count — sparse by design. w3.8i semantics
+      // ("Anzahl Bewohner" option, DECOUPLED from intensity):
+      //   - options.workerCount set → that's the room's base
+      //     population; the per-room countScale (×0.75..1.3) still
+      //     applies so rooms keep individual densities.
+      //   - unset (pre-merge instances restored from old snapshots) →
+      //     legacy intensity-derived base 4.5 × intensity, identical
+      //     to the historical look. The definition normalizer migrates
+      //     stored definitions to an explicit workerCount, so this
+      //     path only serves old in-flight instances.
       // Phase 58-w3.8h: the adaptive visualCaps.nonCriticalDensityScale
       // is deliberately NOT applied any more — it flips with the
       // per-frame pressureLevel and every flip popped the top-index
@@ -1103,9 +1167,13 @@
       // ≤ WORKER_MAX tiny ellipse fills are negligible render cost,
       // and a deterministic count keeps all clients pixel-identical
       // under load.
+      const workerCountOpt = Number(options.workerCount);
+      const baseCount = Number.isFinite(workerCountOpt) && workerCountOpt > 0
+        ? workerCountOpt
+        : 4.5 * intensitySafe;
       const figureCount = Math.max(1, Math.min(
         WORKER_MAX,
-        Math.round(4.5 * intensitySafe * scene.countScale),
+        Math.round(baseCount * scene.countScale),
       ));
       // Figure length relative to the polygon with absolute clamps —
       // workers must stay SMALL against the building art on the tiles.
@@ -1121,8 +1189,10 @@
       // strokes (round caps/joins blend samples into a worn path);
       // repeated traversals of the same anchor route stack naturally
       // into "established" paths. Prominence scales mildly with the
-      // opacity knob only (sqrt) — no new schema fields.
-      if (overall > 0.02) {
+      // opacity knob only (sqrt). w3.8i: the "Spuren im Schnee"
+      // checkbox (workerTrails, default ON — undefined rides the
+      // historical look) skips the whole trail pass when OFF.
+      if (overall > 0.02 && options.workerTrails !== false) {
         const trailProminence = Math.sqrt(overall);
         const prevCap = c.lineCap;
         const prevJoin = c.lineJoin;
@@ -1202,7 +1272,10 @@
       // reset, off-stage) may still hold a draining presence envelope
       // and must keep rendering its fading ghost until it settles.
       const envNowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
-      const envRoomKey = String(room?.id ?? options.roomId ?? "preview");
+      // Envelope identity stays (room × slot) — deliberately WITHOUT
+      // the option values, so an options change (count, style, …)
+      // crossfades through the slew clamp instead of popping.
+      const envRoomKey = workerRoomKey;
       for (let i = 0; i < WORKER_MAX; i += 1) {
         const fig = scene.figures[i];
         const t = (safeAge / fig.cycleDur + fig.phase) % 1;

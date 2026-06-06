@@ -261,13 +261,13 @@
   }
 
   // Curated label overrides — keys whose auto-title-case would read
-  // wrong in the Effect dropdown. "city-workers-lit" (Phase 58-w3.8e)
-  // is the projection-optimized A/B variant of city-workers: the
-  // operator compares both directly on the beamer, so the label names
-  // the target device instead of the implementation ("Lit").
-  const CODED_EFFECT_LABEL_OVERRIDES = {
-    "city-workers-lit": "City Workers (Beamer)",
-  };
+  // wrong in the Effect dropdown. Phase 58-w3.8i: the w3.8e
+  // "city-workers-lit" A/B key merged into the configurable
+  // city-workers effect (the registry no longer lists it; legacy
+  // definitions are alias-normalized to "city-workers" with
+  // workerStyle "lit"), so its picker label override is gone —
+  // "city-workers" auto-formats to "City Workers".
+  const CODED_EFFECT_LABEL_OVERRIDES = {};
 
   // Pretty-print a coded effect key for the dropdown
   // (e.g. "hull-flicker" → "Hull Flicker").
@@ -392,13 +392,18 @@
         : null;
       const isSolidColor = codedType === "solid-color";
       const isMedia = def.assetType === "gif" || def.assetType === "mp4";
+      // Phase 58-w3.8i: city-workers population is configured via the
+      // explicit "Anzahl Bewohner" option (Coded effect card); the
+      // intensity knob is decoupled and otherwise unused by that
+      // renderer — hide it so it isn't dead UI.
+      const isCityWorkers = codedType === "city-workers" || codedType === "city-workers-lit";
 
       fields.push({
         kind: "slider", key: "opacity", label: "Opacity",
         min: 0.1, max: 1, step: 0.05,
         format: (v) => `${Math.round(v * 100)}%`,
       });
-      if (!isMedia) {
+      if (!isMedia && !isCityWorkers) {
         fields.push({
           kind: "slider", key: "intensity", label: "Intensity",
           min: 0.2, max: 1.5, step: 0.05,
@@ -684,6 +689,50 @@
       }));
       card.append(syncRow);
       applyHeatSourceGate(def.heatShowSource !== false);
+    }
+
+    if (isCityWorkers) {
+      // Phase 58-w3.8i — merged city-workers options (German labels,
+      // same per-definition plumbing as the w3.8g heat checkboxes).
+      // "Darstellung" replaces the former separate "city-workers-lit"
+      // registry entry; the other knobs parametrize population, group
+      // events, lantern share and snow trails. Defaults render the
+      // historical dark variant exactly.
+      card.append(buildSelectRow(scope, def, boardId, {
+        key: "workerStyle",
+        label: "Darstellung",
+        options: [
+          { value: "dark", label: "Silhouette (Dashboard)" },
+          { value: "lit", label: "Beleuchtet (Beamer)" },
+        ],
+      }));
+      card.append(buildSliderRow(scope, def, boardId, {
+        key: "workerCount",
+        label: "Anzahl Bewohner",
+        min: 1, max: 12, step: 1,
+        format: (v) => `${Math.round(v)}`,
+      }));
+      card.append(buildSelectRow(scope, def, boardId, {
+        key: "workerGroups",
+        label: "Gruppen",
+        options: [
+          { value: "off", label: "aus" },
+          { value: "rare", label: "selten" },
+          { value: "normal", label: "normal" },
+          { value: "frequent", label: "häufig" },
+        ],
+      }));
+      card.append(buildSliderRow(scope, def, boardId, {
+        key: "workerLanternShare",
+        label: "Laternen-Anteil",
+        min: 0, max: 100, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      }));
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "workerTrails",
+        label: "Spuren im Schnee",
+        sub: "Bewohner hinterlassen langsam verblassende Pfade im Schnee.",
+      }));
     }
 
     if (isHullFlicker) {

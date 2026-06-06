@@ -449,6 +449,21 @@
         // Phase 58-w3.8g: heat source-visibility option (default ON
         // when the instance predates the field).
         heatShowSource: animation.heatShowSource !== false,
+        // Phase 58-w3.8i: merged city-workers options. workerStyle
+        // falls back to the RAW asset ref for pre-merge snapshot
+        // instances saved under the "city-workers-lit" key (the alias
+        // resolves effectType to "city-workers", so the lit look must
+        // be recovered from the un-normalized ref). workerCount stays
+        // null for those instances → legacy intensity-derived count.
+        workerStyle: animation.workerStyle === "lit" || animation.workerStyle === "dark"
+          ? animation.workerStyle
+          : (String(assetRef || animation.type || "").toLowerCase() === "city-workers-lit"
+            ? "lit"
+            : "dark"),
+        workerCount: animation.workerCount ?? null,
+        workerGroups: animation.workerGroups,
+        workerLanternShare: animation.workerLanternShare,
+        workerTrails: animation.workerTrails !== false,
       },
     );
   }

@@ -114,6 +114,15 @@
         // these explicitly.
         heatShowSource: selectedDefinition.heatShowSource !== false,
         heatSyncNearestSource: selectedDefinition.heatSyncNearestSource === true,
+        // Phase 58-w3.8i: merged city-workers options — per-definition,
+        // carried onto every dispatched instance (same Phase 50
+        // factory-default-mask trap: all createAnimation call sites
+        // below forward these explicitly).
+        workerStyle: selectedDefinition.workerStyle === "lit" ? "lit" : "dark",
+        workerCount: selectedDefinition.workerCount ?? null,
+        workerGroups: selectedDefinition.workerGroups ?? "normal",
+        workerLanternShare: selectedDefinition.workerLanternShare ?? 30,
+        workerTrails: selectedDefinition.workerTrails !== false,
       };
 
       if (selectedAssetType === "gif") {
@@ -445,6 +454,13 @@
                     // (factory-default-mask trap, see draftPayload comment).
                     heatShowSource: draftPayload.heatShowSource,
                     heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+                    // Phase 58-w3.8i: city-workers options — explicit pass-through
+                    // (factory-default-mask trap, see draftPayload comment).
+                    workerStyle: draftPayload.workerStyle,
+                    workerCount: draftPayload.workerCount,
+                    workerGroups: draftPayload.workerGroups,
+                    workerLanternShare: draftPayload.workerLanternShare,
+                    workerTrails: draftPayload.workerTrails,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -567,6 +583,13 @@
           // (factory-default-mask trap, see draftPayload comment).
           heatShowSource: draftPayload.heatShowSource,
           heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+          // Phase 58-w3.8i: city-workers options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          workerStyle: draftPayload.workerStyle,
+          workerCount: draftPayload.workerCount,
+          workerGroups: draftPayload.workerGroups,
+          workerLanternShare: draftPayload.workerLanternShare,
+          workerTrails: draftPayload.workerTrails,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -601,6 +624,13 @@
             // (factory-default-mask trap, see draftPayload comment).
             heatShowSource: draftPayload.heatShowSource,
             heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+            // Phase 58-w3.8i: city-workers options — explicit pass-through
+            // (factory-default-mask trap, see draftPayload comment).
+            workerStyle: draftPayload.workerStyle,
+            workerCount: draftPayload.workerCount,
+            workerGroups: draftPayload.workerGroups,
+            workerLanternShare: draftPayload.workerLanternShare,
+            workerTrails: draftPayload.workerTrails,
             hold: true,
             durationSec: 0,
           });
@@ -726,6 +756,13 @@
                   // (factory-default-mask trap, see draftPayload comment).
                   heatShowSource: draftPayload.heatShowSource,
                   heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+                  // Phase 58-w3.8i: city-workers options — explicit pass-through
+                  // (factory-default-mask trap, see draftPayload comment).
+                  workerStyle: draftPayload.workerStyle,
+                  workerCount: draftPayload.workerCount,
+                  workerGroups: draftPayload.workerGroups,
+                  workerLanternShare: draftPayload.workerLanternShare,
+                  workerTrails: draftPayload.workerTrails,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -854,6 +891,13 @@
         // (factory-default-mask trap, see draftPayload comment).
         heatShowSource: draftPayload.heatShowSource,
         heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+        // Phase 58-w3.8i: city-workers options — explicit pass-through
+        // (factory-default-mask trap, see draftPayload comment).
+        workerStyle: draftPayload.workerStyle,
+        workerCount: draftPayload.workerCount,
+        workerGroups: draftPayload.workerGroups,
+        workerLanternShare: draftPayload.workerLanternShare,
+        workerTrails: draftPayload.workerTrails,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -890,6 +934,13 @@
           // (factory-default-mask trap, see draftPayload comment).
           heatShowSource: draftPayload.heatShowSource,
           heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+          // Phase 58-w3.8i: city-workers options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          workerStyle: draftPayload.workerStyle,
+          workerCount: draftPayload.workerCount,
+          workerGroups: draftPayload.workerGroups,
+          workerLanternShare: draftPayload.workerLanternShare,
+          workerTrails: draftPayload.workerTrails,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

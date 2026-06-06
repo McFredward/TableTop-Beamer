@@ -539,6 +539,37 @@
       // Both are harmless no-ops for non-heat definitions.
       heatShowSource: definition?.heatShowSource !== false,
       heatSyncNearestSource: Boolean(definition?.heatSyncNearestSource),
+      // Phase 58-w3.8i — merged city-workers per-definition options
+      // (harmless no-ops for other definitions):
+      //   workerStyle        "dark" (Silhouette/Dashboard, historical
+      //                      look) | "lit" (Beleuchtet/Beamer). The
+      //                      default derives from the RAW assetRef so
+      //                      definitions saved under the w3.8e
+      //                      "city-workers-lit" key keep rendering lit
+      //                      after the alias rewrites their assetRef.
+      //   workerCount        base population 1..12, DECOUPLED from
+      //                      intensity. Missing field (every pre-merge
+      //                      definition) migrates to the historical
+      //                      intensity-derived 4.5 × intensity, so old
+      //                      definitions keep their exact look and the
+      //                      intensity slider stops double-driving it.
+      //   workerGroups       group-event frequency preset.
+      //   workerLanternShare percent of figures carrying a lantern
+      //                      (30 = historical band).
+      //   workerTrails       trampled-snow trails on/off.
+      workerStyle: definition?.workerStyle === "lit" || definition?.workerStyle === "dark"
+        ? definition.workerStyle
+        : (rawAssetRef.toLowerCase() === "city-workers-lit" ? "lit" : "dark"),
+      workerCount: clamp(
+        definition?.workerCount,
+        1, 12,
+        clamp(4.5 * clamp(definition?.intensity, 0.2, 1.5, 0.8), 1, 12, 4),
+      ),
+      workerGroups: ["off", "rare", "normal", "frequent"].includes(definition?.workerGroups)
+        ? definition.workerGroups
+        : "normal",
+      workerLanternShare: clamp(definition?.workerLanternShare, 0, 100, 30),
+      workerTrails: definition?.workerTrails !== false,
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded room effects keep their own lifecycle).
       playbackMode: normalizePlaybackMode(definition),

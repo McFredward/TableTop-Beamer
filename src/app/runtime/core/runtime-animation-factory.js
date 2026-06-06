@@ -61,6 +61,15 @@
     // pre-option behavior: visible source, no pulse sync.
     heatShowSource = true,
     heatSyncNearestSource = false,
+    // Phase 58-w3.8i: merged city-workers options (see
+    // normalizeRoomAnimationDefinition). workerCount defaults to null
+    // = legacy intensity-derived population, so a caller that misses
+    // the field renders the historical look instead of a masked count.
+    workerStyle = "dark",
+    workerCount = null,
+    workerGroups = "normal",
+    workerLanternShare = 30,
+    workerTrails = true,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -122,6 +131,20 @@
       // spread in buildAnimationSnapshotForLiveSync.
       heatShowSource: heatShowSource !== false,
       heatSyncNearestSource: heatSyncNearestSource === true,
+      // Phase 58-w3.8i: merged city-workers options on the instance
+      // (same factory-default-mask contract as the heat fields above;
+      // snapshots carry them via the full-object spread).
+      workerStyle: workerStyle === "lit" ? "lit" : "dark",
+      workerCount: Number.isFinite(Number(workerCount)) && Number(workerCount) > 0
+        ? Math.min(12, Number(workerCount))
+        : null,
+      workerGroups: ["off", "rare", "normal", "frequent"].includes(workerGroups)
+        ? workerGroups
+        : "normal",
+      workerLanternShare: Number.isFinite(Number(workerLanternShare))
+        ? Math.max(0, Math.min(100, Number(workerLanternShare)))
+        : 30,
+      workerTrails: workerTrails !== false,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,
