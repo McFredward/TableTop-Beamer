@@ -12,6 +12,26 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.24] — 2026-06-06
+
+Phase 58 Wave 3.7u — align-mode corner scale handles stay reachable at
+extreme zoom. Operator spec 2026-06-06.
+
+### Fixed
+- **Corner scale handles (⤢) on /output/ align mode now clamp into the
+  visible viewport when the board is scaled so large that their natural
+  outward placement (corner ±62 px) lands off-screen** — previously the
+  handles became unreachable at extreme zoom, making scale-down impossible.
+  Mirrors the rotate handle's Phase-36 stay-visible behavior: the outward
+  offset flips inward when it would leave the viewport ("zapp"), plus a
+  hard viewport clamp (14 px margin) as a safety net. Drag math is
+  unaffected — scaling measures the pointer's distance from the grid
+  centroid, not the handle's rendered position, so dragging a clamped
+  handle applies the exact same transform as dragging from the true corner.
+  Clamped handles carry `data-clamped="1"` for diagnostics/E2E. Rotate
+  handle behavior, the align transform model, and align-grid-snapshot /
+  align-corner-drag payloads are unchanged.
+
 ## [1.2.23] — 2026-06-06
 
 Phase 58 Wave 3.7t — mp4 boomerang playback. Operator UAT 2026-06-06.

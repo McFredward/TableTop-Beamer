@@ -513,13 +513,45 @@
   function positionScaleHandles() {
     if (scaleHandleElements.length !== SCALE_CORNERS.length) return;
     const layout = _getStreamContentRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // 58-w3.7u: half handle size (22px) + border so a clamped handle stays
+    // fully visible AND grabbable at the viewport edge.
+    const margin = 14;
     for (let i = 0; i < SCALE_CORNERS.length; i++) {
       const c = SCALE_CORNERS[i];
       const row = c.rowFn();
       const col = c.colFn();
       const pt = getPoint(row, col);
-      scaleHandleElements[i].style.left = `${layout.offsetX + pt.x * layout.w + c.offX}px`;
-      scaleHandleElements[i].style.top = `${layout.offsetY + pt.y * layout.h + c.offY}px`;
+      const baseX = layout.offsetX + pt.x * layout.w;
+      const baseY = layout.offsetY + pt.y * layout.h;
+      // 58-w3.7u — mirror positionRotateHandles' Phase-36-M4-T5 behavior:
+      // when the board is scaled so large that a corner sits at/near the
+      // viewport edge, the outward ±62 offset pushes the scale handle OFF
+      // screen where pointer events can't reach it — making scale-down
+      // impossible. Flip the offset INWARD when the outward placement would
+      // be off-screen (same "zapp" visual language as the rotate handle),
+      // then hard-clamp into the viewport as a safety net. Drag math
+      // (onScaleHandlePointerDown measures the pointer's distance from the
+      // grid CENTROID, not the handle's rendered position) is unaffected —
+      // a drag on a clamped handle applies the exact same scale transform
+      // as a drag on the true corner position.
+      let dx = c.offX;
+      let dy = c.offY;
+      if (baseX + dx < 0 || baseX + dx > vw) dx = -dx;
+      if (baseY + dy < 0 || baseY + dy > vh) dy = -dy;
+      const left = Math.max(margin, Math.min(vw - margin, baseX + dx));
+      const top  = Math.max(margin, Math.min(vh - margin, baseY + dy));
+      const el = scaleHandleElements[i];
+      // Testability/diagnostics: mark whether this handle was repositioned
+      // away from its natural outward placement.
+      if (left !== baseX + c.offX || top !== baseY + c.offY) {
+        el.dataset.clamped = "1";
+      } else {
+        delete el.dataset.clamped;
+      }
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
     }
   }
 
