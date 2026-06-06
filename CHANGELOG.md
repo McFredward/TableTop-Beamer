@@ -52,6 +52,23 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.25] — 2026-06-06
+
+Phase 58 Wave 3.7v — Animation-Editor: Bibliotheksliste zeigt Typ-Wechsel
+sofort. Operator-Meldung 2026-06-06.
+
+### Fixed
+- **Die Typ-Zeile unter dem Animationsnamen in der linken
+  Bibliotheksliste aktualisiert sich jetzt sofort, wenn der Typ im
+  Edit-Pane per Dropdown geändert wird** — vorher zeigte die Liste den
+  alten Typ bis zum Schließen und erneuten Öffnen des Editors, auch nach
+  bestätigtem Apply. Ursache: der `assetType`-Change-Handler baute nur
+  das Edit-Pane neu, rief aber nie `renderList()` auf (der Apply-Pfad
+  synchronisiert nur die Dirty-Bar). Fix: `renderList()` beim
+  Typ-Wechsel — Auswahl und Scroll-Position bleiben erhalten
+  (gap-closure-21), das Zeilen-Icon zieht mit. Der Name war nicht
+  betroffen (Name-Input patcht die Listenzeile bereits direkt).
+
 ## [1.2.24] — 2026-06-06
 
 Phase 58 Wave 3.7u — align-mode corner scale handles stay reachable at

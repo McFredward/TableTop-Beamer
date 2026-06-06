@@ -781,6 +781,17 @@
         currentPaneKey = null;
         renderPane();
       }
+      // Phase 58 W3.7v (2026-06-06): the library row's subtitle shows
+      // the animation's assetType (and the row icon is derived from
+      // it) — refresh the list so both update immediately instead of
+      // only after the editor is closed and reopened. renderList()
+      // preserves selection (state.selectedIds) and scrollTop
+      // (gap-closure-21), so this is a safe in-place refresh. Name
+      // staleness doesn't exist: the Name input patches the selected
+      // row's textContent directly (buildIdentityCard).
+      if (field.key === "assetType") {
+        renderList();
+      }
     });
     label.append(cap, select);
     return label;
