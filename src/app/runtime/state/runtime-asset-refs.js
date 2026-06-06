@@ -37,6 +37,7 @@
       "special-slime",
       "special-scanning",
       "solid-color",
+      "generator-heat",
     ]));
   }
 

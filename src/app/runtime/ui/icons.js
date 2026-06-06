@@ -191,6 +191,7 @@
       "scanning":        "scan",
       "burst":           "sparkles",
       "fire":            "flame",
+      "generator-heat":  "flame",
       "slime":           "drop",
       "power-out":       "power",
       "power":           "power",
@@ -201,6 +202,7 @@
     const KEYWORDS = [
       ["fire",      "flame"],
       ["flame",     "flame"],
+      ["heat",      "flame"],
       ["intruder",  "bell"],
       ["alarm",     "bell"],
       ["alert",     "bell"],

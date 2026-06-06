@@ -52,6 +52,27 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.26] — 2026-06-06
+
+Phase 58 Wave 3.7w — Neue Coded-Raum-Animation "Generator Heat" für das
+Frostpunk-Board (Operator-Spec 2026-06-06).
+
+### Added
+- **Neuer Coded-Effekt „Generator Heat"** — simuliert die vom zentralen
+  Generator abgestrahlte Hitze/Wärme: atmender radialer Glow vom
+  Raumzentrum (~0,24 Hz × Speed, Radius ±15 %), subtile aufsteigende
+  Heat-Shimmer-Streifen (additiv) und spärliche Glut-Partikel, die mit
+  seitlichem Pendeln nach oben treiben und dabei schrumpfen/verblassen.
+  Komplett deterministisch aus dem Animations-Alter (keine
+  Per-Frame-Zufallswerte) — Dashboard, /output und SSR rendern
+  identische Frames. Regler: Opacity (gesamt), Intensity (Glow-Stärke +
+  Glut-Dichte), Speed (Puls + Partikel), Heat-Tint-Farbe (Standard
+  Glut-Orange `#ff7a1a`; wird beim Auswählen des Effekts im Editor
+  automatisch gesetzt). Im Animation-Editor als „Generator Heat" unter
+  Effect (coded) wählbar, inkl. Live-Preview und Flammen-Icon.
+
+---
+
 ## [1.2.25] — 2026-06-06
 
 Phase 58 Wave 3.7v — Animation-Editor: Bibliotheksliste zeigt Typ-Wechsel
