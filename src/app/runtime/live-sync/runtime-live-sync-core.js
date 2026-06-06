@@ -738,13 +738,60 @@
       const RENDER_PLAYBACK_FIELDS = ["playbackPhase", "_endedDispatched", "_phaseChangedAt"];
       const LIVE_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
         "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
-      const fieldsToPreserve = ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
-        ? [...LIVE_EDIT_FIELDS, ...RENDER_PLAYBACK_FIELDS]
-        : RENDER_PLAYBACK_FIELDS;
+      const liveEditFieldsToPreserve = ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
+        ? LIVE_EDIT_FIELDS
+        : [];
       for (const animation of state.runningAnimations) {
         const previous = previousAnimationsById.get(animation.id);
         if (!previous) continue;
-        for (const field of fieldsToPreserve) {
+        // Phase 58 Wave 3.7r (2026-06-06): re-trigger re-stamp detection
+        // — symmetric on ALL roles. The dispatch-side phase flip
+        // (runtime-room-dispatch.js) re-stamps startedAtEpochMs together
+        // with the new playbackPhase and emits edit-room. When that flip
+        // reaches a client through a NON-edit-room snapshot (e.g. the
+        // HTTP poll a WS broadcast scheduled — measured on FINAL: the
+        // poll response, carrying versions v70/v71, applied BEFORE the
+        // edit-room WS frames arrived; the broadcasts were then
+        // version-rejected as stale), the unconditional preservation
+        // below used to revert the incoming phase to the local stale
+        // value while the hydrated timeline base accepted the NEW epoch
+        // — gif members stuck mid-cluster-flip ("some rooms untouched",
+        // compounding into opposite-direction desync; debug file
+        // phase-58-gif-final-desync.md). Rule: an incoming
+        // startedAtEpochMs MEANINGFULLY newer (>250 ms) than the
+        // previously known epoch for the same id is a re-trigger — the
+        // incoming phase/render bookkeeping is authoritative; skip the
+        // preservation. Identical/older epoch keeps the preservation
+        // (the original anti-revert purpose: client-derived transitions
+        // like forward→frozen-last and mid-reverse states must not be
+        // clobbered by stale snapshots). A bare phase-difference is NOT
+        // used as the trigger because the frozen-* phases are
+        // client-derived and legitimately differ from the server's
+        // stale copy.
+        const incomingEpochMs = Number(animation.startedAtEpochMs);
+        const previousEpochMs = ctx.getAnimationStartedAtEpochMs(previous);
+        const isReTriggerReStamp =
+          Number.isFinite(incomingEpochMs)
+          && Number.isFinite(previousEpochMs)
+          && incomingEpochMs - previousEpochMs > 250;
+        if (isReTriggerReStamp) {
+          // Phase 58 Wave 3.7r: PERMANENT diagnostic (mirrors the [58]
+          // family) — fires once per re-trigger per animation.
+          console.warn("[58] re-stamp-accepted", JSON.stringify({
+            id: animation.id,
+            prevPhase: previous.playbackPhase ?? null,
+            nextPhase: animation.playbackPhase ?? null,
+            epochDeltaMs: Math.round(incomingEpochMs - previousEpochMs),
+            mutationType,
+          }));
+        } else {
+          for (const field of RENDER_PLAYBACK_FIELDS) {
+            if (previous[field] !== undefined) {
+              animation[field] = previous[field];
+            }
+          }
+        }
+        for (const field of liveEditFieldsToPreserve) {
           if (previous[field] !== undefined) {
             animation[field] = previous[field];
           }

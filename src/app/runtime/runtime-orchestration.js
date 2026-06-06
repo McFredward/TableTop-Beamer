@@ -698,6 +698,9 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   observeGlobalStopRevisions: (runtime) => observeGlobalStopRevisions(runtime),
   observeGlobalClearRevision: (runtime) => observeGlobalClearRevision(runtime),
   filterRunningAnimationsForBoard: (running, boardId) => filterRunningAnimationsForBoard(running, boardId),
+  // Phase 58 Wave 3.7r: re-trigger re-stamp detection in the snapshot
+  // preservation block needs the previous animation's epoch.
+  getAnimationStartedAtEpochMs: (a) => getAnimationStartedAtEpochMs(a),
   primeGlobalTriggerRuntimeTimestamps: (running, prev) => primeGlobalTriggerRuntimeTimestamps(running, prev),
   reconcileHydratedAnimations: (running) => reconcileHydratedAnimations(running),
   retainActiveSeenOneShotRuns: (running) => retainActiveSeenOneShotRuns(running),
