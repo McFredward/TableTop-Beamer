@@ -52,6 +52,44 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.30] — 2026-06-06
+
+Phase 58 Wave 3.8b — Operator-Feedback (2026-06-06): "Viel zu schnell
+und unnatürliche Bewegung - eher vergleichbar mit einer Fliege! Oder
+als wäre es in doppelter Geschwindigkeit. Versuche die Bewegung
+menschlicher zu machen - bedenke sie stapfen durch SCHNEE, das dauert
+und ist anstrengend."
+
+### Fixed
+- **City Workers: doppelte Speed-Anwendung entfernt** — der Draw-Loop
+  skalierte das Alter bereits mit dem Speed-Regler UND multiplizierte
+  für codierte Raum-Effekte ein zweites Mal (Speed²; dieselbe
+  Bug-Klasse wie früher bei outside-space). Für city-workers geht der
+  Regler jetzt exakt EINMAL ein: speed=2 ⇒ exakt doppeltes Tempo
+  (linear, gemessen: Leg-Dauern halbieren sich exakt), und die
+  Editor-Live-Vorschau stimmt mit dem Board überein.
+
+### Changed
+- **City Workers: stapfen jetzt durch tiefen Schnee** — komplette
+  Gang-Neuabstimmung auf "erschöpfte Überlebende":
+  - Gehtempo aus der WEGLÄNGE abgeleitet (konstante, langsame
+    Wat-Geschwindigkeit statt gleicher Zeit pro Leg): Peak ≈ 4,9-5,9
+    px/s auf einem 133-px-Hex (vorher ~26-30 px/s), Anker-zu-Anker
+    ~15-30 s, skaliert proportional mit der Polygon-Größe.
+  - Schwerer Schritt-Takt ~1,2-1,6 Schritte/s mit kleinem Körper-Bob
+    pro Schritt; Lurch-Amplituden reduziert.
+  - Fliegen-Jitter entfernt: laterales Mäandern auf höchstens EINE
+    träge Schwankung pro Leg reduziert, Heading-Wobble halbiert.
+  - Anstrengung: Mid-Leg-Verlangsamungen (Tiefschnee-Stellen),
+    häufigere und breitere Atempausen-Stopps, längere Arbeits- und
+    Off-Stage-Phasen (Zyklen jetzt ~110-220 s), Werkzeug-Rhythmus
+    auf ~1 langsamen Schlag alle 1,5-2,5 s entschleunigt.
+  - Trampelpfade (1.2.29) folgen automatisch der neuen Pose-Funktion;
+    Sampling auf 1 s gestreckt (räumlich weiterhin ~3 px Abstand),
+    75-s-Verblassen unverändert.
+
+---
+
 ## [1.2.29] — 2026-06-06
 
 Phase 58 Wave 3.8a — Operator-Idee (2026-06-06): "Die Arbeiter könnten

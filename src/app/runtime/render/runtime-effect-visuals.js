@@ -99,6 +99,56 @@
     });
   }
 
+  // ---- trudging pace parametrization (Phase 58-w3.8b) --------------
+  // Operator feedback: figures moved "like a fly / at double speed".
+  // Walk timing is now derived from PATH LENGTH at a constant per-
+  // figure trudge speed (unit-disc units per second; 1 unit = the
+  // room half-extent), so every leg moves at the same slow wading
+  // pace regardless of leg length and px/s scales with polygon size.
+  // On a ~133 px tile (halfW ≈ 66.5 px) the smoothstep peak is
+  // ≈ 1.5 × trudgeSpeed × halfW ≈ 4.0-5.4 px/s — an anchor-to-anchor
+  // leg of ~0.7 units takes ~15-17 s, long legs up to ~30 s. The
+  // speed knob scales `age` exactly ONCE (runtime-draw-loop.js
+  // w3.8b fix), so speed=2 → all durations halve, linearly.
+  const WORKER_TRUDGE_SPEED_MIN = 0.040; // unit-disc units / second
+  const WORKER_TRUDGE_SPEED_SPAN = 0.014;
+
+  // Per-leg length fractions of the total route — workerPoseAt
+  // distributes the walk time budget by these so the trudge speed is
+  // uniform across legs (the old equal-split made short legs crawl
+  // and long legs sprint).
+  function workerLegShares(anchors) {
+    const shares = [];
+    let total = 0;
+    for (let k = 0; k < anchors.length - 1; k += 1) {
+      const len = Math.hypot(
+        anchors[k + 1][0] - anchors[k][0],
+        anchors[k + 1][1] - anchors[k][1],
+      ) || 1e-4;
+      shares.push(len);
+      total += len;
+    }
+    for (let k = 0; k < shares.length; k += 1) shares[k] /= total;
+    return { shares, totalLen: total };
+  }
+
+  // Derive the cycle layout from REAL durations instead of seeding an
+  // arbitrary cycleDur: walking time = route length / trudge speed,
+  // plus seconds-denominated work stops and an off-stage stretch.
+  function workerCycleTiming(anchors, { trudgeSpeed, workDurPerStop, hiddenDur }) {
+    const { shares, totalLen } = workerLegShares(anchors);
+    const walkDur = totalLen / trudgeSpeed;
+    const workDur = workDurPerStop * anchors.length;
+    const activeDur = walkDur + workDur;
+    const cycleDur = activeDur + hiddenDur;
+    return {
+      cycleDur,
+      hiddenFrac: hiddenDur / cycleDur,
+      walkShare: walkDur / activeDur,
+      legShares: shares,
+    };
+  }
+
   function getWorkerScene(roomKey) {
     const cached = WORKER_SCENE_CACHE.get(roomKey);
     if (cached) return cached;
@@ -115,12 +165,15 @@
     let groupCycle = null;
     if (hasGroup) {
       groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2)); // 2..3 stops
-      groupCycle = {
-        cycleDur: 44 + rh(15203) * 30,            // shared so the group moves together
-        phase: rh(15307),
-        hiddenFrac: 0.52 + rh(15401) * 0.18,      // group events stay occasional
-        walkShare: 0.36 + rh(15501) * 0.14,
-      };
+      // Shared timing derived from the LEADER route length (w3.8b) so
+      // the whole group trudges at the same slow pace and stays loosely
+      // together; see the trudge-speed parametrization below.
+      groupCycle = workerCycleTiming(groupAnchors, {
+        trudgeSpeed: WORKER_TRUDGE_SPEED_MIN + rh(15203) * WORKER_TRUDGE_SPEED_SPAN,
+        workDurPerStop: 9 + rh(15211) * 7,
+        hiddenDur: 70 + rh(15401) * 70,           // group events stay occasional
+      });
+      groupCycle.phase = rh(15307);
     }
 
     const figures = Array.from({ length: WORKER_MAX }, (_, i) => {
@@ -130,6 +183,7 @@
       let phase;
       let hiddenFrac;
       let walkShare;
+      let legShares;
       if (inGroup) {
         const member = i - GROUP_START;
         // Member route = leader route + small per-anchor scatter, so
@@ -146,12 +200,25 @@
         phase = (groupCycle.phase + member * 0.006 + rh(i + 16101) * 0.010) % 1;
         hiddenFrac = groupCycle.hiddenFrac;
         walkShare = groupCycle.walkShare;
+        // Shared TIMING, own leg-length distribution: the scattered
+        // member route differs a few % from the leader's — pace error
+        // stays negligible and the group still moves together.
+        legShares = workerLegShares(anchors).shares;
       } else {
         anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3));
-        cycleDur = 38 + rh(i + 4001) * 34;        // 38-72 s full cycle @ speed 1
+        // w3.8b: cycle derived from durations — slow wading pace,
+        // long heavy work stops, long off-stage stretches. Typical
+        // cycle lands at ~110-220 s @ speed 1 (was 38-72 s).
+        const timing = workerCycleTiming(anchors, {
+          trudgeSpeed: WORKER_TRUDGE_SPEED_MIN + rh(i + 4003) * WORKER_TRUDGE_SPEED_SPAN,
+          workDurPerStop: 8 + rh(i + 4007) * 8,   // 8-16 s leaning into the work
+          hiddenDur: 55 + rh(i + 6007) * 65,      // 55-120 s off-stage
+        });
+        cycleDur = timing.cycleDur;
         phase = rh(i + 5003);                     // cycle offset 0..1
-        hiddenFrac = 0.40 + rh(i + 6007) * 0.24;  // 40-64% of cycle off-stage
-        walkShare = 0.32 + rh(i + 7001) * 0.16;   // active time spent walking
+        hiddenFrac = timing.hiddenFrac;
+        walkShare = timing.walkShare;
+        legShares = timing.legShares;
       }
       return {
         anchors,
@@ -159,22 +226,32 @@
         phase,
         hiddenFrac,
         walkShare,
+        legShares,
         inGroup,
-        stepFreq: 5.0 + rh(i + 8009) * 2.6,       // step oscillation rate
-        workFreq: 1.0 + rh(i + 9001) * 0.8,       // tool-motion rhythm Hz-ish
+        // Heavy-step cadence (w3.8b): ~1.2-1.6 steps/s at speed 1
+        // (rad/s here; Hz = stepFreq / 2π). Was 0.8-1.2 — combined
+        // with the old 5 s legs it read as scurrying.
+        stepFreq: 7.5 + rh(i + 8009) * 2.6,
+        // Exhausted tool rhythm: one slow strike every ~1.5-2.5 s
+        // (was 1.0-1.8 Hz — frantic).
+        workFreq: 0.40 + rh(i + 9001) * 0.30,
         sizeJitter: 0.85 + rh(i + 10007) * 0.3,
         // Group members: only the leader may carry the lantern, so a
         // group doesn't read as a lantern parade.
         hasLantern: inGroup ? false : rh(i + 11003) < 0.28,
         lanternSide: rh(i + 12007) < 0.5 ? -1 : 1,
-        // Humanized gait seeds (w3.7z) — see workerWalkPoint.
-        meanderScale: 0.07 + rh(i + 17001) * 0.10,   // lateral drift, × leg length
-        meanderFreq: 1.2 + rh(i + 17011) * 1.6,      // drift waves per leg
+        // Humanized gait seeds (w3.7z, calmed in w3.8b — the old
+        // 1.2-2.8 waves/leg lateral drift on ~5 s legs was the
+        // fly-like jitter): at most ONE slow weighty sway per leg.
+        meanderScale: 0.05 + rh(i + 17001) * 0.06,   // lateral drift, × leg length
+        meanderFreq: 0.5 + rh(i + 17011) * 0.6,      // drift waves per leg
         meanderPhase: rh(i + 17021) * Math.PI * 2,
-        paceAmp: 0.09 + rh(i + 17031) * 0.10,        // stride accel/decel depth
-        paceFreq: 2 + rh(i + 17041) * 2.5,           // pace cycles per leg
+        paceAmp: 0.10 + rh(i + 17031) * 0.10,        // deep-snow slow-down depth
+        paceFreq: 1.0 + rh(i + 17041) * 1.2,         // pace cycles per leg
         pacePhase: rh(i + 17051) * Math.PI * 2,
-        hesitate: rh(i + 17061) < 0.45 ? 0.5 + rh(i + 17071) * 0.5 : 0,
+        // More figures hesitate, and the stall is wider/longer — it
+        // should read as catching breath in deep snow, not twitching.
+        hesitate: rh(i + 17061) < 0.6 ? 0.5 + rh(i + 17071) * 0.5 : 0,
         hesitateAt: 0.30 + rh(i + 17081) * 0.40,     // where mid-path stall sits
         gaitSeed: rh(i + 17091) * Math.PI * 2,       // bob/wobble phase offset
       };
@@ -199,8 +276,10 @@
     let e = p * p * (3 - 2 * p);
     e += Math.sin(p * Math.PI * 2 * fig.paceFreq + fig.pacePhase) * fig.paceAmp * p * (1 - p);
     if (fig.hesitate > 0) {
-      const d = (p - fig.hesitateAt) / 0.09;
-      e -= fig.hesitate * 0.05 * Math.exp(-d * d) * Math.sin(Math.PI * p);
+      // w3.8b: wider gaussian (0.09 → 0.15) — on a 15-30 s leg the
+      // stall now spans several seconds: stop, breathe, push on.
+      const d = (p - fig.hesitateAt) / 0.15;
+      e -= fig.hesitate * 0.06 * Math.exp(-d * d) * Math.sin(Math.PI * p);
     }
     return Math.max(0, Math.min(1, e));
   }
@@ -240,7 +319,10 @@
   // cheap segment strokes remain (~60 per visible figure), batched
   // into a handful of stroke() calls via alpha-band quantization.
   const WORKER_TRAIL_FADE_SEC = 75;    // trail lifetime before fully faded
-  const WORKER_TRAIL_SAMPLE_SEC = 0.6; // path-time spacing between samples
+  // w3.8b: 0.6 → 1.0 s — at the trudging pace (~0.04-0.054 units/s) a
+  // 1 s sample still spans only ~3 px on a 133 px tile, and the longer
+  // active stretch (~110-190 s) stays inside WORKER_TRAIL_MAX_SAMPLES.
+  const WORKER_TRAIL_SAMPLE_SEC = 1.0; // path-time spacing between samples
   const WORKER_TRAIL_MAX_SAMPLES = 200;
   const WORKER_TRAIL_BANDS = 7;        // alpha quantization → batched strokes
   const WORKER_TRAIL_ALPHA = 0.085;    // peak alpha of a fresh segment
@@ -280,7 +362,8 @@
     const anchors = fig.anchors;
     const legs = anchors.length - 1;
     // Segment layout across active time: work0,walk0,work1,walk1,…workN.
-    const walkSeg = fig.walkShare / legs;
+    // w3.8b: the walk-time budget is split by LEG LENGTH (legShares),
+    // not equally — uniform trudge speed across short and long legs.
     const workSeg = (1 - fig.walkShare) / anchors.length;
     let rem = u;
     for (let k = 0; k < anchors.length; k += 1) {
@@ -306,6 +389,7 @@
       // rigidly at the destination; `pace` (normalized stride speed,
       // ~1 = average leg speed) feeds the step-bob amplitude in the
       // draw branch so the figure settles when easing into a stop.
+      const walkSeg = fig.walkShare * (fig.legShares?.[k] ?? 1 / legs);
       if (rem < walkSeg) {
         const p = rem / walkSeg;
         const a = anchors[k];
@@ -902,14 +986,19 @@
           // free of phase drift — fully deterministic in `age`.
           const pace = Math.max(0, Math.min(1.8, Number.isFinite(pose.pace) ? pose.pace : 1));
           const stepPhase = safeAge * fig.stepFreq + i * 2.3;
-          const along = Math.sin(stepPhase) * figLen * (0.04 + 0.07 * pace);
+          // w3.8b: smaller amplitudes — the heavy ~1.2-1.6 steps/s
+          // cadence carries the effort cue, not big lurches.
+          const along = Math.sin(stepPhase) * figLen * (0.03 + 0.05 * pace);
           x += Math.cos(heading) * along;
           y += Math.sin(heading) * along;
-          const bob = Math.sin(stepPhase * 0.5 + fig.gaitSeed) * figLen * (0.025 + 0.05 * pace);
+          // Body bob at the full step cadence (was half-rate): each
+          // heavy step lifts the body once, small amplitude.
+          const bob = Math.sin(stepPhase + fig.gaitSeed) * figLen * (0.02 + 0.035 * pace);
           x += -Math.sin(heading) * bob;
           y += Math.cos(heading) * bob;
-          // Slight heading wobble synced to the step cycle.
-          heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.10 * (0.4 + 0.6 * pace);
+          // Heading wobble halved (w3.8b, was 0.10) and kept at the
+          // slow half-step rate — weight shifts, not direction flips.
+          heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.05 * (0.4 + 0.6 * pace);
         } else {
           // Working: lean rhythmically along the facing axis (strike /
           // shovel motion) — subtle, the figure stays put.
