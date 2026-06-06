@@ -20,27 +20,22 @@
     ctx = dependencies;
   }
 
-  // ---- heat static tables (Phase 58-w3.7w, renamed w3.7x) ----------
-  // Deterministic per-streak seeds, computed ONCE at module load.
+  // ---- shared deterministic hash (Phase 58-w3.7w) ------------------
   // NO Math.random anywhere in the draw path: dashboard, /output and
   // the SSR tab must render pixel-identical frames for a given `age`
   // (they each run their own copy of this module). heatHash01 is the
   // classic sin-fract hash — stable for the small integer inputs used
   // here, so every client derives the same tables.
   // (Phase 58-w3.7x: the rising-ember particle table was removed
-  // together with the ember layer — operator: embers break immersion.)
+  // together with the ember layer — operator: embers break immersion.
+  // Phase 58-w3.8f: the heat-shimmer streak table was removed together
+  // with the shimmer layer — operator: the rising strips break the
+  // look. heatHash01 stays — the city-workers tables below seed from
+  // it.)
   function heatHash01(n) {
     const s = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
     return s - Math.floor(s);
   }
-  const HEAT_STREAK_MAX = 7;
-  const HEAT_STREAKS = Array.from({ length: HEAT_STREAK_MAX }, (_, i) => ({
-    lane: (i + 0.5) / HEAT_STREAK_MAX,           // even spread across room width
-    laneJitter: (heatHash01(i + 601) - 0.5) * 0.12,
-    wavePhase: heatHash01(i + 701) * Math.PI * 2,
-    waveFreq: 1.2 + heatHash01(i + 801) * 1.2,   // wave cycles over room height
-    parallax: 0.55 + heatHash01(i + 901) * 0.9,  // per-streak rise-speed multiplier
-  }));
 
   // ---- city-workers tables (Phase 58-w3.7y, per-room w3.7z) --------
   // Tiny top-down inhabitants for the Frostpunk crater city. Same
@@ -917,15 +912,17 @@
       // rendering — the live-preview path passes the raw assetRef
       // straight into this dispatcher, hence the double type check.
       //
-      // Frostpunk generator warmth. Two layers, BOTH deterministic in
+      // Frostpunk generator warmth. One layer, deterministic in
       // `age` (caller pre-scales age by the animation's speed, so the
       // speed slider drives pulse cadence automatically):
       //   1. breathing radial glow from the room centroid (ALWAYS
       //      paints — SSR trap: a frame that paints nothing strobes
-      //      black in the encoded stream),
-      //   2. wavy heat-shimmer strips rising slowly ('lighter').
+      //      black in the encoded stream).
       // (Phase 58-w3.7x: layer 3 — rising ember particles — removed
-      // on operator feedback: the "bubbles" broke immersion.)
+      // on operator feedback: the "bubbles" broke immersion.
+      // Phase 58-w3.8f: layer 2 — wavy heat-shimmer strips — removed
+      // on operator feedback: "Entferne diese Streifen die von oben
+      // nach unten gehen, die mag ich nicht".)
       // The caller has already clipped the canvas to the room polygon
       // (clipToRoom) — everything below may overdraw the bounding box
       // freely; the clip cuts it to the polygon shape.
@@ -965,46 +962,6 @@
       gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
       c.fillStyle = gradient;
       c.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
-
-      // Layer 2 is additive so it composes order-independently
-      // with the glow and with sibling animations; restore the
-      // caller's composite afterwards (it may already be 'lighter'
-      // via the room concurrency lift — never downgrade it).
-      const prevComposite = c.globalCompositeOperation;
-      c.globalCompositeOperation = "lighter";
-
-      // Layer 2 — heat shimmer: soft wavy vertical strips, very
-      // subtle, slowly rising (wave pattern translates upward at
-      // per-streak parallax speeds).
-      const streakCount = Math.max(3, Math.min(
-        HEAT_STREAK_MAX,
-        Math.round(5 * visualCaps.nonCriticalDensityScale),
-      ));
-      const shimmerAmp = roomWidth * 0.03;
-      const shimmerSegments = 8;
-      for (let i = 0; i < streakCount; i += 1) {
-        const s = HEAT_STREAKS[i];
-        const x0 = roomMinX + (s.lane + s.laneJitter) * roomWidth;
-        const risePhase = safeAge * (0.55 + s.parallax * 0.5);
-        const streakAlpha = Math.min(0.10, (0.022 + 0.022 * (Math.sin(safeAge * 0.7 + s.wavePhase) + 1) / 2)
-          * intensitySafe) * overall;
-        if (streakAlpha <= 0.002) continue; // glow already painted this tick
-        c.strokeStyle = `rgba(${coreR}, ${coreG}, ${coreB}, ${streakAlpha})`;
-        c.lineWidth = Math.max(4, roomWidth * 0.055);
-        c.lineCap = "round";
-        c.beginPath();
-        for (let seg = 0; seg <= shimmerSegments; seg += 1) {
-          const t = seg / shimmerSegments;
-          const y = roomMinY + roomHeight * (1.05 - t * 1.1);
-          const wobble = Math.sin(t * Math.PI * 2 * s.waveFreq + s.wavePhase + risePhase) * shimmerAmp;
-          const x = x0 + wobble;
-          if (seg === 0) c.moveTo(x, y);
-          else c.lineTo(x, y);
-        }
-        c.stroke();
-      }
-
-      c.globalCompositeOperation = prevComposite;
       return;
     }
 
