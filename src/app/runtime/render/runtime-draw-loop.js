@@ -685,10 +685,39 @@
     ctx.drawEffectVisual(codedEffectType, timeline, intensity, null);
   }
 
+  // Phase 58 Wave 3.7s (2026-06-06): not-started-yet paint gate. The
+  // original bare `now < startedAt` skip exists for staggered cluster
+  // starts (startedAt stamped into the FUTURE by startDelayMs) — but it
+  // also fired for ONE rAF right after a re-trigger phase flip: the
+  // dispatch re-stamps startedAt = performance.now() from an input/WS
+  // task INSIDE the current frame, while the next draw(now) receives the
+  // rAF timestamp which is the frame's vsync BEGIN time — measured
+  // dStart = +3.7 ms on the flip tick (debug file
+  // phase-58-gif-final-desync.md). The canvas clears every rAF, so the
+  // skipped paint left the room region TRANSPARENT for that frame — the
+  // operator's re-trigger "Blitz" (fourth occurrence of the "bare return
+  // on a clearing canvas" class). For play-then-freeze instances mid
+  // phase-machine (playbackPhase set — re-stamps always set it; fresh
+  // staggered dispatches never do) we therefore DON'T skip: the age is
+  // clamped to 0, which renders exactly the frozen boundary frame
+  // (reverse at age 0 = last frame = frozen-last image; forward at age 0
+  // = first frame = frozen-first image) — frame-perfect continuity, no
+  // gap. Genuine future starts (stagger) keep the skip.
+  function shouldSkipNotYetStartedAnimation(animation, now) {
+    if (!Number.isFinite(animation?.startedAt) || now >= Number(animation.startedAt)) {
+      return false;
+    }
+    const isPhaseMachineInstance =
+      (animation.playbackMode || "loop") === "play-then-freeze"
+      && typeof animation.playbackPhase === "string"
+      && animation.playbackPhase.length > 0;
+    return !isPhaseMachineInstance;
+  }
+
   function drawAnimation(animation, now) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
-    if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
+    if (shouldSkipNotYetStartedAnimation(animation, now)) {
       return;
     }
     if (animation.scope === "cluster") {
@@ -703,11 +732,15 @@
           continue;
         }
         const memberAnimation = memberView.animation;
-        if (Number.isFinite(memberAnimation?.startedAt) && now < Number(memberAnimation.startedAt)) {
+        if (shouldSkipNotYetStartedAnimation(memberAnimation, now)) {
           continue;
         }
         const runtimeSpeed = ctx.clampRoomSpeed(memberAnimation.speed ?? animation.speed ?? 1);
-        const age = ((now - Number(memberAnimation.startedAt)) / 1000) * state.animationSpeed * runtimeSpeed;
+        // Phase 58 Wave 3.7s: clamp — a re-stamped startedAt can sit up
+        // to one frame in the future of the rAF timestamp (see
+        // shouldSkipNotYetStartedAnimation); a negative age must render
+        // as age 0 (the frozen boundary frame), not skip or extrapolate.
+        const age = Math.max(0, ((now - Number(memberAnimation.startedAt)) / 1000) * state.animationSpeed * runtimeSpeed);
         const roomMetrics = ctx.getRoomRenderMetrics(room, animation.boardId);
         c.save();
         try {
@@ -739,7 +772,9 @@
       }
     }
     const runtimeSpeed = animation.scope === "room" ? ctx.clampRoomSpeed(animation.speed ?? 1) : 1;
-    const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
+    // Phase 58 Wave 3.7s: same negative-age clamp as the cluster-member
+    // branch above (re-stamped startedAt up to one frame in the future).
+    const age = Math.max(0, ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed);
     if (animation.scope === "room") {
       if (animation.boardId !== state.boardId) {
         return;

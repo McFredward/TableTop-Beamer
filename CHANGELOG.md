@@ -12,6 +12,56 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.22] — 2026-06-06
+
+Phase 58 Wave 3.7r+s — cluster gif re-trigger desync on /output/ +
+re-trigger flash. Operator UAT 2026-06-06.
+
+### Fixed
+- **Cluster re-trigger now flips ALL member rooms on /output/ — no more
+  partially-flipped clusters.** A cluster re-trigger emits one
+  edit-room mutation per member (12 + parent); on the projector role
+  the HTTP snapshot poll (scheduled by every WS broadcast) could
+  resolve BEFORE the remaining edit-room WS frames arrived. The poll
+  apply preserved the projector's local `playbackPhase` (the v1.2.16/17
+  anti-revert guard) while accepting the re-stamped timestamp, and the
+  late WS frames were then version-rejected as stale — the flip for
+  those members was permanently lost ("einige Räume unberührt",
+  compounding into opposite-direction desync on repeat). Measured on an
+  isolated server with a CPU-throttled + latency-emulated FINAL client:
+  4/10 cluster cycles desynced pre-fix. Fix: re-trigger re-stamp
+  detection in the snapshot preservation block, symmetric on ALL roles
+  — an incoming `startedAtEpochMs` more than 250 ms NEWER than the
+  previously known epoch for the same animation id marks a re-trigger;
+  the incoming phase + render bookkeeping is then authoritative
+  (preservation skipped, permanent `[58] re-stamp-accepted` log).
+  Identical/older epochs keep the existing preservation, so
+  client-derived transitions (forward→frozen-last, mid-reverse) are
+  still protected from stale snapshots. Post-fix: 10/10 gif cluster
+  cycles and 10/10 mp4 cluster cycles flip all 12 members on the
+  dashboard, the /ssr FINAL client, and the SSR render tab
+  (.planning/debug/phase-58-gif-final-desync.md).
+- **Re-triggering a frozen gif no longer flashes ("Blitz") — the frozen
+  image holds through the phase transition, frame-perfect.** The
+  dispatch-side flip re-stamps `startedAt = performance.now()` from an
+  input/WS task inside the current frame; the next draw tick's rAF
+  timestamp is the frame's vsync BEGIN time, which can predate the
+  re-stamp (measured: +3.7 ms). The draw loop's `now < startedAt`
+  stagger guard then skipped the paint for that tick on a canvas that
+  clears every rAF → 1-frame transparent hole = the flash (mp4 had the
+  same 1-frame hole). Fix: play-then-freeze instances with a playback
+  phase set (re-stamps always set one; fresh staggered dispatches never
+  do) are exempt from the not-yet-started skip and render with age
+  clamped to 0 — which IS the frozen boundary frame (reverse at age 0 =
+  last frame = frozen-last image; forward at age 0 = first frame =
+  frozen-first image). Genuine staggered future starts keep the skip.
+  Verified with a per-rAF paint probe on dashboard AND /ssr: zero
+  unpainted ticks across re-trigger transitions; flip ticks paint
+  frame 279 → 278 → … (and 0 → 1 → … for frozen-first→forward) with no
+  frame-0 jump.
+
+---
+
 ## [1.2.21] — 2026-06-06
 
 Phase 58 Wave 3.7p+q — gif reverse-on-retrigger + first-selection sync
