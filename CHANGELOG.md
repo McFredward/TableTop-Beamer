@@ -12,6 +12,34 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.23] — 2026-06-06
+
+Phase 58 Wave 3.7t — mp4 boomerang playback. Operator UAT 2026-06-06.
+
+### Fixed
+- **playbackMode="boomerang" now actually ping-pongs for MP4 room/inside/
+  outside animations** (was visually identical to "loop" on dashboard AND
+  /output/). Root cause: boomerang manages no `playbackPhase`, so the draw
+  loop's `expectedSrcUrl` (Wave 3.6 in-place phase swap) was ALWAYS the
+  forward URL — one rAF after the EOS handler's forward→reverse src swap,
+  `ensureRoomMp4Playback`/`ensureOutsideMp4Playback` classified the reverse
+  src as a direction mismatch and yanked it straight back to forward,
+  killing the reverse leg instantly. The expectedSrcUrl swap is now skipped
+  for boomerang — the EOS ping-pong handler owns the src.
+- Boomerang EOS handler now detects the current leg's direction by ROUTE
+  (`/api/animation-reverse`) instead of exact URL equality, so adaptive
+  quality-tier (v1.2.19) changes mid-leg no longer break the ping-pong.
+  Tier changes apply at the next EOS swap (both directions move to the
+  proxy variants together); never mid-leg — no src fight.
+- The per-rAF ensure no longer races the EOS handler with `play()` on an
+  ended boomerang video (which would have restarted the forward leg at 0
+  before the reverse swap).
+
+### Added
+- Permanent `[58] boomerang-degraded` console warn (once per element) when
+  no reverse variant is resolvable for a boomerang mp4 (asset outside
+  `/resources/animations/`), making the silent loop-fallback diagnosable.
+
 ## [1.2.22] — 2026-06-06
 
 Phase 58 Wave 3.7r+s — cluster gif re-trigger desync on /output/ +

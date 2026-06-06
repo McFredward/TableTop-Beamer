@@ -578,7 +578,18 @@
     // (see _srcEqualsIgnoringHash). Compare hash-insensitively so a
     // freshly created hash-suffixed element in phase forward is not
     // spuriously swapped to the plain URL.
-    if (video && expectedSrcUrl && playbackMode !== "loop") {
+    // Phase 58 Wave 3.7t (2026-06-06): boomerang OWNS its src via the
+    // EOS ping-pong in attachMp4LifecycleHandlers. Boomerang manages no
+    // playbackPhase (stays "forward"), so the caller's expectedSrcUrl is
+    // ALWAYS the forward URL — this swap yanked the reverse leg straight
+    // back to forward on the very next rAF after the ended handler's
+    // forward→reverse swap, making mp4 boomerang visually identical to
+    // loop (operator UAT 2026-06-06). Skip the swap entirely for
+    // boomerang; adaptive quality-tier changes apply at the next EOS
+    // swap instead (the handler reads _tt58ForwardSrc/_tt58ReverseSrc,
+    // which attachMp4LifecycleHandlers re-stamps with tier-aware URLs
+    // on every ensure call).
+    if (video && expectedSrcUrl && playbackMode !== "loop" && playbackMode !== "boomerang") {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
         if (video.src && !_srcEqualsIgnoringHash(video.src, desiredAbs)) {
@@ -660,9 +671,14 @@
     // every rAF) restarts the video → the operator perceives the
     // animation as looping despite mode being play-once-disappear or
     // play-then-freeze.
+    // Phase 58 Wave 3.7t: boomerang included — at natural EOS the ended
+    // handler owns the restart (src ping-pong + play()). Without the
+    // gate, this per-rAF ensure could race the queued 'ended' task and
+    // call play() on the ended video, which per spec seeks to 0 and
+    // replays FORWARD before the handler swaps to the reverse leg.
     const isFrozenAtEnd = !srcWasSwapped
       && video.ended === true
-      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
+      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze" || playbackMode === "boomerang");
     if (!isFrozenAtEnd && (video.paused || didLifecycleChange)) {
       void video.play().catch(() => undefined);
     }
@@ -815,16 +831,37 @@
         // instead of black.
         const forward = video._tt58ForwardSrc;
         const reverse = video._tt58ReverseSrc;
-        if (!forward || !reverse) {
-          // No reverse cached yet — fall back to loop semantics
+        // Phase 58 Wave 3.7t: forward === reverse means
+        // resolveMp4AssetUrlForDirection could not produce a reverse
+        // variant (asset outside /resources/animations/ or non-.mp4) —
+        // boomerang silently degrades to loop semantics. Permanent warn
+        // (once per element) so the degrade is diagnosable in the field.
+        const degraded = !forward || !reverse || forward === reverse;
+        if (degraded) {
+          if (!video._tt58BoomerangDegradedWarned) {
+            video._tt58BoomerangDegradedWarned = true;
+            console.warn("[58] boomerang-degraded", JSON.stringify({
+              forward: forward || null,
+              reverse: reverse || null,
+            }));
+          }
+          // No reverse cached — fall back to loop semantics
           // (re-seek to start, play forward).
           try { video.currentTime = 0; video.play().catch(() => undefined); } catch { /* ignore */ }
           return;
         }
-        // Determine current src by comparing canonical absolute URL.
-        const currentAbs = video.src;
-        const forwardAbs = new URL(forward, window.location.href).href;
-        const next = currentAbs === forwardAbs ? reverse : forward;
+        // Phase 58 Wave 3.7t: determine the CURRENT leg's direction by
+        // ROUTE (/api/animation-reverse), not by exact URL equality with
+        // _tt58ForwardSrc. The adaptive quality tier (v1.2.19) re-stamps
+        // _tt58ForwardSrc/_tt58ReverseSrc with proxy variants mid-leg;
+        // an exact compare against the re-stamped forward URL would then
+        // misclassify the playing full-tier forward leg as "not forward"
+        // and replay forward instead of ping-ponging. Route-based
+        // detection keeps the ping-pong correct AND adopts the new tier
+        // at this EOS swap (documented choice: tier changes apply at the
+        // next leg boundary, never mid-leg — no src fight).
+        const currentIsReverse = /\/api\/animation-reverse\b/.test(String(video.src));
+        const next = currentIsReverse ? forward : reverse;
         try {
           video.src = next;
           video.currentTime = 0;
@@ -1107,7 +1144,12 @@
     // Phase 28 hash-bust and this swap round-tripped video.src every
     // rAF for loop-mode room mp4s with a manifest hash (readyState
     // pinned at 0 → mp4 never played; pre-existing on v1.2.14).
-    if (expectedSrcUrl && playbackMode !== "loop") {
+    // Phase 58 Wave 3.7t (2026-06-06): boomerang excluded too — it owns
+    // its src via the EOS ping-pong; this swap (expectedSrcUrl is always
+    // the forward URL for boomerang, which has no playbackPhase) killed
+    // the reverse leg one rAF after the ended handler started it →
+    // boomerang degenerated to loop (see ensureOutsideMp4Playback).
+    if (expectedSrcUrl && playbackMode !== "loop" && playbackMode !== "boomerang") {
       try {
         const desiredAbs = new URL(expectedSrcUrl, window.location.href).href;
         if (video.src && !_srcEqualsIgnoringHash(video.src, desiredAbs)) {
@@ -1205,9 +1247,12 @@
       video._tt58InstanceId = instanceId;
       try { video.currentTime = 0; } catch { /* DOM may reject */ }
     }
+    // Phase 58 Wave 3.7t: boomerang included — see the matching comment
+    // in ensureOutsideMp4Playback (the EOS ping-pong handler owns the
+    // restart; ensure must not race it with a play() on the ended video).
     const isFrozenAtEnd = !srcWasSwapped
       && video.ended === true
-      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze");
+      && (playbackMode === "play-once-disappear" || playbackMode === "play-then-freeze" || playbackMode === "boomerang");
     if (!isFrozenAtEnd && video.paused) {
       void video.play().catch((err) => {
         if (window.TT_DEBUG_58) {
