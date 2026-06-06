@@ -502,6 +502,58 @@
     bundleRGB: "116, 102, 84",
   };
 
+  // ---- smooth presence envelope (Phase 58-w3.8h) -------------------
+  // Operator (top immersion-killer): "Die laufenden Worker
+  // verschwinden manchmal plötzlich und tauchen wieder auf". An
+  // alpha-trace harness over 3+ full cycles × 4 rooms proved the pure
+  // cycle math is jump-free (0 frame-to-frame alpha deltas > 0.1 in
+  // ~78k frames); every observed pop came from DISCONTINUOUS INPUTS:
+  //   (a) figureCount quantization — nonCriticalDensityScale flips
+  //       1↔0.74↔0.54 with the per-frame pressureLevel, and
+  //       round(4.5·intensity·countScale·scale) steps by ±1: the
+  //       highest-index figure pops in/out at FULL alpha (the
+  //       "derselbe Worker" symptom — it is always the same index),
+  //   (b) age resets (snapshot/live-sync restarts) teleporting every
+  //       figure to a different cycle position.
+  // Root fix for (a): figureCount no longer reads the adaptive
+  // density scale (see the draw branch) — ≤12 tiny ellipse fills are
+  // negligible next to the trail strokes, and a deterministic count
+  // also restores cross-client pixel identity under load.
+  // Belt-and-suspenders for everything else: this envelope clamps the
+  // RENDERED alpha slew of every figure as a final stage — a full
+  // fade can never take less than WORKER_PRESENCE_FADE_SEC of WALL
+  // time, whatever the cycle math, the count target or the age input
+  // do. While a figure's target alpha is 0 but its envelope is still
+  // draining, the figure is drawn as a fading ghost at its LAST KNOWN
+  // pose (stored on the envelope), so even a hard discontinuity reads
+  // as a calm fade-out in place.
+  //
+  // Determinism note: the envelope is client-local wall-clock
+  // smoothing. Natural cycle fades move at ≤ ~0.31 alpha/s (FADE=0.08
+  // of an active stretch ≥ ~30 s), well under the slew cap, so in
+  // steady state rendered === target on every client and the
+  // dashboard/SSR/output pixel-identity contract holds; clients only
+  // diverge transiently in the exact windows that previously popped.
+  const WORKER_PRESENCE_FADE_SEC = 1.75;            // full 0→1 fade, wall time
+  const WORKER_PRESENCE_RATE = 1 / WORKER_PRESENCE_FADE_SEC;
+  const WORKER_PRESENCE_ENVELOPES = new Map();      // `${roomKey}::${figIdx}` → env
+  const WORKER_PRESENCE_ENVELOPES_MAX = 4096;
+
+  function getWorkerPresenceEnvelope(key, nowMs) {
+    let env = WORKER_PRESENCE_ENVELOPES.get(key);
+    if (!env) {
+      if (WORKER_PRESENCE_ENVELOPES.size >= WORKER_PRESENCE_ENVELOPES_MAX) {
+        // Bounded safety valve — never hit in practice (rooms × 12).
+        WORKER_PRESENCE_ENVELOPES.clear();
+      }
+      // New envelopes start at 0: a freshly seen figure ALWAYS fades
+      // in (covers client load mid-cycle too — strictly smoother).
+      env = { alpha: 0, px: 0, py: 0, heading: 0, atMs: nowMs };
+      WORKER_PRESENCE_ENVELOPES.set(key, env);
+    }
+    return env;
+  }
+
   function getWorkerTrailSamples(fig, figIndex) {
     if (fig.trailSamples) return fig.trailSamples;
     const activeDur = (1 - fig.hiddenFrac) * fig.cycleDur;
@@ -1040,12 +1092,20 @@
       // default — both still deterministic).
       const scene = getWorkerScene(String(room?.id ?? options.roomId ?? "preview"));
       // Inhabitant count — sparse by design: ~4 figures at the 0.8
-      // default intensity, scaled per room (countScale ×0.75..1.3) and
-      // capped by the runtime quality scale. Only a fraction of them
-      // are on-stage at any moment (hiddenFrac).
+      // default intensity, scaled per room (countScale ×0.75..1.3).
+      // Only a fraction of them are on-stage at any moment
+      // (hiddenFrac).
+      // Phase 58-w3.8h: the adaptive visualCaps.nonCriticalDensityScale
+      // is deliberately NOT applied any more — it flips with the
+      // per-frame pressureLevel and every flip popped the top-index
+      // figure in/out at full alpha (operator's "verschwinden
+      // plötzlich" report; see the presence-envelope block comment).
+      // ≤ WORKER_MAX tiny ellipse fills are negligible render cost,
+      // and a deterministic count keeps all clients pixel-identical
+      // under load.
       const figureCount = Math.max(1, Math.min(
         WORKER_MAX,
-        Math.round(4.5 * intensitySafe * scene.countScale * visualCaps.nonCriticalDensityScale),
+        Math.round(4.5 * intensitySafe * scene.countScale),
       ));
       // Figure length relative to the polygon with absolute clamps —
       // workers must stay SMALL against the building art on the tiles.
@@ -1137,14 +1197,51 @@
         c.lineJoin = prevJoin;
       }
 
-      for (let i = 0; i < figureCount; i += 1) {
+      // Figure pass (w3.8h): iterate ALL slots, not just the active
+      // count — a slot whose target dropped to 0 (count change, age
+      // reset, off-stage) may still hold a draining presence envelope
+      // and must keep rendering its fading ghost until it settles.
+      const envNowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const envRoomKey = String(room?.id ?? options.roomId ?? "preview");
+      for (let i = 0; i < WORKER_MAX; i += 1) {
         const fig = scene.figures[i];
         const t = (safeAge / fig.cycleDur + fig.phase) % 1;
-        const pose = workerPoseAt(fig, t, safeAge, i);
-        if (!pose) continue; // off-stage — vignette above already painted
+        const pose = i < figureCount ? workerPoseAt(fig, t, safeAge, i) : null;
+        const target = pose ? 0.82 * pose.fade * overall : 0;
+        // ---- presence envelope: final-stage alpha slew clamp -------
+        const envKey = `${envRoomKey}::${i}`;
+        let envAlpha = target;
+        if (target <= 0.005 && !WORKER_PRESENCE_ENVELOPES.has(envKey)) {
+          // Settled-invisible slot without state — nothing to do, and
+          // no envelope is allocated for the (common) idle case.
+          continue;
+        }
+        const env = getWorkerPresenceEnvelope(envKey, envNowMs);
+        const dtSec = Math.min(0.5, Math.max(0, (envNowMs - env.atMs) / 1000));
+        env.atMs = envNowMs;
+        const maxStep = WORKER_PRESENCE_RATE * dtSec;
+        env.alpha += Math.max(-maxStep, Math.min(maxStep, target - env.alpha));
+        envAlpha = Math.max(0, Math.min(1, env.alpha));
+        if (pose) {
+          // Remember the live pose so a future discontinuity can fade
+          // the ghost out exactly where the figure last stood.
+          env.px = pose.px;
+          env.py = pose.py;
+          env.heading = pose.heading;
+        }
+        if (envAlpha <= 0.01) {
+          if (target <= 0.005) WORKER_PRESENCE_ENVELOPES.delete(envKey); // settled
+          continue;
+        }
+        // Ghost pose: target vanished but the envelope still drains —
+        // a static stance at the last known position (no walk bob, no
+        // work strike), alpha falling at the slew rate.
+        const drawPose = pose ?? {
+          px: env.px, py: env.py, heading: env.heading,
+          fade: 0, walking: false, workPulse: 0,
+        };
         const figLen = baseFigLen * fig.sizeJitter;
-        const alpha = 0.82 * pose.fade * overall;
-        if (alpha <= 0.01) continue;
+        const alpha = envAlpha;
         // w3.8e: the lit style raises BODY-paint coverage slightly so
         // the small figures stay solid against the additive Snow
         // inside-animation; the lantern keeps the shared alpha (it is
@@ -1152,11 +1249,11 @@
         // style bodyAlpha === alpha exactly — identical paint strings.
         const bodyAlpha = style.lit ? Math.min(1, alpha * 1.15) : alpha;
 
-        let x = roomX + pose.px * halfW;
-        let y = roomY + pose.py * halfH;
-        let heading = pose.heading;
+        let x = roomX + drawPose.px * halfW;
+        let y = roomY + drawPose.py * halfH;
+        let heading = drawPose.heading;
         let paceCur = 0; // current stride pace — lantern swing reads it below
-        if (pose.walking) {
+        if (drawPose.walking) {
           // Walk shuffle (humanized, w3.7z): along-axis stride pulse +
           // perpendicular body bob at half the step rate, both scaled
           // by the CURRENT pace from the warped progress — the bob
@@ -1165,7 +1262,7 @@
           // instead of a vehicle braking. Constant step frequency
           // (amplitude carries the pace cue) keeps the oscillators
           // free of phase drift — fully deterministic in `age`.
-          const pace = Math.max(0, Math.min(1.8, Number.isFinite(pose.pace) ? pose.pace : 1));
+          const pace = Math.max(0, Math.min(1.8, Number.isFinite(drawPose.pace) ? drawPose.pace : 1));
           paceCur = pace;
           const stepPhase = safeAge * fig.stepFreq + i * 2.3;
           // w3.8b: smaller amplitudes — the heavy ~1.2-1.6 steps/s
@@ -1185,8 +1282,8 @@
         } else {
           // Working: lean rhythmically along the facing axis (strike /
           // shovel motion) — subtle, the figure stays put.
-          x += Math.cos(heading) * pose.workPulse * figLen * 0.14;
-          y += Math.sin(heading) * pose.workPulse * figLen * 0.14;
+          x += Math.cos(heading) * drawPose.workPulse * figLen * 0.14;
+          y += Math.sin(heading) * drawPose.workPulse * figLen * 0.14;
           heading += Math.sin(safeAge * 0.23 + i * 0.9) * 0.18; // slow stance sway
         }
 
@@ -1312,7 +1409,7 @@
         if (fig.hasLantern) {
           c.globalCompositeOperation = "lighter";
           const stepPhase = safeAge * fig.stepFreq + i * 2.3;
-          const swingAmp = pose.walking ? (0.08 + 0.07 * paceCur) : 0.03;
+          const swingAmp = drawPose.walking ? (0.08 + 0.07 * paceCur) : 0.03;
           const swing = Math.sin(stepPhase * 0.5 + fig.lanternSwingPhase) * figLen * swingAmp;
           const lanternX = figLen * 0.05 * bL + swing;
           const lanternY = fig.lanternSide * figLen * (0.42 + 0.16 * bW)
@@ -1410,7 +1507,14 @@
     withPreviewCanvas,
     // w3.7z verification hook: deterministic per-room scene + pose
     // sampling for diag scripts (per-room variety / trajectory
-    // evidence). Render path never reads this.
-    __cityWorkersDiag: { getWorkerScene, workerPoseAt, getWorkerTrailSamples },
+    // evidence). w3.8h adds the live presence-envelope map so the
+    // alpha-slew guarantee is directly observable. Render path never
+    // reads this.
+    __cityWorkersDiag: {
+      getWorkerScene,
+      workerPoseAt,
+      getWorkerTrailSamples,
+      presenceEnvelopes: WORKER_PRESENCE_ENVELOPES,
+    },
   };
 })();
