@@ -616,8 +616,11 @@
     const isSolidColor = coded === "solid-color";
     const isHullFlicker = coded === "hull-flicker";
     const isPowerOutage = coded === "power-outage";
-    const isGeneratorHeat = coded === "generator-heat";
-    if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isGeneratorHeat) return null;
+    // resolveRoomCodedEffectType maps the legacy "generator-heat"
+    // alias to "heat" (Phase 58-w3.7x rename), so pre-rename
+    // definitions get the same tint card.
+    const isHeat = coded === "heat";
+    if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isHeat) return null;
 
     const card = document.createElement("section");
     card.className = "anim-editor-card";
@@ -626,16 +629,16 @@
     eyebrow.textContent = "Coded effect";
     card.append(eyebrow);
 
-    if (isSolidColor || isGeneratorHeat) {
+    if (isSolidColor || isHeat) {
       const label = document.createElement("label");
       label.className = "anim-editor-field-label";
       const cap = document.createElement("span");
-      cap.textContent = isGeneratorHeat ? "Heat tint" : "Color";
+      cap.textContent = isHeat ? "Heat tint" : "Color";
       const picker = document.createElement("input");
       picker.type = "color";
-      // generator-heat defaults to its ember-orange core; solid-color
-      // keeps the legacy red default.
-      const fallbackHex = isGeneratorHeat ? "#ff7a1a" : "#ff0000";
+      // heat defaults to its ember-orange core; solid-color keeps the
+      // legacy red default.
+      const fallbackHex = isHeat ? "#ff7a1a" : "#ff0000";
       picker.value = /^#[0-9a-f]{6}$/i.test(def.colorHex) ? def.colorHex : fallbackHex;
       picker.addEventListener("input", () => {
         patchAnimation(scope, boardId, def.id, { colorHex: picker.value });
@@ -713,15 +716,21 @@
       }
       select.addEventListener("change", () => {
         const patch = { assetRef: select.value };
-        // generator-heat (Phase 58-w3.7w): seed the ember-orange tint
-        // when the definition still carries the legacy solid-color red
-        // default (every fresh definition does) or no color at all —
-        // the operator picked "heat", not "alarm". An explicitly chosen
-        // non-default color is preserved.
-        if (select.value === "generator-heat") {
+        // heat (Phase 58-w3.7w, renamed from "generator-heat" in
+        // w3.7x — the alias can still appear as a legacy option) seeds
+        // its ember-orange tint when the definition still carries the
+        // legacy solid-color red default (every fresh definition does)
+        // or no color at all — the operator picked "heat", not
+        // "alarm". An explicitly chosen non-default color is preserved.
+        const tintSeedByEffect = {
+          "heat": "#ff7a1a",
+          "generator-heat": "#ff7a1a",
+        };
+        const tintSeed = tintSeedByEffect[select.value];
+        if (tintSeed) {
           const currentHex = String(def.colorHex ?? "").trim().toLowerCase();
           if (!/^#[0-9a-f]{6}$/.test(currentHex) || currentHex === "#ff0000") {
-            patch.colorHex = "#ff7a1a";
+            patch.colorHex = tintSeed;
           }
         }
         patchAnimation(scope, boardId, def.id, patch);

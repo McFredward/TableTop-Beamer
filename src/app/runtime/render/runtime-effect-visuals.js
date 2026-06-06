@@ -3,7 +3,7 @@
 // Owns drawEffectVisual — the dispatcher for coded (non-gif/mp4)
 // room and outside effects: outside-space parallax star field,
 // hull-flicker, intruder-alert pulse, power-outage, special-slime,
-// special-scanning, generator-heat.
+// special-scanning, heat (alias: generator-heat).
 //
 // Dependencies injected via ctx:
 //   state                   — for default boardId
@@ -20,26 +20,19 @@
     ctx = dependencies;
   }
 
-  // ---- generator-heat static tables (Phase 58-w3.7w) --------------
-  // Deterministic per-particle seeds, computed ONCE at module load.
+  // ---- heat static tables (Phase 58-w3.7w, renamed w3.7x) ----------
+  // Deterministic per-streak seeds, computed ONCE at module load.
   // NO Math.random anywhere in the draw path: dashboard, /output and
   // the SSR tab must render pixel-identical frames for a given `age`
   // (they each run their own copy of this module). heatHash01 is the
   // classic sin-fract hash — stable for the small integer inputs used
   // here, so every client derives the same tables.
+  // (Phase 58-w3.7x: the rising-ember particle table was removed
+  // together with the ember layer — operator: embers break immersion.)
   function heatHash01(n) {
     const s = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
     return s - Math.floor(s);
   }
-  const HEAT_EMBER_MAX = 64;
-  const HEAT_EMBERS = Array.from({ length: HEAT_EMBER_MAX }, (_, i) => ({
-    phase: heatHash01(i + 1),                    // life-cycle offset 0..1
-    lane: heatHash01(i + 101) * 2 - 1,           // spawn offset around centroid, -1..1
-    swayPhase: heatHash01(i + 201) * Math.PI * 2,
-    swayFreq: 0.6 + heatHash01(i + 301) * 0.9,   // sideways sway Hz-ish
-    speedJitter: 0.7 + heatHash01(i + 401) * 0.6,
-    sizeJitter: 0.6 + heatHash01(i + 501) * 0.8,
-  }));
   const HEAT_STREAK_MAX = 7;
   const HEAT_STREAKS = Array.from({ length: HEAT_STREAK_MAX }, (_, i) => ({
     lane: (i + 0.5) / HEAT_STREAK_MAX,           // even spread across room width
@@ -363,20 +356,26 @@
       return;
     }
 
-    if (type === "generator-heat") {
-      // Phase 58-w3.7w — Frostpunk generator warmth. Three layers,
-      // ALL deterministic in `age` (caller pre-scales age by the
-      // animation's speed, so the speed slider drives pulse cadence
-      // and particle velocity automatically):
+    if (type === "heat" || type === "generator-heat") {
+      // Phase 58-w3.7w (as "generator-heat"), renamed to "heat" in
+      // Phase 58-w3.7x. "generator-heat" is kept as a BACKWARD-COMPAT
+      // ALIAS here AND in normalizeRoomCodedAssetRef (runtime-asset-
+      // refs.js) so definitions saved before the rename keep
+      // rendering — the live-preview path passes the raw assetRef
+      // straight into this dispatcher, hence the double type check.
+      //
+      // Frostpunk generator warmth. Two layers, BOTH deterministic in
+      // `age` (caller pre-scales age by the animation's speed, so the
+      // speed slider drives pulse cadence automatically):
       //   1. breathing radial glow from the room centroid (ALWAYS
       //      paints — SSR trap: a frame that paints nothing strobes
       //      black in the encoded stream),
-      //   2. wavy heat-shimmer strips rising slowly ('lighter'),
-      //   3. sparse embers drifting upward with sideways sway.
+      //   2. wavy heat-shimmer strips rising slowly ('lighter').
+      // (Phase 58-w3.7x: layer 3 — rising ember particles — removed
+      // on operator feedback: the "bubbles" broke immersion.)
       // The caller has already clipped the canvas to the room polygon
       // (clipToRoom) — everything below may overdraw the bounding box
       // freely; the clip cuts it to the polygon shape.
-      const densityFactor = Number(options.densityFactor) || 1;
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const overall = Math.max(0, Math.min(1, opacityOption));
@@ -387,13 +386,10 @@
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
       const b = parseInt(hex.slice(5, 7), 16);
-      // Hot core reads brighter than the tint; embers brighter still.
+      // Hot core reads brighter than the tint.
       const coreR = Math.round(r + (255 - r) * 0.55);
       const coreG = Math.round(g + (255 - g) * 0.45);
       const coreB = Math.round(b + (255 - b) * 0.30);
-      const emberR = Math.min(255, r + 80);
-      const emberG = Math.min(255, g + 60);
-      const emberB = Math.min(255, b + 30);
 
       // Layer 1 — radial glow, breathing at ~0.24 Hz (speed-scaled via
       // age). Two incommensurate sines so the pulse breathes instead
@@ -417,7 +413,7 @@
       c.fillStyle = gradient;
       c.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
 
-      // Layers 2+3 are additive so they compose order-independently
+      // Layer 2 is additive so it composes order-independently
       // with the glow and with sibling animations; restore the
       // caller's composite afterwards (it may already be 'lighter'
       // via the room concurrency lift — never downgrade it).
@@ -453,34 +449,6 @@
           else c.lineTo(x, y);
         }
         c.stroke();
-      }
-
-      // Layer 3 — embers: sparse particles spawning near the
-      // centroid, drifting upward with sideways sway, shrinking and
-      // fading out. Count scales with intensity × densityFactor and
-      // is capped by the runtime quality scale.
-      const emberCount = Math.max(4, Math.min(
-        HEAT_EMBER_MAX,
-        Math.round(16 * intensitySafe * densityFactor * visualCaps.nonCriticalDensityScale),
-      ));
-      for (let i = 0; i < emberCount; i += 1) {
-        const e = HEAT_EMBERS[i];
-        const cyclesPerSec = 0.14 * e.speedJitter; // ~5-10 s life at speed 1
-        const progress = (safeAge * cyclesPerSec + e.phase) % 1;
-        const spawnX = roomX + e.lane * roomWidth * 0.17;
-        const riseDist = roomHeight * (0.30 + e.sizeJitter * 0.28);
-        const y = roomY + roomHeight * 0.08 - progress * riseDist;
-        const sway = Math.sin(safeAge * e.swayFreq + e.swayPhase + progress * 4.5)
-          * roomWidth * 0.03 * progress;
-        const x = spawnX + sway;
-        const fade = progress < 0.15 ? progress / 0.15 : 1 - (progress - 0.15) / 0.85;
-        const emberAlpha = Math.min(0.7, fade * 0.5 * intensitySafe) * overall;
-        if (emberAlpha <= 0.004) continue;
-        const size = Math.max(1, Math.min(roomWidth, roomHeight) * 0.02 * e.sizeJitter * (1 - progress * 0.55));
-        c.fillStyle = `rgba(${emberR}, ${emberG}, ${emberB}, ${emberAlpha})`;
-        c.beginPath();
-        c.arc(x, y, size, 0, Math.PI * 2);
-        c.fill();
       }
 
       c.globalCompositeOperation = prevComposite;

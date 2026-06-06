@@ -37,16 +37,29 @@
       "special-slime",
       "special-scanning",
       "solid-color",
-      "generator-heat",
+      "heat",
     ]));
   }
 
+  // Legacy assetRef spellings → canonical registry key. Applied in
+  // normalizeRoomCodedAssetRef so definitions saved under the old
+  // name keep resolving to the same renderer without the registry
+  // (and therefore the editor's Effect dropdown) listing both names.
+  // Phase 58-w3.7x: "generator-heat" shipped in v1.2.26 and was
+  // renamed to plain "heat" one version later — operator boards and
+  // runtime-active-animations.json may still carry the old key.
+  const ROOM_CODED_ASSET_ALIASES = {
+    "generator-heat": "heat",
+  };
+
   function normalizeRoomCodedAssetRef(assetRef, fallbackAssetRef = "intruder-alert") {
-    const normalizedRef = String(assetRef || "").trim().toLowerCase();
+    const rawRef = String(assetRef || "").trim().toLowerCase();
+    const normalizedRef = ROOM_CODED_ASSET_ALIASES[rawRef] ?? rawRef;
     if (getRoomCodedAssetKeys().includes(normalizedRef)) {
       return normalizedRef;
     }
-    const normalizedFallback = String(fallbackAssetRef || "").trim().toLowerCase();
+    const rawFallback = String(fallbackAssetRef || "").trim().toLowerCase();
+    const normalizedFallback = ROOM_CODED_ASSET_ALIASES[rawFallback] ?? rawFallback;
     if (getRoomCodedAssetKeys().includes(normalizedFallback)) {
       return normalizedFallback;
     }

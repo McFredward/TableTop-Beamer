@@ -191,6 +191,9 @@
       "scanning":        "scan",
       "burst":           "sparkles",
       "fire":            "flame",
+      "heat":            "flame",
+      // Backward-compat alias — pre-v1.2.27 definitions may still
+      // carry the old "generator-heat" key (renamed to "heat").
       "generator-heat":  "flame",
       "slime":           "drop",
       "power-out":       "power",
