@@ -52,6 +52,11 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.33] — 2026-06-06
+
+**Neuer Coded-Effekt "City Workers (Beamer)" — projektions-lesbare A/B-Variante (Phase 58-w3.8e).**
+Der Beamer bildet reines Schwarz als "kein Licht" ab und dunkle Töne nur schwach — die fast schwarzen Silhouetten des normalen city-workers-Effekts sind auf dem physischen Brett daher praktisch unsichtbar (nur die Laternen tragen). Statt den Effekt zu ersetzen gibt es jetzt eine ZWEITE Registry-Variante `city-workers-lit` (Editor-Label "City Workers (Beamer)", gleiche users-Ikone) zum direkten A/B-Vergleich am Beamer: identische Verhaltens-Engine (Seeding, Anker, Gruppen, Gangart inkl. w3.8d-Tempo/Sway-Tuning, Trail-Geometrie, Varianz-Traits) — nur die Bemalung wird über ein Render-Style-Objekt umgeschaltet. Lit-Style: Mäntel in mittel-dunklen, entsättigten Grau-/Blaugrau-/Brauntönen (7-Tint-Varianz erhalten, ~6× Luminanz), interne Kontraste (kaltes Top-Light auf den Schultern, Unterseiten-Schattierung statt des auf Schwarz wirkungslosen reinschwarzen Schattens, Kopf einen Hauch heller als der Mantel), Schlitten/Bündel in angehobenen Tönen, Laternen unverändert; Schneespuren INVERTIERT zu schwach LEUCHTEND gestampften Pfaden (deutlich dunkler als die Snow-Flocken). Der normale city-workers-Effekt rendert byte-identisch weiter (Canvas-Command-Stream über 840 Vergleichsframes unverändert).
+
 ## [1.2.32] — 2026-06-06
 
 **city-workers: Obergrenze fürs Schritttempo + fast gerades Stapfen (Phase 58-w3.8d).**

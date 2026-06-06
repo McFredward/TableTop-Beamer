@@ -39,6 +39,9 @@
       "solid-color",
       "heat",
       "city-workers",
+      // Phase 58-w3.8e: projection-readable A/B variant — same engine
+      // as city-workers, lit render style (see runtime-effect-visuals).
+      "city-workers-lit",
     ]));
   }
 

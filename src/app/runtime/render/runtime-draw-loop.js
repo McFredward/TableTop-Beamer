@@ -387,7 +387,7 @@
     // coded effects keep the historical double application for now:
     // their gate parity (findActiveBreakingGate × computeHullFlicker-
     // Gate) is tuned around it and retuning them is out of scope here.
-    const playbackAge = effectType === "city-workers"
+    const playbackAge = effectType === "city-workers" || effectType === "city-workers-lit"
       ? age
       : age * playbackSpeed;
     // Opt-in coded-effect ⇒ solid-color coupling. When any running

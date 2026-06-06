@@ -260,11 +260,22 @@
     return scope;
   }
 
+  // Curated label overrides — keys whose auto-title-case would read
+  // wrong in the Effect dropdown. "city-workers-lit" (Phase 58-w3.8e)
+  // is the projection-optimized A/B variant of city-workers: the
+  // operator compares both directly on the beamer, so the label names
+  // the target device instead of the implementation ("Lit").
+  const CODED_EFFECT_LABEL_OVERRIDES = {
+    "city-workers-lit": "City Workers (Beamer)",
+  };
+
   // Pretty-print a coded effect key for the dropdown
   // (e.g. "hull-flicker" → "Hull Flicker").
   function formatCodedEffectLabel(key) {
     const raw = String(key || "").trim();
     if (!raw) return "(none)";
+    const override = CODED_EFFECT_LABEL_OVERRIDES[raw.toLowerCase()];
+    if (override) return override;
     return raw
       .replace(/[-_]/g, " ")
       .replace(/\s+/g, " ")
@@ -620,7 +631,7 @@
     // alias to "heat" (Phase 58-w3.7x rename), so pre-rename
     // definitions get the same tint card.
     const isHeat = coded === "heat";
-    const isCityWorkers = coded === "city-workers";
+    const isCityWorkers = coded === "city-workers" || coded === "city-workers-lit";
     if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isHeat && !isCityWorkers) return null;
 
     const card = document.createElement("section");
@@ -728,6 +739,7 @@
           "heat": "#ff7a1a",
           "generator-heat": "#ff7a1a",
           "city-workers": "#c98a4b",
+          "city-workers-lit": "#c98a4b",
         };
         const tintSeed = tintSeedByEffect[select.value];
         if (tintSeed) {

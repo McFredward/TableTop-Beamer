@@ -199,6 +199,8 @@
       // carry the old "generator-heat" key (renamed to "heat").
       "generator-heat":  "flame",
       "city-workers":    "users",
+      // Phase 58-w3.8e: projection-readable variant — same icon family.
+      "city-workers-lit": "users",
       "slime":           "drop",
       "power-out":       "power",
       "power":           "power",

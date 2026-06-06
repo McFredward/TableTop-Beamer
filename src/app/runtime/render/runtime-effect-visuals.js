@@ -94,6 +94,43 @@
     "20, 27, 21",  // desaturated dark green (old uniform)
     "23, 20, 26",  // dusty violet-grey
   ];
+  // Lit coat palette (Phase 58-w3.8e, "city-workers-lit"): the SAME
+  // seven survivor tints index-for-index, lifted ~4-5× in luminance
+  // for the physical projector. The beamer maps pure black to zero
+  // light, so the near-black palette above is invisible on the board
+  // — these mid-dark desaturated greys/blue-greys/brown-greys stay
+  // grim but clearly read above black. Stored as [r,g,b] arrays so
+  // the lit draw path can derive head/underside/highlight shades
+  // numerically; figures pick by the SAME seeded coatIdx, so a
+  // figure wears the "same" coat in both render styles.
+  const WORKER_COAT_PALETTE_LIT = [
+    [130, 144, 170], // cold blue-grey
+    [146, 151, 160], // ash grey
+    [162, 146, 124], // brown-grey, worn leather
+    [122, 142, 170], // deep blue-grey
+    [174, 136, 126], // desaturated red (faded signal coat)
+    [132, 151, 136], // desaturated green (old uniform)
+    [151, 143, 160], // dusty violet-grey
+  ];
+  // Derived per-coat shades for the lit style, computed ONCE at module
+  // load (pure math — same determinism contract as the seed tables):
+  //   coat        — the body fill,
+  //   under       — darker-than-coat underside shading (replaces the
+  //                 pure-black drop shadow, which adds nothing on the
+  //                 beamer's black background),
+  //   highlight   — cold top-light on the shoulders, biased blue,
+  //   hood        — hood blob a touch lighter than the coat,
+  //   hoodOpening — hood-opening crescent, darker than the hood but
+  //                 well above black so the head still reads,
+  //   cap         — bare-head dot, clearly lighter than the coat.
+  const WORKER_LIT_COATS = WORKER_COAT_PALETTE_LIT.map(([r, g, b]) => ({
+    coat: `${r}, ${g}, ${b}`,
+    under: `${Math.round(r * 0.42)}, ${Math.round(g * 0.42)}, ${Math.round(b * 0.42)}`,
+    highlight: `${Math.round(r + (200 - r) * 0.40)}, ${Math.round(g + (214 - g) * 0.40)}, ${Math.round(b + (236 - b) * 0.40)}`,
+    hood: `${Math.min(255, Math.round(r * 1.16 + 6))}, ${Math.min(255, Math.round(g * 1.16 + 6))}, ${Math.min(255, Math.round(b * 1.16 + 6))}`,
+    hoodOpening: `${Math.round(r * 0.48)}, ${Math.round(g * 0.48)}, ${Math.round(b * 0.48)}`,
+    cap: `${Math.round(r + (212 - r) * 0.42)}, ${Math.round(g + (220 - g) * 0.42)}, ${Math.round(b + (236 - b) * 0.42)}`,
+  }));
   // Loads are size-gated AT DRAW TIME: below these silhouette lengths
   // a sled / bundle is sub-3-px mush that muddies the figure, so the
   // load geometry (and the sled's wider trail) simply isn't rendered
@@ -241,6 +278,12 @@
       // promised this) — group timing ignores the loaded slow-down, so
       // a loaded group member would walk faster than loaded singles.
       const hasBundle = !inGroup && !hasSled && !hasLantern && rh(i + 18071) < 0.18;
+      // Coat pick (w3.8c, factored out in w3.8e): the seeded index is
+      // kept on the figure so the "city-workers-lit" render style can
+      // map the SAME pick into its lifted palette — one engine, two
+      // palettes.
+      const coatIdx = Math.floor(rh(i + 18001) * WORKER_COAT_PALETTE.length)
+        % WORKER_COAT_PALETTE.length;
       let anchors;
       let cycleDur;
       let phase;
@@ -315,9 +358,8 @@
         sizeJitter: 0.85 + rh(i + 10007) * 0.3,
         // ---- appearance variants (w3.8c) — fixed for life ----------
         // Coat: muted dark palette pick (see WORKER_COAT_PALETTE).
-        coatRGB: WORKER_COAT_PALETTE[
-          Math.floor(rh(i + 18001) * WORKER_COAT_PALETTE.length) % WORKER_COAT_PALETTE.length
-        ],
+        coatIdx,
+        coatRGB: WORKER_COAT_PALETTE[coatIdx],
         // Build: along-axis length ±20%, shoulder width ±25% —
         // broad stocky figures next to slim ones.
         buildLen: 0.80 + rh(i + 18011) * 0.40,
@@ -432,6 +474,38 @@
   const WORKER_TRAIL_BANDS = 7;        // alpha quantization → batched strokes
   const WORKER_TRAIL_ALPHA = 0.085;    // peak alpha of a fresh segment
   const WORKER_TRAIL_RGB = "22, 30, 44"; // trampled wet snow: cool dark grey-blue
+
+  // ---- render styles (Phase 58-w3.8e) ------------------------------
+  // "city-workers" vs "city-workers-lit" share the ENTIRE behaviour
+  // engine (seeding, anchors, groups, gait, trails geometry, variance
+  // traits) — ONLY the painting differs, parametrized by one of these
+  // style objects. Rationale: the physical projector maps pure black
+  // to zero light and dark tones to faint light, so the near-black
+  // silhouettes of the normal variant vanish on the board. The lit
+  // style paints the SAME figures in mid-dark desaturated tones with
+  // internal contrast (cold top-light, underside shading, lighter
+  // head) so they read as humans on the beamer; trails invert from
+  // darker-than-snow strokes to faintly LIT trampled paths (clearly
+  // dimmer than the additive Snow flakes). The dark style carries the
+  // exact historical constants — the normal variant must keep
+  // rendering pixel-identical (operator A/B comparison contract).
+  const WORKER_STYLE_DARK = {
+    lit: false,
+    trailRGB: WORKER_TRAIL_RGB,
+    trailAlpha: WORKER_TRAIL_ALPHA,
+  };
+  const WORKER_STYLE_LIT = {
+    lit: true,
+    // Faint cool grey-white trampled paths: visible on black, well
+    // below the Snow inside-animation's flake brightness (flakes run
+    // small + high-alpha; this is wide + very low alpha).
+    trailRGB: "168, 182, 200",
+    trailAlpha: 0.045,
+    coats: WORKER_LIT_COATS,
+    sledRopeRGB: "70, 76, 88",
+    sledBoxRGB: "84, 90, 102",
+    bundleRGB: "116, 102, 84",
+  };
 
   function getWorkerTrailSamples(fig, figIndex) {
     if (fig.trailSamples) return fig.trailSamples;
@@ -934,7 +1008,7 @@
       return;
     }
 
-    if (type === "city-workers") {
+    if (type === "city-workers" || type === "city-workers-lit") {
       // Phase 58-w3.7y — sparse top-down inhabitants animating the
       // Frostpunk crater city. Dark, slow, occasional: tiny near-black
       // silhouettes (shoulders ellipse + head dot + soft shadow) that
@@ -946,6 +1020,11 @@
       // intensity = inhabitant count, speed = pace (caller pre-scales
       // age), opacity standard, colorHex = lantern flame tint. Caller
       // has clipped to the room polygon already.
+      //
+      // w3.8e: "city-workers-lit" is the projection-readable A/B
+      // variant — identical engine and geometry, painting switched by
+      // the render style objects above (see their block comment).
+      const style = type === "city-workers-lit" ? WORKER_STYLE_LIT : WORKER_STYLE_DARK;
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const overall = Math.max(0, Math.min(1, opacityOption));
@@ -1031,9 +1110,9 @@
             // Single low-alpha stroke per band: at these alphas the
             // AA edge already reads soft; a second "halo" stroke
             // doubled the rasterization cost and beaded the path.
-            const a = WORKER_TRAIL_ALPHA * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence;
+            const a = style.trailAlpha * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence;
             c.lineWidth = trailW;
-            c.strokeStyle = `rgba(${WORKER_TRAIL_RGB}, ${a.toFixed(4)})`;
+            c.strokeStyle = `rgba(${style.trailRGB}, ${a.toFixed(4)})`;
             c.stroke();
           };
           // Cycle indices whose active stretch can intersect the
@@ -1085,6 +1164,12 @@
         const figLen = baseFigLen * fig.sizeJitter;
         const alpha = 0.82 * pose.fade * overall;
         if (alpha <= 0.01) continue;
+        // w3.8e: the lit style raises BODY-paint coverage slightly so
+        // the small figures stay solid against the additive Snow
+        // inside-animation; the lantern keeps the shared alpha (it is
+        // light-based and composes correctly already). For the dark
+        // style bodyAlpha === alpha exactly — identical paint strings.
+        const bodyAlpha = style.lit ? Math.min(1, alpha * 1.15) : alpha;
 
         let x = roomX + pose.px * halfW;
         let y = roomY + pose.py * halfH;
@@ -1128,53 +1213,98 @@
         // along the walking axis (local +x), bW the shoulder span.
         const bL = fig.buildLen ?? 1;
         const bW = fig.buildWidth ?? 1;
+        // Per-style coat resolution (w3.8e): the dark style keeps the
+        // seeded string verbatim (pixel-identity contract); the lit
+        // style maps the SAME seeded index into its lifted palette
+        // with precomputed internal-contrast shades.
+        const coatStr = fig.coatRGB ?? "15, 19, 27";
+        const litCoat = style.lit
+          ? (style.coats[fig.coatIdx ?? 0] ?? style.coats[0])
+          : null;
         c.save();
         c.translate(x, y);
         c.rotate(heading);
         // Sled (w3.8c, size-gated): a small dark runner box dragged
         // behind on a short tow line; it lags into the curve with a
         // slow half-step sway. Drawn FIRST so the figure overlaps the
-        // rope where they meet.
+        // rope where they meet. (w3.8e lit: same geometry, lifted
+        // tones — the box sits slightly darker than the coats.)
         if (fig.hasSled && figLen >= WORKER_SLED_MIN_PX) {
           const drag = Math.sin(safeAge * fig.stepFreq * 0.5 + fig.gaitSeed) * figLen * 0.05;
-          c.strokeStyle = `rgba(8, 10, 14, ${(alpha * 0.55).toFixed(3)})`;
+          c.strokeStyle = style.lit
+            ? `rgba(${style.sledRopeRGB}, ${(bodyAlpha * 0.55).toFixed(3)})`
+            : `rgba(8, 10, 14, ${(bodyAlpha * 0.55).toFixed(3)})`;
           c.lineWidth = Math.max(0.4, figLen * 0.05);
           c.beginPath();
           c.moveTo(-figLen * 0.30 * bL, 0);
           c.lineTo(-figLen * 0.78, drag);
           c.stroke();
-          c.fillStyle = `rgba(13, 15, 20, ${(alpha * 0.92).toFixed(3)})`;
+          c.fillStyle = style.lit
+            ? `rgba(${style.sledBoxRGB}, ${(bodyAlpha * 0.92).toFixed(3)})`
+            : `rgba(13, 15, 20, ${(bodyAlpha * 0.92).toFixed(3)})`;
           c.fillRect(-figLen * 1.46, drag - figLen * 0.24, figLen * 0.68, figLen * 0.48);
         }
         // Faint soft shadow, slightly offset — sells "seen from above".
-        c.fillStyle = `rgba(0, 0, 0, ${(alpha * 0.35).toFixed(3)})`;
+        // (w3.8e lit: pure black is zero light on the beamer, so the
+        // shadow becomes a darker-than-coat underside on the same
+        // ellipse — a soft penumbra that separates figure from trail.)
+        c.fillStyle = style.lit
+          ? `rgba(${litCoat.under}, ${(bodyAlpha * 0.5).toFixed(3)})`
+          : `rgba(0, 0, 0, ${(bodyAlpha * 0.35).toFixed(3)})`;
         c.beginPath();
         c.ellipse(figLen * 0.06, figLen * 0.22, figLen * 0.62 * bL, figLen * 0.40 * bW, 0, 0, Math.PI * 2);
         c.fill();
         // Shoulders — the COAT: dark muted per-figure tint (w3.8c),
         // wider across the walking axis than along it (top-down
         // torso); build scales make stocky vs slim silhouettes.
-        c.fillStyle = `rgba(${fig.coatRGB ?? "15, 19, 27"}, ${alpha.toFixed(3)})`;
+        c.fillStyle = style.lit
+          ? `rgba(${litCoat.coat}, ${bodyAlpha.toFixed(3)})`
+          : `rgba(${coatStr}, ${bodyAlpha.toFixed(3)})`;
         c.beginPath();
         c.ellipse(0, 0, figLen * 0.34 * bL, figLen * 0.52 * bW, 0, 0, Math.PI * 2);
         c.fill();
+        // Lit-only internal contrast: a cold top-light catching the
+        // shoulders. The highlight ellipse is offset toward SCREEN-top
+        // regardless of heading (counter-rotated into local coords),
+        // so every figure reads lit from the same cold sky.
+        if (style.lit) {
+          const hlOff = figLen * 0.13;
+          c.fillStyle = `rgba(${litCoat.highlight}, ${(bodyAlpha * 0.70).toFixed(3)})`;
+          c.beginPath();
+          c.ellipse(
+            -Math.sin(heading) * hlOff,
+            -Math.cos(heading) * hlOff,
+            figLen * 0.24 * bL,
+            figLen * 0.38 * bW,
+            0, 0, Math.PI * 2,
+          );
+          c.fill();
+        }
         // Head (w3.8c variants): hood = larger coat-coloured blob
         // merged back into the shoulders; cap = smaller darker dot
         // further forward. A seeded stoop pulls the head toward the
-        // torso — hunched against the cold.
+        // torso — hunched against the cold. (w3.8e lit: the head sits
+        // a touch LIGHTER than the coat so the figure reads head-first
+        // on black; the hood opening stays darker but above black.)
         const headFwd = figLen * ((fig.hood ? 0.17 : 0.23) - (fig.stoop ?? 0) * 0.10) * bL;
         if (fig.hood) {
-          c.fillStyle = `rgba(${fig.coatRGB ?? "15, 19, 27"}, ${Math.min(1, alpha * 1.06).toFixed(3)})`;
+          c.fillStyle = style.lit
+            ? `rgba(${litCoat.hood}, ${Math.min(1, bodyAlpha * 1.06).toFixed(3)})`
+            : `rgba(${coatStr}, ${Math.min(1, bodyAlpha * 1.06).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd, 0, figLen * 0.29, 0, Math.PI * 2);
           c.fill();
           // dark hood-opening crescent keeps the blob readable as a head
-          c.fillStyle = `rgba(7, 9, 14, ${Math.min(1, alpha * 0.9).toFixed(3)})`;
+          c.fillStyle = style.lit
+            ? `rgba(${litCoat.hoodOpening}, ${Math.min(1, bodyAlpha * 0.9).toFixed(3)})`
+            : `rgba(7, 9, 14, ${Math.min(1, bodyAlpha * 0.9).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd + figLen * 0.10, 0, figLen * 0.13, 0, Math.PI * 2);
           c.fill();
         } else {
-          c.fillStyle = `rgba(9, 12, 18, ${Math.min(1, alpha * 1.1).toFixed(3)})`;
+          c.fillStyle = style.lit
+            ? `rgba(${litCoat.cap}, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`
+            : `rgba(9, 12, 18, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd, 0, figLen * 0.19, 0, Math.PI * 2);
           c.fill();
@@ -1182,7 +1312,9 @@
         // Bundle (w3.8c, size-gated): a small dark pack hugged on one
         // shoulder — barely more than a lump, as it should be.
         if (fig.hasBundle && figLen >= WORKER_BUNDLE_MIN_PX) {
-          c.fillStyle = `rgba(31, 25, 18, ${(alpha * 0.9).toFixed(3)})`;
+          c.fillStyle = style.lit
+            ? `rgba(${style.bundleRGB}, ${(bodyAlpha * 0.9).toFixed(3)})`
+            : `rgba(31, 25, 18, ${(bodyAlpha * 0.9).toFixed(3)})`;
           c.beginPath();
           c.ellipse(-figLen * 0.10, fig.lanternSide * figLen * 0.26 * bW, figLen * 0.22, figLen * 0.18, 0, 0, Math.PI * 2);
           c.fill();
