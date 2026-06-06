@@ -530,6 +530,15 @@
       // hull-flicker, a running instance in room R cuts any concurrent
       // solid-color animation in R during the flicker's off-gate.
       breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      // Phase 58-w3.8g — heat coded effect options. heatShowSource
+      // (default ON) keeps the bright breathing central core; when OFF
+      // the room renders only the ambient red pulsing without a hot
+      // spot. heatSyncNearestSource (default OFF, only meaningful when
+      // the source is hidden) phase-locks the pulse to the nearest
+      // running heat instance WITH a visible source on the same board.
+      // Both are harmless no-ops for non-heat definitions.
+      heatShowSource: definition?.heatShowSource !== false,
+      heatSyncNearestSource: Boolean(definition?.heatSyncNearestSource),
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded room effects keep their own lifecycle).
       playbackMode: normalizePlaybackMode(definition),

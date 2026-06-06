@@ -420,9 +420,21 @@
         return;
       }
     }
+    // Phase 58-w3.8g: hidden-source heat rooms can phase-lock their
+    // pulse to the nearest visible heat source. The synced room's age
+    // is REPLACED by the source instance's age (computed from the
+    // source's epoch-hydrated startedAt + the source's own speed knob,
+    // including heat's historical double speed application) so both
+    // rooms evaluate the identical pulse curve f(age) — peaks align on
+    // dashboard, /output and SSR alike.
+    const heatSyncedAge = effectType === "heat"
+      && animation.heatShowSource === false
+      && animation.heatSyncNearestSource === true
+      ? resolveHeatSyncPlaybackAge(animation, playbackAge)
+      : playbackAge;
     ctx.drawEffectVisual(
       effectType,
-      playbackAge,
+      heatSyncedAge,
       animation.intensity,
       room,
       roomMetrics,
@@ -434,8 +446,114 @@
         gifPlaybackSpeed: playbackSpeed,
         roomAnimationType: animation.type,
         colorHex: animation.colorHex,
+        // Phase 58-w3.8g: heat source-visibility option (default ON
+        // when the instance predates the field).
+        heatShowSource: animation.heatShowSource !== false,
       },
     );
+  }
+
+  // ---- Phase 58-w3.8g: nearest-heat-source pulse sync ----------------
+  // A heat room with heatShowSource=false + heatSyncNearestSource=true
+  // breathes in phase with the NEAREST (room-polygon centroid distance,
+  // normalized board space — deterministic across clients regardless of
+  // canvas size) RUNNING heat animation that has a visible source on
+  // the same board.
+  //
+  // Memoization (no O(N) running-list scan per room per frame):
+  //   - heatSourceScanCache: the per-board visible-source list is built
+  //     at most ONCE per draw frame (keyed on runtimePerf.frameIndex)
+  //     and only when a synced heat room actually asks for it.
+  //   - heatNearestSourceCache: the chosen source per (board, room) is
+  //     keyed by the source-set signature (joined instance ids) and
+  //     re-resolved only when that set changes (source started/stopped).
+  // Fallbacks: no visible source running → own clock; the source
+  // stopping mid-run → re-resolve to the next nearest (or own clock).
+  // The transition is a phase SNAP, not a blend — operator-accepted
+  // tradeoff (spec: "if trivial, snap is acceptable"); the glow alpha
+  // floor keeps the room painting through the snap (SSR trap).
+  let heatSourceScanCache = { frameIndex: -1, byBoard: new Map() };
+  const heatNearestSourceCache = new Map(); // `${boardId}::${roomId}` → { sig, sourceId }
+
+  function getRunningHeatSources(boardId) {
+    const state = ctx.state;
+    const frameIndex = Number(state.runtimePerf?.frameIndex) || 0;
+    if (heatSourceScanCache.frameIndex !== frameIndex) {
+      heatSourceScanCache = { frameIndex, byBoard: new Map() };
+    }
+    let cached = heatSourceScanCache.byBoard.get(boardId);
+    if (cached) {
+      return cached;
+    }
+    const now = performance.now();
+    const sources = [];
+    for (const entry of state.runningAnimations) {
+      if (!entry || entry.scope !== "room" || entry.boardId !== boardId) continue;
+      if (!entry.roomId || entry.heatShowSource === false) continue;
+      if (!Number.isFinite(entry.startedAt) || now < entry.startedAt) continue;
+      // resolveRoomCodedEffectType maps the legacy "generator-heat"
+      // alias to "heat" — alias instances count as sources too.
+      if (ctx.resolveRoomCodedEffectType(entry.roomAssetRef || entry.type) !== "heat") continue;
+      sources.push(entry);
+    }
+    cached = { sources, sig: sources.map((entry) => entry.id).join("|") };
+    heatSourceScanCache.byBoard.set(boardId, cached);
+    return cached;
+  }
+
+  function resolveHeatSyncPlaybackAge(animation, ownPlaybackAge) {
+    const { sources, sig } = getRunningHeatSources(animation.boardId);
+    if (sources.length === 0) {
+      return ownPlaybackAge; // no visible source running → own clock
+    }
+    const cacheKey = `${animation.boardId ?? ""}::${animation.roomId ?? ""}`;
+    const cachedChoice = heatNearestSourceCache.get(cacheKey);
+    let source = cachedChoice && cachedChoice.sig === sig
+      ? sources.find((entry) => entry.id === cachedChoice.sourceId) ?? null
+      : null;
+    if (!source) {
+      const board = ctx.getBoard(animation.boardId);
+      const ownRoom = board?.rooms?.find((entry) => entry.id === animation.roomId);
+      if (!ownRoom) {
+        return ownPlaybackAge;
+      }
+      const ownCenter = ctx.getRoomLabelPosition(ownRoom, animation.boardId);
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (const candidate of sources) {
+        const candidateRoom = board.rooms.find((entry) => entry.id === candidate.roomId);
+        if (!candidateRoom) continue;
+        const center = ctx.getRoomLabelPosition(candidateRoom, animation.boardId);
+        const dist = Math.hypot(center.x - ownCenter.x, center.y - ownCenter.y);
+        // Deterministic tie-break on instance id so every client picks
+        // the same source when two are equidistant.
+        if (dist < bestDist || (dist === bestDist && source && String(candidate.id) < String(source.id))) {
+          bestDist = dist;
+          source = candidate;
+        }
+      }
+      if (!source) {
+        return ownPlaybackAge;
+      }
+      if (heatNearestSourceCache.size > 256) {
+        heatNearestSourceCache.clear(); // bounded — rooms are few, this never hits in practice
+      }
+      heatNearestSourceCache.set(cacheKey, { sig, sourceId: source.id });
+    }
+    // Source clock: elapsed since the source's (epoch-hydrated, see
+    // live-sync snapshot apply) startedAt × global animationSpeed ×
+    // source speed — then × source speed AGAIN to mirror the heat
+    // branch's historical double speed application (playbackAge above).
+    // Using the SOURCE's speed for both factors means the synced room
+    // evaluates the source's exact pulse curve — in phase by
+    // construction, whatever the synced room's own speed knob says.
+    const sourceSpeed = ctx.clampRoomSpeed(source.speed ?? source.playbackSpeed ?? 1);
+    const sourceAge = Math.max(
+      0,
+      ((performance.now() - Number(source.startedAt)) / 1000)
+        * (Number(ctx.state.animationSpeed) || 1)
+        * sourceSpeed,
+    );
+    return sourceAge * sourceSpeed;
   }
 
   // Scan running animations for a room-scoped (or cluster-member)

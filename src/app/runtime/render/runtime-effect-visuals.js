@@ -947,6 +947,30 @@
       const pulse = Math.sin(safeAge * Math.PI * 2 * 0.24) * 0.72
         + Math.sin(safeAge * Math.PI * 2 * 0.113 + 1.7) * 0.28; // -1..1
       const baseRadius = Math.max(12, Math.hypot(roomWidth, roomHeight) * 0.52);
+
+      // Phase 58-w3.8g — heat-source visibility option. Default ON
+      // (undefined → ON: instances saved before the field rode the
+      // factory default true anyway).
+      if (options.heatShowSource === false) {
+        // Source OFF — ambient warm field only: no bright central
+        // core, no hot spot. A near-flat fill whose ALPHA breathes
+        // with the same pulse curve as the visible-source look, plus
+        // a very shallow edge falloff (inner radius starts at 60% so
+        // the centre is a uniform plateau — nothing reads as a
+        // source). Alpha floor keeps this branch painting SOMETHING
+        // every tick (SSR black-strobe trap).
+        const ambientAlpha = Math.max(0.02, Math.min(0.6, (0.26 + pulse * 0.13) * intensitySafe * overall));
+        const ambient = c.createRadialGradient(
+          roomX, roomY, Math.max(2, baseRadius * 0.6),
+          roomX, roomY, baseRadius * 1.25,
+        );
+        ambient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${ambientAlpha})`);
+        ambient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${ambientAlpha * 0.55})`);
+        c.fillStyle = ambient;
+        c.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
+        return;
+      }
+
       const glowRadius = baseRadius * (1 + pulse * 0.15);
       // Alpha floor keeps this branch painting SOMETHING every tick
       // even at extreme knob values (SSR black-strobe trap).

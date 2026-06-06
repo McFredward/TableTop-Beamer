@@ -56,6 +56,11 @@
     playbackMode = "loop",
     onRetrigger = "instant-disappear",
     playbackDirection = "forward",
+    // Phase 58-w3.8g: heat coded-effect options (see
+    // normalizeRoomAnimationDefinition). Defaults match the
+    // pre-option behavior: visible source, no pulse sync.
+    heatShowSource = true,
+    heatSyncNearestSource = false,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -110,6 +115,13 @@
       playbackPhase: typeof playbackDirection === "string" && playbackDirection === "reverse"
         ? "reverse"
         : "forward",
+      // Phase 58-w3.8g: heat options live on the instance (Phase 50
+      // factory-default-mask precedent: every dispatch call site must
+      // pass them explicitly or these defaults silently mask the
+      // definition's values). Snapshots carry them via full-object
+      // spread in buildAnimationSnapshotForLiveSync.
+      heatShowSource: heatShowSource !== false,
+      heatSyncNearestSource: heatSyncNearestSource === true,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

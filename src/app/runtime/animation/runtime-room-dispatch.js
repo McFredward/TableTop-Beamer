@@ -107,6 +107,13 @@
         playbackMode: selectedDefinition.playbackMode ?? "loop",
         onRetrigger: selectedDefinition.onRetrigger ?? "instant-disappear",
         playbackDirection: selectedDefinition.playbackDirection ?? "forward",
+        // Phase 58-w3.8g: heat coded-effect options. Per-definition
+        // (like playbackMode) — carried onto every dispatched instance.
+        // Same Phase 50 factory-default-mask trap as the transform
+        // fields: every createAnimation call site below must forward
+        // these explicitly.
+        heatShowSource: selectedDefinition.heatShowSource !== false,
+        heatSyncNearestSource: selectedDefinition.heatSyncNearestSource === true,
       };
 
       if (selectedAssetType === "gif") {
@@ -434,6 +441,10 @@
                     playbackMode: draftPayload.playbackMode,
                     onRetrigger: draftPayload.onRetrigger,
                     playbackDirection: draftPayload.playbackDirection,
+                    // Phase 58-w3.8g: heat options — explicit pass-through
+                    // (factory-default-mask trap, see draftPayload comment).
+                    heatShowSource: draftPayload.heatShowSource,
+                    heatSyncNearestSource: draftPayload.heatSyncNearestSource,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -552,6 +563,10 @@
           playbackMode: draftPayload.playbackMode,
           onRetrigger: draftPayload.onRetrigger,
           playbackDirection: draftPayload.playbackDirection,
+          // Phase 58-w3.8g: heat options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          heatShowSource: draftPayload.heatShowSource,
+          heatSyncNearestSource: draftPayload.heatSyncNearestSource,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -582,6 +597,10 @@
             playbackMode: draftPayload.playbackMode,
             onRetrigger: draftPayload.onRetrigger,
             playbackDirection: draftPayload.playbackDirection,
+            // Phase 58-w3.8g: heat options — explicit pass-through
+            // (factory-default-mask trap, see draftPayload comment).
+            heatShowSource: draftPayload.heatShowSource,
+            heatSyncNearestSource: draftPayload.heatSyncNearestSource,
             hold: true,
             durationSec: 0,
           });
@@ -703,6 +722,10 @@
                   playbackMode: draftPayload.playbackMode,
                   onRetrigger: draftPayload.onRetrigger,
                   playbackDirection: draftPayload.playbackDirection,
+                  // Phase 58-w3.8g: heat options — explicit pass-through
+                  // (factory-default-mask trap, see draftPayload comment).
+                  heatShowSource: draftPayload.heatShowSource,
+                  heatSyncNearestSource: draftPayload.heatSyncNearestSource,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -827,6 +850,10 @@
         playbackMode: draftPayload.playbackMode,
         onRetrigger: draftPayload.onRetrigger,
         playbackDirection: draftPayload.playbackDirection,
+        // Phase 58-w3.8g: heat options — explicit pass-through
+        // (factory-default-mask trap, see draftPayload comment).
+        heatShowSource: draftPayload.heatShowSource,
+        heatSyncNearestSource: draftPayload.heatSyncNearestSource,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -859,6 +886,10 @@
           playbackMode: draftPayload.playbackMode,
           onRetrigger: draftPayload.onRetrigger,
           playbackDirection: draftPayload.playbackDirection,
+          // Phase 58-w3.8g: heat options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          heatShowSource: draftPayload.heatShowSource,
+          heatSyncNearestSource: draftPayload.heatSyncNearestSource,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

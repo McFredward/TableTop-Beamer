@@ -659,6 +659,33 @@
       card.append(label);
     }
 
+    if (isHeat) {
+      // Phase 58-w3.8g — heat-source visibility + nearest-source pulse
+      // sync. The sync toggle only means anything while the source is
+      // hidden, so it is greyed out (same .is-disabled pattern as the
+      // stretch-gated transform sliders) while "Hitzequelle anzeigen"
+      // is ON — without losing its stored value.
+      const syncRow = buildToggleRow(scope, def, boardId, {
+        key: "heatSyncNearestSource",
+        label: "Mit nächster Hitzequelle synchronisieren",
+        sub: "Pulsiert im Takt der nächstgelegenen laufenden Hitze-Animation mit sichtbarer Quelle (nur ohne sichtbare Quelle wirksam).",
+      });
+      const applyHeatSourceGate = (showSource) => {
+        syncRow.classList.toggle("is-disabled", showSource);
+        const toggle = syncRow.querySelector("button.rd-toggle");
+        if (toggle) toggle.disabled = showSource;
+      };
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "heatShowSource",
+        label: "Hitzequelle anzeigen",
+        sub: "AN: heller atmender Kern. AUS: nur rotes Pulsieren ohne sichtbaren Hotspot.",
+      }, {
+        onChange: (next) => applyHeatSourceGate(next),
+      }));
+      card.append(syncRow);
+      applyHeatSourceGate(def.heatShowSource !== false);
+    }
+
     if (isHullFlicker) {
       card.append(buildToggleRow(scope, def, boardId, {
         key: "breaksSolidColor",

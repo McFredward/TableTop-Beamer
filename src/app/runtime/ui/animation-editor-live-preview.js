@@ -288,6 +288,10 @@
         outsideDirection: current.direction,
         outsideSpeed: speed,
         densityFactor: 1,
+        // Phase 58-w3.8g: preview reflects the heat-source visibility
+        // option (sync has no meaning in the single-room preview —
+        // the preview always runs on its own clock).
+        heatShowSource: current.heatShowSource !== false,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {

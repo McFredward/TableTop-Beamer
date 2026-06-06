@@ -52,6 +52,20 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.34] — 2026-06-07
+
+**Heat: Schimmer-Streifen entfernt (Phase 58-w3.8f).**
+Die von oben nach unten laufenden Hitze-Schimmer-Streifen des heat-Effekts sind komplett entfernt (Operator: "Entferne diese Streifen die von oben nach unten gehen, die mag ich nicht — sonst ist top"). Der atmende Radial-Glow bleibt exakt unverändert; die zugehörige Streak-Seed-Tabelle und Konstanten sind mit ausgebaut (der seeded Hash bleibt für city-workers erhalten).
+
+**Heat: Hitzequellen-Sichtbarkeit + Puls-Synchronisation mit der nächsten Quelle (Phase 58-w3.8g).**
+Zwei neue Optionen pro heat-Animationsdefinition (Editor, Coded-Effect-Karte neben dem Heat-tint):
+- **"Hitzequelle anzeigen"** (Standard AN): AN = bisheriger Look mit hellem atmendem Kern. AUS = der Raum zeigt nur noch ein flächiges, deutlich rot pulsierendes Glühen ohne sichtbaren Hotspot (flaches Ambient-Feld, Alpha atmet mit derselben Puls-Kurve; malt in jedem Frame — SSR-Strobe-Falle).
+- **"Mit nächster Hitzequelle synchronisieren"** (Standard AUS, nur ohne sichtbare Quelle wirksam — bei sichtbarer Quelle ausgegraut): Räume ohne sichtbare Quelle übernehmen die Puls-PHASE der nächstgelegenen (Raum-Polygon-Zentroid-Distanz in normalisierten Board-Koordinaten, gleiche Auswahl auf allen Clients) LAUFENDEN heat-Animation mit sichtbarer Quelle auf demselben Board. Als Takt dient die epoch-hydrierte Startzeit + Speed der QUELLE, daher atmen Dashboard, /output und SSR identisch (gemessene Puls-Korrelation Dashboard↔SSR: 0.995; Luma-Zeitreihen: Quelle + 2 Sync-Räume peak-gleich, ein nicht-synchronisierter Raum driftet sichtbar).
+- Auflösung der nächsten Quelle ist memoisiert (Quellen-Scan max. 1× pro Frame pro Board, Nearest-Wahl gecacht per Quellen-Set-Signatur) — kein O(N)-Scan pro Raum pro Frame. Fällt die Quelle weg, wird auf die nächstnähere Quelle bzw. auf die eigene Uhr zurückgefallen (Phasen-SNAP, kein Blend — bewusst einfach gehalten).
+- Felder reiten wie playbackMode per Definition → draftPayload → createAnimation auf jede Instanz (Phase-50-Factory-Default-Falle an allen 6 Dispatch-Call-Sites explizit bedient) und via Snapshot-Spread über Live-Sync. Der Legacy-Alias `generator-heat` rendert weiter und zählt als Quelle.
+
+---
+
 ## [1.2.33] — 2026-06-06
 
 **Neuer Coded-Effekt "City Workers (Beamer)" — projektions-lesbare A/B-Variante (Phase 58-w3.8e).**

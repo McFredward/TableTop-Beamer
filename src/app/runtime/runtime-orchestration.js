@@ -2580,6 +2580,10 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   getBoard: (boardId) => getBoard(boardId),
   buildClusterMemberRuntimeViews: (clusterAnimation) => buildClusterMemberRuntimeViews(clusterAnimation),
   getRoomRenderMetrics: (room, boardId) => getRoomRenderMetrics(room, boardId),
+  // Phase 58-w3.8g — nearest-heat-source pulse sync needs the
+  // normalized (canvas-size-independent) room centroid for
+  // deterministic cross-client distance ordering.
+  getRoomLabelPosition: (room, boardId) => getRoomLabelPosition(room, boardId),
   clampRoomSpeed: (value) => clampRoomSpeed(value),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampOutsideIntensity: (value) => clampOutsideIntensity(value),
