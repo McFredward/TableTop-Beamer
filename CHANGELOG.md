@@ -52,6 +52,33 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.31] — 2026-06-06
+
+**city-workers: Per-Figur-Varianz (Phase 58-w3.8c).** Die Bewohner der
+Frostpunk-Kraterstadt sind jetzt individuell — jede Figur bekommt
+deterministisch (Raum × Figur-Index gesät, auf allen Clients identisch)
+ein festes Erscheinungsbild für ihr ganzes Leben:
+
+- **Getragene Feuerlaternen:** Ein gesäter Anteil der Figuren (~25-35 %,
+  pro Raum unterschiedlich dicht — Teil der Raum-Identität) trägt eine
+  alte Feuerlaterne: warmer Lichtpunkt auf der gesäten Hand-Seite, der
+  im Schrittrhythmus mitpendelt, mit weichem warmem Glühhalo (2,2-2,8×
+  Figurgröße, additiv) und langsam atmendem organischem Flackern (Zwei-
+  Sinus-Mix, ~2-3 s Perioden — nie stroboskopisch). In Gruppen trägt
+  höchstens der Anführer.
+- **Kleidung & Statur:** Gedeckte dunkle Mantel-Palette (kalte Grau-,
+  Braungrau-, Blaugrau-Töne, entsättigtes Dunkelrot/-grün — die Menge
+  bleibt düster), Statur-Varianz (Länge ±20 %, Schulterbreite ±25 % —
+  stämmig bis schmal), Kapuze (größerer mantelfarbener Kopf-Blob) vs.
+  Mütze (kleinerer dunkler Punkt), teils gesäte gebeugte Haltung.
+- **Lasten:** Einzelne Figuren ziehen einen kleinen Schlitten (dunkle
+  Kufenkiste an kurzer Zugleine, etwas breitere Schneespur, langsamstes
+  Watt-Tempo) oder tragen ein Schulterbündel. Größen-Gate: unter
+  ~3,2 px Figurlänge wird die Last nicht gezeichnet (würde bei der
+  Größe vermatschen) — die Figur bleibt dort ein einfacher Geher.
+- Spuren übernehmen Statur-Breite und Schlitten-Verbreiterung
+  automatisch; Knob-Semantik unverändert.
+
 ## [1.2.30] — 2026-06-06
 
 Phase 58 Wave 3.8b — Operator-Feedback (2026-06-06): "Viel zu schnell

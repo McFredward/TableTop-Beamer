@@ -74,6 +74,40 @@
   const WORKER_SCENE_CACHE = new Map();
   const WORKER_SCENE_CACHE_MAX = 96;
 
+  // ---- per-figure appearance variants (Phase 58-w3.8c) -------------
+  // Operator: "Varianz in den verschiedenen Figuren … Lampen, unter-
+  // schiedliche Klamotten". Every variant axis is seeded ONCE per
+  // (room × figure) in getWorkerScene — a figure keeps its coat,
+  // build, head shape, lantern and load for its whole life, across
+  // cycles and across clients (same determinism contract as above).
+  //
+  // Coat palette: Frostpunk survivors — ALL entries dark and heavily
+  // desaturated (cold greys, brown-greys, blue-greys, near-black
+  // faded reds/greens). The crowd must stay grim; variance reads as
+  // "different worn coats", never as colour.
+  const WORKER_COAT_PALETTE = [
+    "15, 19, 27",  // cold near-black blue (the original silhouette)
+    "24, 26, 31",  // ash grey
+    "28, 23, 17",  // brown-grey, worn leather
+    "14, 21, 31",  // deep blue-grey
+    "36, 20, 18",  // desaturated dark red (faded signal coat)
+    "20, 27, 21",  // desaturated dark green (old uniform)
+    "23, 20, 26",  // dusty violet-grey
+  ];
+  // Loads are size-gated AT DRAW TIME: below these silhouette lengths
+  // a sled / bundle is sub-3-px mush that muddies the figure, so the
+  // load geometry (and the sled's wider trail) simply isn't rendered
+  // on small tiles — the figure stays a plain walker there. The
+  // slower loaded pace is seeded into the cycle timing and therefore
+  // applies at every size (harmless: it just reads as a tired
+  // walker), keeping scene timing independent of canvas metrics.
+  // Tuned against the live Frostpunk catalog: its 133 px ring tiles
+  // give baseFigLen 3.325 — a 3.4 gate silenced every sled-seeded
+  // figure on the whole board, 3.2 lets average-build carriers
+  // through while still dropping the smallest tiles/builds.
+  const WORKER_SLED_MIN_PX = 3.2;
+  const WORKER_BUNDLE_MIN_PX = 2.8;
+
   // FNV-1a over the room-id string → 32-bit uint, folded into the
   // sin-hash domain. Pure string math — stable across clients.
   function workerRoomSeed(roomKey) {
@@ -155,6 +189,11 @@
     const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
     const rh = (n) => heatHash01(n + seedBase);
 
+    // Per-room lantern density (w3.8c): some rooms read as a lit
+    // work detail (~38% of singles carry), others as a dark shift
+    // (~22%) — part of the per-room scene identity like countScale.
+    const lanternBias = 0.22 + rh(14021) * 0.16;
+
     // Group event (w3.7z): roughly half the rooms get one — 2-4
     // figures sharing a leader route. Figure 0 is always a single, so
     // even the smallest population mixes singles and group members.
@@ -178,6 +217,21 @@
 
     const figures = Array.from({ length: WORKER_MAX }, (_, i) => {
       const inGroup = hasGroup && i >= GROUP_START && i < GROUP_START + groupSize;
+      // Appearance variants (w3.8c) — decided up-front because the
+      // sled load feeds the cycle timing below (loaded = slow end of
+      // the trudge band). The SLED rolls first: it is much rarer than
+      // the lantern (which would otherwise eat most low-index singles
+      // and leave whole boards sled-free — observed on the live
+      // Frostpunk catalog). Lanterns: singles roll against the room's
+      // lanternBias; in a group only the LEADER may carry (reduced
+      // odds) so a group never reads as a lantern parade. Loads stay
+      // on singles (group timing is shared) and never combine with a
+      // lantern — both hands occupied reads wrong at this scale.
+      const hasSled = !inGroup && rh(i + 18061) < 0.14;
+      const hasLantern = !hasSled && (inGroup
+        ? (i === GROUP_START && rh(i + 11003) < lanternBias * 0.7)
+        : rh(i + 11003) < lanternBias);
+      const hasBundle = !hasSled && !hasLantern && rh(i + 18071) < 0.18;
       let anchors;
       let cycleDur;
       let phase;
@@ -209,8 +263,11 @@
         // w3.8b: cycle derived from durations — slow wading pace,
         // long heavy work stops, long off-stage stretches. Typical
         // cycle lands at ~110-220 s @ speed 1 (was 38-72 s).
+        // w3.8c: sled-pullers walk at the slow end of the trudge band
+        // (hauling through snow) — span compressed to the bottom 30%.
         const timing = workerCycleTiming(anchors, {
-          trudgeSpeed: WORKER_TRUDGE_SPEED_MIN + rh(i + 4003) * WORKER_TRUDGE_SPEED_SPAN,
+          trudgeSpeed: WORKER_TRUDGE_SPEED_MIN
+            + rh(i + 4003) * WORKER_TRUDGE_SPEED_SPAN * (hasSled ? 0.3 : 1),
           workDurPerStop: 8 + rh(i + 4007) * 8,   // 8-16 s leaning into the work
           hiddenDur: 55 + rh(i + 6007) * 65,      // 55-120 s off-stage
         });
@@ -236,10 +293,28 @@
         // (was 1.0-1.8 Hz — frantic).
         workFreq: 0.40 + rh(i + 9001) * 0.30,
         sizeJitter: 0.85 + rh(i + 10007) * 0.3,
-        // Group members: only the leader may carry the lantern, so a
-        // group doesn't read as a lantern parade.
-        hasLantern: inGroup ? false : rh(i + 11003) < 0.28,
+        // ---- appearance variants (w3.8c) — fixed for life ----------
+        // Coat: muted dark palette pick (see WORKER_COAT_PALETTE).
+        coatRGB: WORKER_COAT_PALETTE[
+          Math.floor(rh(i + 18001) * WORKER_COAT_PALETTE.length) % WORKER_COAT_PALETTE.length
+        ],
+        // Build: along-axis length ±20%, shoulder width ±25% —
+        // broad stocky figures next to slim ones.
+        buildLen: 0.80 + rh(i + 18011) * 0.40,
+        buildWidth: 0.75 + rh(i + 18021) * 0.50,
+        // Head: hood (larger coat-coloured blob merged into the
+        // shoulders) vs cap (smaller darker dot, sits further
+        // forward); some figures additionally stoop — head pulled
+        // back toward the torso, hunched against the cold.
+        hood: rh(i + 18031) < 0.45,
+        stoop: rh(i + 18041) < 0.35 ? 0.5 + rh(i + 18051) * 0.5 : 0,
+        hasLantern,
+        hasSled,
+        hasBundle,
         lanternSide: rh(i + 12007) < 0.5 ? -1 : 1,
+        lanternSwingPhase: rh(i + 18081) * Math.PI * 2,
+        flickerPhase: rh(i + 18091) * Math.PI * 2,
+        glowScale: 2.2 + rh(i + 18101) * 0.6,     // halo radius, × figure length
         // Humanized gait seeds (w3.7z, calmed in w3.8b — the old
         // 1.2-2.8 waves/leg lateral drift on ~5 s legs was the
         // fly-like jitter): at most ONE slow weighty sway per leg.
@@ -261,6 +336,7 @@
       figures,
       // Per-room population variance: ×0.75..1.3 on top of intensity.
       countScale: 0.75 + rh(14009) * 0.55,
+      lanternBias, // exposed for diag — per-room lantern density
     };
     if (WORKER_SCENE_CACHE.size >= WORKER_SCENE_CACHE_MAX) WORKER_SCENE_CACHE.clear();
     WORKER_SCENE_CACHE.set(roomKey, scene);
@@ -834,9 +910,13 @@
       // Frostpunk crater city. Dark, slow, occasional: tiny near-black
       // silhouettes (shoulders ellipse + head dot + soft shadow) that
       // trudge between seeded anchor points, pause to "work", and fade
-      // out again. Knobs: intensity = inhabitant count, speed = pace
-      // (caller pre-scales age), opacity standard, colorHex = lantern
-      // tint. Caller has clipped to the room polygon already.
+      // out again. w3.8c adds seeded per-figure appearance variants:
+      // muted coat tints, stocky/slim builds, hood vs cap heads,
+      // stoops, carried fire lanterns and sled/bundle loads — all
+      // fixed per (room × figure), see getWorkerScene. Knobs:
+      // intensity = inhabitant count, speed = pace (caller pre-scales
+      // age), opacity standard, colorHex = lantern flame tint. Caller
+      // has clipped to the room polygon already.
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const overall = Math.max(0, Math.min(1, opacityOption));
@@ -910,8 +990,13 @@
           // ≈ shoulder span of this figure (slightly wider) so the
           // track reads as stamped by exactly this silhouette. Group
           // members' per-anchor scatter keeps their tracks offset —
-          // a loosely braided band along shared group legs.
-          const trailW = Math.max(1.6, baseFigLen * fig.sizeJitter * 1.45);
+          // a loosely braided band along shared group legs. w3.8c:
+          // span follows the seeded build width, and sled-pullers
+          // stamp a slightly wider drag track (same size gate as the
+          // sled geometry so trail and visual stay consistent).
+          const figLenT = baseFigLen * fig.sizeJitter;
+          const sledTrack = fig.hasSled && figLenT >= WORKER_SLED_MIN_PX ? 1.3 : 1;
+          const trailW = Math.max(1.6, figLenT * (fig.buildWidth ?? 1) * 1.45 * sledTrack);
           const strokeBand = (bandIdx) => {
             if (bandIdx < 0) return;
             // Single low-alpha stroke per band: at these alphas the
@@ -975,6 +1060,7 @@
         let x = roomX + pose.px * halfW;
         let y = roomY + pose.py * halfH;
         let heading = pose.heading;
+        let paceCur = 0; // current stride pace — lantern swing reads it below
         if (pose.walking) {
           // Walk shuffle (humanized, w3.7z): along-axis stride pulse +
           // perpendicular body bob at half the step rate, both scaled
@@ -985,6 +1071,7 @@
           // (amplitude carries the pace cue) keeps the oscillators
           // free of phase drift — fully deterministic in `age`.
           const pace = Math.max(0, Math.min(1.8, Number.isFinite(pose.pace) ? pose.pace : 1));
+          paceCur = pace;
           const stepPhase = safeAge * fig.stepFreq + i * 2.3;
           // w3.8b: smaller amplitudes — the heavy ~1.2-1.6 steps/s
           // cadence carries the effort cue, not big lurches.
@@ -1007,45 +1094,107 @@
           heading += Math.sin(safeAge * 0.23 + i * 0.9) * 0.18; // slow stance sway
         }
 
+        // Per-figure build scales (w3.8c): bL stretches the silhouette
+        // along the walking axis (local +x), bW the shoulder span.
+        const bL = fig.buildLen ?? 1;
+        const bW = fig.buildWidth ?? 1;
         c.save();
         c.translate(x, y);
         c.rotate(heading);
+        // Sled (w3.8c, size-gated): a small dark runner box dragged
+        // behind on a short tow line; it lags into the curve with a
+        // slow half-step sway. Drawn FIRST so the figure overlaps the
+        // rope where they meet.
+        if (fig.hasSled && figLen >= WORKER_SLED_MIN_PX) {
+          const drag = Math.sin(safeAge * fig.stepFreq * 0.5 + fig.gaitSeed) * figLen * 0.05;
+          c.strokeStyle = `rgba(8, 10, 14, ${(alpha * 0.55).toFixed(3)})`;
+          c.lineWidth = Math.max(0.4, figLen * 0.05);
+          c.beginPath();
+          c.moveTo(-figLen * 0.30 * bL, 0);
+          c.lineTo(-figLen * 0.78, drag);
+          c.stroke();
+          c.fillStyle = `rgba(13, 15, 20, ${(alpha * 0.92).toFixed(3)})`;
+          c.fillRect(-figLen * 1.46, drag - figLen * 0.24, figLen * 0.68, figLen * 0.48);
+        }
         // Faint soft shadow, slightly offset — sells "seen from above".
         c.fillStyle = `rgba(0, 0, 0, ${(alpha * 0.35).toFixed(3)})`;
         c.beginPath();
-        c.ellipse(figLen * 0.06, figLen * 0.22, figLen * 0.62, figLen * 0.40, 0, 0, Math.PI * 2);
+        c.ellipse(figLen * 0.06, figLen * 0.22, figLen * 0.62 * bL, figLen * 0.40 * bW, 0, 0, Math.PI * 2);
         c.fill();
-        // Shoulders — near-black with a cold blue-grey tint, wider
-        // across the walking axis than along it (top-down torso).
-        c.fillStyle = `rgba(15, 19, 27, ${alpha.toFixed(3)})`;
+        // Shoulders — the COAT: dark muted per-figure tint (w3.8c),
+        // wider across the walking axis than along it (top-down
+        // torso); build scales make stocky vs slim silhouettes.
+        c.fillStyle = `rgba(${fig.coatRGB ?? "15, 19, 27"}, ${alpha.toFixed(3)})`;
         c.beginPath();
-        c.ellipse(0, 0, figLen * 0.34, figLen * 0.52, 0, 0, Math.PI * 2);
+        c.ellipse(0, 0, figLen * 0.34 * bL, figLen * 0.52 * bW, 0, 0, Math.PI * 2);
         c.fill();
-        // Head dot, offset toward the walking direction.
-        c.fillStyle = `rgba(9, 12, 18, ${Math.min(1, alpha * 1.1).toFixed(3)})`;
-        c.beginPath();
-        c.arc(figLen * 0.22, 0, figLen * 0.24, 0, Math.PI * 2);
-        c.fill();
-        // Sparse warm accent: a faint hand lantern on a few figures.
-        // Additive so the glow lifts instead of muddying; restore the
-        // caller's composite afterwards (it may already be 'lighter'
-        // via the room concurrency lift — never downgrade it).
+        // Head (w3.8c variants): hood = larger coat-coloured blob
+        // merged back into the shoulders; cap = smaller darker dot
+        // further forward. A seeded stoop pulls the head toward the
+        // torso — hunched against the cold.
+        const headFwd = figLen * ((fig.hood ? 0.17 : 0.23) - (fig.stoop ?? 0) * 0.10) * bL;
+        if (fig.hood) {
+          c.fillStyle = `rgba(${fig.coatRGB ?? "15, 19, 27"}, ${Math.min(1, alpha * 1.06).toFixed(3)})`;
+          c.beginPath();
+          c.arc(headFwd, 0, figLen * 0.29, 0, Math.PI * 2);
+          c.fill();
+          // dark hood-opening crescent keeps the blob readable as a head
+          c.fillStyle = `rgba(7, 9, 14, ${Math.min(1, alpha * 0.9).toFixed(3)})`;
+          c.beginPath();
+          c.arc(headFwd + figLen * 0.10, 0, figLen * 0.13, 0, Math.PI * 2);
+          c.fill();
+        } else {
+          c.fillStyle = `rgba(9, 12, 18, ${Math.min(1, alpha * 1.1).toFixed(3)})`;
+          c.beginPath();
+          c.arc(headFwd, 0, figLen * 0.19, 0, Math.PI * 2);
+          c.fill();
+        }
+        // Bundle (w3.8c, size-gated): a small dark pack hugged on one
+        // shoulder — barely more than a lump, as it should be.
+        if (fig.hasBundle && figLen >= WORKER_BUNDLE_MIN_PX) {
+          c.fillStyle = `rgba(31, 25, 18, ${(alpha * 0.9).toFixed(3)})`;
+          c.beginPath();
+          c.ellipse(-figLen * 0.10, fig.lanternSide * figLen * 0.26 * bW, figLen * 0.22, figLen * 0.18, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+        // Carried old fire lantern (w3.8c — was a static accent dot).
+        // Held at arm's length on the seeded hand side, it swings
+        // fore-aft with the stride (half the step cadence — one
+        // pendulum per stride pair) and settles to a faint sway while
+        // working. Warm halo 2.2-2.8× the figure on 'lighter' (restore
+        // the caller's composite afterwards — it may already be
+        // 'lighter' via the room concurrency lift, never downgrade),
+        // plus a slow two-sine organic flicker (~1.9 + 3.3 s period
+        // mix, range ≈0.48..1.0) — breathing firelight, never strobe.
         if (fig.hasLantern) {
           c.globalCompositeOperation = "lighter";
-          const lanternX = figLen * 0.10;
-          const lanternY = fig.lanternSide * figLen * 0.5;
-          const flicker = 0.8 + 0.2 * Math.sin(safeAge * 6.3 + i * 3.1);
-          const glowR = figLen * 1.15;
+          const stepPhase = safeAge * fig.stepFreq + i * 2.3;
+          const swingAmp = pose.walking ? (0.08 + 0.07 * paceCur) : 0.03;
+          const swing = Math.sin(stepPhase * 0.5 + fig.lanternSwingPhase) * figLen * swingAmp;
+          const lanternX = figLen * 0.05 * bL + swing;
+          const lanternY = fig.lanternSide * figLen * (0.42 + 0.16 * bW)
+            + Math.sin(stepPhase * 0.5 + fig.lanternSwingPhase + 1.2) * figLen * swingAmp * 0.4;
+          const flicker = 0.74
+            + 0.15 * Math.sin(safeAge * 1.9 + (fig.flickerPhase ?? 0))
+            + 0.11 * Math.sin(safeAge * 3.3 + (fig.flickerPhase ?? 0) * 1.8 + 1.1);
+          // Halo alphas tuned on the live Frostpunk board: additive
+          // light saturates to invisible over bright snow, so the
+          // halo mostly reads where it crosses the figure, trails and
+          // dark board art — these values stay subtle there without
+          // overpowering the scene.
+          const glowR = figLen * (fig.glowScale ?? 2.4);
           const glow = c.createRadialGradient(lanternX, lanternY, 0.2, lanternX, lanternY, glowR);
           glow.addColorStop(0, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.30 * flicker).toFixed(3)})`);
+          glow.addColorStop(0.4, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.13 * flicker).toFixed(3)})`);
           glow.addColorStop(1, `rgba(${lr}, ${lg}, ${lb}, 0)`);
           c.fillStyle = glow;
           c.beginPath();
           c.arc(lanternX, lanternY, glowR, 0, Math.PI * 2);
           c.fill();
-          c.fillStyle = `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.55 * flicker).toFixed(3)})`;
+          // flame core — tiny warm dot, lifted slightly toward white-hot
+          c.fillStyle = `rgba(${Math.min(255, lr + 40)}, ${Math.min(255, lg + 24)}, ${lb}, ${(alpha * 0.78 * flicker).toFixed(3)})`;
           c.beginPath();
-          c.arc(lanternX, lanternY, Math.max(0.5, figLen * 0.13), 0, Math.PI * 2);
+          c.arc(lanternX, lanternY, Math.max(0.5, figLen * 0.16), 0, Math.PI * 2);
           c.fill();
           c.globalCompositeOperation = prevComposite;
         }
