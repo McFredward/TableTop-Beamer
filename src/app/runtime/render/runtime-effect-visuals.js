@@ -222,6 +222,51 @@
     return [a[0] + dx * e + nx * lat, a[1] + dy * e + ny * lat];
   }
 
+  // ---- trampled-snow trails (Phase 58-w3.8a) -----------------------
+  // Workers leave fading paths in the snow ("im Schnee gestampft").
+  // NO accumulation canvas: because px/py from workerPoseAt are a PURE
+  // function of normalized cycle time t (safeAge only feeds the
+  // workPulse lean), every client can re-evaluate where a figure WAS
+  // at any past moment. Each frame we walk the trailing
+  // WORKER_TRAIL_FADE_SEC window, map it onto the figure's repeating
+  // cycle, and stroke soft segments between consecutive path samples
+  // with alpha falling off (smoothstep) by time-since-traversal.
+  // Dashboard, /output and SSR therefore render pixel-identical
+  // trails for a given age, and trails survive reloads for free.
+  //
+  // The sampled path is IDENTICAL every cycle (anchors + meander are
+  // fixed per figure), so the samples are memoized ONCE per figure on
+  // the scene object — bounded by WORKER_SCENE_CACHE. Per frame only
+  // cheap segment strokes remain (~60 per visible figure), batched
+  // into a handful of stroke() calls via alpha-band quantization.
+  const WORKER_TRAIL_FADE_SEC = 75;    // trail lifetime before fully faded
+  const WORKER_TRAIL_SAMPLE_SEC = 0.6; // path-time spacing between samples
+  const WORKER_TRAIL_MAX_SAMPLES = 200;
+  const WORKER_TRAIL_BANDS = 7;        // alpha quantization → batched strokes
+  const WORKER_TRAIL_ALPHA = 0.085;    // peak alpha of a fresh segment
+  const WORKER_TRAIL_RGB = "22, 30, 44"; // trampled wet snow: cool dark grey-blue
+
+  function getWorkerTrailSamples(fig, figIndex) {
+    if (fig.trailSamples) return fig.trailSamples;
+    const activeDur = (1 - fig.hiddenFrac) * fig.cycleDur;
+    const count = Math.max(12, Math.min(
+      WORKER_TRAIL_MAX_SAMPLES,
+      Math.round(activeDur / WORKER_TRAIL_SAMPLE_SEC),
+    ));
+    const samples = new Array(count + 1);
+    for (let j = 0; j <= count; j += 1) {
+      const t = fig.hiddenFrac + (j / count) * (1 - fig.hiddenFrac);
+      // safeAge=0 is fine: position + fade are pure in t (the safeAge
+      // param only shapes workPulse, which trails don't read).
+      const pose = workerPoseAt(fig, t, 0, figIndex);
+      samples[j] = pose
+        ? { t, px: pose.px, py: pose.py, fade: pose.fade }
+        : { t, px: 0, py: 0, fade: 0 };
+    }
+    fig.trailSamples = samples;
+    return samples;
+  }
+
   // Resolve a figure's pose for normalized cycle time t (0..1).
   // Returns null while the figure is off-stage; otherwise
   // { px, py, heading, fade, walking, workPulse } in unit-disc
@@ -756,6 +801,84 @@
       const halfH = roomHeight * 0.5;
       const prevComposite = c.globalCompositeOperation;
 
+      // Trampled-snow trails (w3.8a) — drawn BEFORE the figures so the
+      // silhouettes walk ON the trail, never under it. Deterministic
+      // re-evaluation of past positions; see the block comment at
+      // getWorkerTrailSamples. Subtlety contract: low-alpha cool dark
+      // strokes (round caps/joins blend samples into a worn path);
+      // repeated traversals of the same anchor route stack naturally
+      // into "established" paths. Prominence scales mildly with the
+      // opacity knob only (sqrt) — no new schema fields.
+      if (overall > 0.02) {
+        const trailProminence = Math.sqrt(overall);
+        const prevCap = c.lineCap;
+        const prevJoin = c.lineJoin;
+        // Butt caps on purpose: round caps double-stamp at every band
+        // boundary (path flushes) and beaded the trail with dark dots;
+        // round JOINS still keep the in-path corners soft.
+        c.lineCap = "butt";
+        c.lineJoin = "round";
+        for (let i = 0; i < figureCount; i += 1) {
+          const fig = scene.figures[i];
+          const samples = getWorkerTrailSamples(fig, i);
+          const segCount = samples.length - 1;
+          const cd = fig.cycleDur;
+          // ≈ shoulder span of this figure (slightly wider) so the
+          // track reads as stamped by exactly this silhouette. Group
+          // members' per-anchor scatter keeps their tracks offset —
+          // a loosely braided band along shared group legs.
+          const trailW = Math.max(1.6, baseFigLen * fig.sizeJitter * 1.45);
+          const strokeBand = (bandIdx) => {
+            if (bandIdx < 0) return;
+            // Single low-alpha stroke per band: at these alphas the
+            // AA edge already reads soft; a second "halo" stroke
+            // doubled the rasterization cost and beaded the path.
+            const a = WORKER_TRAIL_ALPHA * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence;
+            c.lineWidth = trailW;
+            c.strokeStyle = `rgba(${WORKER_TRAIL_RGB}, ${a.toFixed(4)})`;
+            c.stroke();
+          };
+          // Cycle indices whose active stretch can intersect the
+          // trailing fade window [safeAge - FADE, safeAge].
+          const nMax = Math.floor(safeAge / cd + fig.phase);
+          const nMin = Math.max(0, Math.floor((safeAge - WORKER_TRAIL_FADE_SEC) / cd + fig.phase));
+          for (let n = nMin; n <= nMax; n += 1) {
+            const cycleStart = (n - fig.phase) * cd; // wall-time of t = 0
+            let band = -1;
+            for (let j = 0; j < segCount; j += 1) {
+              const s0 = samples[j];
+              const s1 = samples[j + 1];
+              const doneAt = cycleStart + s1.t * cd; // figure finished this segment
+              // Only fully-traversed segments (the figure itself caps
+              // the live end), only segments that happened (≥ 0), only
+              // within the fade window, only while visibly present
+              // (fade ramps gate off-stage / fading figures).
+              if (doneAt > safeAge || doneAt < 0) { strokeBand(band); band = -1; continue; }
+              const elapsed = safeAge - (cycleStart + s0.t * cd);
+              const fadeMul = Math.min(s0.fade, s1.fade);
+              if (elapsed >= WORKER_TRAIL_FADE_SEC || fadeMul <= 0.05) {
+                strokeBand(band);
+                band = -1;
+                continue;
+              }
+              const life = 1 - elapsed / WORKER_TRAIL_FADE_SEC;       // 1 fresh → 0 old
+              const v = life * life * (3 - 2 * life) * fadeMul;       // smoothstep fade-out
+              const b = Math.min(WORKER_TRAIL_BANDS - 1, Math.floor(v * WORKER_TRAIL_BANDS));
+              if (b !== band) {
+                strokeBand(band);
+                band = b;
+                c.beginPath();
+                c.moveTo(roomX + s0.px * halfW, roomY + s0.py * halfH);
+              }
+              c.lineTo(roomX + s1.px * halfW, roomY + s1.py * halfH);
+            }
+            strokeBand(band);
+          }
+        }
+        c.lineCap = prevCap;
+        c.lineJoin = prevJoin;
+      }
+
       for (let i = 0; i < figureCount; i += 1) {
         const fig = scene.figures[i];
         const t = (safeAge / fig.cycleDur + fig.phase) % 1;
@@ -907,6 +1030,6 @@
     // w3.7z verification hook: deterministic per-room scene + pose
     // sampling for diag scripts (per-room variety / trajectory
     // evidence). Render path never reads this.
-    __cityWorkersDiag: { getWorkerScene, workerPoseAt },
+    __cityWorkersDiag: { getWorkerScene, workerPoseAt, getWorkerTrailSamples },
   };
 })();

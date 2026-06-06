@@ -52,6 +52,34 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.29] — 2026-06-06
+
+Phase 58 Wave 3.8a — Operator-Idee (2026-06-06): "Die Arbeiter könnten
+im Schnee Wege/Pfade hinterlassen (die dann nach einer Zeit wieder
+verblassen), damit es so aussieht als ob sie im Schnee gestampft sind."
+
+### Added
+- **City Workers: festgestampfte Schnee-Pfade** — Figuren hinterlassen
+  beim Gehen Spuren im Schnee, die über ~75 s wieder verblassen
+  (Smoothstep-Ausblendung). Kühle, dunkle, niedrig-transparente
+  Striche in Schulterbreite der jeweiligen Figur, UNTER den Figuren
+  gerendert; mehrfaches Begehen derselben Route verdichtet die Spur
+  natürlich zu einem "etablierten" Trampelpfad, Gruppen hinterlassen
+  ein locker geflochtenes Spurenband (jedes Mitglied seine eigene,
+  leicht versetzte Spur). Spuren folgen exakt dem gewundenen Gang
+  (Meander/Pace/Hesitation) und entstehen nur, solange die Figur
+  sichtbar ist (Fade-Rampen respektiert).
+- **Kein Akkumulations-Canvas** — vergangene Positionen werden pro
+  Frame deterministisch aus dem Alter re-evaluiert (Position ist eine
+  reine Funktion der Zykluszeit); Dashboard, /output und SSR rendern
+  mathematisch identische Spuren (hash-verifiziert), Spuren überleben
+  Reloads automatisch. Pfad-Samples sind pro Figur memoisiert (der
+  Zykluspfad wiederholt sich exakt), Segmente werden alpha-quantisiert
+  zu wenigen stroke()-Aufrufen gebündelt: Mehrkosten ≈ 0,11 ms pro
+  Raum-Frame (133-px-Tile, gemessen), 0 wenn der Effekt nicht läuft.
+
+---
+
 ## [1.2.28] — 2026-06-06
 
 Phase 58 Wave 3.7z — "City Workers"-Iteration nach Operator-Feedback
