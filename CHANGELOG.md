@@ -52,6 +52,25 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.35] — 2026-06-07
+
+**City Workers: sanfte Präsenz-Hüllkurve — kein abruptes Erscheinen/Verschwinden mehr (Phase 58-w3.8h).**
+Operator (Top-Immersionskiller): "Die laufenden Worker verschwinden manchmal plötzlich und tauchen wieder auf — manchmal derselbe Worker." Alpha-Trace über 3+ volle Zyklen × 4 Räume bewies: die reine Zyklus-Mathematik ist sprungfrei (0 Alpha-Sprünge > 0.1/Frame in ~78k Frames); jeder Pop kam von diskontinuierlichen EINGÄNGEN — (a) der adaptive `nonCriticalDensityScale` kippt mit dem Frame-Druck 1↔0.74↔0.54 und ließ die gerundete Figurenzahl um ±1 springen (die Figur mit dem höchsten Index poppte bei VOLLEM Alpha rein/raus — daher "derselbe Worker"), (b) Age-Resets durch Snapshot-/Live-Sync-Restarts. Fixes: Figurenzahl liest den adaptiven Density-Scale nicht mehr (≤12 Mini-Ellipsen sind vernachlässigbar, deterministische Zahl = wieder Client-übergreifend pixelidentisch unter Last) UND eine Präsenz-Hüllkurve klammert das GERENDERTE Alpha jeder Figur als letzte Stufe: ein voller Fade dauert nie unter 1,75 s Wandzeit, egal was Zyklus, Count oder Age tun; verschwindet das Ziel hart, faded die Figur als Geist an ihrer letzten Position aus. Natürliche Zyklus-Fades (≤ ~0.31 Alpha/s) passieren ungebremst — Determinismus im Steady-State bleibt.
+
+**City Workers: EIN konfigurierbarer Effekt statt zwei Varianten (Phase 58-w3.8i).**
+"city-workers" und "city-workers-lit" sind wieder EIN Effekt ("City Workers" im Effect-Picker); der lit-Schlüssel bleibt als Rückwärts-Kompatibilitäts-Alias erhalten (bestehende Definitionen/Snapshots rendern unverändert beleuchtet). Neue Optionen pro Definition (Editor, Coded-Effect-Karte):
+- **"Darstellung"**: Silhouette (Dashboard) | Beleuchtet (Beamer) — die beiden bisherigen Render-Styles.
+- **"Anzahl Bewohner"** (1-12): explizite Basis-Population, von der Intensität ENTKOPPELT (Alt-Definitionen migrieren auf ihren historischen intensitätsabgeleiteten Wert; der für diesen Effekt damit tote Intensity-Slider ist ausgeblendet). Die Pro-Raum-Varianz (×0.75-1.3) bleibt.
+- **"Gruppen"**: aus | selten | normal | häufig (Gruppen-Wahrscheinlichkeit + Pausenlänge; "normal" = exakt die bisherigen Konstanten).
+- **"Laternen-Anteil"** (0-100 %, Standard 30 = historisches Band).
+- **"Spuren im Schnee"** (Standard AN).
+Defaults rendern die bisherige dunkle Variante byte-identisch (Szenen-Vergleich über alle 32 Frostpunk-Räume); Felder reiten wie die heat-Optionen per Definition → Normalizer → draftPayload → alle 6 createAnimation-Call-Sites → Instanz → Snapshot-Spread.
+
+**City Workers: dunkle Variante übersteht das Stream-Encoding besser — /output deutlich weniger abgehackt (Phase 58-w3.8j).**
+A/B-Beweis mit identisch wiederabgespielten Figuren-Trajektorien (gleiche Räume, gleiches Age-Fenster): der SSR-Canvas animiert in beiden Styles kontinuierlich, aber die historische Fast-Schwarz-Palette (Kanäle 7-36) erzeugte nur ~2-10 Luma Frame-Delta — unter der Encoder-Dead-Zone, der Encoder ließ die Bewegung aus, bis das akkumulierte Delta als Sprung durchbrach (Consumer-Stall-Anteil bis 0.56 dunkel vs. 0.09-0.34 beleuchtet im selben Fenster). Fix inhaltsseitig: alle Farb-Konstanten des dunklen Styles werden beim Laden ×3.0 geliftet (2.0 wurde zuerst gemessen und registrierte nur canvas-seitig; jenseits von 3.0 verlieren die Figuren den Silhouetten-Charakter bei kaum weiterem Gewinn). Gemessen sinkt der Consumer-Stall-Anteil in jedem Raum (Laternen-Räume 0.22 → 0.08; reine Silhouetten-Räume verbessern sich weniger — die Subpixel-Bewegung einer 3-px-Figur bleibt für jeden Encoder hart). Auf dem Dashboard weiterhin klar dunkle Silhouetten; **"Beleuchtet (Beamer)" ist und bleibt die für den Projektor empfohlene Darstellung** (die Style-Labels benennen das Zielgerät genau deshalb).
+
+---
+
 ## [1.2.34] — 2026-06-07
 
 **Heat: Schimmer-Streifen entfernt (Phase 58-w3.8f).**

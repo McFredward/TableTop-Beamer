@@ -80,7 +80,40 @@
   // desaturated (cold greys, brown-greys, blue-greys, near-black
   // faded reds/greens). The crowd must stay grim; variance reads as
   // "different worn coats", never as colour.
-  const WORKER_COAT_PALETTE = [
+  // Phase 58-w3.8j — dark-style on-black luminance lift. Operator: the
+  // normal (dark) variant is choppy ("abgehackt") in /output while the
+  // lit variant runs smooth. A/B evidence (same rooms, identical
+  // deterministic figure trajectories replayed via startedAtEpochMs):
+  // the SSR-tab canvas animates continuously in both styles, but the
+  // historical near-black palette (channels 7-36, body alpha ≤0.82)
+  // produced frame-to-frame deltas of only ~2-10 luma — below the
+  // x264 dead-zone in dark flat regions, so the encoder SKIPPED the
+  // motion until the accumulated delta forced an update (stall→pop =
+  // choppy; consumer stall fraction 0.56 vs 0.16 lit in the same
+  // window). Content-side fix: every dark-style paint constant is
+  // lifted ×WORKER_DARK_LIFT at module load — the motion that reaches
+  // the consumer now carries 25-80 luma instead of 2-10 and the
+  // measured consumer stall fraction drops in every room (lantern
+  // rooms 0.22 → 0.08; pure-silhouette rooms improve less — the
+  // sub-pixel trudge of a 3-px near-black figure is inherently hard
+  // on any encoder). 2.0 was tried first and only registered
+  // canvas-side; 3.0 is the measured knee — beyond it the figures
+  // stop reading as silhouettes (peak lifted channel is already
+  // 108/255 on the brightest coat) for little further gain. The dark
+  // style stays clearly dark against the bright board art on the
+  // dashboard; the "Beleuchtet (Beamer)" style remains the
+  // projector-RECOMMENDED setting (the style labels name the target
+  // device for exactly this reason).
+  const WORKER_DARK_LIFT = 3.0;
+  function liftDarkRGB(rgbStr) {
+    return rgbStr
+      .split(",")
+      .map((ch) => Math.min(255, Math.round(Number(ch.trim()) * WORKER_DARK_LIFT)))
+      .join(", ");
+  }
+  // Historical (pre-w3.8j) seed palette — kept verbatim so the lift is
+  // a single documented factor on top of the operator-approved tints.
+  const WORKER_COAT_PALETTE_DARK_BASE = [
     "15, 19, 27",  // cold near-black blue (the original silhouette)
     "24, 26, 31",  // ash grey
     "28, 23, 17",  // brown-grey, worn leather
@@ -89,6 +122,7 @@
     "20, 27, 21",  // desaturated dark green (old uniform)
     "23, 20, 26",  // dusty violet-grey
   ];
+  const WORKER_COAT_PALETTE = WORKER_COAT_PALETTE_DARK_BASE.map(liftDarkRGB);
   // Lit coat palette (Phase 58-w3.8e, "city-workers-lit"): the SAME
   // seven survivor tints index-for-index, lifted ~4-5× in luminance
   // for the physical projector. The beamer maps pure black to zero
@@ -510,7 +544,22 @@
   const WORKER_TRAIL_MAX_SAMPLES = 200;
   const WORKER_TRAIL_BANDS = 7;        // alpha quantization → batched strokes
   const WORKER_TRAIL_ALPHA = 0.085;    // peak alpha of a fresh segment
-  const WORKER_TRAIL_RGB = "22, 30, 44"; // trampled wet snow: cool dark grey-blue
+  // Trampled wet snow: cool dark grey-blue ("22, 30, 44" historical),
+  // lifted with the rest of the dark style (w3.8j) so established
+  // paths survive stream encoding too.
+  const WORKER_TRAIL_RGB = liftDarkRGB("22, 30, 44");
+  // Remaining dark-style draw-time inks (historical values in the
+  // liftDarkRGB calls — w3.8j lift applies uniformly). The pure-black
+  // drop shadow stays pure black: it is invisible on the black
+  // /output background by definition and only shades the dashboard.
+  const WORKER_DARK_INK = {
+    coatFallback: liftDarkRGB("15, 19, 27"),
+    sledRope: liftDarkRGB("8, 10, 14"),
+    sledBox: liftDarkRGB("13, 15, 20"),
+    hoodOpening: liftDarkRGB("7, 9, 14"),
+    cap: liftDarkRGB("9, 12, 18"),
+    bundle: liftDarkRGB("31, 25, 18"),
+  };
 
   // ---- render styles (Phase 58-w3.8e) ------------------------------
   // "city-workers" vs "city-workers-lit" share the ENTIRE behaviour
@@ -1368,7 +1417,7 @@
         // seeded string verbatim (pixel-identity contract); the lit
         // style maps the SAME seeded index into its lifted palette
         // with precomputed internal-contrast shades.
-        const coatStr = fig.coatRGB ?? "15, 19, 27";
+        const coatStr = fig.coatRGB ?? WORKER_DARK_INK.coatFallback;
         const litCoat = style.lit
           ? (style.coats[fig.coatIdx ?? 0] ?? style.coats[0])
           : null;
@@ -1384,7 +1433,7 @@
           const drag = Math.sin(safeAge * fig.stepFreq * 0.5 + fig.gaitSeed) * figLen * 0.05;
           c.strokeStyle = style.lit
             ? `rgba(${style.sledRopeRGB}, ${(bodyAlpha * 0.55).toFixed(3)})`
-            : `rgba(8, 10, 14, ${(bodyAlpha * 0.55).toFixed(3)})`;
+            : `rgba(${WORKER_DARK_INK.sledRope}, ${(bodyAlpha * 0.55).toFixed(3)})`;
           c.lineWidth = Math.max(0.4, figLen * 0.05);
           c.beginPath();
           c.moveTo(-figLen * 0.30 * bL, 0);
@@ -1392,7 +1441,7 @@
           c.stroke();
           c.fillStyle = style.lit
             ? `rgba(${style.sledBoxRGB}, ${(bodyAlpha * 0.92).toFixed(3)})`
-            : `rgba(13, 15, 20, ${(bodyAlpha * 0.92).toFixed(3)})`;
+            : `rgba(${WORKER_DARK_INK.sledBox}, ${(bodyAlpha * 0.92).toFixed(3)})`;
           c.fillRect(-figLen * 1.46, drag - figLen * 0.24, figLen * 0.68, figLen * 0.48);
         }
         // Faint soft shadow, slightly offset — sells "seen from above".
@@ -1448,14 +1497,14 @@
           // dark hood-opening crescent keeps the blob readable as a head
           c.fillStyle = style.lit
             ? `rgba(${litCoat.hoodOpening}, ${Math.min(1, bodyAlpha * 0.9).toFixed(3)})`
-            : `rgba(7, 9, 14, ${Math.min(1, bodyAlpha * 0.9).toFixed(3)})`;
+            : `rgba(${WORKER_DARK_INK.hoodOpening}, ${Math.min(1, bodyAlpha * 0.9).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd + figLen * 0.10, 0, figLen * 0.13, 0, Math.PI * 2);
           c.fill();
         } else {
           c.fillStyle = style.lit
             ? `rgba(${litCoat.cap}, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`
-            : `rgba(9, 12, 18, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`;
+            : `rgba(${WORKER_DARK_INK.cap}, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd, 0, figLen * 0.19, 0, Math.PI * 2);
           c.fill();
@@ -1465,7 +1514,7 @@
         if (fig.hasBundle && figLen >= WORKER_BUNDLE_MIN_PX) {
           c.fillStyle = style.lit
             ? `rgba(${style.bundleRGB}, ${(bodyAlpha * 0.9).toFixed(3)})`
-            : `rgba(31, 25, 18, ${(bodyAlpha * 0.9).toFixed(3)})`;
+            : `rgba(${WORKER_DARK_INK.bundle}, ${(bodyAlpha * 0.9).toFixed(3)})`;
           c.beginPath();
           c.ellipse(-figLen * 0.10, fig.lanternSide * figLen * 0.26 * bW, figLen * 0.22, figLen * 0.18, 0, 0, Math.PI * 2);
           c.fill();
