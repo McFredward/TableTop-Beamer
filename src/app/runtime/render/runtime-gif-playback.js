@@ -264,6 +264,14 @@
       yieldBetweenFrames: isPiVc4, // Pi-VC4 only — GL watchdog defense
       bakeImageBitmap: !isPiVc4, // bake on dashboard + SSR tab; skip on Pi (GPU memory)
       isFinalOutput, // h8: keep cap on /output/ paths (Phase-30 closure)
+      // Phase 58-w3.8k: on non-Pi (SSR tab / desktop), yield a
+      // macrotask after ~12 ms of accumulated synchronous parse work so
+      // the rAF draw loop keeps painting during a cold decode — a
+      // fully-synchronous freeze.gif parse blocked the SSR main thread
+      // 3555 ms and froze the projected stream (first-trigger UAT).
+      // setTimeout-based (NOT rAF) so the h11 Xvfb-rAF-throttling hang
+      // cannot recur. 0 on Pi — it keeps its rAF yield above.
+      yieldTimeBudgetMs: isPiVc4 ? 0 : 12,
     });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {
@@ -563,6 +571,32 @@
       .catch(() => undefined);
   }
 
+  // Phase 58-w3.8k: staggered idle warm queue for non-final roles
+  // (dashboard / editor preview). The previous per-call
+  // requestIdleCallback fired ALL pending warms inside the same idle
+  // period — N concurrent ImageDecoder decodes (thundering herd) the
+  // moment prewarm actually started covering board definitions. This
+  // chain decodes one asset at a time, each waiting for its own idle
+  // slot first, so prewarming stays invisible to the UI thread.
+  let _idleWarmQueue = Promise.resolve();
+  function _enqueueIdleWarm(path) {
+    _idleWarmQueue = _idleWarmQueue
+      .then(() => new Promise((resolve) => {
+        if (typeof window.requestIdleCallback === "function") {
+          window.requestIdleCallback(() => resolve(), { timeout: 1000 });
+        } else {
+          setTimeout(resolve, 50);
+        }
+      }))
+      .then(async () => {
+        const entry = ensureGifPlaybackReady(path);
+        if (entry && entry.promise && typeof entry.promise.then === "function") {
+          await entry.promise.catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+  }
+
   function warmGifAssetPath(path, { reason = "runtime" } = {}) {
     if (!path) {
       return;
@@ -575,8 +609,18 @@
     // animations finished. On the final-output role we always warm
     // immediately. Dashboard keeps the idle deferral.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    if (!isFinalOutput && typeof window.requestIdleCallback === "function" && reason !== "trigger") {
-      window.requestIdleCallback(() => ensureGifPlaybackReady(path), { timeout: 450 });
+    if (!isFinalOutput && reason !== "trigger") {
+      // Phase 58-w3.8k: dedupe — repeated warm calls for an already
+      // decoded / in-flight / already-queued path are no-ops, so the
+      // live-sync snapshot hook can call warmBoardGifDefinitions on
+      // every apply without queue churn.
+      const entry = getGifPlaybackCacheEntry(path);
+      if (!entry || entry.status === "ready" || entry.status === "loading" || entry._warmQueued) {
+        return;
+      }
+      entry._warmQueued = true;
+      _enqueueIdleWarm(path);
+      _idleWarmQueue = _idleWarmQueue.then(() => { entry._warmQueued = false; });
       return;
     }
     // Phase 30 B2 Candidate A: on /output/, serialize warmup whenever
@@ -589,7 +633,17 @@
     // the queue — they need to start ASAP and are by nature one-shot
     // (no concurrent-decode pressure).
     if (isFinalOutput && reason !== "trigger") {
+      // Phase 58-w3.8k: same dedupe as the idle queue above — the
+      // live-sync snapshot hook re-warms the active board's definitions
+      // on every snapshot apply; without this each apply would append
+      // a redundant queue link (incl. its 200 ms settle delay).
+      const entry = getGifPlaybackCacheEntry(path);
+      if (!entry || entry.status === "ready" || entry.status === "loading" || entry._warmQueued) {
+        return;
+      }
+      entry._warmQueued = true;
       _enqueueOutputWarm(path);
+      _outputWarmQueue = _outputWarmQueue.then(() => { entry._warmQueued = false; });
       return;
     }
     ensureGifPlaybackReady(path);
@@ -608,18 +662,49 @@
     // unavailable.
     if (typeof ctx.getBoards === "function") {
       try {
+        // Phase 58-w3.8k: scope by role. The projector (final-output /
+        // SSR tab) warms EVERY board's definitions — a board switch
+        // mid-session must never cold-decode on the render host (the
+        // measured ~3.5 s rAF stall froze the projected stream).
+        // Dashboards warm only the ACTIVE board: the ImageDecoder fast
+        // path stores full-resolution per-frame bitmaps (no 256 px cap),
+        // so warming all boards' large GIFs would cost hundreds of MB
+        // per dashboard client for boards it may never show. Board
+        // switches re-run this warm via runtime-board-switch.js.
+        const warmAllBoards = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
         for (const board of ctx.getBoards()) {
-          const profile = ctx.state?.roomFxByBoard?.[board.id];
-          const animations = Array.isArray(profile?.animations) ? profile.animations : [];
-          for (const def of animations) {
-            if (def?.assetType === "gif" && typeof def.assetRef === "string" && def.assetRef) {
-              warmGifAssetPath(def.assetRef, { reason });
-            }
+          if (!warmAllBoards && board.id !== ctx.state?.boardId) {
+            continue;
           }
+          warmBoardGifDefinitions(board.id, { reason });
         }
       } catch {
         // never let warmup throw — render path is more important
       }
+    }
+  }
+
+  // Phase 58-w3.8k: warm every GIF asset referenced by ONE board's
+  // room-animation definitions. Called by warmRoomGifAssets (startup /
+  // board-switch) and by the live-sync snapshot apply (live-hello and
+  // board activation on the projector role, where the CONTROL-gated
+  // syncRuntimePanelsFromState → switchBoard path never runs). Cheap
+  // to call repeatedly: warmGifAssetPath dedupes via cache status +
+  // _warmQueued, so steady-state snapshot applies are no-ops.
+  function warmBoardGifDefinitions(boardId, { reason = "board-activate" } = {}) {
+    if (!boardId) {
+      return;
+    }
+    try {
+      const profile = ctx.state?.roomFxByBoard?.[boardId];
+      const animations = Array.isArray(profile?.animations) ? profile.animations : [];
+      for (const def of animations) {
+        if (def?.assetType === "gif" && typeof def.assetRef === "string" && def.assetRef) {
+          warmGifAssetPath(def.assetRef, { reason });
+        }
+      }
+    } catch {
+      // never let warmup throw — render path is more important
     }
   }
 
@@ -674,6 +759,7 @@
     resolveRoomGifRenderConfig,
     warmGifAssetPath,
     warmRoomGifAssets,
+    warmBoardGifDefinitions,
     invalidateGifCacheForPath,
   };
 

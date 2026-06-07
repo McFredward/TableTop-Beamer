@@ -734,6 +734,9 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   applyGlobalDefaultsPayloadToState: (payload, runtimeExtras) => applyGlobalDefaultsPayloadToState(payload, runtimeExtras),
   shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
   warmGifAssetPath: (path, opts) => warmGifAssetPath(path, opts),
+  // Phase 58-w3.8k: snapshot-apply prewarm of the active board's GIF
+  // definitions (live-hello / board activation on the projector role).
+  warmBoardGifDefinitions: (boardId, opts) => warmBoardGifDefinitions(boardId, opts),
   // 28-h3: explicitly inject syncOutsideRuntimeMirror so the post-snapshot
   // mirror-rebuild guard at runtime-live-sync-core.js evaluates true on
   // /output/. Without this, the typeof check fails silently and the mirror
@@ -1236,7 +1239,15 @@ window.TT_BEAMER_RUNTIME_GIF_PLAYBACK.init({
   ROOM_GIF_ANIMATION_ASSETS,
   outputRole,
   OUTPUT_ROLE_FINAL,
-  getBoards: () => getBoards(),
+  // Phase 58-w3.8k (2026-06-07): was `() => getBoards()` — but no
+  // `getBoards` binding exists in this file's scope (every other ctx
+  // literal uses `() => BOARDS`). Calling it threw ReferenceError,
+  // which warmRoomGifAssets' bare catch swallowed — so per-board GIF
+  // definitions were NEVER prewarmed on any client since 26-h9. The
+  // first trigger of a board-defined GIF then cold-decoded on the SSR
+  // tab's main thread (~3.5 s rAF stall, measured) and froze the
+  // projected stream. Operator UAT 2026-06-07.
+  getBoards: () => BOARDS,
   clampGifPlaybackSpeed: (value) => clampGifPlaybackSpeed(value),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
 });
@@ -1248,6 +1259,7 @@ const {
   resolveRoomGifRenderConfig,
   warmGifAssetPath,
   warmRoomGifAssets,
+  warmBoardGifDefinitions,
 } = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
 
 window.TT_BEAMER_RUNTIME_OUTSIDE_MP4.init({

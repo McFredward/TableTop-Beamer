@@ -52,6 +52,18 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.36] — 2026-06-07
+
+**Kein Stream-Hänger mehr beim allerersten GIF-Trigger nach Server-Neustart (Phase 58-w3.8k).**
+Operator: "Wenn ich zum allerersten Mal nach dem Server-Neustart die 'freeze gif' Animation gestartet habe, hat der Stream kurz komplett gehangen — danach nicht mehr." Reproduziert und vermessen: Der erste Trigger eines Board-definierten GIFs (freeze.gif, 18 MB / 280 Frames) blockierte den Main-Thread des SSR-Render-Tabs für **3555 ms am Stück** (rAF-Gap-Messung) — der Encoder sendete solange dasselbe eingefrorene Bild. Der Fetch war unschuldig (18 MB in 85 ms vom Disk-Cache); der synchrone Parser-Decode war der Blocker. Zwei Ursachen, zwei Fixes:
+
+- **Prewarm war seit 26-h9 komplett tot:** `getBoards: () => getBoards()` in der GIF-Playback-Modul-Initialisierung referenzierte eine nicht existierende Binding (jede andere Ctx-Stelle nutzt `() => BOARDS`) — der Aufruf warf ReferenceError, den das bare `catch {}` in `warmRoomGifAssets` verschluckte. Folge: Board-definierte GIFs wurden auf KEINEM Client je vorgewärmt, nur die 3 statischen Legacy-GIFs. Gefixt; zusätzlich wärmt jetzt jeder Snapshot-Apply (Live-Hello / Board-Aktivierung) die GIF-Definitionen des aktiven Boards — auch auf dem Projektor, wo der CONTROL-gegatete `switchBoard`-Pfad nie läuft. Projektor wärmt alle Boards (Board-Wechsel darf nie kalt decodieren), Dashboards nur das aktive Board (ImageDecoder-Fast-Path speichert Frames in voller Auflösung — alle Boards wären hunderte MB). Nicht-Final-Clients decodieren gestaffelt einen Asset pro Idle-Slot statt als Herde; doppelte Warm-Aufrufe sind über Cache-Status + Queue-Flag No-Ops.
+- **Auch ein kalter Decode darf den Stream nicht mehr anhalten:** Der Parser yieldet auf Nicht-Pi-Umgebungen jetzt nach je ~12 ms akkumulierter synchroner Arbeit einen Macrotask (`setTimeout(0)` — bewusst NICHT rAF, damit der h11-Xvfb-rAF-Throttling-Hänger nicht zurückkommen kann; Pi behält seinen dedizierten rAF-Yield für den GL-Watchdog). Messung: kalter Trigger-Decode von snow.gif (10,9 MB / 190 Frames, 1080p-Frames) → max. rAF-Gap 60 ms statt Sekunden; der Stream läuft während des ~11 s gestückelten Decodes sichtbar weiter.
+
+Verifiziert auf isoliertem Server (Kalt-Start): Vorher 3555 ms Gap beim ersten Trigger; nachher sind alle Board-GIFs vor jedem Trigger fertig decodiert (280 Frames ready, 0 Gaps > 50 ms während des Idle-Prewarms) und der erste Trigger erzeugt 0 Gaps > 50 ms. Play-then-freeze → frozen-last, Reverse-Zyklus → frozen-first, Loop-GIFs, Editor-Vorschau und mp4-Pfad unverändert (Screenshot-Serie + Phasen-Probe). Speicher: Parser-Pfad (Projektor) ~41 MB ImageData + ~41 MB Bitmaps für freeze.gif (256-px-Cap), Frostpunk hat 2 Board-GIFs (fire + freeze) — unkritisch auf Server-Klasse, Pi baked keine Bitmaps.
+
+---
+
 ## [1.2.35] — 2026-06-07
 
 **City Workers: sanfte Präsenz-Hüllkurve — kein abruptes Erscheinen/Verschwinden mehr (Phase 58-w3.8h).**

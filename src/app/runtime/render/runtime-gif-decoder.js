@@ -251,7 +251,7 @@
   // adding ~750 ms to slime parse time. Net latency is irrelevant
   // compared to keeping GL alive.
   async function decodeGifPlaybackFramesWithParser(data, entry, options = {}) {
-    const { yieldBetweenFrames = false, bakeImageBitmap = true } = options;
+    const { yieldBetweenFrames = false, bakeImageBitmap = true, yieldTimeBudgetMs = 0 } = options;
     // Phase 30 Plan 30-04 T14: yield via requestAnimationFrame
     // instead of setTimeout(0). setTimeout(0) gives only ~5 ms idle
     // gaps which do NOT guarantee an rAF fires between yields. With
@@ -277,6 +277,32 @@
             setTimeout(resolve, 0);
           }
         })
+      : null;
+    // Phase 58-w3.8k (2026-06-07): time-budgeted macrotask yield for
+    // NON-Pi environments (SSR tab + desktop dashboard fallback). The
+    // h11/h13 history made the SSR-tab parser fully synchronous because
+    // the Pi yield is rAF-based and Chromium-under-Xvfb rAF throttling
+    // could leave that promise unresolved forever. But a fully
+    // synchronous parse of a large GIF (freeze.gif: 18 MB / 280 frames)
+    // blocked the SSR main thread for a measured 3555 ms — the encoder
+    // kept emitting the same captured frame and the projected stream
+    // "hung" on the first cold trigger. setTimeout(0) does NOT depend
+    // on rAF (and the SSR tab launches with timer-throttling disabled),
+    // so it cannot reproduce the h11 hang; yielding only after
+    // `yieldTimeBudgetMs` of accumulated synchronous work keeps the
+    // total parse-latency overhead small (~1 macrotask per budget
+    // window) while capping any single main-thread block near the
+    // budget. 0 disables (Pi keeps its dedicated rAF yield below).
+    let _lastBudgetYieldAt = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const budgetYieldTick = !yieldBetweenFrames && yieldTimeBudgetMs > 0
+      ? async () => {
+          const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+          if (now - _lastBudgetYieldAt < yieldTimeBudgetMs) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          _lastBudgetYieldAt = (typeof performance !== "undefined" ? performance.now() : Date.now());
+        }
       : null;
     const bytes = new Uint8Array(data);
     if (bytes.length < 13) {
@@ -523,6 +549,12 @@
       const YIELD_EVERY_N_FRAMES = 8;
       if (yieldTick && frames.length % YIELD_EVERY_N_FRAMES === 0) {
         await yieldTick();
+      }
+      // Phase 58-w3.8k: non-Pi time-budgeted yield (see budgetYieldTick
+      // above) — no-ops until `yieldTimeBudgetMs` of synchronous work
+      // has accumulated since the last yield.
+      if (budgetYieldTick) {
+        await budgetYieldTick();
       }
 
       previousFrameMeta = {

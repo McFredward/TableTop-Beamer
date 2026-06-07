@@ -707,6 +707,20 @@
         }
       }
     }
+    // Phase 58-w3.8k (2026-06-07): prewarm the active board's GIF
+    // DEFINITIONS (not just running animations) on every snapshot
+    // apply. On the projector role syncRuntimePanelsFromState →
+    // switchBoard → warmRoomGifAssets is CONTROL-gated and never runs,
+    // so live-hello / board activation previously left board-defined
+    // GIFs cold — the first trigger then fetch+decoded ~18 MB on the
+    // SSR tab's main thread and froze the projected stream for ~3.5 s
+    // (operator UAT 2026-06-07). warmGifAssetPath dedupes decoded /
+    // queued paths, so steady-state applies are no-ops; cold paths
+    // decode staggered (serialized queue on final-output, idle queue
+    // elsewhere) instead of at trigger time.
+    if (typeof ctx.warmBoardGifDefinitions === "function") {
+      ctx.warmBoardGifDefinitions(state.boardId, { reason: "board-activate" });
+    }
     // Preserve local-only edits (live editor) for animations that already
     // existed before this snapshot — but only on the control client and
     // only when the snapshot is NOT from an edit-room mutation (which
