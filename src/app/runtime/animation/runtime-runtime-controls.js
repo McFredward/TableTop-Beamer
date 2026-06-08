@@ -367,6 +367,80 @@
     if (existing && advanceReversibleFreezePhaseIfPossible(existing)) {
       return;
     }
+    // Phase 58 Wave 3.8o (2026-06-08): make the inside reversible-freeze
+    // re-trigger DETERMINISTIC by mirroring the room dispatch. The room
+    // path pushes its instance into state.runningAnimations at create time
+    // (runtime-room-dispatch.js) and the server preserves the client id
+    // (trigger-room), so the re-trigger candidate is ALWAYS found on the
+    // next press regardless of snapshot-roundtrip timing and the phase
+    // flip (edit-room) always targets a stable id. upsertGlobalAnimation
+    // previously pushed NOTHING locally — the running list for inside
+    // globals was populated only by the snapshot roundtrip, so `existing`
+    // was present-or-absent purely as a function of timing: a press during
+    // the roundtrip window re-issued trigger-global (server bumped the
+    // revision and restarted at phase=forward → "nothing happens"), or, if
+    // the instance was momentarily unflippable, fell through to the
+    // STOP+REMOVE toggle branch (animation "disappears"); when the snapshot
+    // had already landed it worked — three outcomes from one action.
+    //
+    // Fix: for the reversible-freeze family ONLY (play-then-freeze +
+    // reverse-*), create+push the instance locally with a STABLE id and let
+    // the server preserve that id (applyGlobalMutationPatch). hold=true
+    // reversible-freeze globals are exempt from the finite one-shot replay
+    // subsystem, so a stable, revision-less id is safe. Subsequent presses
+    // then reliably hit advanceReversibleFreezePhaseIfPossible above. WS is
+    // ordered from the single CONTROL client, so the trigger-global create
+    // is always processed before any later edit-room phase flip.
+    const isReversibleFreezeGlobal =
+      !isOutside
+      && definitionPlaybackMode === "play-then-freeze"
+      && (definitionOnRetrigger === "reverse-then-freeze-first"
+        || definitionOnRetrigger === "reverse-then-disappear");
+    if (!existing && isReversibleFreezeGlobal) {
+      const animation = ctx.createAnimation({
+        type,
+        scope: "global",
+        boardId: state.boardId,
+        intensity: Number(matchedDefinition?.intensity) || 1,
+        speed: Number(matchedDefinition?.speed) || 1,
+        opacity: Number(matchedDefinition?.opacity) || 1,
+        mode: matchedDefinition?.mode ?? "",
+        direction: matchedDefinition?.direction ?? "",
+        soundVolume: playSound ? 1 : 0,
+        soundAssetRef: playSound ? definitionSoundAssetRef : "none",
+        hold: true,
+        durationSec: 0,
+        playbackMode: definitionPlaybackMode,
+        onRetrigger: definitionOnRetrigger,
+        playbackDirection: definitionPlaybackDirection,
+        ...insideTransformSeed,
+      });
+      // Stable, revision-less id (mirrors the server id scheme without the
+      // per-trigger revision suffix) so the snapshot merges in place and
+      // every phase-flip edit-room targets the same id.
+      animation.id = `global-${state.boardId}:${type}`;
+      animation.triggerKey = `${state.boardId}:${type}`;
+      state.runningAnimations.push(animation);
+      void ctx.emitLiveMutation("trigger-global", {
+        animationType: type,
+        action: "start",
+        boardId: state.boardId,
+        outsideHint: false,
+        // Non-loop hold instance (effectiveDefaultDurationSec === null);
+        // loopUntilStopped:true maps to server hold=true / durationMs=null
+        // so the 4s GLOBAL_ONE_SHOT default never auto-expires it.
+        loopUntilStopped: true,
+        playSound,
+        animation: ctx.buildAnimationSnapshotForLiveSync(animation),
+      }).then(() => {
+        ctx.triggerFeedback.textContent = `Pending: ${ctx.getAnimationLabel(type)} start accepted (waiting for snapshot)`;
+      }).catch(() => {
+        ctx.triggerFeedback.textContent = `Status: ${ctx.getAnimationLabel(type)} start command failed`;
+      });
+      ctx.renderRunningAnimationsList();
+      ctx.refreshGlobalButtons();
+      return;
+    }
     if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL) {
       if (existing) {
         ctx.stopAnimation(existing.id);

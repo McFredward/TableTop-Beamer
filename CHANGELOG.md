@@ -10,6 +10,28 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.40] — 2026-06-08
+
+### Fixed
+
+- **Inside "Freeze"-Button jetzt zuverlässig (play-then-freeze + reverse-on-retrigger).**
+  Der Inside-Freeze-Button verhielt sich uneinheitlich: mal verschwand die
+  Animation, mal passierte nichts, mal funktionierte er korrekt — Raum-Animationen
+  mit derselben Konfiguration waren dagegen stabil. Ursache: Inside-Animationen
+  (global scope) wurden beim Auslösen nie lokal in die Running-Liste eingetragen
+  (anders als Raum-Animationen). Der Re-Trigger-Kandidat war daher nur vorhanden,
+  wenn der Server-Snapshot rechtzeitig zurückkam — ein Druck im Roundtrip-Fenster
+  löste entweder einen Neustart (Phase zurück auf forward = "nichts passiert")
+  oder den Stop/Remove-Pfad aus (Animation "verschwindet"). Fix: Die
+  Inside-Reversible-Freeze-Animation wird jetzt — exakt wie Raum-Animationen —
+  lokal mit einer STABILEN ID erzeugt (der Server behält diese ID bei statt sie
+  pro Trigger neu zu vergeben), sodass jeder weitere Druck deterministisch die
+  Phase umschaltet (forward → frozen-last → reverse → frozen-first → forward).
+  Verifiziert mit 22+ schnellen Drücken (Dashboard + /output): keine
+  Verschwinde-Effekte, keine No-Ops. Loop-/Outside-Animationen bleiben unverändert.
+
+---
+
 ## Release-Rollup 1.1.4 → 1.2.24 (Kurzfassung für Release-Notes)
 
 **Per-Animation Playback-Modi (Phase 58).** Jede Raum-Animation kann

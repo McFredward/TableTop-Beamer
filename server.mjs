@@ -826,6 +826,18 @@ function applyGlobalMutationPatch(payload) {
     const incomingPlaybackPhase = typeof incomingAnimation?.playbackPhase === "string"
       ? incomingAnimation.playbackPhase
       : null;
+    // Phase 58 Wave 3.8o (2026-06-08): the inside reversible-freeze family
+    // (play-then-freeze + reverse-*) carries a STABLE client-assigned id so
+    // the re-trigger phase flip is deterministic (see upsertGlobalAnimation).
+    // Preserve that id and skip the per-trigger revision bump — mirroring
+    // trigger-room, which never rewrites the client id. These instances are
+    // hold=true, hence exempt from the finite one-shot replay subsystem, so
+    // a stable revision-less id is safe.
+    const incomingStableId = normalizeNonEmptyString(incomingAnimation?.id);
+    const isReversibleFreezeIncoming =
+      incomingPlaybackMode === "play-then-freeze"
+      && (incomingOnRetrigger === "reverse-then-freeze-first"
+        || incomingOnRetrigger === "reverse-then-disappear");
     // Phase 58 Wave 3.8n (2026-06-08): preserve the inside-animation
     // transform schema (+ roomAssetType/Ref) onto the authoritative
     // global record — same rationale as the playback schema above. The
@@ -875,7 +887,17 @@ function applyGlobalMutationPatch(payload) {
       ...incomingTransform,
       startedAtEpochMs: serverNowEpochMs,
     };
-    if (triggerKey) {
+    if (isReversibleFreezeIncoming && incomingStableId) {
+      // Phase 58 Wave 3.8o: preserve the client's stable id; no revision
+      // bump (revision-less id avoids the client revision-drop logic in
+      // primeGlobalTriggerRuntimeTimestamps and lets the snapshot merge in
+      // place). The `retained` filter below still evicts any stale
+      // same-key instance before this one is pushed.
+      authoritativeAnimation.id = incomingStableId;
+      if (triggerKey) {
+        authoritativeAnimation.triggerKey = triggerKey;
+      }
+    } else if (triggerKey) {
       const currentTriggerRevision = Number(globalTriggerRevisions[triggerKey]) || 0;
       const nextTriggerRevision = currentTriggerRevision + 1;
       globalTriggerRevisions[triggerKey] = nextTriggerRevision;
