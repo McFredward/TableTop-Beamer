@@ -10,6 +10,16 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.44] — 2026-06-08
+
+### Added
+
+- **City-Workers: beschrifteter Laternen-Farbwähler, einstellbare Bewohner-Größe, doppelte Maximal-Anzahl.** Beim Coded-Effekt „City Workers" war nicht klar, was der Farbwähler einstellt — er ist jetzt mit „Laternen-Farbe" über dem Feld beschriftet (nur für City-Workers; Heat behält „Heat tint"). Die Farbe tönt weiterhin die von den Bewohnern getragenen Laternen (verifiziert: `colorHex` rot/blau steuert die Laternen-Glut-Gradienten deterministisch). Neu ist ein Regler „Größe der Bewohner" (0,5–2,0×, Default 1,0), der die Figuren skaliert — multipliziert auf den bisherigen `clamp(2,5% Polygonbreite, 2, 7px)`; Default 1,0 ist byte-identisch zum bisherigen Look. Die „Anzahl Bewohner" geht jetzt bis 24 (vorher 12; Minimum 1, Default unverändert). Beides ist voll durch die Phase-50-Mask-Trap geführt (Definition → Normalizer → draftPayload/Trigger-Payload an allen 6 createAnimation-Stellen → Instanz → Snapshot), exakt nach dem v1.2.35-Plumbing-Muster der übrigen Worker-Optionen. Verifiziert (vm-Harness gegen `drawEffectVisual` + Playwright auf dem frostpunk-Board): Größe 0,5→2,0 skaliert die Figurengeometrie exakt 4,0× bei gleicher Figurenzahl; Anzahl 24 rendert mehr Figuren als 12; Editor-Bounds min 1 / max 24 bzw. 0,5–2,0.
+
+### Fixed
+
+- **Editor-Schieberegler: der erste Zug wird nicht mehr durch das Dirty-Flag „losgelassen".** Bisher: zog man einen Regler im Animations-Menü zum ersten Mal, erschien das Dirty-Flag (gewollt), aber der Griff löste sich — man konnte zu Beginn nur einen einzigen Tick verschieben und musste ein zweites Mal drücken. Ursache: Die false→true-Dirty-Transition blendet die Dirty-Leiste in der Topbar ein (Layout-Reflow, der den Regler ~2px unter dem gehaltenen Zeiger wegschiebt, verifiziert) und blurrt den Fokus — beides löst im echten Browser einen nativen `<input type=range>`-Zug mitten in der Geste. Fix (an der gemeinsamen Slider-Komponente, betrifft ALLE Editor-Regler): `setPointerCapture` auf `pointerdown` bindet die Geste an das Element bis `pointerup`, unabhängig von Fokus oder Layout-Verschiebung; zusätzlich blurrt `syncDirtyBar` Range-Inputs nicht mehr beim ersten Dirty (Range-Inputs rufen keine Soft-Tastatur). Verifiziert (Playwright, kontinuierlicher Zeiger-Zug ohne Loslassen, zwei verschiedene Regler): eine durchgehende Geste streicht über 83–85% des Reglerbereichs (16–18 Zwischenwerte) und das Dirty-Flag erscheint dabei — vorher blieb es bei einem Tick.
+
 ## [1.2.43] — 2026-06-08
 
 ### Fixed

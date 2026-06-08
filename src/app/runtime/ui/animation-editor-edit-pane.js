@@ -575,6 +575,20 @@
     input.max = String(field.max);
     input.step = String(field.step);
     input.value = String(Number.isFinite(initial) ? initial : field.min);
+    // Phase 58-w3.8t: capture the pointer for the whole drag. The FIRST
+    // input on a slider flips localConfigDirty false→true, which reveals
+    // the topbar dirty bar (reflowing the layout, nudging the slider out
+    // from under the held pointer) and blurs focus — either of which
+    // detaches a native <input type=range> drag mid-gesture in real
+    // browsers, so the operator could only move ONE tick on the first
+    // drag and had to press again (operator UAT: "kann man zu Beginn
+    // immer nur einen Tick verschieben"). Binding the pointer to this
+    // element until pointerup keeps the slide alive across the dirty-flag
+    // activation regardless of focus or layout shift. (Belt-and-braces
+    // with the range-input blur exclusion in shell.js syncDirtyBar.)
+    input.addEventListener("pointerdown", (e) => {
+      try { input.setPointerCapture(e.pointerId); } catch { /* unsupported — ignore */ }
+    });
     input.addEventListener("input", () => {
       const v = Number(input.value);
       val.textContent = field.format(v);
