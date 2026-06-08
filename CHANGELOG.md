@@ -10,6 +10,12 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.42] — 2026-06-08
+
+### Fixed
+
+- **Inside-Animation „Freeze, reverse on re-trigger“ (gif) spielt das Reverse jetzt IMMER vollständig ab, bevor das Ende triggert.** Auf dem Beamer/Projektor (SSR-Tab, FINAL-Rolle) verschwand eine Inside-GIF-Animation mit `play-then-freeze` + `reverse-then-disappear` beim ERSTEN Re-Trigger sofort (statt rückwärts zu laufen), und das eingestellte Ende (Disappear) feuerte mitten in der Animation. Ursache: Der Re-Trigger stempelt `startedAt` neu, aber dieser neue Zeitstempel erreichte den Projektor über das Live-Sync (Poll/edit-room-Race) nicht zuverlässig — der Reverse-Leg erbte die (große) Zeit des Forward-Legs. Dadurch klemmte der GIF-Cursor sofort auf dem ersten Frame (kein sichtbares Reverse) und die Abschluss-Erkennung (`elapsedScaledSec >= totalDuration`) feuerte beim Dekodieren sofort → Disappear. Fix: Die Inside-GIF-Playback-Zeit für `play-then-freeze` wird jetzt LEG-LOKAL gemessen (ab dem Moment, in dem dieser Client die aktuelle Phase erstmals sieht) statt aus dem clientübergreifenden Epoch — der volle Leg (forward UND reverse) läuft immer bis zum echten Medien-Ende, bevor das Ende triggert, unabhängig von der Epoch-Propagation. Verifiziert: Ende feuert bei `ct=10.03` vs. `dur=10` (innerhalb 0,03 s des echten Endes), nie mehr vorzeitig; erstes Re-Trigger verschwindet nicht mehr. Inside-MP4 (läuft über `video.currentTime`, bereits leg-lokal) und der Room-Pfad bleiben unverändert.
+
 ## [1.2.41] — 2026-06-08
 
 ### Changed

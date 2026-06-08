@@ -736,17 +736,58 @@
       // even that, so reverse never took effect (operator spec 2026-06-08:
       // "reverse on-retrigger soll auch hier funktionieren").
       const insideGifIsPlayThenFreeze = insideGifMode === "play-then-freeze";
+      // Phase 58 Wave 3.8q (2026-06-08): LEG-LOCAL playback timeline for
+      // inside play-then-freeze gifs. The cross-client `timeline` (= age,
+      // derived from the snapshot-hydrated startedAt epoch) is UNRELIABLE
+      // on the projector (/ssr, FINAL role): the re-trigger re-stamp
+      // (advanceReversibleFreezePhaseIfPossible re-stamps startedAtEpochMs)
+      // does not always propagate through the live-sync poll/edit-room
+      // version race (runtime-live-sync-core.js Wave 3.7r). When it doesn't,
+      // the reverse leg inherits the FORWARD leg's epoch, so `age` is
+      // already >> the gif's total duration at the first reverse frame:
+      // the reverse cursor instantly clamps to the first frame (no visible
+      // reverse) AND maybeTransitionGifPlaybackPhase's completion check
+      // (elapsedScaledSec >= total) fires the moment the gif decodes →
+      // reverse-then-disappear dispatches stopAnimation almost immediately.
+      // Operator UAT 2026-06-08: first re-trigger VANISHES (BUG 1) and the
+      // configured end fires before the media has played (BUG 2).
+      //
+      // Fix: for play-then-freeze, measure the timeline from when THIS
+      // client first OBSERVED the current phase (forward / reverse), not
+      // from the cross-client epoch. The leg clock is deferred until the
+      // gif is actually decoded (total > 0) so a cold decode never eats
+      // into the leg's visible playback. The same leg-local value drives
+      // BOTH the EOS/transition check and the frame cursor, so the full
+      // leg ALWAYS plays to true completion before the end transition,
+      // for forward AND reverse, regardless of epoch propagation. The mp4
+      // inside path is already leg-local (video.currentTime) and unchanged;
+      // the room gif path (drawRoomComposition) is intentionally left as-is
+      // (regression-protected; its reverse-then-freeze-first end has no
+      // stopAnimation dispatch, so the stale-age cursor clamp is masked).
+      let insideGifTimeline = timeline;
       if (insideGifIsPlayThenFreeze) {
+        const insideGifTotalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;
+        const insideGifLegPhase = animation?.playbackPhase || "forward";
+        if (animation._gifLegPhase !== insideGifLegPhase) {
+          animation._gifLegPhase = insideGifLegPhase;
+          animation._gifLegStartPerfMs = performance.now();
+        }
+        // Defer the leg clock until the gif is decoded — keeps the cold-
+        // decode window out of the leg's visible time on both legs.
+        if (!(insideGifTotalSec > 0) || !Number.isFinite(animation._gifLegStartPerfMs)) {
+          animation._gifLegStartPerfMs = performance.now();
+        }
+        insideGifTimeline = Math.max(0, (performance.now() - animation._gifLegStartPerfMs) / 1000) * speed;
         ctx.maybeTransitionGifPlaybackPhase?.(animation, {
-          totalDurationSec: ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0,
-          elapsedScaledSec: timeline,
+          totalDurationSec: insideGifTotalSec,
+          elapsedScaledSec: insideGifTimeline,
         });
       }
       // Phase 58 Wave 3.7p parity: phase overrides the static direction
       // for play-then-freeze; empty string for the other modes so
       // loop / boomerang gifs keep the pure direction-driven timeline.
       const insideGifPhase = insideGifIsPlayThenFreeze ? (animation?.playbackPhase || "forward") : "";
-      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode, insideGifDir, insideGifPhase);
+      const frame = ctx.getGifPlaybackFrame(definition.assetRef, insideGifTimeline, insideGifMode, insideGifDir, insideGifPhase);
       // Phase 58 Wave 2.5: cleanup for inside-gif play-once-disappear.
       if (insideGifMode === "play-once-disappear" && animation) {
         const totalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;
