@@ -826,6 +826,26 @@ function applyGlobalMutationPatch(payload) {
     const incomingPlaybackPhase = typeof incomingAnimation?.playbackPhase === "string"
       ? incomingAnimation.playbackPhase
       : null;
+    // Phase 58 Wave 3.8n (2026-06-08): preserve the inside-animation
+    // transform schema (+ roomAssetType/Ref) onto the authoritative
+    // global record — same rationale as the playback schema above. The
+    // render path reads instance transform (falling back to definition),
+    // and the live-editor Transform fieldset is gated on the instance's
+    // roomAssetType, so both need these to survive the trigger-global
+    // → snapshot roundtrip. Only carried when present (outside triggers
+    // don't send them).
+    const incomingRoomAssetType = typeof incomingAnimation?.roomAssetType === "string"
+      ? incomingAnimation.roomAssetType
+      : null;
+    const incomingRoomAssetRef = typeof incomingAnimation?.roomAssetRef === "string"
+      ? incomingAnimation.roomAssetRef
+      : null;
+    const transformKeys = ["rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale"];
+    const incomingTransform = {};
+    for (const key of transformKeys) {
+      const v = incomingAnimation?.[key];
+      if (v !== undefined && v !== null) incomingTransform[key] = v;
+    }
     const authoritativeAnimation = {
       id: "",
       scope: "global",
@@ -849,6 +869,10 @@ function applyGlobalMutationPatch(payload) {
       playbackMode: incomingPlaybackMode ?? "loop",
       onRetrigger: incomingOnRetrigger ?? "instant-disappear",
       playbackPhase: incomingPlaybackPhase ?? "forward",
+      // Phase 58 Wave 3.8n: inside transform + asset type (see above).
+      ...(incomingRoomAssetType ? { roomAssetType: incomingRoomAssetType } : {}),
+      ...(incomingRoomAssetRef ? { roomAssetRef: incomingRoomAssetRef } : {}),
+      ...incomingTransform,
       startedAtEpochMs: serverNowEpochMs,
     };
     if (triggerKey) {

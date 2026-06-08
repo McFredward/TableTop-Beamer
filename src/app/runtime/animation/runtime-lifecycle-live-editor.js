@@ -201,7 +201,17 @@
     ctx.liveEditorSoundVolumeValue.textContent = `${soundVolume}%`;
 
     // Transform fields — only visible for mp4/gif asset types.
-    const assetType = String(animation.roomAssetType ?? "").toLowerCase();
+    // Phase 58 Wave 3.8n: inside animations also expose transform (1:1
+    // with rooms). Their instance carries roomAssetType (seeded at
+    // trigger time), but fall back to the inside definition's assetType
+    // for robustness against legacy snapshots that predate the seed.
+    // Outside stays excluded: its type isn't in the inside profile, so
+    // the fallback finds nothing and transform stays hidden.
+    let assetType = String(animation.roomAssetType ?? "").toLowerCase();
+    if (!assetType && animation.scope === "global" && typeof ctx.getInsideFxProfile === "function") {
+      const insideDef = ctx.getInsideFxProfile(animation.boardId)?.animations?.find((d) => d.id === animation.type);
+      if (insideDef) assetType = String(insideDef.assetType ?? "").toLowerCase();
+    }
     const showTransform = assetType === "mp4" || assetType === "gif";
     ctx.liveEditorTransform.hidden = !showTransform;
 
@@ -442,7 +452,7 @@
   // to continue tweaking. Silent direct save (no apply/discard bar)
   // because clicking the button IS the explicit commit. Field set
   // per scope: room = opacity/intensity/speed/volume/transform/color,
-  // inside = intensity/speed, outside = intensity/speed/mode/direction.
+  // inside = intensity/speed/transform, outside = intensity/speed/mode/direction.
   function saveLiveEditorAsDefault() {
     if (liveEditorAnimationId === null) return;
     const animation = ctx.state.runningAnimations.find(
@@ -450,7 +460,21 @@
     );
     if (!animation) return;
 
-    const scopeForProfile = animation.scope === "cluster" ? "room" : animation.scope;
+    // Phase 58 Wave 3.8n: map the runtime scope to the profile scope.
+    // Inside AND outside animations both run as scope "global"; the
+    // branches below key on "inside" / "outside", so a bare
+    // animation.scope ("global") matched NONE of them and the save
+    // silently no-op'd ("no matching definition to save (scope=global)")
+    // — the inside/outside save-as-default was dead code. Resolve global
+    // → inside/outside via the board's outside profile (isOutside-
+    // AnimationType), mirroring upsertGlobalAnimation's own routing.
+    let scopeForProfile = animation.scope === "cluster" ? "room" : animation.scope;
+    if (scopeForProfile === "global") {
+      scopeForProfile = (typeof ctx.isOutsideAnimationType === "function"
+        && ctx.isOutsideAnimationType(animation.type, animation.boardId))
+        ? "outside"
+        : "inside";
+    }
     let updated = false;
 
     if (scopeForProfile === "room") {
@@ -490,6 +514,16 @@
               ...entry,
               intensity: animation.intensity ?? entry.intensity,
               speed: animation.speed ?? entry.speed,
+              // Phase 58 Wave 3.8n: persist inside transform to the
+              // definition (1:1 with the room branch above) so future
+              // triggers of this inside animation apply the saved
+              // rotation / stretch / scale / offset.
+              rotationDeg: animation.rotationDeg ?? entry.rotationDeg,
+              stretchToPolygon: animation.stretchToPolygon ?? entry.stretchToPolygon,
+              widthScale: animation.widthScale ?? entry.widthScale,
+              heightScale: animation.heightScale ?? entry.heightScale,
+              offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
+              offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
             },
           ),
         });

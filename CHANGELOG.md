@@ -52,6 +52,29 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.39] — 2026-06-08
+
+**Inside-Animationen bekommen Transform 1:1 wie Raum-Animationen (Phase 58-w3.8n).**
+Operator: "Ich will das 'transform' auch 1:1 wie bei den room animations, d.h. hier exakt die selbe Logik: Der default ist bei der Animation im Animationseditor anpassbar und während der Animation editierbar und per Knopfdruck auch für die Animation abspeicherbar." Mp4/gif-Inside-Animationen unterstützen jetzt Rotation / Stretch / Scale / Offset über denselben Mechanismus wie Räume.
+
+### Added
+- **Per-Definition-Transform im Inside-Normalizer** (`runtime-fx-normalizers.js`): `rotationDeg / stretchToPolygon / widthScale / heightScale / offsetXScale / offsetYScale`, identische Clamps wie beim Raum-Normalizer. Defaults erhalten das bisherige Verhalten (Stretch an, keine Transformation).
+- **Transform-Karte im Animations-Editor für Inside** (`animation-editor-edit-pane.js`): `buildTransformCard` greift jetzt auch für Scope `inside` (mp4/gif) — der Default ist dort einklappbar einstellbar (persistiert via `patchAnimation`). Die Editor-Vorschau spiegelt die Transformation bereits (scope-agnostischer CSS-Transform).
+- **Transform im Live-Editor für Inside**: Das Transform-Fieldset erscheint für laufende Inside-mp4/gif-Animationen (Gate liest die Instanz-`roomAssetType`, mit Fallback auf die Inside-Definition); Slider editieren die laufende Instanz live, "Save as default" schreibt die Werte in die Definition.
+
+### Changed
+- **Render wendet die Inside-Transformation an** (`runtime-draw-loop.js`): neue `resolveInsideAssetDrawRect` (volle Projektions-Canvas als Bezug — Stretch=true ⇒ pixelidentisch zum bisherigen Vollbild) + alle Inside-gif/mp4-Paints laufen jetzt über `drawRoomAssetImage` (Rotation/Scale/Offset). Bevorzugt Instanz-Werte (Live-Edits sofort sichtbar), Fallback auf die Definition.
+- **Trigger seedet die Inside-Instanz mit Transform + `roomAssetType`** (`runtime-runtime-controls.js`, nur Inside, nicht Outside) und der Server trägt diese Felder durch den `trigger-global`-Roundtrip (`server.mjs`) — sonst würden Render und Live-Editor die Instanz-Werte nicht sehen.
+
+### Fixed
+- **"Save as default"-Button war global tot.** `liveEditorSaveDefault` war nie in den Orchestration-Ctx destrukturiert/durchgereicht, daher hängte `init` nie einen Click-Handler an — der Button tat für JEDEN Scope (auch Raum) nichts. Jetzt verdrahtet (`runtime-orchestration.js`).
+- **`saveLiveEditorAsDefault` mappte Global-Scope nicht.** Inside/Outside laufen als Scope `global`; die Save-Zweige prüften aber `"inside"`/`"outside"`, sodass nichts gespeichert wurde. Global wird jetzt via `isOutsideAnimationType` auf inside/outside abgebildet (`runtime-lifecycle-live-editor.js`); der Inside-Zweig persistiert zusätzlich die Transform-Felder.
+
+### Notes
+- Verifiziert auf isoliertem Server (Frostpunk, Inside "Snow" mp4): Editor-`patchAnimation` persistiert Transform (rot/w/ox, übersteht Settle); Trigger-Instanz trägt Transform durch den Server-Roundtrip; SSR-Projektor-Render unterscheidet skaliert (17 KB) vs. Vollbild (41 KB); Live-Editor-Transform sichtbar, Slider editieren die Instanz (rot=35), "Save as default" schreibt rot=35/ox=0.15 in die Definition (persistent). `npm test` 383 pass / 14 fail (unveränderte vorbestehende SSR-Encoder-Config-Failures).
+
+---
+
 ## [1.2.38] — 2026-06-08
 
 **Dashboard-Switch "Loop until stopped" komplett entfernt (Phase 58-w3.8m).**

@@ -139,12 +139,16 @@
   // transforms are an "advanced" tweak and shouldn't clutter the pane
   // when not in use ("Ausklappmenu" per operator UAT 2026-05-22).
   function buildTransformCard(scope, def, boardId) {
-    // Live editor only shows transform for room (incl. cluster) +
-    // mp4/gif asset type. Mirror that gate here so the edit pane
-    // matches.
-    if (scope !== "room") return null;
+    // Transform applies to mp4/gif animations. Phase 58 Wave 3.8n:
+    // extended from room-only to ALSO cover inside animations (operator
+    // request: inside transform 1:1 with rooms — default-editable here,
+    // live-editable while running, savable). Outside stays excluded.
+    if (scope !== "room" && scope !== "inside") return null;
     const assetType = String(def.assetType ?? "").toLowerCase();
     if (assetType !== "mp4" && assetType !== "gif") return null;
+    const stretchSub = scope === "inside"
+      ? "Fit the media to the inside Play Area."
+      : "Fit the media to the room polygon shape.";
 
     const card = document.createElement("details");
     card.className = "anim-editor-card anim-editor-card-collapsible";
@@ -158,7 +162,7 @@
         min: -180, max: 180, step: 1,
         format: (v) => `${Math.round(v)}°` },
       { kind: "toggle", key: "stretchToPolygon", label: "Stretch to polygon",
-        sub: "Fit the media to the room polygon shape." },
+        sub: stretchSub },
       { kind: "slider", key: "widthScale", label: "Width scale",
         min: 0.1, max: 10, step: 0.01,
         format: (v) => v.toFixed(2),

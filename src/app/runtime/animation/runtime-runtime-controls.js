@@ -316,6 +316,25 @@
     const definitionPlaybackMode = matchedDefinition?.playbackMode ?? "loop";
     const definitionOnRetrigger = matchedDefinition?.onRetrigger ?? "instant-disappear";
     const definitionPlaybackDirection = matchedDefinition?.playbackDirection ?? "forward";
+    // Phase 58 Wave 3.8n: inside transform (1:1 with rooms). Seed the
+    // running instance from the definition's transform fields and expose
+    // its asset type as roomAssetType so the live-editor Transform
+    // fieldset (gated on roomAssetType / mp4 + gif) shows for inside —
+    // exactly like a room instance. Outside is excluded: it renders on
+    // its own full-layer path without a per-instance transform, so
+    // surfacing inert transform sliders there would only confuse. Same
+    // Phase 50 factory-default-mask discipline as the room dispatch:
+    // every field is forwarded explicitly into createAnimation below.
+    const insideTransformSeed = (!isOutside && matchedDefinition) ? {
+      roomAssetType: matchedDefinition.assetType,
+      roomAssetRef: matchedDefinition.assetRef,
+      rotationDeg: matchedDefinition.rotationDeg ?? 0,
+      stretchToPolygon: matchedDefinition.stretchToPolygon !== false,
+      widthScale: matchedDefinition.widthScale ?? 1,
+      heightScale: matchedDefinition.heightScale ?? 1,
+      offsetXScale: matchedDefinition.offsetXScale ?? 0,
+      offsetYScale: matchedDefinition.offsetYScale ?? 0,
+    } : {};
     const isNonLoopMode = definitionPlaybackMode !== "loop";
     // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
     // stopped" dashboard switch was removed — looping is now driven
@@ -378,6 +397,8 @@
           playbackMode: definitionPlaybackMode,
           onRetrigger: definitionOnRetrigger,
           playbackDirection: definitionPlaybackDirection,
+          // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
+          ...insideTransformSeed,
         });
         void ctx.emitLiveMutation("trigger-global", {
           animationType: type,
@@ -424,6 +445,8 @@
         playbackMode: definitionPlaybackMode,
         onRetrigger: definitionOnRetrigger,
         playbackDirection: definitionPlaybackDirection,
+        // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
+        ...insideTransformSeed,
       });
       ctx.triggerFeedback.textContent = `Pending: ${ctx.getAnimationLabel(type)} start accepted (waiting for snapshot)`;
       void ctx.emitLiveMutation("trigger-global", {

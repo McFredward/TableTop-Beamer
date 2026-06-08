@@ -59,6 +59,34 @@
     c.restore();
   }
 
+  // Phase 58 Wave 3.8n: inside-animation transform draw rect (1:1 with
+  // resolveRoomAssetDrawRect, but metered against the FULL projection
+  // canvas instead of a room polygon bbox — inside animations span the
+  // whole inside Play Area). With stretch=true (default) + rotation 0
+  // this yields exactly the legacy fullscreen draw (centerX/Y = W/2,H/2;
+  // w/h = W,H → drawImage at 0,0,W,H), so existing inside animations are
+  // pixel-identical. Prefers the running INSTANCE's transform (so live-
+  // editor edits show immediately) and falls back to the definition.
+  function resolveInsideAssetDrawRect(animation, definition) {
+    const W = ctx.canvas.width;
+    const H = ctx.canvas.height;
+    const stretch = (animation?.stretchToPolygon !== undefined
+      ? animation.stretchToPolygon
+      : definition?.stretchToPolygon) !== false;
+    const widthScale = stretch ? 1 : (Number(animation?.widthScale ?? definition?.widthScale) || 1);
+    const heightScale = stretch ? 1 : (Number(animation?.heightScale ?? definition?.heightScale) || 1);
+    const offsetXScale = stretch ? 0 : (Number(animation?.offsetXScale ?? definition?.offsetXScale) || 0);
+    const offsetYScale = stretch ? 0 : (Number(animation?.offsetYScale ?? definition?.offsetYScale) || 0);
+    const rotationDeg = Number(animation?.rotationDeg ?? definition?.rotationDeg) || 0;
+    return {
+      centerX: W / 2 + offsetXScale * W,
+      centerY: H / 2 + offsetYScale * H,
+      w: W * widthScale,
+      h: H * heightScale,
+      rotationRad: rotationDeg * Math.PI / 180,
+    };
+  }
+
   function drawRoomComposition(animation, age, room, roomMetrics) {
     const c = ctx.canvasCtx;
     const qualityScale = ctx.getRuntimeQualityScale();
@@ -661,6 +689,11 @@
     const intensity = ctx.clampOutsideIntensity(definition?.intensity ?? animation.intensity ?? 1);
     const speed = ctx.clampOutsideSpeed(definition?.speed ?? 1);
     const timeline = age * speed;
+    // Phase 58 Wave 3.8n: inside transform draw rect (mp4/gif). With the
+    // defaults (stretch=true, rotation 0) this is the full canvas, so the
+    // paint is identical to the legacy fullscreen draw. Coded inside
+    // effects below ignore it (drawEffectVisual paints its own region).
+    const insideRect = resolveInsideAssetDrawRect(animation, definition);
 
     if (definition?.assetType === "gif") {
       // Phase 58: inside-gif reads per-animation playback mode from
@@ -697,7 +730,7 @@
       }
       if (frame) {
         c.globalAlpha = intensity;
-        c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        drawRoomAssetImage(c, frame, insideRect);
       }
       return;
     }
@@ -797,16 +830,16 @@
             frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
           }
           if (frozenSrc) {
-            c.drawImage(frozenSrc, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            drawRoomAssetImage(c, frozenSrc, insideRect);
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "fallback");
           } else if (haveLiveFrame) {
-            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            drawRoomAssetImage(c, video, insideRect);
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
           } else {
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
           }
         } else if (playbackState && haveLiveFrame && gateAllows) {
-          c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+          drawRoomAssetImage(c, video, insideRect);
           if (ctx.captureRoomMp4FallbackFrame) {
             ctx.captureRoomMp4FallbackFrame(playbackState, video);
           }
@@ -815,7 +848,7 @@
         } else if (playbackState && ctx.getRoomMp4FallbackSource) {
           const src = ctx.getRoomMp4FallbackSource(playbackState);
           if (src) {
-            c.drawImage(src, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            drawRoomAssetImage(c, src, insideRect);
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", haveLiveFrame ? "gated-out" : "fallback");
           } else if (haveLiveFrame) {
             // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
@@ -824,7 +857,7 @@
             // — strictly better than leaving the region UNPAINTED
             // (main rAF's clearRect would bleed black through, producing
             // the operator-reported strobe on overlaid mp4s).
-            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            drawRoomAssetImage(c, video, insideRect);
             if (ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
@@ -833,7 +866,7 @@
           } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
             // Phase 58 Wave 3.7: extended last-resort for concurrent-load
             // race (see room-mp4 path comment).
-            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            drawRoomAssetImage(c, video, insideRect);
             if (ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }

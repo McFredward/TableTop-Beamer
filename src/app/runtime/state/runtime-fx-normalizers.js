@@ -123,6 +123,16 @@
     const rawAssetRef = String(definition?.assetRef || "").trim();
     const fallbackAssetRef = assetType === "coded" ? id : "";
     const assetRef = ctx.normalizeInsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    // Phase 58 Wave 3.8n: per-definition transform for mp4/gif inside
+    // animations — same fields + clamps as normalizeRoomAnimationDefinition
+    // so the editor Transform card, live-editor sliders and render path
+    // are 1:1 with rooms. Defaults preserve the pre-transform behaviour
+    // (stretch to the inside area, no rotation / scale / offset).
+    const clamp = (value, min, max, fallback) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    };
     return {
       id,
       name,
@@ -131,6 +141,14 @@
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
+      // Phase 58 Wave 3.8n: transform (mp4/gif only; harmless no-ops for
+      // coded inside effects).
+      rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
+      stretchToPolygon: definition?.stretchToPolygon !== false,
+      widthScale: clamp(definition?.widthScale, 0.05, 10, 1),
+      heightScale: clamp(definition?.heightScale, 0.05, 10, 1),
+      offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
+      offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
       // Phase 58: per-animation playback mode + on-retrigger sub-option.
       // See 58-CONTEXT.md for the state machine and decisions.
       playbackMode: normalizePlaybackMode(definition),
