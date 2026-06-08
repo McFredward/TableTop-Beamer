@@ -269,7 +269,7 @@
     return true;
   }
 
-  function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false, playSound = true } = {}) {
+  function upsertGlobalAnimation(type, defaultDurationSec, { playSound = true } = {}) {
     const state = ctx.state;
     const existing = state.runningAnimations.find(
       (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
@@ -280,12 +280,6 @@
     const outsideProfileForCategory = ctx.getOutsideFxProfile(state.boardId);
     const isOutsideByProfile = outsideProfileForCategory?.animations?.some((a) => a.id === type) ?? false;
     const isOutside = isOutsideByProfile || ctx.getGlobalAnimationCategory(type) === "outside-ship";
-    // Outside animations are conceptually continuous (they
-    // loop forever until the user toggles them off). Force loop mode so
-    // they don't silently vanish from the Active Animations list after
-    // the global one-shot window (GLOBAL_ONE_SHOT_DURATION_SEC = 4s)
-    // even though the underlying outside layer is still drawing.
-    const effectiveLoopUntilStopped = isOutside ? true : loopUntilStopped;
     // Only one outside animation may play at a time. When we're
     // about to start a new outside, stop any other outside animation
     // currently running on this board so the switch is clean.
@@ -323,6 +317,17 @@
     const definitionOnRetrigger = matchedDefinition?.onRetrigger ?? "instant-disappear";
     const definitionPlaybackDirection = matchedDefinition?.playbackDirection ?? "forward";
     const isNonLoopMode = definitionPlaybackMode !== "loop";
+    // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
+    // stopped" dashboard switch was removed — looping is now driven
+    // entirely by the animation's own playbackMode. A loop-mode
+    // animation (and every outside animation, which is conceptually
+    // continuous) loops until the operator toggles it off; non-loop
+    // modes manage their own lifecycle via isNonLoopMode below. This
+    // also retires the legacy 4s GLOBAL_ONE_SHOT_DURATION_SEC auto-
+    // removal for inside globals (it only applied when a loop animation
+    // was triggered with the switch OFF — which silently removed a loop
+    // animation after 4s, the opposite of "as configured").
+    const effectiveLoopUntilStopped = isOutside || definitionPlaybackMode === "loop";
     const normalizedDefaultDurationSec = Number(defaultDurationSec);
     // Phase 58: non-loop modes always behave as hold=true so the render
     // layer manages cleanup (pause-at-end for freeze; explicit

@@ -12,7 +12,6 @@
       state,
       triggerFeedback,
       globalDefaultsStatus,
-      dashboardGlobalLoopUntilStopInput,
       dashboardGlobalPlaySoundInput,
       dashboardTransformOptions,
       dashboardRotationDegInput,
@@ -116,16 +115,12 @@
       pushUndoState,
     } = ctx;
 
-    dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
-      const modeLabel = dashboardGlobalLoopUntilStopInput.checked ? "loop until stop" : "one-shot";
-      const soundLabel = dashboardGlobalPlaySoundInput?.checked ? "with sound" : "muted";
-      triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
-    });
-
+    // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
+    // stopped" switch was removed (looping is driven by the animation's
+    // own playbackMode). Only the Play-sound toggle remains.
     dashboardGlobalPlaySoundInput?.addEventListener("change", () => {
-      const modeLabel = dashboardGlobalLoopUntilStopInput?.checked ? "loop until stop" : "one-shot";
       const soundLabel = dashboardGlobalPlaySoundInput.checked ? "with sound" : "muted";
-      triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
+      triggerFeedback.textContent = `Status: global trigger sound ${soundLabel}`;
     });
 
     stopAllButton.addEventListener("click", () => {

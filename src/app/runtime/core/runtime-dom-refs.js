@@ -285,7 +285,6 @@
       insideGlobalButtons: document.querySelector("#inside-global-buttons"),
       outsideGlobalButtons: document.querySelector("#outside-global-buttons"),
       outsideAnimationDeleteButton: document.querySelector("#outside-animation-delete"),
-      dashboardGlobalLoopUntilStopInput: document.querySelector("#dashboard-global-loop-until-stop"),
       dashboardGlobalPlaySoundInput: document.querySelector("#dashboard-global-play-sound"),
       dashboardTransformOptions: document.querySelector("#dashboard-transform-options"),
       dashboardRotationDegInput: document.querySelector("#dashboard-rotation-deg"),

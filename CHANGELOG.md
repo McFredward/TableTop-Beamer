@@ -52,6 +52,20 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.38] — 2026-06-08
+
+**Dashboard-Switch "Loop until stopped" komplett entfernt (Phase 58-w3.8m).**
+Operator: "entferne aber ganz den 'Loop until stopped' switch im Dashboard". Der separate Per-Trigger-Toggle über den Inside-Trigger-Buttons ist weg — Loop-Verhalten wird jetzt ausschließlich aus dem `playbackMode` der Animation selbst abgeleitet (wie bei Raum-Animationen). Eine Loop-Animation läuft bis zum Abschalten weiter; Non-Loop-Modi (play-once-disappear / play-then-freeze / boomerang) steuern ihren eigenen Lifecycle. Der "Play sound"-Toggle bleibt.
+
+### Changed
+- **`upsertGlobalAnimation` leitet das Loop-Verhalten aus dem `playbackMode` ab** statt aus dem entfernten Switch (`runtime-runtime-controls.js`): `effectiveLoopUntilStopped = isOutside || playbackMode === "loop"`. Damit entfällt die alte 4s-`GLOBAL_ONE_SHOT_DURATION_SEC`-Auto-Entfernung für Inside-Globals — die griff vorher nur, wenn eine Loop-Animation mit ausgeschaltetem Switch getriggert wurde, und entfernte die Loop-Animation nach 4s wieder (das Gegenteil von "wie eingestellt").
+- **Switch-Markup + Verdrahtung entfernt:** `#dashboard-global-loop-until-stop` aus `index.html`; Trigger-Click-Binder liest den Switch nicht mehr (`runtime-wire-overlay-window-binders.js`); Change-Listener + DOM-Ref + Orchestration-Ctx-Durchreichungen bereinigt (`runtime-wire-room-audio-binders.js`, `runtime-dom-refs.js`, `runtime-orchestration.js`). Server akzeptiert das `loopUntilStopped`-Payload-Feld weiterhin (Back-Compat für Live-Sync-Clients).
+
+### Notes
+- Verifiziert auf isoliertem Server (Frostpunk): Switch im DOM + ausgeliefertem HTML weg, "Play sound" bleibt. Loop-Animation (Snow, mp4 loop) läuft jetzt dauerhaft (`hold=true`, `durMs=null`, > 7s aktiv) statt nach 4s zu verschwinden; Toggle-Off entfernt sie sauber. Inside-"Freeze" (play-then-freeze + reverse-then-freeze-first): erster Trigger → forward, Re-Trigger → reverse → forward (Reverse-Zyklus unverändert). Keine Runtime-Fehler durch die Entfernung; `npm test` 383 pass / 14 fail (unveränderte vorbestehende SSR-Encoder-Config-Failures).
+
+---
+
 ## [1.2.37] — 2026-06-08
 
 **Inside-Animationen übernehmen das Playback-Modus-System (Phase 58-w3.8l).**
