@@ -722,39 +722,63 @@
       ctx.warmBoardGifDefinitions(state.boardId, { reason: "board-activate" });
     }
     // Preserve local-only edits (live editor) for animations that already
-    // existed before this snapshot — but only on the control client and
-    // only when the snapshot is NOT from an edit-room mutation (which
-    // carries the authoritative edited values for all clients).
-    if (mutationType !== "edit-room") {
-      // Phase 58 Wave 3.7d (2026-06-05): playbackPhase added to the
-      // preservation list. The phase-advance dispatcher mutates phase
-      // locally and broadcasts via edit-room async. A periodic /
-      // non-edit-room snapshot arriving DURING the round-trip window
-      // would otherwise revert the local mutation to the server's
-      // pre-edit value (e.g. "frozen-last" instead of "reverse"),
-      // making the draw loop swap video.src forward<->reverse on
-      // alternating rAFs -> video stuck in load() loop -> operator UAT
-      // "trotz reverse on re-trigger verschwindet das Bild".
-      // _endedDispatched and _phaseChangedAt are render-layer
-      // bookkeeping never set by the server; preserve them too.
-      //
-      // Phase 58 Wave 3.7e (2026-06-05): split by role. The projector
-      // (FINAL) runs its own draw loop and locally DERIVES the playback
-      // phase (forward -> frozen-last -> reverse -> frozen-first) via
-      // maybeTransitionPlaybackPhase, so it needs the same phase/render
-      // bookkeeping preserved across non-edit-room snapshots — otherwise
-      // a stale-phase snapshot mid-reverse can thrash the src on the
-      // beamer. But the live-editor fields (opacity/speed/scale/...) are
-      // only ever locally edited on CONTROL; on the projector they are
-      // server-authoritative, so preserving the projector's stale copies
-      // would mask legitimate server updates. Hence: phase/render fields
-      // on BOTH roles, live-editor fields on CONTROL only.
-      const RENDER_PLAYBACK_FIELDS = ["playbackPhase", "_endedDispatched", "_phaseChangedAt"];
-      const LIVE_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
-        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
-      const liveEditFieldsToPreserve = ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
+    // existed before this snapshot.
+    //
+    // Phase 58 Wave 3.7d (2026-06-05): playbackPhase added to the
+    // preservation list. The phase-advance dispatcher mutates phase
+    // locally and broadcasts via edit-room async. A periodic /
+    // non-edit-room snapshot arriving DURING the round-trip window
+    // would otherwise revert the local mutation to the server's
+    // pre-edit value (e.g. "frozen-last" instead of "reverse"),
+    // making the draw loop swap video.src forward<->reverse on
+    // alternating rAFs -> video stuck in load() loop -> operator UAT
+    // "trotz reverse on re-trigger verschwindet das Bild".
+    // _endedDispatched and _phaseChangedAt are render-layer
+    // bookkeeping never set by the server; preserve them too.
+    //
+    // Phase 58 Wave 3.7e (2026-06-05): split by role. The projector
+    // (FINAL) runs its own draw loop and locally DERIVES the playback
+    // phase (forward -> frozen-last -> reverse -> frozen-first) via
+    // maybeTransitionPlaybackPhase, so it needs the same phase/render
+    // bookkeeping preserved across non-edit-room snapshots — otherwise
+    // a stale-phase snapshot mid-reverse can thrash the src on the
+    // beamer. But the live-editor fields (opacity/speed/scale/...) are
+    // only ever locally edited on CONTROL; on the projector they are
+    // server-authoritative, so preserving the projector's stale copies
+    // would mask legitimate server updates. Hence: phase/render fields
+    // on BOTH roles, live-editor fields on CONTROL only.
+    //
+    // Phase 58 Wave 3.8u (2026-06-08): SPLIT the mutationType gate.
+    // RENDER_PLAYBACK_FIELDS are CLIENT-derived render bookkeeping the
+    // server never originates (frozen-last/frozen-first/reverse +
+    // gif leg-clock markers — see runtime-draw-loop.js leg-local
+    // timeline, runtime-outside-mp4.js maybeTransition* setters). They
+    // MUST be preserved for non-re-triggered animations regardless of
+    // mutationType. Previously the whole preservation block was gated
+    // behind `mutationType !== "edit-room"`, so an edit-room snapshot
+    // for an UNRELATED animation stripped EVERY other animation's
+    // client-held playbackPhase + leg markers, reverting them to the
+    // server's stale "forward"/undefined. For a frozen inside
+    // play-then-freeze instance that meant: phase -> "forward", leg
+    // markers dropped -> the leg clock re-initialized to 0 on the next
+    // frame -> the frozen animation REPLAYED forward (operator bug,
+    // 2026-06-08: "editing a room animation restarts a frozen inside
+    // one"). The re-stamp guard still distinguishes a genuine
+    // re-trigger (epoch jump >250ms) from an unrelated mutation
+    // (identical epoch), so legitimate forward→freeze→reverse→freeze
+    // re-triggers are unaffected. Only LIVE_EDIT_FIELDS remain
+    // server-authoritative on edit-room (they carry the edit for all
+    // clients), so their preservation stays gated on non-edit-room +
+    // CONTROL.
+    const RENDER_PLAYBACK_FIELDS = ["playbackPhase", "_endedDispatched", "_phaseChangedAt",
+      "_gifLegPhase", "_gifLegStartPerfMs"];
+    const LIVE_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
+      "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+    const liveEditFieldsToPreserve =
+      mutationType !== "edit-room" && ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
         ? LIVE_EDIT_FIELDS
         : [];
+    {
       for (const animation of state.runningAnimations) {
         const previous = previousAnimationsById.get(animation.id);
         if (!previous) continue;

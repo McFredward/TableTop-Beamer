@@ -10,6 +10,12 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.45] — 2026-06-08
+
+### Fixed
+
+- **Eine eingefrorene INSIDE-Animation startet nicht mehr neu, wenn eine andere (Raum-)Animation bearbeitet+gespeichert wird.** Eine INSIDE-Animation im Modus „play-then-freeze", die auf ihrem eingefrorenen Bild stand (frozen-last/frozen-first), sprang bei einer komplett unabhängigen `edit-room`-Mutation plötzlich zurück an den Anfang und spielte vorwärts ab. Ursache: `applyLiveRuntimeSnapshot` schützte die client-seitig abgeleiteten Wiedergabe-Felder (`playbackPhase` = frozen-* sowie die GIF-Leg-Clock-Marker `_gifLegPhase`/`_gifLegStartPerfMs`) nur, wenn `mutationType !== "edit-room"` war. Bei einem `edit-room`-Snapshot wurde dieser Schutz für ALLE Animationen übersprungen — auch für die, die gar nicht bearbeitet wurden. Die eingefrorene INSIDE-Instanz übernahm dadurch die Server-Phase „forward" (der Server speichert frozen-* nie), die Leg-Clock setzte sich auf 0 zurück → Vorwärts-Replay. Fix: Die client-abgeleiteten Render-Wiedergabe-Felder werden jetzt bei JEDEM Mutationstyp erhalten (sie gehören dem Client, nie dem Server); nur die Live-Editor-Felder (Opazität/Speed/Scale/…) bleiben bei `edit-room` server-autoritativ. Der bestehende Re-Stamp-Schutz (Epoch-Sprung >250 ms) lässt ein echtes INSIDE-Re-Trigger weiterhin korrekt vorwärts neu starten. Verifiziert (deterministischer node:test gegen die echte `applyLiveRuntimeSnapshot`): unabhängige `edit-room` lässt eingefrorenes GIF+MP4 eingefroren (Phase + Leg-Clock unverändert), während die Bearbeitung selbst weiterhin greift; 10× verschiedene unabhängige Mutationen starten die INSIDE-Instanz nie neu; legitimes Re-Trigger spielt weiterhin vorwärts; identisch auf Dashboard- und Projektor-Rolle; Räume unverändert.
+
 ## [1.2.44] — 2026-06-08
 
 ### Added
