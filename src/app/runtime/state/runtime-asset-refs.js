@@ -11,40 +11,34 @@
     ctx = dependencies;
   }
 
+  // Phase 58-w3.8p — UNIFIED coded-effect catalog. All three scopes
+  // now return the SAME set (config.ALL_CODED_EFFECT_TYPES, the single
+  // source of truth) so the editor offers every coded effect for room,
+  // inside AND outside (operator spec 2026-06-08: "überall sollen
+  // dieselben verfügbar sein, kein Unterschied"). Before w3.8p inside
+  // derived its keys from createDefaultInsideAnimationDefinitions (only
+  // hull-flicker / intruder-alert / power-outage) and outside hard-
+  // coded just outside-space — that artificial per-scope filtering is
+  // what made inside/outside expose fewer effects. Cross-scope
+  // rendering is wired in the draw loop: each scope passes its own
+  // region metrics (room polygon / inside-ship region / outside
+  // region) into drawEffectVisual so e.g. heat radiates from the
+  // scope's centroid and city-workers walk within its bounds.
+  function getAllCodedEffectKeys() {
+    const keys = Array.isArray(ctx.ALL_CODED_EFFECT_TYPES) ? ctx.ALL_CODED_EFFECT_TYPES : [];
+    return Array.from(new Set(keys.map((key) => String(key || "").trim().toLowerCase()).filter(Boolean)));
+  }
+
   function getOutsideCodedAssetKeys() {
-    const knownOutsideRendererIds = ctx.OUTSIDE_SHIP_GLOBAL_ANIMATIONS
-      .map((entry) => ctx.normalizeOutsideAnimationId(entry?.id, ""))
-      .filter(Boolean);
-    return Array.from(new Set(["outside-space", ...knownOutsideRendererIds]));
+    return getAllCodedEffectKeys();
   }
 
   function getInsideCodedAssetKeys() {
-    const knownInsideRendererIds = ctx.createDefaultInsideAnimationDefinitions()
-      .map((entry) => ctx.normalizeInsideAnimationId(entry?.id, ""))
-      .filter(Boolean);
-    return Array.from(new Set(knownInsideRendererIds));
+    return getAllCodedEffectKeys();
   }
 
   function getRoomCodedAssetKeys() {
-    const knownDefaultRefs = ctx.createDefaultRoomAnimationDefinitions()
-      .filter((entry) => ctx.normalizeRoomAssetType(entry?.assetType) === "coded")
-      .map((entry) => String(entry?.assetRef || "").trim().toLowerCase())
-      .filter(Boolean);
-    const knownInsideRendererIds = getInsideCodedAssetKeys();
-    return Array.from(new Set([
-      ...knownInsideRendererIds,
-      ...knownDefaultRefs,
-      "special-slime",
-      "special-scanning",
-      "solid-color",
-      "heat",
-      // Phase 58-w3.8i: ONE merged "City Workers" entry. The w3.8e
-      // "city-workers-lit" A/B key is now a backward-compat ALIAS (see
-      // ROOM_CODED_ASSET_ALIASES) — the lit look lives on as the
-      // per-definition "Darstellung: Beleuchtet (Beamer)" option
-      // (workerStyle), so the editor's Effect dropdown lists one key.
-      "city-workers",
-    ]));
+    return getAllCodedEffectKeys();
   }
 
   // Legacy assetRef spellings → canonical registry key. Applied in
@@ -208,10 +202,15 @@
   }
 
   function resolveOutsideCodedEffectType(assetRef) {
-    if (getOutsideCodedAssetKeys().includes(normalizeOutsideCodedAssetRef(assetRef))) {
-      return "outside-space";
-    }
-    return "outside-space";
+    // Phase 58-w3.8p — return the ACTUAL resolved effect type so the
+    // outside layer can render any coded effect (heat, city-workers,
+    // hull-flicker, …), not just the space star-field. Pre-w3.8p this
+    // hard-returned "outside-space" regardless of input, which is what
+    // forced every outside coded animation to render as stars.
+    // normalizeOutsideCodedAssetRef still falls back to "outside-space"
+    // for unknown refs, and isOutsideModeDirectionApplicable keeps the
+    // mode/direction controls scoped to the outside-space effect only.
+    return normalizeOutsideCodedAssetRef(assetRef);
   }
 
   function isOutsideModeDirectionApplicable(definition) {

@@ -204,6 +204,95 @@
     };
   }
 
+  // Phase 58-w3.8p — region metrics for the inside-ship and outside
+  // scopes, mirroring the {centerX, centerY, minX/maxX/minY/maxY,
+  // width, height, radius} contract getRoomRenderMetrics produces for
+  // a single room polygon. Coded effects (heat glow, city-workers
+  // bounds, special-slime bands, …) read these fields, so feeding the
+  // scope's region here makes the SAME room renderer paint correctly
+  // for inside/outside without forking drawEffectVisual per scope.
+  function metricsFromPixelPolygons(polygons, fallback) {
+    const points = [];
+    for (const polygon of Array.isArray(polygons) ? polygons : []) {
+      if (!Array.isArray(polygon)) {
+        continue;
+      }
+      for (const point of polygon) {
+        if (Array.isArray(point) && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]))) {
+          points.push([Number(point[0]), Number(point[1])]);
+        }
+      }
+    }
+    if (points.length === 0) {
+      return fallback;
+    }
+    const center = points.reduce((acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }), { x: 0, y: 0 });
+    const centerX = center.x / points.length;
+    const centerY = center.y / points.length;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let radius = 0;
+    for (const [x, y] of points) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      radius = Math.max(radius, Math.hypot(x - centerX, y - centerY));
+    }
+    return {
+      polygon: points,
+      centerX,
+      centerY,
+      minX,
+      maxX,
+      minY,
+      maxY,
+      width: Math.max(12, maxX - minX),
+      height: Math.max(12, maxY - minY),
+      radius: Math.max(8, radius),
+    };
+  }
+
+  function getFullCanvasMetrics() {
+    const canvas = ctx.canvas;
+    const w = canvas?.width ?? 0;
+    const h = canvas?.height ?? 0;
+    return {
+      polygon: [[0, 0], [w, 0], [w, h], [0, h]],
+      centerX: w * 0.5,
+      centerY: h * 0.5,
+      minX: 0,
+      maxX: w,
+      minY: 0,
+      maxY: h,
+      width: Math.max(12, w),
+      height: Math.max(12, h),
+      radius: Math.max(8, Math.hypot(w, h) * 0.5),
+    };
+  }
+
+  // Inside-ship region = the play-area polygons (same geometry
+  // clipToInsideShip masks to). Heat radiates from the ship centroid,
+  // city-workers walk inside the ship bounds, hull-flicker fills it.
+  function getInsideRegionMetrics(boardId) {
+    const canvas = ctx.canvas;
+    const polygons = getPlayAreaPolygonsPixels(canvas.width, canvas.height, boardId);
+    return metricsFromPixelPolygons(polygons, getFullCanvasMetrics());
+  }
+
+  // Outside region = canvas minus the ship (clipToOutsideShip). There
+  // is no single closed polygon for it, so coded effects radiate from
+  // the full-canvas centroid and span the whole frame; the outside
+  // clip restricts the paint to the area surrounding the ship. This is
+  // the documented degrade for region-centroid effects (heat/workers)
+  // in the outside scope — they centre on the canvas, not on a void
+  // around the ship.
+  function getOutsideRegionMetrics() {
+    return getFullCanvasMetrics();
+  }
+
   window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY = {
     init,
     applyHitareaCalibration: computeHitareaCalibratedPoint,
@@ -216,5 +305,7 @@
     getShipPolygonPixels,
     getPlayAreaPolygonsPixels,
     getRoomRenderMetrics,
+    getInsideRegionMetrics,
+    getOutsideRegionMetrics,
   };
 })();

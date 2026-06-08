@@ -14,6 +14,7 @@ const {
   OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
   GLOBAL_ANIMATIONS,
   ALL_ANIMATION_TYPES,
+  ALL_CODED_EFFECT_TYPES,
   SOUND_MAPPING_NONE,
   EVENT_SOUND_ASSETS,
   ALL_SOUND_ASSET_PATHS,
@@ -1193,6 +1194,8 @@ const {
   getShipPolygonPixels,
   getPlayAreaPolygonsPixels,
   getRoomRenderMetrics,
+  getInsideRegionMetrics,
+  getOutsideRegionMetrics,
 } = window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY;
 
 window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS.init({
@@ -1581,6 +1584,11 @@ window.TT_BEAMER_RUNTIME_REGRESSION_TESTS.init({
   setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
   updateOutsideFxProfile: (boardId, partial) => updateOutsideFxProfile(boardId, partial),
   syncOutsideRuntimeMirror: (boardId) => syncOutsideRuntimeMirror(boardId),
+  // Phase 58-w3.8p — the outside-isolation guard must recognise ANY
+  // outside type the board profile knows about (the unified catalog
+  // lets outside host heat / city-workers / hull-flicker, not just
+  // outside-space), mirroring findOutsideGlobalAnimation.
+  isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   syncOutsideFxPanel: () => syncOutsideFxPanel(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
   getPlayAreas: (boardId) => getPlayAreas(boardId),
@@ -1655,6 +1663,7 @@ const {
 
 window.TT_BEAMER_RUNTIME_ASSET_REFS.init({
   OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
+  ALL_CODED_EFFECT_TYPES,
   normalizeOutsideAnimationId: (id, fallback) => normalizeOutsideAnimationId(id, fallback),
   normalizeInsideAnimationId: (id, fallback) => normalizeInsideAnimationId(id, fallback),
   createDefaultInsideAnimationDefinitions: () => createDefaultInsideAnimationDefinitions(),
@@ -2186,6 +2195,10 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     recomputeDirtyFromBaseline: () => recomputeDirtyFromBaseline(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
+    // Phase 58-w3.8p — inside/outside resolvers for the Coded-effect
+    // card (tint / heat / city-workers) now surfaced in those scopes.
+    resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
+    resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
     getRoomCodedAssetKeys: () => getRoomCodedAssetKeys(),
     getInsideCodedAssetKeys: () => getInsideCodedAssetKeys(),
     getOutsideCodedAssetKeys: () => getOutsideCodedAssetKeys(),
@@ -2593,6 +2606,9 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   getBoard: (boardId) => getBoard(boardId),
   buildClusterMemberRuntimeViews: (clusterAnimation) => buildClusterMemberRuntimeViews(clusterAnimation),
   getRoomRenderMetrics: (room, boardId) => getRoomRenderMetrics(room, boardId),
+  // Phase 58-w3.8p — region metrics for inside/outside coded effects.
+  getInsideRegionMetrics: (boardId) => getInsideRegionMetrics(boardId),
+  getOutsideRegionMetrics: (boardId) => getOutsideRegionMetrics(boardId),
   // Phase 58-w3.8g — nearest-heat-source pulse sync needs the
   // normalized (canvas-size-independent) room centroid for
   // deterministic cross-client distance ordering.

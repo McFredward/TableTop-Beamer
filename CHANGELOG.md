@@ -10,6 +10,51 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.41] — 2026-06-08
+
+### Changed
+
+- **Einheitlicher CODED-Effekt-Katalog für room/inside/outside.** Bisher boten die
+  drei Bereiche unterschiedliche Coded-Effekte an: "inside" kannte nur
+  hull-flicker / intruder-alert / power-outage (abgeleitet aus den Default-Inside-
+  Definitionen), "outside" war fest auf outside-space verdrahtet, nur "room" hatte
+  den vollen Satz. Jetzt gibt es EINE Quelle der Wahrheit
+  (`ALL_CODED_EFFECT_TYPES`): hull-flicker, intruder-alert, power-outage,
+  special-scanning, special-slime, solid-color, heat, city-workers, outside-space —
+  in ALLEN drei Bereichen identisch wählbar. Der Editor zeigt für room, inside und
+  outside dieselbe Effekt-Liste; die per-Effekt-Optionen (Farbe / Hitzequelle /
+  Stadt-Bewohner-Darstellung) erscheinen nun auch für inside + outside.
+
+### Added
+
+- **Cross-Scope-Rendering der Coded-Effekte.** Jeder Coded-Effekt rendert jetzt im
+  jeweiligen Bereich gegen dessen Region: room gegen das Raum-Polygon (unverändert),
+  inside gegen die Schiff-Innenregion (Play-Area-Polygon), outside gegen die
+  Außenregion (Canvas ohne Schiff). heat strahlt vom Regionszentrum, city-workers
+  laufen innerhalb der Region, hull-flicker / intruder-alert / power-outage füllen
+  sie. Dieselbe Render-Funktion (`drawEffectVisual`) wird wiederverwendet — kein
+  Fork pro Bereich; inside/outside liefern lediglich Region-Metriken
+  (`getInsideRegionMetrics` / `getOutsideRegionMetrics`) und den vollständigen
+  Options-Kontrakt.
+
+### Fixed
+
+- **Outside-Isolations-Selbsttest erkennt jetzt alle Outside-Typen.** Der
+  Regression-Guard hielt nur "outside-space" für eine Outside-Animation; mit dem
+  vereinheitlichten Katalog (outside kann heat / city-workers / hull-flicker hosten)
+  meldete er beim Aktivieren eines Nicht-Space-Outside-Effekts eine
+  Schein-Verletzung. Er nutzt jetzt `isOutsideAnimationType` wie
+  `findOutsideGlobalAnimation`.
+
+### Notes
+
+- Bereichsspezifisches Verhalten bleibt erhalten: heat solid-color-Kopplung +
+  nearest-source-Pulssync greifen weiterhin pro Raum (room-Kontext). Im
+  inside/outside-Bereich rendert heat seine Basis-Optik; die "Hitzequelle hidden +
+  Sync"-Option und die solid-color-Kopplung sind dort folgenlos (kein Raum-Kontext)
+  — dokumentierter Degrade. outside-space ignoriert die Region (füllt den ganzen
+  Frame, durch den Outside-Clip auf den Bereich um das Schiff begrenzt).
+
 ## [1.2.40] — 2026-06-08
 
 ### Fixed

@@ -626,16 +626,23 @@
   // swatch; hull-flicker and power-outage expose breaksSolidColor.
   // Non-matching variants don't need this card.
   function buildColorCard(scope, def, boardId) {
-    if (scope !== "room") return null;
-    const resolveCodedType = ctx.resolveRoomCodedEffectType;
+    // Phase 58-w3.8p — the coded catalog is unified across scopes, so
+    // the Coded-effect card (tint / heat source / city-workers) now
+    // surfaces for inside + outside too, not only room. The
+    // breaksSolidColor toggle stays ROOM-ONLY: solid-color coupling
+    // resolves per room polygon (findActiveBreakingGate keys on
+    // room.id), so it is a no-op in the inside/outside scopes.
+    const resolveCodedType = scope === "inside" ? ctx.resolveInsideCodedEffectType
+      : scope === "outside" ? ctx.resolveOutsideCodedEffectType
+      : ctx.resolveRoomCodedEffectType;
     const coded = def.assetType === "coded"
       ? (typeof resolveCodedType === "function"
         ? resolveCodedType(def.assetRef) || def.assetRef
         : def.assetRef)
       : null;
     const isSolidColor = coded === "solid-color";
-    const isHullFlicker = coded === "hull-flicker";
-    const isPowerOutage = coded === "power-outage";
+    const isHullFlicker = coded === "hull-flicker" && scope === "room";
+    const isPowerOutage = coded === "power-outage" && scope === "room";
     // resolveRoomCodedEffectType maps the legacy "generator-heat"
     // alias to "heat" (Phase 58-w3.7x rename), so pre-rename
     // definitions get the same tint card.

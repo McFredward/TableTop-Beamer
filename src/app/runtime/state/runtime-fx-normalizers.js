@@ -97,6 +97,48 @@
     return Object.prototype.hasOwnProperty.call(defs, trimmed) ? trimmed : null;
   }
 
+  // Phase 58-w3.8p — SHARED coded-effect per-definition fields. The
+  // coded catalog is now unified across room/inside/outside (every
+  // effect is selectable in every scope), so the colour / heat-source /
+  // city-workers options that used to live only on room definitions
+  // must SURVIVE normalization for inside + outside too — otherwise
+  // this normalizer's explicit-allowlist rebuild (the "Phase 50 mask
+  // trap": each scope returns a brand-new object, so any field not
+  // re-listed is silently dropped on every getProfile / setProfile /
+  // live-sync pass) would strip the operator's colour / worker edits.
+  // Defaults reproduce each effect's standalone look, so non-coded
+  // (gif/mp4) and overlay (hull-flicker/intruder-alert/power-outage)
+  // definitions are unaffected — they ignore these fields at render.
+  function clampNumber(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+  function normalizeCodedEffectFields(definition, rawAssetRef = "") {
+    const ref = String(rawAssetRef || "").trim().toLowerCase();
+    return {
+      colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex)
+        ? definition.colorHex
+        : "#ff0000",
+      breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      heatShowSource: definition?.heatShowSource !== false,
+      heatSyncNearestSource: Boolean(definition?.heatSyncNearestSource),
+      workerStyle: definition?.workerStyle === "lit" || definition?.workerStyle === "dark"
+        ? definition.workerStyle
+        : (ref === "city-workers-lit" ? "lit" : "dark"),
+      workerCount: clampNumber(
+        definition?.workerCount,
+        1, 12,
+        clampNumber(4.5 * clampNumber(definition?.intensity, 0.2, 1.5, 0.8), 1, 12, 4),
+      ),
+      workerGroups: ["off", "rare", "normal", "frequent"].includes(definition?.workerGroups)
+        ? definition.workerGroups
+        : "normal",
+      workerLanternShare: clampNumber(definition?.workerLanternShare, 0, 100, 30),
+      workerTrails: definition?.workerTrails !== false,
+    };
+  }
+
   // ========= INSIDE =========
 
   function normalizeInsideAssetType(value) {
@@ -149,6 +191,10 @@
       heightScale: clamp(definition?.heightScale, 0.05, 10, 1),
       offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
       offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
+      // Phase 58-w3.8p — unified coded-effect catalog: inside can now
+      // host any coded effect, so preserve the colour / heat / city-
+      // workers options (no-ops for overlay + gif/mp4 inside defs).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
       // Phase 58: per-animation playback mode + on-retrigger sub-option.
       // See 58-CONTEXT.md for the state machine and decisions.
       playbackMode: normalizePlaybackMode(definition),
@@ -312,6 +358,11 @@
       mode: ctx.normalizeOutsideMode(definition?.mode),
       direction: ctx.normalizeOutsideDirection(definition?.direction),
       soundEnabled: Boolean(definition?.soundEnabled),
+      // Phase 58-w3.8p — unified coded-effect catalog: outside can now
+      // host any coded effect (heat, city-workers, …), so preserve the
+      // colour / heat / city-workers options (no-ops for outside-space
+      // and gif/mp4 outside defs).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded outside effects keep their forever-loop
       // semantics regardless of this field).
@@ -543,51 +594,20 @@
       intensity: clamp(definition?.intensity, 0.2, 1.5, 0.8),
       speed: clamp(definition?.speed, 0.1, 2.5, 1),
       soundVolume: clamp(definition?.soundVolume, 0, 1, 1),
-      colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex) ? definition.colorHex : "#ff0000",
-      // Opt-in. When true and this definition resolves to
-      // hull-flicker, a running instance in room R cuts any concurrent
-      // solid-color animation in R during the flicker's off-gate.
-      breaksSolidColor: Boolean(definition?.breaksSolidColor),
-      // Phase 58-w3.8g — heat coded effect options. heatShowSource
-      // (default ON) keeps the bright breathing central core; when OFF
-      // the room renders only the ambient red pulsing without a hot
-      // spot. heatSyncNearestSource (default OFF, only meaningful when
-      // the source is hidden) phase-locks the pulse to the nearest
-      // running heat instance WITH a visible source on the same board.
-      // Both are harmless no-ops for non-heat definitions.
-      heatShowSource: definition?.heatShowSource !== false,
-      heatSyncNearestSource: Boolean(definition?.heatSyncNearestSource),
-      // Phase 58-w3.8i — merged city-workers per-definition options
-      // (harmless no-ops for other definitions):
-      //   workerStyle        "dark" (Silhouette/Dashboard, historical
-      //                      look) | "lit" (Beleuchtet/Beamer). The
-      //                      default derives from the RAW assetRef so
-      //                      definitions saved under the w3.8e
-      //                      "city-workers-lit" key keep rendering lit
-      //                      after the alias rewrites their assetRef.
-      //   workerCount        base population 1..12, DECOUPLED from
-      //                      intensity. Missing field (every pre-merge
-      //                      definition) migrates to the historical
-      //                      intensity-derived 4.5 × intensity, so old
-      //                      definitions keep their exact look and the
-      //                      intensity slider stops double-driving it.
-      //   workerGroups       group-event frequency preset.
-      //   workerLanternShare percent of figures carrying a lantern
-      //                      (30 = historical band).
-      //   workerTrails       trampled-snow trails on/off.
-      workerStyle: definition?.workerStyle === "lit" || definition?.workerStyle === "dark"
-        ? definition.workerStyle
-        : (rawAssetRef.toLowerCase() === "city-workers-lit" ? "lit" : "dark"),
-      workerCount: clamp(
-        definition?.workerCount,
-        1, 12,
-        clamp(4.5 * clamp(definition?.intensity, 0.2, 1.5, 0.8), 1, 12, 4),
-      ),
-      workerGroups: ["off", "rare", "normal", "frequent"].includes(definition?.workerGroups)
-        ? definition.workerGroups
-        : "normal",
-      workerLanternShare: clamp(definition?.workerLanternShare, 0, 100, 30),
-      workerTrails: definition?.workerTrails !== false,
+      // Phase 58-w3.8p — coded-effect options moved to the shared
+      // normalizeCodedEffectFields helper so room / inside / outside
+      // stay byte-identical (the catalog is unified). It covers:
+      //   colorHex            solid-color / heat tint / lantern tint.
+      //   breaksSolidColor    hull-flicker / power-outage off-gate cut.
+      //   heatShowSource      bright breathing core ON (w3.8g).
+      //   heatSyncNearestSource pulse phase-lock to nearest source.
+      //   workerStyle         dark (Silhouette) | lit (Beleuchtet); the
+      //                       default derives from the RAW assetRef so
+      //                       legacy "city-workers-lit" defs stay lit.
+      //   workerCount         base population 1..12, decoupled from
+      //                       intensity (missing → 4.5 × intensity).
+      //   workerGroups / workerLanternShare / workerTrails (w3.8i).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded room effects keep their own lifecycle).
       playbackMode: normalizePlaybackMode(definition),

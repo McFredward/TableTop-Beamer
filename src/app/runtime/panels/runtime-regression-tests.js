@@ -388,15 +388,30 @@
     const {
       state, getOutsideFxProfile, setOutsideFxProfile, updateOutsideFxProfile,
       syncOutsideRuntimeMirror, syncOutsideFxPanel, refreshGlobalButtons,
-      logRender,
+      isOutsideAnimationType, logRender,
     } = ctx;
     const issues = [];
     const boardId = state.boardId;
     const previousProfile = getOutsideFxProfile(boardId);
 
+    // Phase 58-w3.8p — "is this the outside mirror?" must recognise any
+    // type the board's outside profile knows about, not just the built-
+    // in "outside-space" id. The unified coded catalog lets outside host
+    // heat / city-workers / hull-flicker, whose mirrored running entry
+    // takes the selected definition's id (syncOutsideRuntimeMirror) —
+    // the old hardcoded check counted those as "non-outside" and tripped
+    // a spurious isolation violation when the board's selected outside
+    // effect was anything other than outside-space. Mirrors
+    // findOutsideGlobalAnimation (runtime-fx-panels-inside-outside.js).
+    const isOutsideMirror = (animation) =>
+      animation.scope === "global"
+      && (animation.type === "outside-space"
+        || (typeof isOutsideAnimationType === "function"
+          && isOutsideAnimationType(animation.type, boardId)));
+
     const captureNonOutsideIds = () =>
       state.runningAnimations
-        .filter((animation) => !(animation.scope === "global" && animation.type === "outside-space"))
+        .filter((animation) => !isOutsideMirror(animation))
         .map((animation) => animation.id)
         .sort();
 

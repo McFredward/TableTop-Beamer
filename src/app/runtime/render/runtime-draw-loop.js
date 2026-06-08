@@ -680,6 +680,30 @@
     return false;
   }
 
+  // Phase 58-w3.8p — coded-effect options contract shared by the
+  // inside + outside scopes, mirroring the per-instance options the
+  // room path (drawRoomComposition) hands drawEffectVisual. Inside and
+  // outside read these from the DEFINITION (their renderers already
+  // pull intensity/speed from the definition, not the running
+  // instance), so the editor's Coded-effect card (colorHex, heat
+  // source, worker style/count/…) drives the live board for every
+  // scope. Defaults reproduce each effect's standalone look, so the
+  // full-screen overlay effects (hull-flicker / intruder-alert /
+  // power-outage) are unaffected — they ignore these fields.
+  function buildScopedCodedEffectOptions(definition, { densityFactor = 1 } = {}) {
+    return {
+      densityFactor,
+      opacity: Number.isFinite(Number(definition?.opacity)) ? Number(definition.opacity) : 1,
+      colorHex: definition?.colorHex,
+      heatShowSource: definition?.heatShowSource !== false,
+      workerStyle: definition?.workerStyle === "lit" ? "lit" : "dark",
+      workerCount: definition?.workerCount ?? null,
+      workerGroups: definition?.workerGroups,
+      workerLanternShare: definition?.workerLanternShare,
+      workerTrails: definition?.workerTrails !== false,
+    };
+  }
+
   function drawInsideGlobalVisual(animation, age) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
@@ -882,7 +906,21 @@
     }
 
     const codedEffectType = ctx.resolveInsideCodedEffectType(definition?.assetRef ?? animation.type);
-    ctx.drawEffectVisual(codedEffectType, timeline, intensity, null);
+    // Phase 58-w3.8p — pass the inside-ship region metrics + the full
+    // coded-options contract so region-anchored effects (heat,
+    // city-workers, special-slime, special-scanning, solid-color)
+    // render against the ship interior, not the canvas centre. The
+    // canvas is already clipped to the ship region by the caller
+    // (clipToInsideShip); full-screen overlays ignore the metrics.
+    const insideRegionMetrics = ctx.getInsideRegionMetrics(boardId);
+    ctx.drawEffectVisual(
+      codedEffectType,
+      timeline,
+      intensity,
+      null,
+      insideRegionMetrics,
+      buildScopedCodedEffectOptions(definition),
+    );
   }
 
   // Phase 58 Wave 3.7s (2026-06-06): not-started-yet paint gate. The
@@ -1248,7 +1286,17 @@
       }
       ctx.clearOutsideMp4PlaybackState(state.boardId);
       const codedEffectType = ctx.resolveOutsideCodedEffectType(selectedDefinition.assetRef);
-      ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, null, {
+      // Phase 58-w3.8p — outside can now render any coded effect, not
+      // just outside-space. Region-anchored effects (heat, city-workers,
+      // …) radiate from / span the full canvas (the outside region has
+      // no single closed polygon; the clipToOutsideShip clip restricts
+      // the paint to the area around the ship). outside-space ignores
+      // the metrics (it paints the whole frame). The outside
+      // mode/speed/direction options stay so the star-field keeps its
+      // parallax controls.
+      const outsideRegionMetrics = ctx.getOutsideRegionMetrics(state.boardId);
+      ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, outsideRegionMetrics, {
+        ...buildScopedCodedEffectOptions(selectedDefinition),
         outsideMode: effectiveMode,
         outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,
