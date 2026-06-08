@@ -1107,7 +1107,22 @@
       // the room animation regardless of trigger order. Mirrors the
       // Phase 12 room-room layering pattern.
       const roomConcurrent = (state.runtimePerf.roomAnimationCountByBoard?.get(animation.boardId ?? state.boardId ?? "") ?? 0) > 0;
-      if (roomConcurrent) {
+      // Phase 58 Wave 3.8r (2026-06-08): order-independent INSIDE↔INSIDE
+      // layering. Two concurrent inside animations (operator spec: heat
+      // coded + snow mp4/gif) used to draw with the default source-over
+      // composite, so whichever ran LATER painted opaquely over the
+      // earlier one — heat→snow hid snow, only snow→heat worked. Count
+      // inside animations on this board (insideAnimationCountByBoard) and,
+      // when ≥ 2 run concurrently, lift to additive composite exactly like
+      // the room-room ≥2 lift (drawAnimation room branch) and the
+      // room↔inside lift above. Under "lighter" each inside layer ADDS, so
+      // no layer can occlude another regardless of trigger order. The heat
+      // ambient base and city-workers always-paint vignette read this
+      // composite (they never force source-over), so their SSR no-strobe
+      // bases brighten by a negligible amount instead of clearing what is
+      // beneath — single-inside-animation looks (count < 2) are unchanged.
+      const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? state.boardId ?? "") ?? 0) >= 2;
+      if (roomConcurrent || insideConcurrent) {
         c.globalCompositeOperation = "lighter";
       }
       drawInsideGlobalVisual(animation, age);
