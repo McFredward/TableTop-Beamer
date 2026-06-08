@@ -128,14 +128,17 @@
         : (ref === "city-workers-lit" ? "lit" : "dark"),
       workerCount: clampNumber(
         definition?.workerCount,
-        1, 12,
-        clampNumber(4.5 * clampNumber(definition?.intensity, 0.2, 1.5, 0.8), 1, 12, 4),
+        1, 24,
+        clampNumber(4.5 * clampNumber(definition?.intensity, 0.2, 1.5, 0.8), 1, 24, 4),
       ),
       workerGroups: ["off", "rare", "normal", "frequent"].includes(definition?.workerGroups)
         ? definition.workerGroups
         : "normal",
       workerLanternShare: clampNumber(definition?.workerLanternShare, 0, 100, 30),
       workerTrails: definition?.workerTrails !== false,
+      // Phase 58-w3.8s: "Größe der Bewohner" figure-size multiplier
+      // (0.5–2.0, default 1.0 = historical size).
+      workerSize: clampNumber(definition?.workerSize, 0.5, 2, 1),
     };
   }
 
@@ -604,9 +607,10 @@
       //   workerStyle         dark (Silhouette) | lit (Beleuchtet); the
       //                       default derives from the RAW assetRef so
       //                       legacy "city-workers-lit" defs stay lit.
-      //   workerCount         base population 1..12, decoupled from
+      //   workerCount         base population 1..24, decoupled from
       //                       intensity (missing → 4.5 × intensity).
       //   workerGroups / workerLanternShare / workerTrails (w3.8i).
+      //   workerSize          figure-size multiplier 0.5..2.0 (w3.8s).
       ...normalizeCodedEffectFields(definition, rawAssetRef),
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded room effects keep their own lifecycle).

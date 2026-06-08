@@ -301,6 +301,7 @@
         workerGroups: current.workerGroups,
         workerLanternShare: current.workerLanternShare,
         workerTrails: current.workerTrails !== false,
+        workerSize: current.workerSize ?? 1,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {

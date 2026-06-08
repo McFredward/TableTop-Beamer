@@ -123,6 +123,7 @@
         workerGroups: selectedDefinition.workerGroups ?? "normal",
         workerLanternShare: selectedDefinition.workerLanternShare ?? 30,
         workerTrails: selectedDefinition.workerTrails !== false,
+        workerSize: selectedDefinition.workerSize ?? 1,
       };
 
       if (selectedAssetType === "gif") {
@@ -461,6 +462,7 @@
                     workerGroups: draftPayload.workerGroups,
                     workerLanternShare: draftPayload.workerLanternShare,
                     workerTrails: draftPayload.workerTrails,
+                    workerSize: draftPayload.workerSize,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -590,6 +592,7 @@
           workerGroups: draftPayload.workerGroups,
           workerLanternShare: draftPayload.workerLanternShare,
           workerTrails: draftPayload.workerTrails,
+          workerSize: draftPayload.workerSize,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -631,6 +634,7 @@
             workerGroups: draftPayload.workerGroups,
             workerLanternShare: draftPayload.workerLanternShare,
             workerTrails: draftPayload.workerTrails,
+            workerSize: draftPayload.workerSize,
             hold: true,
             durationSec: 0,
           });
@@ -763,6 +767,7 @@
                   workerGroups: draftPayload.workerGroups,
                   workerLanternShare: draftPayload.workerLanternShare,
                   workerTrails: draftPayload.workerTrails,
+                  workerSize: draftPayload.workerSize,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -898,6 +903,7 @@
         workerGroups: draftPayload.workerGroups,
         workerLanternShare: draftPayload.workerLanternShare,
         workerTrails: draftPayload.workerTrails,
+        workerSize: draftPayload.workerSize,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -941,6 +947,7 @@
           workerGroups: draftPayload.workerGroups,
           workerLanternShare: draftPayload.workerLanternShare,
           workerTrails: draftPayload.workerTrails,
+          workerSize: draftPayload.workerSize,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

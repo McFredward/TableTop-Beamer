@@ -492,6 +492,9 @@
         workerGroups: animation.workerGroups,
         workerLanternShare: animation.workerLanternShare,
         workerTrails: animation.workerTrails !== false,
+        // Phase 58-w3.8s: figure-size multiplier (default 1.0 for
+        // instances predating the field).
+        workerSize: animation.workerSize ?? 1,
       },
     );
   }
@@ -701,6 +704,7 @@
       workerGroups: definition?.workerGroups,
       workerLanternShare: definition?.workerLanternShare,
       workerTrails: definition?.workerTrails !== false,
+      workerSize: definition?.workerSize ?? 1,
     };
   }
 

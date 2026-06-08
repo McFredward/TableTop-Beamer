@@ -70,6 +70,9 @@
     workerGroups = "normal",
     workerLanternShare = 30,
     workerTrails = true,
+    // Phase 58-w3.8s: "Größe der Bewohner" multiplier (0.5–2.0,
+    // default 1.0). A missing field renders the historical figure size.
+    workerSize = 1,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -136,7 +139,7 @@
       // snapshots carry them via the full-object spread).
       workerStyle: workerStyle === "lit" ? "lit" : "dark",
       workerCount: Number.isFinite(Number(workerCount)) && Number(workerCount) > 0
-        ? Math.min(12, Number(workerCount))
+        ? Math.min(24, Number(workerCount))
         : null,
       workerGroups: ["off", "rare", "normal", "frequent"].includes(workerGroups)
         ? workerGroups
@@ -145,6 +148,11 @@
         ? Math.max(0, Math.min(100, Number(workerLanternShare)))
         : 30,
       workerTrails: workerTrails !== false,
+      // Phase 58-w3.8s: figure-size multiplier, clamped 0.5–2.0
+      // (default 1.0 = historical size).
+      workerSize: Number.isFinite(Number(workerSize)) && Number(workerSize) > 0
+        ? Math.max(0.5, Math.min(2, Number(workerSize)))
+        : 1,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

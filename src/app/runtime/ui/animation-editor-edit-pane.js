@@ -661,7 +661,12 @@
       const label = document.createElement("label");
       label.className = "anim-editor-field-label";
       const cap = document.createElement("span");
-      cap.textContent = isHeat ? "Heat tint" : isCityWorkers ? "Lantern tint" : "Color";
+      // Phase 58-w3.8s: city-workers gets an explicit German label
+      // ("Laternen-Farbe") so it's clear the colour tints the workers'
+      // carried lanterns (operator UAT: "nicht klar, was die Farbe
+      // ist"). The .anim-editor-field-label grid stacks this caption
+      // ABOVE the swatch. Heat keeps its own "Heat tint" label.
+      cap.textContent = isHeat ? "Heat tint" : isCityWorkers ? "Laternen-Farbe" : "Color";
       const picker = document.createElement("input");
       picker.type = "color";
       // heat defaults to its ember-orange core; city-workers to the
@@ -720,8 +725,16 @@
       card.append(buildSliderRow(scope, def, boardId, {
         key: "workerCount",
         label: "Anzahl Bewohner",
-        min: 1, max: 12, step: 1,
+        // Phase 58-w3.8s: max doubled 12 → 24 (min 1, default unchanged).
+        min: 1, max: 24, step: 1,
         format: (v) => `${Math.round(v)}`,
+      }));
+      card.append(buildSliderRow(scope, def, boardId, {
+        key: "workerSize",
+        label: "Größe der Bewohner",
+        // Phase 58-w3.8s: figure-size multiplier (default 1.0).
+        min: 0.5, max: 2, step: 0.1,
+        format: (v) => `${Math.round(v * 100)}%`,
       }));
       card.append(buildSelectRow(scope, def, boardId, {
         key: "workerGroups",

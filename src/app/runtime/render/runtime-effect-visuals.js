@@ -65,7 +65,13 @@
   // 2-4 figures sharing one route with per-member anchor scatter and
   // slightly lagged phases, so they trudge loosely together and
   // disperse around the work spots.
-  const WORKER_MAX = 12;
+  // Phase 58-w3.8s: raised 12 → 24 so the "Anzahl Bewohner" control's
+  // doubled max can actually render. Slots 12-23 are generated
+  // deterministically by index (rh() keys on index, not array length),
+  // so indices 0-11 stay byte-identical and default scenes are
+  // unchanged; idle slots above figureCount skip rendering (envelope
+  // loop `continue`).
+  const WORKER_MAX = 24;
   const WORKER_SCENE_CACHE = new Map();
   const WORKER_SCENE_CACHE_MAX = 96;
 
@@ -1226,7 +1232,17 @@
       ));
       // Figure length relative to the polygon with absolute clamps —
       // workers must stay SMALL against the building art on the tiles.
-      const baseFigLen = Math.max(2, Math.min(7, roomWidth * 0.025));
+      // Phase 58-w3.8s: the "Größe der Bewohner" multiplier (0.5–2.0,
+      // default 1.0) scales the whole figure AND its derived trail/load
+      // geometry (everything downstream reads baseFigLen). Applied AFTER
+      // the historical art-fit clamp so the 1.0 default stays
+      // byte-identical; values outside the 2–7px band are intentional
+      // (the operator may want figures larger/smaller than the default).
+      const workerSizeOpt = Number(options.workerSize);
+      const workerSizeMul = Number.isFinite(workerSizeOpt) && workerSizeOpt > 0
+        ? Math.max(0.5, Math.min(2, workerSizeOpt))
+        : 1;
+      const baseFigLen = Math.max(2, Math.min(7, roomWidth * 0.025)) * workerSizeMul;
       const halfW = roomWidth * 0.5;
       const halfH = roomHeight * 0.5;
       const prevComposite = c.globalCompositeOperation;
