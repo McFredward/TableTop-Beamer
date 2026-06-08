@@ -2539,7 +2539,8 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
   resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
   resolveRoomGifRenderConfig: (type, age, intensity, options) => resolveRoomGifRenderConfig(type, age, intensity, options),
-  getGifPlaybackFrame: (path, elapsed, playbackMode) => getGifPlaybackFrame(path, elapsed, playbackMode),
+  getGifPlaybackFrame: (path, elapsed, playbackMode, playbackDirection, playbackPhase) =>
+    getGifPlaybackFrame(path, elapsed, playbackMode, playbackDirection, playbackPhase),
   getGifPlaybackTotalDurationSec: (path) => getGifPlaybackTotalDurationSec(path),
   getRoomVideoElement: (path, opts) => getRoomVideoElement(path, opts),
   getOutsideVideoElement: (path, opts) => getOutsideVideoElement(path, opts),

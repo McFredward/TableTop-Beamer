@@ -667,7 +667,29 @@
       // the running instance (falls back to definition for preview).
       const insideGifMode = animation?.playbackMode || definition?.playbackMode || "loop";
       const insideGifDir = animation?.playbackDirection || definition?.playbackDirection || "forward";
-      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode, insideGifDir);
+      // Phase 58 Wave 3.8l: inside-gif play-then-freeze runs the SAME
+      // phase state machine as the room/outside gif paths (forward →
+      // frozen-last → reverse → frozen-first). maybeTransitionGifPlayback-
+      // Phase is scope-agnostic (operates on the animation object), and
+      // the dispatch-side re-trigger flip
+      // (advanceReversibleFreezePhaseIfPossible) only mutates that object
+      // — so the inside Freeze gif now honors its reverse-on-retrigger
+      // config. Before this the inside path passed only the static
+      // initial direction AND the ctx.getGifPlaybackFrame wrapper dropped
+      // even that, so reverse never took effect (operator spec 2026-06-08:
+      // "reverse on-retrigger soll auch hier funktionieren").
+      const insideGifIsPlayThenFreeze = insideGifMode === "play-then-freeze";
+      if (insideGifIsPlayThenFreeze) {
+        ctx.maybeTransitionGifPlaybackPhase?.(animation, {
+          totalDurationSec: ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0,
+          elapsedScaledSec: timeline,
+        });
+      }
+      // Phase 58 Wave 3.7p parity: phase overrides the static direction
+      // for play-then-freeze; empty string for the other modes so
+      // loop / boomerang gifs keep the pure direction-driven timeline.
+      const insideGifPhase = insideGifIsPlayThenFreeze ? (animation?.playbackPhase || "forward") : "";
+      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline, insideGifMode, insideGifDir, insideGifPhase);
       // Phase 58 Wave 2.5: cleanup for inside-gif play-once-disappear.
       if (insideGifMode === "play-once-disappear" && animation) {
         const totalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;

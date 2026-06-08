@@ -805,6 +805,27 @@ function applyGlobalMutationPatch(payload) {
     const incomingSoundAssetRef = typeof incomingAnimation?.soundAssetRef === "string"
       ? incomingAnimation.soundAssetRef
       : null;
+    // Phase 58 Wave 3.8l (2026-06-08): preserve the per-animation playback
+    // schema (playbackMode / onRetrigger / playbackPhase) onto the
+    // server-authoritative global record. Without this, the trigger-global
+    // → snapshot roundtrip stripped these fields (the authoritative object
+    // is reconstructed field-by-field, unlike trigger-room which carries
+    // the full incoming snapshot). The stripped instance then failed the
+    // re-trigger flip check in advanceReversibleFreezePhaseIfPossible
+    // (`existing.playbackMode !== "play-then-freeze"` → fell through to the
+    // stop path), so an inside Freeze gif DISAPPEARED on re-trigger instead
+    // of reversing — even though the RENDER path masked the gap by falling
+    // back to the definition's mode. Carrying the fields makes inside/
+    // outside global animations behave exactly like rooms.
+    const incomingPlaybackMode = typeof incomingAnimation?.playbackMode === "string"
+      ? incomingAnimation.playbackMode
+      : null;
+    const incomingOnRetrigger = typeof incomingAnimation?.onRetrigger === "string"
+      ? incomingAnimation.onRetrigger
+      : null;
+    const incomingPlaybackPhase = typeof incomingAnimation?.playbackPhase === "string"
+      ? incomingAnimation.playbackPhase
+      : null;
     const authoritativeAnimation = {
       id: "",
       scope: "global",
@@ -824,6 +845,10 @@ function applyGlobalMutationPatch(payload) {
       soundVolume: soundEnabled ? 1 : 0,
       // Phase 49 gap-closure-10: preserve sound mapping in the snapshot.
       soundAssetRef: incomingSoundAssetRef ?? "none",
+      // Phase 58 Wave 3.8l: per-animation playback schema (see above).
+      playbackMode: incomingPlaybackMode ?? "loop",
+      onRetrigger: incomingOnRetrigger ?? "instant-disappear",
+      playbackPhase: incomingPlaybackPhase ?? "forward",
       startedAtEpochMs: serverNowEpochMs,
     };
     if (triggerKey) {

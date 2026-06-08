@@ -52,6 +52,26 @@ seiner eigenen Phase aus.
 
 ---
 
+## [1.2.37] — 2026-06-08
+
+**Inside-Animationen übernehmen das Playback-Modus-System (Phase 58-w3.8l).**
+Operator: "Gleiche die Inside-Animationen an die neue Logik an: entferne den 'Loop until stopped' switch und gehe damit so um wie es in der Animation selber eingestellt ist, so soll auch hier z.B. 'reverse on-retrigger' funktionieren — nur dass Trigger hier ausschließlich der entsprechende Button ist." Inside-Animationen nutzen jetzt dasselbe per-Definition-Schema (`playbackMode` / `onRetrigger` / `playbackDirection`) wie Raum-Animationen — der alte `loopUntilStopped`-Switch ist im Editor weg (das ganze Legacy-Inside-Sidebar-Panel war bereits entfernt; der ganzseitige Animations-Editor zeigt die Playback-Dropdowns für gif/mp4 in allen drei Scopes). Re-Trigger geschieht ausschließlich über den jeweiligen Inside-Button.
+
+### Fixed
+- **Inside reverse-on-retrigger funktioniert jetzt (war komplett kaputt).** Drei Lücken gegenüber dem Raum-Pfad geschlossen:
+  - **Server stripte das Playback-Schema bei `trigger-global`.** Das server-autoritative Global-Animations-Objekt wurde Feld für Feld neu aufgebaut (anders als `trigger-room`, das den vollen Snapshot trägt) und ließ `playbackMode` / `onRetrigger` / `playbackPhase` weg. Die laufende Inside-Instanz kam ohne diese Felder zurück, weshalb die Re-Trigger-Phasen-Prüfung (`existing.playbackMode !== "play-then-freeze"`) durchfiel und die Animation bei erneutem Druck VERSCHWAND statt rückwärts zu laufen. Die Felder werden jetzt aus dem eingehenden Snapshot übernommen (`server.mjs`).
+  - **Der `ctx.getGifPlaybackFrame`-Wrapper verwarf 2 Argumente.** Er reichte nur `(path, elapsed, playbackMode)` durch und ließ `playbackDirection` + `playbackPhase` fallen — der Inside- (und Outside-)Gif-Pfad ruft diesen Wrapper direkt auf, sodass Reverse/Phase nie wirkte. Der Raum-Gif-Pfad war zufällig immun, weil er über `resolveRoomGifRenderConfig` (lokale Funktion, volle 5 Argumente) läuft. Wrapper reicht jetzt alle 5 Argumente durch (`runtime-orchestration.js`).
+  - **Der Inside-Gif-Render-Pfad fuhr die Phasen-Statemaschine nicht.** Er rief `maybeTransitionGifPlaybackPhase` nicht auf und übergab nur die statische Initial-Richtung statt der `playbackPhase`. Jetzt identisch zum Raum-Gif-Pfad: `forward → frozen-last → reverse → frozen-first` (`runtime-draw-loop.js`).
+- **Mid-Playback-Flip für Inside (Raum-Parität, w3.7m).** `advanceReversibleFreezePhaseIfPossible` akzeptiert jetzt JEDE Phase statt nur `frozen-*`: ein Tap MITTEN im Abspielen dreht die Richtung vom aktuellen Frame, statt die Instanz zu stoppen (`runtime-runtime-controls.js`).
+
+### Notes
+- **Migration / Back-Compat:** `loopUntilStopped:true` → `playbackMode "loop"`, `loopUntilStopped:false` → `play-once-disappear` (in `normalizePlaybackMode`); Legacy-`loopUntilStopped` wird weiterhin als Fallback gelesen, sodass alte Boards/Configs nicht brechen.
+- **Coded Inside-Effekte** (hull-flicker etc.) unberührt: die Playback-Dropdowns erscheinen nur für gif/mp4 (`isMedia`-Gate im Editor), coded behält seine eigene Lifecycle-Semantik.
+- **Snapshots/Live-Sync:** Inside-Phasen reiten über dieselbe scope-agnostische `RENDER_PLAYBACK_FIELDS`-Preservation + Re-Stamp-Acceptance wie Räume (deckt Global-Scope bereits ab).
+- Verifiziert auf isoliertem Server (PORT 4575, Frostpunk-Board): Inside-"Freeze"-Gif (play-then-freeze + reverse-then-freeze-first) — Button → vorwärts → `frozen-last` (ct=10.01, dur=10s), Button → `reverse` → `frozen-first`, Button → wieder vorwärts; Instanz verschwindet nie (Live-State + `[58] phase`-Logs). Mid-Playback-Flip beidseitig bestätigt. Projektor-Pfad: SSR-Render-Tab zeichnet das Inside-Gif (Pixel-Diff Baseline↔aktiv, bbox 559,207–1304,865). Dashboard-Screenshot-Serie: forward-Frames byte-identisch, frozen-last/reverse/frozen-first unterschiedlich.
+
+---
+
 ## [1.2.36] — 2026-06-07
 
 **Kein Stream-Hänger mehr beim allerersten GIF-Trigger nach Server-Neustart (Phase 58-w3.8k).**

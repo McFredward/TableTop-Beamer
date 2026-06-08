@@ -223,18 +223,22 @@
     if (onRet !== "reverse-then-freeze-first" && onRet !== "reverse-then-disappear") {
       return false;
     }
+    // Phase 58 Wave 3.8l (2026-06-08): accept ANY phase, mirroring the
+    // room single-room re-trigger block (Wave 3.7m). Operator spec:
+    // inside reverse-on-retrigger must behave exactly like rooms — a tap
+    // MID-playback (before the freeze) flips the direction from the
+    // current frame instead of stopping the instance. The old gate
+    // required a frozen-* phase, so a mid-playback re-trigger of an
+    // inside play-then-freeze + reverse animation fell through to the
+    // upsert stop path and the animation DISAPPEARED. v1.2.18 flip
+    // mapping (same as rooms): forward / unset / frozen-last → reverse;
+    // reverse / frozen-first → forward. The gif timeline mirror (inside
+    // gif path) / mp4 src-swap reset to the boundary of the OTHER
+    // direction, which is exactly the requested entry point.
     const phase = existing.playbackPhase || "forward";
-    if (phase !== "frozen-last" && phase !== "frozen-first") {
-      return false;
-    }
-    if (phase === "frozen-last") {
-      existing.playbackPhase = "reverse";
-    } else {
-      // frozen-first → only the freeze-first variant supports the
-      // manual ping-pong (Toggle); reverse-then-disappear never lands
-      // in frozen-first (it disappears at end of reverse).
-      existing.playbackPhase = "forward";
-    }
+    existing.playbackPhase = (phase === "forward" || phase === "frozen-last")
+      ? "reverse"
+      : "forward";
     // Phase 58 Wave 3.4: clear the ended-dispatched guard so the
     // render layer detects the next EOS and transitions the phase
     // again (frozen-last/first or disappear depending on mode).
