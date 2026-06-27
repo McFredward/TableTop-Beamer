@@ -766,11 +766,62 @@
         min: 0, max: 100, step: 5,
         format: (v) => `${Math.round(v)}%`,
       }));
+      card.append(buildSliderRow(scope, def, boardId, {
+        key: "workerClothingBrightness",
+        label: "Helligkeit der Kleidung",
+        // Phase 58-w3.8w: scales the coat luminance in both styles
+        // (most visible in "Beleuchtet"); 100% = historical look.
+        min: 0.3, max: 2, step: 0.05,
+        format: (v) => `${Math.round(v * 100)}%`,
+      }));
+      // Phase 58-w3.8w — snow-trail block: on/off toggle plus a
+      // prominence slider that scales the peak alpha before the trails
+      // fade. The slider only matters while trails are ON, so it is
+      // greyed (same .is-disabled pattern as the heat sync row) without
+      // losing its stored value.
+      const trailIntensityRow = buildSliderRow(scope, def, boardId, {
+        key: "workerTrailIntensity",
+        label: "Spuren-Intensität",
+        min: 0, max: 100, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      });
+      const applyTrailGate = (trailsOn) => {
+        trailIntensityRow.classList.toggle("is-disabled", !trailsOn);
+        const input = trailIntensityRow.querySelector("input[type=range]");
+        if (input) input.disabled = !trailsOn;
+      };
       card.append(buildToggleRow(scope, def, boardId, {
         key: "workerTrails",
         label: "Spuren im Schnee",
         sub: "Bewohner hinterlassen langsam verblassende Pfade im Schnee.",
+      }, {
+        onChange: (next) => applyTrailGate(next),
       }));
+      card.append(trailIntensityRow);
+      applyTrailGate(def.workerTrails !== false);
+      // Phase 58-w3.8w — center-exclusion block: toggle + radius. The
+      // radius only applies while the toggle is on, so it is greyed
+      // while OFF without losing its stored value.
+      const exclusionRadiusRow = buildSliderRow(scope, def, boardId, {
+        key: "workerCenterExclusionRadius",
+        label: "Aussparungs-Radius",
+        min: 0, max: 60, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      });
+      const applyExclusionGate = (on) => {
+        exclusionRadiusRow.classList.toggle("is-disabled", !on);
+        const input = exclusionRadiusRow.querySelector("input[type=range]");
+        if (input) input.disabled = !on;
+      };
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "workerCenterExclusion",
+        label: "Mitte aussparen",
+        sub: "Bewohner und Spuren meiden einen kreisförmigen Bereich um die Mitte (z. B. den Generator).",
+      }, {
+        onChange: (next) => applyExclusionGate(next),
+      }));
+      card.append(exclusionRadiusRow);
+      applyExclusionGate(def.workerCenterExclusion === true);
     }
 
     if (isHullFlicker) {

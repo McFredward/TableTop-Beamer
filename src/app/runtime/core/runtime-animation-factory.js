@@ -73,6 +73,15 @@
     // Phase 58-w3.8s: "Größe der Bewohner" multiplier (0.5–2.0,
     // default 1.0). A missing field renders the historical figure size.
     workerSize = 1,
+    // Phase 58-w3.8w: clothing brightness multiplier (0.3–2.0, default
+    // 1.0 = current look), snow-trail intensity (0–100, default 100 =
+    // current peak), and center-exclusion toggle + radius (0–60% of the
+    // region radius, default 25, only active when the toggle is on).
+    // Defaults reproduce the historical render byte-for-byte.
+    workerClothingBrightness = 1,
+    workerTrailIntensity = 100,
+    workerCenterExclusion = false,
+    workerCenterExclusionRadius = 25,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -153,6 +162,19 @@
       workerSize: Number.isFinite(Number(workerSize)) && Number(workerSize) > 0
         ? Math.max(0.5, Math.min(2, Number(workerSize)))
         : 1,
+      // Phase 58-w3.8w: clothing brightness / trail intensity / center
+      // exclusion (same factory-default-mask contract as the fields
+      // above — every dispatch call site forwards them explicitly).
+      workerClothingBrightness: Number.isFinite(Number(workerClothingBrightness)) && Number(workerClothingBrightness) > 0
+        ? Math.max(0.3, Math.min(2, Number(workerClothingBrightness)))
+        : 1,
+      workerTrailIntensity: Number.isFinite(Number(workerTrailIntensity))
+        ? Math.max(0, Math.min(100, Number(workerTrailIntensity)))
+        : 100,
+      workerCenterExclusion: workerCenterExclusion === true,
+      workerCenterExclusionRadius: Number.isFinite(Number(workerCenterExclusionRadius))
+        ? Math.max(0, Math.min(60, Number(workerCenterExclusionRadius)))
+        : 25,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

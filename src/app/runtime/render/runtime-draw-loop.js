@@ -495,6 +495,10 @@
         // Phase 58-w3.8s: figure-size multiplier (default 1.0 for
         // instances predating the field).
         workerSize: animation.workerSize ?? 1,
+        workerClothingBrightness: animation.workerClothingBrightness ?? 1,
+        workerTrailIntensity: animation.workerTrailIntensity ?? 100,
+        workerCenterExclusion: animation.workerCenterExclusion === true,
+        workerCenterExclusionRadius: animation.workerCenterExclusionRadius ?? 25,
       },
     );
   }
@@ -705,6 +709,10 @@
       workerLanternShare: definition?.workerLanternShare,
       workerTrails: definition?.workerTrails !== false,
       workerSize: definition?.workerSize ?? 1,
+      workerClothingBrightness: definition?.workerClothingBrightness ?? 1,
+      workerTrailIntensity: definition?.workerTrailIntensity ?? 100,
+      workerCenterExclusion: definition?.workerCenterExclusion === true,
+      workerCenterExclusionRadius: definition?.workerCenterExclusionRadius ?? 25,
     };
   }
 

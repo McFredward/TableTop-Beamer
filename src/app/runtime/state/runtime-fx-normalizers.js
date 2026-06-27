@@ -139,6 +139,15 @@
       // Phase 58-w3.8s: "Größe der Bewohner" figure-size multiplier
       // (0.5–2.0, default 1.0 = historical size).
       workerSize: clampNumber(definition?.workerSize, 0.5, 2, 1),
+      // Phase 58-w3.8w: clothing-brightness multiplier (0.3–2.0, default
+      // 1.0 = current coat luminance), snow-trail intensity (0–100,
+      // default 100 = current peak alpha), and center-exclusion toggle +
+      // radius (0–60% of region radius, default 25). All default to the
+      // historical look.
+      workerClothingBrightness: clampNumber(definition?.workerClothingBrightness, 0.3, 2, 1),
+      workerTrailIntensity: clampNumber(definition?.workerTrailIntensity, 0, 100, 100),
+      workerCenterExclusion: definition?.workerCenterExclusion === true,
+      workerCenterExclusionRadius: clampNumber(definition?.workerCenterExclusionRadius, 0, 60, 25),
     };
   }
 

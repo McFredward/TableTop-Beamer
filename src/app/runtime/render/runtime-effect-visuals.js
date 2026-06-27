@@ -117,6 +117,19 @@
       .map((ch) => Math.min(255, Math.round(Number(ch.trim()) * WORKER_DARK_LIFT)))
       .join(", ");
   }
+  // Phase 58-w3.8w "Helligkeit der Kleidung": scale an "r, g, b" string
+  // by a luminance multiplier, clamped to [0,255]. mul === 1 returns the
+  // SAME string (the seed strings are already integers, so a ×1 round-
+  // trip is byte-identical) — the default clothing-brightness keeps every
+  // coat render unchanged. The 7-tint variance is preserved: each channel
+  // scales proportionally, so the palette only shifts in overall lightness.
+  function scaleRGBString(rgbStr, mul) {
+    if (mul === 1) return rgbStr;
+    return rgbStr
+      .split(",")
+      .map((ch) => String(Math.max(0, Math.min(255, Math.round(Number(ch.trim()) * mul)))))
+      .join(", ");
+  }
   // Historical (pre-w3.8j) seed palette — kept verbatim so the lift is
   // a single documented factor on top of the operator-approved tints.
   const WORKER_COAT_PALETTE_DARK_BASE = [
@@ -157,14 +170,21 @@
   //   hood        — hood blob a touch lighter than the coat,
   //   hoodOpening — hood-opening crescent, darker than the hood but
   //                 well above black so the head still reads,
-  //   cap         — bare-head dot, clearly lighter than the coat.
+  //   cap         — bare-head dot. Phase 58-w3.8w rebalance: on the
+  //                 beamer the old near-white cap (≈0.42 toward 212) made
+  //                 every figure read as "a roaming white dot" and out-
+  //                 shone the lantern. The cap now sits only SLIGHTLY
+  //                 above the coat (×1.08, capped) — in coat-range, never
+  //                 a hotspot — so the brightest element on a carrier is
+  //                 the warm lantern, and a non-carrier reads as a dim
+  //                 figure rather than a white dot.
   const WORKER_LIT_COATS = WORKER_COAT_PALETTE_LIT.map(([r, g, b]) => ({
     coat: `${r}, ${g}, ${b}`,
     under: `${Math.round(r * 0.42)}, ${Math.round(g * 0.42)}, ${Math.round(b * 0.42)}`,
     highlight: `${Math.round(r + (200 - r) * 0.40)}, ${Math.round(g + (214 - g) * 0.40)}, ${Math.round(b + (236 - b) * 0.40)}`,
     hood: `${Math.min(255, Math.round(r * 1.16 + 6))}, ${Math.min(255, Math.round(g * 1.16 + 6))}, ${Math.min(255, Math.round(b * 1.16 + 6))}`,
     hoodOpening: `${Math.round(r * 0.48)}, ${Math.round(g * 0.48)}, ${Math.round(b * 0.48)}`,
-    cap: `${Math.round(r + (212 - r) * 0.42)}, ${Math.round(g + (220 - g) * 0.42)}, ${Math.round(b + (236 - b) * 0.42)}`,
+    cap: `${Math.min(255, Math.round(r * 1.08))}, ${Math.min(255, Math.round(g * 1.08))}, ${Math.min(255, Math.round(b * 1.08))}`,
   }));
   // Loads are size-gated AT DRAW TIME: below these silhouette lengths
   // a sled / bundle is sub-3-px mush that muddies the figure, so the
@@ -196,11 +216,18 @@
   // (scaled by the half-extents at draw time). Radius biased to
   // centroid-plus-ring: workers cluster around the generator /
   // building footprint, not the polygon rim.
-  function buildWorkerAnchors(rh, base, count) {
+  // Phase 58-w3.8w "Mitte aussparen": when an exclusion radius is set
+  // (>0, unit-disc fraction of the half-extent), every anchor radius is
+  // clamped to sit OUTSIDE the zone (+ a small margin) so figures never
+  // anchor on the central generator. Paths route around the zone via a
+  // radial push in workerWalkPoint. excludeR=0 (default/off) leaves the
+  // historical 0.16..0.76 band untouched — byte-identical.
+  function buildWorkerAnchors(rh, base, count, excludeR = 0) {
+    const minRad = excludeR > 0 ? excludeR + 0.05 : 0;
     return Array.from({ length: count }, (_, k) => {
       const seed = base + k * 7;
       const ang = rh(seed + 2003) * Math.PI * 2;
-      const rad = 0.16 + rh(seed + 3001) * 0.6; // 0.16..0.76
+      const rad = Math.max(minRad, 0.16 + rh(seed + 3001) * 0.6); // 0.16..0.76
       return [Math.cos(ang) * rad, Math.sin(ang) * rad];
     });
   }
@@ -290,7 +317,15 @@
     const lanternShare = Number.isFinite(lanternShareRaw)
       ? Math.max(0, Math.min(100, lanternShareRaw))
       : 30;
-    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}`;
+    // Phase 58-w3.8w center exclusion — affects SEEDING (anchor radii),
+    // so it joins the cache key. excludeR is a unit-disc fraction
+    // (0..0.60); 0 = off = historical anchors. The cache stays bounded
+    // and deterministic; default "::0" reproduces the historical scene
+    // byte-for-byte.
+    const excludeR = sceneOpts?.centerExclusion === true
+      ? Math.max(0, Math.min(0.6, Number(sceneOpts?.centerExclusionRadius) / 100 || 0))
+      : 0;
+    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}`;
     const cached = WORKER_SCENE_CACHE.get(cacheKey);
     if (cached) return cached;
     const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
@@ -317,7 +352,7 @@
     let groupAnchors = null;
     let groupCycle = null;
     if (hasGroup) {
-      groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2)); // 2..3 stops
+      groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2), excludeR); // 2..3 stops
       // Shared timing derived from the LEADER route length (w3.8b) so
       // the whole group trudges at the same slow pace and stays loosely
       // together; see the trudge-speed parametrization below.
@@ -372,7 +407,17 @@
         anchors = groupAnchors.map((a, k) => {
           const sa = rh(i * 311 + k * 41 + 16001) * Math.PI * 2;
           const sr = 0.035 + rh(i * 311 + k * 41 + 16007) * 0.075;
-          return [a[0] + Math.cos(sa) * sr, a[1] + Math.sin(sa) * sr];
+          let ax = a[0] + Math.cos(sa) * sr;
+          let ay = a[1] + Math.sin(sa) * sr;
+          // Scatter must not push a member anchor back into the zone.
+          if (excludeR > 0) {
+            const d = Math.hypot(ax, ay);
+            if (d > 1e-4 && d < excludeR + 0.05) {
+              const s = (excludeR + 0.05) / d;
+              ax *= s; ay *= s;
+            }
+          }
+          return [ax, ay];
         });
         cycleDur = groupCycle.cycleDur;
         // Tiny per-member phase lag — they arrive within a couple of
@@ -394,7 +439,7 @@
         );
         legShares = memberRoute.shares;
       } else {
-        anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3));
+        anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3), excludeR);
         // w3.8b: cycle derived from durations — slow wading pace,
         // long heavy work stops, long off-stage stretches. Typical
         // cycle lands at ~110-220 s @ speed 1 (was 38-72 s).
@@ -421,6 +466,9 @@
         hiddenFrac,
         walkShare,
         legShares,
+        // Phase 58-w3.8w: walk legs route around this central exclusion
+        // radius (unit-disc; 0 = off). Read by workerWalkPoint.
+        excludeR,
         inGroup,
         // Heavy-step cadence (w3.8b): ~1.2-1.6 steps/s at speed 1
         // (rad/s here; Hz = stepFreq / 2π). Was 0.8-1.2 — combined
@@ -522,7 +570,24 @@
     const lat = (Math.sin(p * Math.PI * 2 * fig.meanderFreq + fig.meanderPhase) * 0.7
       + Math.sin(p * Math.PI * 2 * fig.meanderFreq * 2.33 + fig.meanderPhase * 1.7 + 1.1) * 0.3)
       * Math.sin(p * Math.PI) * fig.meanderScale * len;
-    return [a[0] + dx * e + nx * lat, a[1] + dy * e + ny * lat];
+    let px = a[0] + dx * e + nx * lat;
+    let py = a[1] + dy * e + ny * lat;
+    // Phase 58-w3.8w "Mitte aussparen": a straight leg between two anchors
+    // that already sit outside the zone can still cut a chord THROUGH it.
+    // Push any in-zone sample radially out to the boundary so the path
+    // hugs (routes around) the exclusion circle instead of crossing the
+    // generator — pure + deterministic, so the trail samples (which call
+    // this same function) respect the zone too.
+    const eR = fig.excludeR ?? 0;
+    if (eR > 0) {
+      const d = Math.hypot(px, py);
+      if (d > 1e-4 && d < eR) {
+        const s = eR / d;
+        px *= s;
+        py *= s;
+      }
+    }
+    return [px, py];
   }
 
   // ---- trampled-snow trails (Phase 58-w3.8a) -----------------------
@@ -1093,6 +1158,7 @@
       // Layer 1 — radial glow, breathing at ~0.24 Hz (speed-scaled via
       // age). Two incommensurate sines so the pulse breathes instead
       // of ticking like a metronome.
+      //
       const pulse = Math.sin(safeAge * Math.PI * 2 * 0.24) * 0.72
         + Math.sin(safeAge * Math.PI * 2 * 0.113 + 1.7) * 0.28; // -1..1
       const baseRadius = Math.max(12, Math.hypot(roomWidth, roomHeight) * 0.52);
@@ -1203,6 +1269,10 @@
       const scene = getWorkerScene(workerRoomKey, {
         groups: options.workerGroups,
         lanternShare: options.workerLanternShare,
+        // Phase 58-w3.8w "Mitte aussparen": part of the seed (anchor
+        // radii), so it joins the scene cache key inside getWorkerScene.
+        centerExclusion: options.workerCenterExclusion === true,
+        centerExclusionRadius: options.workerCenterExclusionRadius,
       });
       // Inhabitant count — sparse by design. w3.8i semantics
       // ("Anzahl Bewohner" option, DECOUPLED from intensity):
@@ -1243,6 +1313,16 @@
         ? Math.max(0.5, Math.min(2, workerSizeOpt))
         : 1;
       const baseFigLen = Math.max(2, Math.min(7, roomWidth * 0.025)) * workerSizeMul;
+      // Phase 58-w3.8w "Helligkeit der Kleidung": coat-luminance
+      // multiplier (0.3–2.0, default 1.0 = unchanged). Scales the coat
+      // fills in BOTH styles (most visible in "Beleuchtet"); the head dot
+      // and lantern are NOT scaled (the head/lantern balance is owned by
+      // the w3.8w rebalance + the lantern glow), so the figure keeps its
+      // "person carrying a light" reading at any clothing brightness.
+      const clothingMulOpt = Number(options.workerClothingBrightness);
+      const clothingMul = Number.isFinite(clothingMulOpt) && clothingMulOpt > 0
+        ? Math.max(0.3, Math.min(2, clothingMulOpt))
+        : 1;
       const halfW = roomWidth * 0.5;
       const halfH = roomHeight * 0.5;
       const prevComposite = c.globalCompositeOperation;
@@ -1258,7 +1338,16 @@
       // checkbox (workerTrails, default ON — undefined rides the
       // historical look) skips the whole trail pass when OFF.
       if (overall > 0.02 && options.workerTrails !== false) {
-        const trailProminence = Math.sqrt(overall);
+        // Phase 58-w3.8w "Spuren-Intensität" (0..100, default 100 =
+        // historical peak): scales the trail's pre-fade alpha. 100 ⇒
+        // ×1.0 (byte-identical); composes multiplicatively with the
+        // existing opacity-driven sqrt prominence. "Spuren im Schnee"
+        // OFF still skips the whole pass (guard above).
+        const trailIntensityOpt = Number(options.workerTrailIntensity);
+        const trailIntensityMul = Number.isFinite(trailIntensityOpt)
+          ? Math.max(0, Math.min(100, trailIntensityOpt)) / 100
+          : 1;
+        const trailProminence = Math.sqrt(overall) * trailIntensityMul;
         const prevCap = c.lineCap;
         const prevJoin = c.lineJoin;
         // Butt caps on purpose: round caps double-stamp at every band
@@ -1433,9 +1522,27 @@
         // seeded string verbatim (pixel-identity contract); the lit
         // style maps the SAME seeded index into its lifted palette
         // with precomputed internal-contrast shades.
-        const coatStr = fig.coatRGB ?? WORKER_DARK_INK.coatFallback;
-        const litCoat = style.lit
+        const coatBaseStr = fig.coatRGB ?? WORKER_DARK_INK.coatFallback;
+        // Phase 58-w3.8w: clothing-brightness scales the coat-derived
+        // fills (coat / hood / highlight / underside) — NOT the head dot
+        // or lantern. mul===1 returns the seed strings verbatim, so the
+        // default render is byte-identical.
+        const coatStr = scaleRGBString(coatBaseStr, clothingMul);
+        const litCoatBase = style.lit
           ? (style.coats[fig.coatIdx ?? 0] ?? style.coats[0])
+          : null;
+        const litCoat = style.lit
+          ? {
+            coat: scaleRGBString(litCoatBase.coat, clothingMul),
+            under: scaleRGBString(litCoatBase.under, clothingMul),
+            highlight: scaleRGBString(litCoatBase.highlight, clothingMul),
+            hood: scaleRGBString(litCoatBase.hood, clothingMul),
+            // Head-area inks are NOT clothing — keep them at the seed
+            // value so the w3.8w head rebalance is independent of the
+            // clothing slider.
+            hoodOpening: litCoatBase.hoodOpening,
+            cap: litCoatBase.cap,
+          }
           : null;
         c.save();
         c.translate(x, y);
@@ -1504,8 +1611,11 @@
         // on black; the hood opening stays darker but above black.)
         const headFwd = figLen * ((fig.hood ? 0.17 : 0.23) - (fig.stoop ?? 0) * 0.10) * bL;
         if (fig.hood) {
+          // Phase 58-w3.8w: lit hood head no longer painted ABOVE coat
+          // alpha (was ×1.06) — the head must not be the brightest part.
+          // Dark style keeps ×1.06 (byte-identical contract).
           c.fillStyle = style.lit
-            ? `rgba(${litCoat.hood}, ${Math.min(1, bodyAlpha * 1.06).toFixed(3)})`
+            ? `rgba(${litCoat.hood}, ${Math.min(1, bodyAlpha * 1.0).toFixed(3)})`
             : `rgba(${coatStr}, ${Math.min(1, bodyAlpha * 1.06).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd, 0, figLen * 0.29, 0, Math.PI * 2);
@@ -1518,8 +1628,12 @@
           c.arc(headFwd + figLen * 0.10, 0, figLen * 0.13, 0, Math.PI * 2);
           c.fill();
         } else {
+          // Phase 58-w3.8w: lit bare-head dot dimmed (×0.95, was ×1.1)
+          // AND its colour brought to coat-range (see WORKER_LIT_COATS.cap)
+          // so it no longer reads as a near-white hotspot. Dark style
+          // keeps ×1.1 (byte-identical contract).
           c.fillStyle = style.lit
-            ? `rgba(${litCoat.cap}, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`
+            ? `rgba(${litCoat.cap}, ${Math.min(1, bodyAlpha * 0.95).toFixed(3)})`
             : `rgba(${WORKER_DARK_INK.cap}, ${Math.min(1, bodyAlpha * 1.1).toFixed(3)})`;
           c.beginPath();
           c.arc(headFwd, 0, figLen * 0.19, 0, Math.PI * 2);
@@ -1560,19 +1674,31 @@
           // halo mostly reads where it crosses the figure, trails and
           // dark board art — these values stay subtle there without
           // overpowering the scene.
+          // Phase 58-w3.8w: in the LIT (beamer) style the lantern is
+          // boosted so a carrier reads as "a person carrying a light" —
+          // the warm glow + flame core are now the BRIGHTEST element on
+          // the figure (the head was simultaneously dimmed). Additive
+          // 'lighter' compositing means these higher alphas bloom on
+          // black exactly where the projector needs them. The DARK style
+          // keeps the historical alphas (0.30 / 0.13 / 0.78 and a
+          // ×0.16 core) byte-for-byte — A/B contract.
+          const glowCoreA = style.lit ? 0.46 : 0.30;
+          const glowMidA = style.lit ? 0.22 : 0.13;
+          const flameA = style.lit ? 0.95 : 0.78;
+          const flameCoreR = style.lit ? 0.20 : 0.16;
           const glowR = figLen * (fig.glowScale ?? 2.4);
           const glow = c.createRadialGradient(lanternX, lanternY, 0.2, lanternX, lanternY, glowR);
-          glow.addColorStop(0, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.30 * flicker).toFixed(3)})`);
-          glow.addColorStop(0.4, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * 0.13 * flicker).toFixed(3)})`);
+          glow.addColorStop(0, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * glowCoreA * flicker).toFixed(3)})`);
+          glow.addColorStop(0.4, `rgba(${lr}, ${lg}, ${lb}, ${(alpha * glowMidA * flicker).toFixed(3)})`);
           glow.addColorStop(1, `rgba(${lr}, ${lg}, ${lb}, 0)`);
           c.fillStyle = glow;
           c.beginPath();
           c.arc(lanternX, lanternY, glowR, 0, Math.PI * 2);
           c.fill();
           // flame core — tiny warm dot, lifted slightly toward white-hot
-          c.fillStyle = `rgba(${Math.min(255, lr + 40)}, ${Math.min(255, lg + 24)}, ${lb}, ${(alpha * 0.78 * flicker).toFixed(3)})`;
+          c.fillStyle = `rgba(${Math.min(255, lr + 40)}, ${Math.min(255, lg + 24)}, ${lb}, ${(alpha * flameA * flicker).toFixed(3)})`;
           c.beginPath();
-          c.arc(lanternX, lanternY, Math.max(0.5, figLen * 0.16), 0, Math.PI * 2);
+          c.arc(lanternX, lanternY, Math.max(0.5, figLen * flameCoreR), 0, Math.PI * 2);
           c.fill();
           c.globalCompositeOperation = prevComposite;
         }

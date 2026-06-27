@@ -302,6 +302,10 @@
         workerLanternShare: current.workerLanternShare,
         workerTrails: current.workerTrails !== false,
         workerSize: current.workerSize ?? 1,
+        workerClothingBrightness: current.workerClothingBrightness ?? 1,
+        workerTrailIntensity: current.workerTrailIntensity ?? 100,
+        workerCenterExclusion: current.workerCenterExclusion === true,
+        workerCenterExclusionRadius: current.workerCenterExclusionRadius ?? 25,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {
