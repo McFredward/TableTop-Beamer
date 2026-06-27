@@ -141,6 +141,15 @@
       // Coded-specific (solid-color) per-instance color.
       colorHex: animation.colorHex,
     };
+    // Phase 58-w3.9g: snapshot the FULL coded option set (heat /
+    // city-workers / break-solid-color) so Discard restores every
+    // coded field the live editor can now change, not just colorHex.
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (codedOptions?.CODED_OPTION_KEYS) {
+      for (const key of codedOptions.CODED_OPTION_KEYS) {
+        liveEditorSnapshot[key] = animation[key];
+      }
+    }
     // W3.4-C1 bridge: mirror writes to the lifecycle-state module
     // so applyLiveEditorValue (now there) sees the same animationId
     // when slider listeners fire.
@@ -325,6 +334,114 @@
     }
   }
 
+  // Phase 58-w3.9g: throttled live broadcast of the running instance's
+  // current field values to all clients (dashboard's own canvas already
+  // reflects animation[field] each rAF, but /output is a separate client
+  // and only sees these via an edit-room mutation). Coalesced to one
+  // emit per animation frame so a coded slider drag doesn't flood the
+  // wire. Mirrors closeLiveEditor's edit-room emission (incl. cluster
+  // children) so /output updates in REAL TIME, not only on Done.
+  let _liveBroadcastScheduled = false;
+  function _broadcastLiveEditorEdit() {
+    if (liveEditorAnimationId === null) return;
+    const animation = ctx.state.runningAnimations.find(
+      (item) => item?.id === liveEditorAnimationId,
+    );
+    if (!animation) return;
+    void ctx.emitLiveMutation("edit-room", {
+      animationId: animation.id,
+      animation: ctx.buildAnimationSnapshotForLiveSync(animation),
+    }).catch(() => {});
+    if (animation.scope === "cluster") {
+      for (const child of ctx.state.runningAnimations) {
+        if (child?.parentClusterRunId === animation.id && child?.scope === "room") {
+          void ctx.emitLiveMutation("edit-room", {
+            animationId: child.id,
+            animation: ctx.buildAnimationSnapshotForLiveSync(child),
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+  function _scheduleLiveEditorBroadcast() {
+    if (_liveBroadcastScheduled) return;
+    _liveBroadcastScheduled = true;
+    const flush = () => {
+      _liveBroadcastScheduled = false;
+      _broadcastLiveEditorEdit();
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(flush);
+    else setTimeout(flush, 16);
+  }
+
+  // Phase 58-w3.9g: resolve the coded-effect type + profile scope + the
+  // backing definition for a running animation, across all three scopes.
+  // Returns { codedType: null } for non-coded instances.
+  function _resolveRunningCoded(animation) {
+    if (animation.scope === "room" || animation.scope === "cluster") {
+      const assetType = typeof ctx.normalizeRoomAssetType === "function"
+        ? ctx.normalizeRoomAssetType(animation.roomAssetType)
+        : animation.roomAssetType;
+      if (assetType !== "coded") return { codedType: null, scope: "room", def: null };
+      const codedType = typeof ctx.resolveRoomCodedEffectType === "function"
+        ? ctx.resolveRoomCodedEffectType(animation.roomAssetRef || animation.type)
+        : null;
+      const def = typeof ctx.getRoomAnimationDefinitionById === "function"
+        ? ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId)
+        : null;
+      return { codedType, scope: "room", def };
+    }
+    if (animation.scope === "global") {
+      const isOutside = typeof ctx.isOutsideAnimationType === "function"
+        && ctx.isOutsideAnimationType(animation.type, animation.boardId);
+      const profile = isOutside
+        ? (typeof ctx.getOutsideFxProfile === "function" ? ctx.getOutsideFxProfile(animation.boardId) : null)
+        : (typeof ctx.getInsideFxProfile === "function" ? ctx.getInsideFxProfile(animation.boardId) : null);
+      const def = profile?.animations?.find((d) => d?.id === animation.type) ?? null;
+      const profileScope = isOutside ? "outside" : "inside";
+      if (!def || String(def.assetType || "").toLowerCase() !== "coded") {
+        return { codedType: null, scope: profileScope, def };
+      }
+      const resolver = isOutside ? ctx.resolveOutsideCodedEffectType : ctx.resolveInsideCodedEffectType;
+      const codedType = typeof resolver === "function" ? resolver(def.assetRef || animation.type) : null;
+      return { codedType, scope: profileScope, def };
+    }
+    return { codedType: null, scope: animation.scope, def: null };
+  }
+
+  // Phase 58-w3.9g: build the full coded option set (heat / city-workers
+  // / break-solid-color) for a running coded animation into the live
+  // editor's coded container. Each control edits the running instance in
+  // REAL TIME (applyLiveEditorValue → dashboard) and broadcasts so
+  // /output follows. solid-color color stays in the static
+  // #live-editor-color picker (handled by _populateLiveEditorAdvancedFields).
+  function _populateLiveEditorCoded(animation) {
+    const container = ctx.liveEditorCoded;
+    if (!container) return;
+    container.replaceChildren();
+    container.hidden = true;
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions) return;
+    const { codedType, scope, def } = _resolveRunningCoded(animation);
+    // solid-color exposes only a colour swatch, already served by the
+    // static live-editor color picker — skip to avoid a duplicate row.
+    if (!codedType || codedType === "solid-color") return;
+    if (!codedOptions.hasCodedOptions(codedType, scope)) return;
+    const rows = codedOptions.buildCodedOptionRows({
+      scope,
+      codedType,
+      // Read the running instance first (seeded at trigger time); fall
+      // back to the definition for legacy snapshots that predate a field.
+      get: (key) => (animation[key] !== undefined ? animation[key] : def?.[key]),
+      set: (key, value) => {
+        applyLiveEditorValue(key, value);
+        _scheduleLiveEditorBroadcast();
+      },
+    });
+    for (const row of rows) container.append(row);
+    container.hidden = rows.length === 0;
+  }
+
   function _finalizeLiveEditorOpen(animation) {
     const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
     const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
@@ -341,6 +458,7 @@
     _buildLiveEditorSnapshot(animation, animationId);
     _populateLiveEditorPanel(animation);
     _populateLiveEditorAdvancedFields(animation);
+    _populateLiveEditorCoded(animation);
     _finalizeLiveEditorOpen(animation);
   }
 
@@ -351,6 +469,11 @@
       );
       if (animation) {
         Object.assign(animation, liveEditorSnapshot);
+        // Phase 58-w3.9g: live coded edits broadcast to /output while
+        // editing, so a Discard must also push the restored values out —
+        // otherwise /output keeps the abandoned tweaks until the next
+        // server snapshot. Broadcast BEFORE clearing the animation id.
+        _broadcastLiveEditorEdit();
       }
     }
     liveEditorAnimationId = null;
@@ -453,6 +576,20 @@
   // because clicking the button IS the explicit commit. Field set
   // per scope: room = opacity/intensity/speed/volume/transform/color,
   // inside = intensity/speed/transform, outside = intensity/speed/mode/direction.
+  // Phase 58-w3.9g: collect the running instance's coded option values
+  // (heat / city-workers / break-solid-color / colorHex) so Save-as-
+  // default writes the FULL coded field set into the definition, not
+  // only transform/opacity. Only includes keys the instance actually
+  // carries (undefined keys are left to the definition's existing value).
+  function _collectCodedFieldsForSave(animation) {
+    const out = {};
+    const keys = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS?.CODED_OPTION_KEYS || [];
+    for (const key of keys) {
+      if (animation[key] !== undefined) out[key] = animation[key];
+    }
+    return out;
+  }
+
   function saveLiveEditorAsDefault() {
     if (liveEditorAnimationId === null) return;
     const animation = ctx.state.runningAnimations.find(
@@ -497,6 +634,10 @@
               offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
               offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
               colorHex: animation.colorHex ?? entry.colorHex,
+              // Phase 58-w3.9g: persist the full coded option set (heat /
+              // city-workers / break-solid-color) edited live, so future
+              // triggers of this animation apply the saved coded values.
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });
@@ -524,6 +665,9 @@
               heightScale: animation.heightScale ?? entry.heightScale,
               offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
               offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
+              // Phase 58-w3.9g: inside coded effects (unified catalog)
+              // persist their coded option set too.
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });
@@ -543,6 +687,9 @@
               speed: animation.speed ?? entry.speed,
               mode: animation.mode ?? entry.mode,
               direction: animation.direction ?? entry.direction,
+              // Phase 58-w3.9g: outside coded effects (unified catalog)
+              // persist their coded option set too.
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });

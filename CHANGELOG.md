@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.55] — 2026-06-08
+
+### Added
+
+- **The live editor (Active Animations → Edit) now exposes the FULL coded-effect settings of a running coded animation — editable in real time, with Save and Save-as-default — exactly like the full animation editor, but live.** Previously the live editor only surfaced a single solid-color picker for coded animations; heat and city-workers running instances could not be re-tuned live (the operator had to stop, edit the definition in the full editor, and re-trigger). Now, when a running animation resolves to a coded effect, the live panel renders that effect's complete option set — heat: Heat tint, "Hitzequelle anzeigen", "Mit nächster Hitzequelle synchronisieren", "Unregelmäßiger Puls"; city-workers: Laternen-Farbe, Darstellung, Anzahl Bewohner, Größe der Bewohner, Gruppen, Laternen-Anteil, Helligkeit der Kleidung, Spuren im Schnee + Spuren-Intensität, Mitte aussparen + Aussparungs-Radius/X/Y + Ring anzeigen; hull-flicker / power-outage: Break solid color — with the same gating (sync greys out while the source is shown; trail intensity greys while trails are off; exclusion knobs grey while "Mitte aussparen" is off). The coded option controls are now built by ONE shared builder (`animation-coded-options.js`) used by BOTH the full editor and the live editor, so the two can never drift. Changing any coded control updates the RUNNING instance immediately (dashboard reflects it the same rAF) and broadcasts a throttled edit-room mutation so /output follows in real time, mirroring how the existing transform/opacity sliders write to the instance. "Save as default for this animation" now writes the full coded field set (not just transform/opacity/colorHex) into the persistent definition for room, inside and outside scopes, so future triggers apply the saved coded values. The slider drag fix (setPointerCapture) and the .is-disabled gating apply to these live controls via the shared row primitives. Non-coded (mp4/gif) and solid-color animations are unchanged; solid-color color continues to use the existing static live-editor color picker.
+
+---
+
 ## [1.2.54] — 2026-06-08
 
 ### Fixed

@@ -714,6 +714,14 @@
               </select>
             </label>
           </fieldset>
+          <!-- Phase 58-w3.9g: coded-effect option controls for a running
+               coded animation (heat / city-workers / break-solid-color).
+               Populated live from the SHARED coded-options builder; each
+               control edits the running instance in real time and
+               broadcasts to /output. Empty + hidden for non-coded or
+               solid-color animations (solid-color color stays in the
+               static #live-editor-color-label above). -->
+          <div id="live-editor-coded" class="live-editor-coded" hidden></div>
           <details>
             <summary>Transform</summary>
             <fieldset id="live-editor-transform" class="room-transform-options">
@@ -985,6 +993,10 @@
   <script src="/src/app/runtime/ui/runtime-modal.js" defer></script>
   <!-- Phase 22 Wave 3a: reusable icon-picker (TT_BEAMER_UI_ICON_PICKER). -->
   <script src="/src/app/runtime/ui/icon-picker.js" defer></script>
+  <!-- Phase 58-w3.9g: shared coded-effect option controls. Loaded BEFORE
+       both the full editor edit-pane and the live editor so each can
+       build identical coded controls from the one source. -->
+  <script src="/src/app/runtime/ui/animation-coded-options.js" defer></script>
   <!-- Phase 22 W3b: full-page animation editor controller. -->
   <!-- Phase 24 W3.3: progressive sub-module split. Sub-modules load BEFORE the shim. -->
   <script src="/src/app/runtime/ui/animation-editor-shell.js" defer></script>

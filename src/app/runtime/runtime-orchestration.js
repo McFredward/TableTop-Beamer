@@ -197,7 +197,7 @@ const {
   liveEditorPanel, liveEditorTitle, liveEditorClose,
   liveEditorOpacity, liveEditorOpacityValue, liveEditorIntensity, liveEditorIntensityValue,
   liveEditorSpeed, liveEditorSpeedValue, liveEditorSoundVolume, liveEditorSoundVolumeValue,
-  liveEditorColor, liveEditorColorLabel,
+  liveEditorColor, liveEditorColorLabel, liveEditorCoded,
   liveEditorOutsideFx, liveEditorOutsideMode, liveEditorOutsideDirection,
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
@@ -2386,6 +2386,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorSoundVolumeValue,
   liveEditorColor,
   liveEditorColorLabel,
+  liveEditorCoded,
   liveEditorOutsideFx,
   liveEditorOutsideMode,
   liveEditorOutsideDirection,
@@ -2429,6 +2430,12 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
   normalizeRoomAssetRefForType: (assetType, ref, fallback) => normalizeRoomAssetRefForType(assetType, ref, fallback),
   resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
+  // Phase 58-w3.9g: the Live Editor resolves the coded-effect type of a
+  // running coded animation across all three scopes so it can surface
+  // the full coded option set (heat / city-workers) for inside / outside
+  // globals too, not only room/cluster.
+  resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
+  resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampRoomIntensity: (value) => clampRoomIntensity(value),
   clampRoomSpeed: (value) => clampRoomSpeed(value),

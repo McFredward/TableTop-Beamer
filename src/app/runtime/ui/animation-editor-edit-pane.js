@@ -654,15 +654,13 @@
         ? resolveCodedType(def.assetRef) || def.assetRef
         : def.assetRef)
       : null;
-    const isSolidColor = coded === "solid-color";
-    const isHullFlicker = coded === "hull-flicker" && scope === "room";
-    const isPowerOutage = coded === "power-outage" && scope === "room";
-    // resolveRoomCodedEffectType maps the legacy "generator-heat"
-    // alias to "heat" (Phase 58-w3.7x rename), so pre-rename
-    // definitions get the same tint card.
-    const isHeat = coded === "heat";
-    const isCityWorkers = coded === "city-workers" || coded === "city-workers-lit";
-    if (!isSolidColor && !isHullFlicker && !isPowerOutage && !isHeat && !isCityWorkers) return null;
+    // Phase 58-w3.9g: the coded option controls (color / heat / city-
+    // workers / break-solid-color) are built by the SHARED coded-options
+    // builder so the full editor and the live editor never drift. This
+    // editor's IO bridge reads the DEFINITION and writes via
+    // patchAnimation (persists to the def + dirty bar + live preview).
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions || !codedOptions.hasCodedOptions(coded, scope)) return null;
 
     const card = document.createElement("section");
     card.className = "anim-editor-card";
@@ -671,214 +669,13 @@
     eyebrow.textContent = "Coded effect";
     card.append(eyebrow);
 
-    if (isSolidColor || isHeat || isCityWorkers) {
-      const label = document.createElement("label");
-      label.className = "anim-editor-field-label";
-      const cap = document.createElement("span");
-      // Phase 58-w3.8s: city-workers gets an explicit German label
-      // ("Laternen-Farbe") so it's clear the colour tints the workers'
-      // carried lanterns (operator UAT: "nicht klar, was die Farbe
-      // ist"). The .anim-editor-field-label grid stacks this caption
-      // ABOVE the swatch. Heat keeps its own "Heat tint" label.
-      cap.textContent = isHeat ? "Heat tint" : isCityWorkers ? "Laternen-Farbe" : "Color";
-      const picker = document.createElement("input");
-      picker.type = "color";
-      // heat defaults to its ember-orange core; city-workers to the
-      // muted lantern ember; solid-color keeps the legacy red default.
-      const fallbackHex = isHeat ? "#ff7a1a" : isCityWorkers ? "#c98a4b" : "#ff0000";
-      picker.value = /^#[0-9a-f]{6}$/i.test(def.colorHex) ? def.colorHex : fallbackHex;
-      picker.addEventListener("input", () => {
-        patchAnimation(scope, boardId, def.id, { colorHex: picker.value });
-      });
-      label.append(cap, picker);
-      card.append(label);
-    }
-
-    if (isHeat) {
-      // Phase 58-w3.8g — heat-source visibility + nearest-source pulse
-      // sync. The sync toggle only means anything while the source is
-      // hidden, so it is greyed out (same .is-disabled pattern as the
-      // stretch-gated transform sliders) while "Hitzequelle anzeigen"
-      // is ON — without losing its stored value.
-      const syncRow = buildToggleRow(scope, def, boardId, {
-        key: "heatSyncNearestSource",
-        label: "Mit nächster Hitzequelle synchronisieren",
-        sub: "Pulsiert im Takt der nächstgelegenen laufenden Hitze-Animation mit sichtbarer Quelle (nur ohne sichtbare Quelle wirksam).",
-      });
-      const applyHeatSourceGate = (showSource) => {
-        syncRow.classList.toggle("is-disabled", showSource);
-        const toggle = syncRow.querySelector("button.rd-toggle");
-        if (toggle) toggle.disabled = showSource;
-      };
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "heatShowSource",
-        label: "Hitzequelle anzeigen",
-        sub: "AN: heller atmender Kern. AUS: nur rotes Pulsieren ohne sichtbaren Hotspot.",
-      }, {
-        onChange: (next) => applyHeatSourceGate(next),
-      }));
-      card.append(syncRow);
-      applyHeatSourceGate(def.heatShowSource !== false);
-      // Phase 58-w3.8x — optional irregular pulse. When ON the breathing
-      // period wanders via a seeded, deterministic time-noise instead of
-      // the regular ~0.24 Hz cadence; a synced hidden-source room follows
-      // the SAME irregular curve (it borrows the source's clock).
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "heatIrregularPulse",
-        label: "Unregelmäßiger Puls",
-        sub: "AN: unregelmäßig langer Atem (zufällig wirkende, aber deterministische Periode). AUS: gleichmäßiges Pulsieren.",
-      }));
-    }
-
-    if (isCityWorkers) {
-      // Phase 58-w3.8i — merged city-workers options (German labels,
-      // same per-definition plumbing as the w3.8g heat checkboxes).
-      // "Darstellung" replaces the former separate "city-workers-lit"
-      // registry entry; the other knobs parametrize population, group
-      // events, lantern share and snow trails. Defaults render the
-      // historical dark variant exactly.
-      card.append(buildSelectRow(scope, def, boardId, {
-        key: "workerStyle",
-        label: "Darstellung",
-        options: [
-          { value: "dark", label: "Silhouette (Dashboard)" },
-          { value: "lit", label: "Beleuchtet (Beamer)" },
-        ],
-      }));
-      card.append(buildSliderRow(scope, def, boardId, {
-        key: "workerCount",
-        label: "Anzahl Bewohner",
-        // Phase 58-w3.8s: max doubled 12 → 24 (min 1, default unchanged).
-        min: 1, max: 24, step: 1,
-        format: (v) => `${Math.round(v)}`,
-      }));
-      card.append(buildSliderRow(scope, def, boardId, {
-        key: "workerSize",
-        label: "Größe der Bewohner",
-        // Phase 58-w3.8s: figure-size multiplier (default 1.0).
-        min: 0.5, max: 2, step: 0.1,
-        format: (v) => `${Math.round(v * 100)}%`,
-      }));
-      card.append(buildSelectRow(scope, def, boardId, {
-        key: "workerGroups",
-        label: "Gruppen",
-        options: [
-          { value: "off", label: "aus" },
-          { value: "rare", label: "selten" },
-          { value: "normal", label: "normal" },
-          { value: "frequent", label: "häufig" },
-        ],
-      }));
-      card.append(buildSliderRow(scope, def, boardId, {
-        key: "workerLanternShare",
-        label: "Laternen-Anteil",
-        min: 0, max: 100, step: 5,
-        format: (v) => `${Math.round(v)}%`,
-      }));
-      card.append(buildSliderRow(scope, def, boardId, {
-        key: "workerClothingBrightness",
-        label: "Helligkeit der Kleidung",
-        // Phase 58-w3.8w: scales the coat luminance in both styles
-        // (most visible in "Beleuchtet"); 100% = historical look.
-        min: 0.3, max: 2, step: 0.05,
-        format: (v) => `${Math.round(v * 100)}%`,
-      }));
-      // Phase 58-w3.8w — snow-trail block: on/off toggle plus a
-      // prominence slider that scales the peak alpha before the trails
-      // fade. The slider only matters while trails are ON, so it is
-      // greyed (same .is-disabled pattern as the heat sync row) without
-      // losing its stored value.
-      const trailIntensityRow = buildSliderRow(scope, def, boardId, {
-        key: "workerTrailIntensity",
-        label: "Spuren-Intensität",
-        // Phase 58-w3.9b: max raised 100 → 300 for much stronger trails.
-        min: 0, max: 300, step: 5,
-        format: (v) => `${Math.round(v)}%`,
-      });
-      const applyTrailGate = (trailsOn) => {
-        trailIntensityRow.classList.toggle("is-disabled", !trailsOn);
-        const input = trailIntensityRow.querySelector("input[type=range]");
-        if (input) input.disabled = !trailsOn;
-      };
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "workerTrails",
-        label: "Spuren im Schnee",
-        sub: "Bewohner hinterlassen langsam verblassende Pfade im Schnee.",
-      }, {
-        onChange: (next) => applyTrailGate(next),
-      }));
-      card.append(trailIntensityRow);
-      applyTrailGate(def.workerTrails !== false);
-      // Phase 58-w3.8w — center-exclusion block: toggle + radius. The
-      // radius only applies while the toggle is on, so it is greyed
-      // while OFF without losing its stored value.
-      const exclusionRadiusRow = buildSliderRow(scope, def, boardId, {
-        key: "workerCenterExclusionRadius",
-        label: "Aussparungs-Radius",
-        min: 0, max: 60, step: 5,
-        format: (v) => `${Math.round(v)}%`,
-      });
-      // Phase 58-w3.9b — offset the exclusion centre off the region
-      // centroid (align it to where the generator art sits on the big
-      // InnerTile) and toggle the visible trampled ring.
-      const exclusionOffsetXRow = buildSliderRow(scope, def, boardId, {
-        key: "workerExclusionOffsetX",
-        label: "Aussparung X",
-        min: -50, max: 50, step: 5,
-        format: (v) => `${Math.round(v)}%`,
-      });
-      const exclusionOffsetYRow = buildSliderRow(scope, def, boardId, {
-        key: "workerExclusionOffsetY",
-        label: "Aussparung Y",
-        min: -50, max: 50, step: 5,
-        format: (v) => `${Math.round(v)}%`,
-      });
-      const exclusionRingRow = buildToggleRow(scope, def, boardId, {
-        key: "workerExclusionRingVisible",
-        label: "Ring anzeigen",
-        sub: "Zeigt den sichtbaren, festgetretenen Ring um die Aussparung. Aus = kein Ring, Bewohner meiden die Zone trotzdem.",
-      });
-      const gatedExclusionRows = [
-        exclusionRadiusRow,
-        exclusionOffsetXRow,
-        exclusionOffsetYRow,
-        exclusionRingRow,
-      ];
-      const applyExclusionGate = (on) => {
-        for (const row of gatedExclusionRows) {
-          row.classList.toggle("is-disabled", !on);
-          const input = row.querySelector("input[type=range], .rd-toggle");
-          if (input) input.disabled = !on;
-        }
-      };
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "workerCenterExclusion",
-        label: "Mitte aussparen",
-        sub: "Bewohner und Spuren meiden einen kreisförmigen Bereich um die Mitte (z. B. den Generator).",
-      }, {
-        onChange: (next) => applyExclusionGate(next),
-      }));
-      card.append(exclusionRadiusRow);
-      card.append(exclusionOffsetXRow);
-      card.append(exclusionOffsetYRow);
-      card.append(exclusionRingRow);
-      applyExclusionGate(def.workerCenterExclusion === true);
-    }
-
-    if (isHullFlicker) {
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "breaksSolidColor",
-        label: "Break solid color",
-        sub: "Cuts any solid-color animation in the same room during the flicker’s off-gate.",
-      }));
-    }
-    if (isPowerOutage) {
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "breaksSolidColor",
-        label: "Break solid color",
-        sub: "Cuts any solid-color animation in the same room except during the brief blue-flash flickers.",
-      }));
-    }
+    const rows = codedOptions.buildCodedOptionRows({
+      scope,
+      codedType: coded,
+      get: (key) => def[key],
+      set: (key, value) => patchAnimation(scope, boardId, def.id, { [key]: value }),
+    });
+    for (const row of rows) card.append(row);
     return card;
   }
 

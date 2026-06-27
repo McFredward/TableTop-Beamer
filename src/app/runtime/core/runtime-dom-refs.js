@@ -99,6 +99,10 @@
       liveEditorSoundVolumeValue: document.querySelector("#live-editor-sound-volume-value"),
       liveEditorColor: document.querySelector("#live-editor-color"),
       liveEditorColorLabel: document.querySelector("#live-editor-color-label"),
+      // Phase 58-w3.9g: container for the full coded-effect option set
+      // (heat / city-workers / break-solid-color) on a running coded
+      // animation, built from the shared coded-options builder.
+      liveEditorCoded: document.querySelector("#live-editor-coded"),
       liveEditorOutsideFx: document.querySelector("#live-editor-outside-fx"),
       liveEditorOutsideMode: document.querySelector("#live-editor-outside-mode"),
       liveEditorOutsideDirection: document.querySelector("#live-editor-outside-direction"),
