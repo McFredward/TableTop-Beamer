@@ -10,6 +10,17 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.65] — 2026-06-28
+
+### Changed
+
+- **Snowstorm reworked to a physical, layered, coherent-wind model — more natural, less "sperm-shaped".** Operator feedback: the storm streaks still showed a recognisable shape (a comet/tadpole that "looks almost like sperm rather than snowflakes"), the motion should simulate **wind gusts blowing through the snow** (the wind can turn quickly but pushes the snow the *same* way), and different depth **layers** should have winds from different-but-similar directions — and the whole thing should stay natural, not extreme. Three changes:
+  - **Streak shape:** the bright head-glint + tapered tail (which made the comet/sperm shape) is gone. Streaks are now a **symmetric** soft motion-blur centred on the flake — a faint full-length pass + a brighter inner pass, round caps — so they fade evenly at both ends like real wind-blurred snow.
+  - **Coherent layered wind:** instead of each flake choosing its own direction, the storm now advects the snow with **wind sheets**. Three depth layers each carry one shared wind (a constant mean + summed oscillating gust components — slow swells plus a faster quick-turn term), so every flake in a layer moves the *same* way and streaks point the *same* direction (the operator's "beeinflusst den schnee in die selbe richtung"). The wind surges and turns over time (gusts that drive through), and the three layers fan ±~13° around the prevailing wind so depths differ but stay similar. Because the wind components are integrable, the layer's shared displacement is closed-form — no per-flake cost. Small independent per-flake turbulence keeps each sheet from looking rigid.
+  - **Calmer overall:** density reduced (storm multiplier 2.4 → 1.9), streak length bounded and gusts moderated so the storm reads as natural wind-blown snow rather than the previous over-extreme look. Still fully deterministic (dashboard == /output == SSR).
+
+---
+
 ## [1.2.64] — 2026-06-27
 
 ### Changed

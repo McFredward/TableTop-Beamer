@@ -1543,29 +1543,26 @@
       // Flake count. Calm default (~55 %) lands near the snow.mp4 density;
       // storm roughly doubles it. Capped by the non-critical density scale
       // (Pi / low-power throttle) so a dense storm never tanks fps.
-      const stormCountMul = storm ? 2.4 : 1;
+      const stormCountMul = storm ? 1.9 : 1;
       // Calm default (~55 %) lands near snow.mp4's fine, dense flurry.
       const rawCount = 230 * (0.2 + densityKnob * 1.55) * stormCountMul
         * densityFactor * visualCaps.nonCriticalDensityScale;
       const count = Math.max(0, Math.min(1400, Math.round(rawCount)));
 
-      // Phase 58-w3.9n — turbulent swirl model. The reference clips do NOT
-      // fall straight top→bottom (operator 2026-06-27: "wirbeln wild durch
-      // die Gegend"); the storm clip in particular has NO single fall
-      // direction — flakes streak every which way through eddies and gusts.
-      // So each flake's position is base linear drift + a whole-field gust
-      // offset + a per-flake looping swirl, all PURE functions of (safeAge,
-      // index, seeded hash) — still deterministic (dashboard == /output ==
-      // SSR), still always painting (no black-strobe).
+      // Snow motion model. All positions are PURE functions of (safeAge,
+      // index, seed) — deterministic (dashboard == /output == SSR), always
+      // painting (no black-strobe). The two modes differ fundamentally:
       //
-      //   driftX/Y  per-flake constant-velocity travel. Calm: clustered
-      //             around "down" (gravity). Storm: spread across a WIDE arc
-      //             so flakes head in many directions at once.
-      //   gustX/Y   whole-field surge whose DIRECTION rotates over time —
-      //             this is what kills the "single fall direction"; in storm
-      //             the wind angle sweeps a big arc, calm just sways.
-      //   swirlX/Y  per-flake two-frequency Lissajous loop → each flake
-      //             wanders/whirls along its own non-repeating path.
+      //   CALM  — gentle near-vertical drift + a slow graceful per-flake
+      //           swirl + a soft whole-field sway. Flakes drift mostly down
+      //           and wander a little (operator 2026-06-27: "wirbeln" but
+      //           not wild). Drawn as a depth-of-field mix of dots + bokeh.
+      //   STORM — layered COHERENT wind (w3.9r). Real wind-blown snow is
+      //           advected: every flake in a depth layer shares one wind
+      //           sheet, so the whole layer moves the SAME way; the wind
+      //           surges and turns over time (gusts) but pushes its snow
+      //           together. A few layers carry similar-but-different winds
+      //           (shear/parallax). See the layerWind precompute below.
       const TAU = Math.PI * 2;
       const tw = safeAge;
 
@@ -1581,19 +1578,6 @@
       const gustDirY = Math.sin(gustAng);
       const gustX = gustDirX * gustMag * gustPulse;
       const gustY = gustDirY * gustMag * gustPulse;
-
-      // Phase 58-w3.9p — random Windstöße. On top of the smooth whole-field
-      // gust above, the storm gets discrete GUST FRONTS that sweep along the
-      // wind axis and arrive irregularly (operator 2026-06-27: "stürmiger,
-      // mit random Windstößen die mehr Schnee mit sich tragen"). A slow
-      // global "surge" envelope (incommensurate sines, half-wave rectified)
-      // gates when a stoß happens; per-flake the front is sampled spatially
-      // so it reads as a travelling BAND of denser, faster, brighter snow —
-      // a packet — rather than the whole field pulsing uniformly. All
-      // deterministic (no per-frame random): dashboard == /output == SSR.
-      const gustSurge = storm
-        ? Math.max(0, Math.sin(tw * 0.29) * 0.6 + Math.sin(tw * 0.13 + 1.0) * 0.45 + 0.18)
-        : 0;
 
       const prevComposite = c.globalCompositeOperation;
       // White-ish flakes read best additively on black AND survive the
@@ -1637,6 +1621,56 @@
         c.fill();
       };
 
+      // Phase 58-w3.9r — layered COHERENT wind for the storm. Real wind-blown
+      // snow is advected: every flake moves together with the wind, which
+      // surges and can turn quickly but pushes the whole field the SAME way
+      // (operator 2026-06-28: "windstöße die durch das schnee fährt … der
+      // wind kann sich auch schnell drehen beeinflusst aber den schnee in die
+      // selbe richtung"). A few depth LAYERS each carry a coherent wind sheet
+      // with a similar-but-different mean direction (wind shear → parallax;
+      // "verschiedene layer … von verschiedenen aber ähnlichen Richtungen").
+      // Each layer's wind = a constant mean + summed oscillating gust
+      // components (slow swells + a faster quick-turn term); because those
+      // are integrable, the layer's shared DISPLACEMENT is the closed-form
+      // integral, so the whole sheet drifts together at no per-flake cost.
+      // Amplitudes are moderate so gusts feel natural, not extreme. Fully
+      // deterministic (no per-frame random).
+      const layerWind = [];
+      if (storm) {
+        const STORM_LAYERS = 3;
+        const vBase = unit * (0.085 + speedKnob * 0.14);
+        const prevAng = Math.PI * 0.52; // prevailing wind: just right-of-down
+        // [amp, omega]: slow swell, mid, fast quick-turn.
+        const COMPS = [[0.42, 0.16], [0.24, 0.39], [0.15, 0.83]];
+        for (let L = 0; L < STORM_LAYERS; L += 1) {
+          const meanAng = prevAng + (L - 1) * 0.23; // layers fan ±~13°
+          const cm = Math.cos(meanAng);
+          const sm = Math.sin(meanAng);
+          let wx = cm;
+          let wy = sm;
+          let dx = cm * tw;
+          let dy = sm * tw;
+          for (let k = 0; k < COMPS.length; k += 1) {
+            const a = COMPS[k][0];
+            const w = COMPS[k][1];
+            const phx = L * 2.1 + k * 0.9;
+            const phy = phx + 1.4; // quadrature → the wind vector rotates/turns
+            wx += a * Math.cos(w * tw + phx);
+            wy += a * Math.cos(w * tw + phy);
+            dx += (a / w) * Math.sin(w * tw + phx);
+            dy += (a / w) * Math.sin(w * tw + phy);
+          }
+          const speed = Math.hypot(wx, wy) || 1;
+          layerWind.push({
+            ux: wx / speed,
+            uy: wy / speed,
+            dx: vBase * dx,
+            dy: vBase * dy,
+            speedFrac: Math.min(1.8, speed), // ~wind speed in units of the mean (≈1)
+          });
+        }
+      }
+
       const fract = (n) => n - Math.floor(n);
       for (let i = 0; i < count; i += 1) {
         // Per-flake seeded hashes — fixed per index, so each flake keeps a
@@ -1649,134 +1683,108 @@
         const h6 = fract(Math.sin((i + 1) * 57.7777) * 71234.5544); // swirl/dir B
         const h7 = fract(Math.sin((i + 1) * 15.1234) * 61237.2199); // focus (DOF)
 
-        // Per-flake constant travel. Calm clusters near "down" (±~23°);
-        // storm has a clear PREVAILING wind with spread (±~51°) — variety
-        // without the omnidirectional-scratches look. Drift dominates the
-        // velocity so streaks mostly lean with the wind, swirl adds wander.
-        const baseAng = (Math.PI * 0.5)
-          + (h5 - 0.5) * (storm ? 1.8 : 0.8);
-        const baseSpeed = unit
-          * (storm ? (0.16 + speedKnob * 0.32) : (0.05 + speedKnob * 0.11))
-          * (0.6 + h4 * 0.85);
-        const driftX = Math.cos(baseAng) * baseSpeed;
-        const driftY = Math.sin(baseAng) * baseSpeed;
-
-        // Per-flake looping swirl (two summed oscillators, different freqs →
-        // non-repeating whirl). LOW frequency (w3.9q): the swirl now only
-        // makes the flake wander on slow, graceful curves — the previous
-        // higher frequency made flakes (and their streaks) flick back and
-        // forth, which read as artificial (operator 2026-06-27: storm "hin &
-        // her ... zu künstlich"). Amplitude is kept so paths still curve.
-        const sp = (storm ? 0.5 : 0.6) * (0.55 + speedKnob * 0.9);
-        const fA = (0.40 + h5 * 0.85) * sp;
-        const fB = (0.60 + h6 * 1.05) * sp;
-        const ampX = regW * (storm ? 0.12 : 0.10) * (0.5 + h3 * 0.9);
-        const ampY = regH * (storm ? 0.12 : 0.11) * (0.5 + h4 * 0.9);
-        const swirlX = Math.sin(tw * fA + i * 1.7) * ampX
-          + Math.sin(tw * fB * 0.6 + i * 0.7) * ampX * 0.5;
-        const swirlY = Math.cos(tw * fB + i * 0.9) * ampY
-          + Math.sin(tw * fA * 0.7 + i * 1.3) * ampY * 0.5;
-
-        // Linear (pre-gust-front) region position.
-        let lx = h1 * regW + driftX * safeAge + gustX + swirlX;
-        let ly = h2 * regH + driftY * safeAge + gustY + swirlY;
-
-        // Sample the travelling gust front at this flake (storm only). Two
-        // incommensurate bands sweep along the wind axis; the sharpened max
-        // forms discrete moving packets, gated by the global surge so stöße
-        // arrive irregularly. `gust` ∈ ~[0..1.3]: 0 between stöße (field
-        // relaxes to the calm-storm look), high inside a passing front.
-        let gust = 0;
-        if (storm) {
-          const proj = (lx / regW) * gustDirX + (ly / regH) * gustDirY;
-          const front1 = 0.5 + 0.5 * Math.sin(proj * 6.3 - tw * 1.9 + h6 * 0.6);
-          const front2 = 0.5 + 0.5 * Math.sin(proj * 3.0 - tw * 1.15 + 2.3);
-          const band = Math.pow(Math.max(front1, front2), 3);
-          gust = Math.min(1.3, band * (0.35 + 1.7 * gustSurge));
-          // The front shoves the flake forward along the wind, bunching the
-          // field into denser slugs that visibly blow through.
-          lx += gustDirX * unit * 0.18 * gust;
-          ly += gustDirY * unit * 0.18 * gust;
-        }
-
-        let fx = lx % regW;
-        if (fx < 0) fx += regW;
-        let fy = ly % regH;
-        if (fy < 0) fy += regH;
-        const px = regX + fx;
-        const py = regY + fy;
-
         // Depth-of-field per flake (w3.9q). ~15 % are OUT-OF-FOCUS: big,
         // soft, dim foreground bokeh. The rest are sharp-ish, with a wide
         // size + brightness spread (square the size hash to bias small).
-        // This spread is the immersion the operator wanted — not a uniform
-        // dot field — and matches the reference clips' look.
         const sizeHash = h3 * h3;
         const oof = h7 < (storm ? 0.13 : 0.16);
         let size;
         let alphaBase;
         if (oof) {
-          // foreground out-of-focus: large + soft + dim
-          size = unit * (0.006 + h3 * (storm ? 0.011 : 0.015));
+          size = unit * (0.006 + h3 * (storm ? 0.010 : 0.015));
           alphaBase = 0.07 + h2 * 0.13;
         } else {
-          // in-focus flake: small, sharp, with a long tail toward tiny
-          size = Math.max(0.7, unit * (0.0012 + sizeHash * (storm ? 0.0062 : 0.0058)));
+          size = Math.max(0.7, unit * (0.0012 + sizeHash * (storm ? 0.0050 : 0.0058)));
           alphaBase = 0.26 + h2 * 0.56;
         }
-        // Gust fronts brighten the snow they carry → the slug reads denser.
-        const alpha = Math.max(0.05, Math.min(0.98,
-          alphaBase * overall * intensitySafe * (storm ? (0.78 + gust * 0.6) : 1)));
+
+        // ---- position ----
+        let px;
+        let py;
+        let windUX = 0;
+        let windUY = 0;
+        let windSpeedFrac = 0;
+        if (storm) {
+          // Advect with the flake's depth LAYER wind sheet: the whole layer
+          // shares one displacement (coherent — all its snow moves the same
+          // way), plus small independent per-flake turbulence so the sheet
+          // isn't a rigid grid. Layer chosen by the focus hash so depth,
+          // softness and wind-layer correlate (nearer = own wind).
+          const lw = layerWind[h7 < 0.34 ? 0 : (h7 < 0.67 ? 1 : 2)] || layerWind[0];
+          const turbX = Math.sin(tw * 0.7 + i * 1.7) * unit * 0.018
+            + Math.sin(tw * 0.31 + i * 0.9) * unit * 0.020;
+          const turbY = Math.cos(tw * 0.62 + i * 1.3) * unit * 0.018
+            + Math.sin(tw * 0.27 + i * 2.1) * unit * 0.020;
+          let fx = (h1 * regW + lw.dx + turbX) % regW;
+          if (fx < 0) fx += regW;
+          let fy = (h2 * regH + lw.dy + turbY) % regH;
+          if (fy < 0) fy += regH;
+          px = regX + fx;
+          py = regY + fy;
+          windUX = lw.ux;
+          windUY = lw.uy;
+          windSpeedFrac = lw.speedFrac;
+        } else {
+          // Calm: gentle near-vertical drift + slow graceful swirl + a soft
+          // whole-field sway (gustX/gustY). Unchanged from w3.9q.
+          const baseAng = (Math.PI * 0.5) + (h5 - 0.5) * 0.8;
+          const baseSpeed = unit * (0.05 + speedKnob * 0.11) * (0.6 + h4 * 0.85);
+          const sp = 0.6 * (0.55 + speedKnob * 0.9);
+          const fA = (0.40 + h5 * 0.85) * sp;
+          const fB = (0.60 + h6 * 1.05) * sp;
+          const ampX = regW * 0.10 * (0.5 + h3 * 0.9);
+          const ampY = regH * 0.11 * (0.5 + h4 * 0.9);
+          const swirlX = Math.sin(tw * fA + i * 1.7) * ampX
+            + Math.sin(tw * fB * 0.6 + i * 0.7) * ampX * 0.5;
+          const swirlY = Math.cos(tw * fB + i * 0.9) * ampY
+            + Math.sin(tw * fA * 0.7 + i * 1.3) * ampY * 0.5;
+          let fx = (h1 * regW + Math.cos(baseAng) * baseSpeed * safeAge + gustX + swirlX) % regW;
+          if (fx < 0) fx += regW;
+          let fy = (h2 * regH + Math.sin(baseAng) * baseSpeed * safeAge + gustY + swirlY) % regH;
+          if (fy < 0) fy += regH;
+          px = regX + fx;
+          py = regY + fy;
+        }
+
+        // Wind gusts brighten the snow they carry → the field reads denser
+        // when a stoß blows through (windSpeedFrac peaks across the layer).
+        const alpha = Math.max(0.05, Math.min(0.96,
+          alphaBase * overall * intensitySafe * (storm ? (0.78 + windSpeedFrac * 0.42) : 1)));
 
         if (oof) {
-          // Out-of-focus bokeh — soft blob in BOTH modes; never streaks
-          // (foreground flakes are too blurred to show motion lines).
+          // Out-of-focus bokeh — soft blob in BOTH modes; never streaks.
           softBlob(px, py, size, alpha * 0.95);
         } else if (storm) {
-          // Streak direction follows the COHERENT wind: prevailing drift +
-          // a SLOW per-flake lean + the gust-front kick — deliberately NOT
-          // the fast swirl derivative, whose rapid oscillation made streaks
-          // flick back and forth ("hin & her", artificial). The position
-          // still wanders on the slow swirl; the streak just points where
-          // the flake is really heading on average.
-          const leanAng = baseAng + Math.sin(tw * 0.4 + i * 0.7) * 0.22;
-          const dirX = Math.cos(leanAng) * baseSpeed + gustDirX * baseSpeed * gust * 2.2;
-          const dirY = Math.sin(leanAng) * baseSpeed + gustDirY * baseSpeed * gust * 2.2;
-          const mag = Math.hypot(dirX, dirY) || 1;
-          const speedRef = unit * 0.5;
-          if (mag < speedRef * 0.6) {
-            // Slow flake — a soft round flake (keeps a healthy fraction of
-            // dots mixed into the storm so it reads as snow, not scratches).
-            softDot(px, py, size * 1.5, alpha * 0.9);
+          // Streak length comes from the SHARED layer wind speed × a per-
+          // flake size/speed factor. When the wind gusts the whole layer
+          // streaks longer together; in a lull it shrinks to soft dots —
+          // coherent, never extreme (length is bounded).
+          const flakeSpeed = windSpeedFrac * (0.5 + h4 * 0.95);
+          const len = unit * (0.010 + speedKnob * 0.012) * (0.5 + sizeHash)
+            * Math.min(2.4, flakeSpeed * 2.2);
+          if (len < size * 1.9) {
+            // lull / slow flake → soft round flake (keeps the field snow-like)
+            softDot(px, py, size * 1.4, alpha * 0.9);
           } else {
-            // Tapered motion-blur streak: a faint full-length tail + a
-            // brighter short head + a head glint, so it FADES like real
-            // motion blur instead of reading as a solid stick. Length scales
-            // with speed; the short cap lifts inside a gust front (bounded).
-            const lenScale = Math.min(1.5 + gust * 0.9, mag / speedRef);
-            const len = unit * (0.009 + speedKnob * 0.013) * (0.6 + sizeHash) * lenScale;
-            const ux = dirX / mag;
-            const uy = dirY / mag;
-            const tx = px - ux * len;
-            const ty = py - uy * len;
-            const mx = px - ux * len * 0.5;
-            const my = py - uy * len * 0.5;
-            c.strokeStyle = `rgba(228, 237, 255, ${alpha * 0.4})`;
-            c.lineWidth = Math.max(0.8, size * 1.5);
+            // SYMMETRIC soft motion-blur streak CENTRED on the flake: a faint
+            // full-length pass + a brighter inner pass, both centred, round
+            // caps. No bright head dot → no comet/"sperm" shape (operator
+            // 2026-06-28); it fades evenly at both ends like wind-blurred
+            // snow and points along the shared layer wind (coherent).
+            const hx = windUX * len * 0.5;
+            const hy = windUY * len * 0.5;
+            c.strokeStyle = `rgba(230, 239, 255, ${alpha * 0.5})`;
+            c.lineWidth = Math.max(0.7, size * 1.1);
             c.beginPath();
-            c.moveTo(tx, ty);
-            c.lineTo(px, py);
+            c.moveTo(px - hx, py - hy);
+            c.lineTo(px + hx, py + hy);
             c.stroke();
-            c.strokeStyle = `rgba(238, 244, 255, ${alpha})`;
-            c.lineWidth = Math.max(0.7, size * 0.95);
+            c.strokeStyle = `rgba(240, 246, 255, ${alpha * 0.95})`;
+            c.lineWidth = Math.max(0.6, size * 0.65);
             c.beginPath();
-            c.moveTo(mx, my);
-            c.lineTo(px, py);
+            c.moveTo(px - hx * 0.62, py - hy * 0.62);
+            c.lineTo(px + hx * 0.62, py + hy * 0.62);
             c.stroke();
-            c.fillStyle = `rgba(240, 246, 255, ${Math.min(1, alpha * 1.05)})`;
-            c.beginPath();
-            c.arc(px, py, Math.max(0.7, size * 0.85), 0, TAU);
-            c.fill();
           }
         } else {
           // Calm in-focus flake. Medium ones get a soft edge; the tiniest
