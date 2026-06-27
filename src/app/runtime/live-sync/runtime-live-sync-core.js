@@ -539,6 +539,31 @@
         .map((animation) => [animation.id, animation]),
     );
     const boardBoundRunningAnimations = ctx.filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
+    // Phase 58 Wave 3.8v (2026-06-08): capture the RAW incoming
+    // startedAtEpochMs per id BEFORE primeGlobalTriggerRuntimeTimestamps
+    // runs. prime (runtime-global-trigger-tracker.js:261,270) OVERWRITES
+    // a scope="global" animation's incoming epoch with the PREVIOUS local
+    // epoch to keep the one-shot timeline stable across snapshots. That
+    // clobber also hides a genuine inside re-trigger's re-stamped epoch
+    // (Date.now()) from the re-stamp-acceptance check below (line ~809) —
+    // so on the FINAL/projector role the epoch delta collapsed to ~0,
+    // isReTriggerReStamp never fired, and the v1.2.45 RENDER_PLAYBACK_FIELDS
+    // preservation kept FINAL's client-derived frozen-last phase: FINAL
+    // never adopted playbackPhase="reverse" and stayed frozen until
+    // CONTROL's reverse-complete stop removed it (operator bug 2026-06-08:
+    // "inside reverse leg never plays on /output"). The raw map lets the
+    // re-stamp check see the TRUE broadcast epoch while prime still owns
+    // the render timeline base. Rooms (non-global) are unaffected: prime
+    // returns them unchanged so raw == current.
+    const incomingEpochByIdRaw = new Map();
+    for (const incomingAnimation of boardBoundRunningAnimations) {
+      if (incomingAnimation && typeof incomingAnimation.id === "string") {
+        const rawEpoch = Number(incomingAnimation.startedAtEpochMs);
+        if (Number.isFinite(rawEpoch)) {
+          incomingEpochByIdRaw.set(incomingAnimation.id, rawEpoch);
+        }
+      }
+    }
     // Phase 58 Wave 3.7h (2026-06-05): absence-grace in-flight merge.
     // Snapshot apply wholesale-replaces state.runningAnimations, so a
     // TRANSIENT snapshot omission (interleaved mutation broadcast,
@@ -806,7 +831,17 @@
         // used as the trigger because the frozen-* phases are
         // client-derived and legitimately differ from the server's
         // stale copy.
-        const incomingEpochMs = Number(animation.startedAtEpochMs);
+        // Phase 58 Wave 3.8v (2026-06-08): use the RAW incoming epoch
+        // (captured before prime's global clobber) for the re-stamp
+        // delta, falling back to the post-prime value when the id was not
+        // in this snapshot (in-flight grace preservation, where adopting
+        // nothing is correct). Without this, a genuine inside re-trigger's
+        // re-stamped epoch was clobbered to the previous local value for
+        // scope="global" instances, so the delta never exceeded 250 and
+        // FINAL never adopted the reverse phase.
+        const incomingEpochMs = incomingEpochByIdRaw.has(animation.id)
+          ? incomingEpochByIdRaw.get(animation.id)
+          : Number(animation.startedAtEpochMs);
         const previousEpochMs = ctx.getAnimationStartedAtEpochMs(previous);
         const isReTriggerReStamp =
           Number.isFinite(incomingEpochMs)
@@ -822,6 +857,19 @@
             epochDeltaMs: Math.round(incomingEpochMs - previousEpochMs),
             mutationType,
           }));
+          // Phase 58 Wave 3.8v: PERSIST the adopted re-stamp epoch onto
+          // the animation (prime clobbered it back to the previous local
+          // value). Otherwise every later snapshot would still carry the
+          // server's stored reverse+T2 while the local epoch stayed at the
+          // previous value, so the delta would keep exceeding 250 and the
+          // re-stamp would re-fire on EVERY poll — re-replaying reverse
+          // over a client-derived frozen-first terminal state
+          // (reverse-then-freeze-first). Persisting T2 makes subsequent
+          // deltas 0 -> later snapshots correctly preserve the terminal
+          // phase. The gif reverse leg is leg-local (v1.2.42) and mp4 uses
+          // video.currentTime, so neither depends on this epoch for
+          // playback timing.
+          animation.startedAtEpochMs = incomingEpochMs;
         } else {
           for (const field of RENDER_PLAYBACK_FIELDS) {
             if (previous[field] !== undefined) {

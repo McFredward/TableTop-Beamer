@@ -10,6 +10,12 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.46] — 2026-06-08
+
+### Fixed
+
+- **Die Rückwärts-Wiedergabe einer INSIDE-Animation läuft jetzt auch auf dem Beamer (/output, Projektor-Rolle).** Bei einer INSIDE-Animation im Modus „play-then-freeze" mit „reverse on re-trigger" spielte der 2. Trigger auf dem Dashboard die Animation korrekt rückwärts und beendete sie dann. Auf /output (der SSR-gestreamte Projektor) lief die Rückwärtsphase NICHT — das eingefrorene Standbild verschwand stattdessen schlagartig in dem Moment, in dem das Dashboard seine Rückwärtsphase beendete. Ursache: `primeGlobalTriggerRuntimeTimestamps` überschreibt bei global-Animationen den neu gestempelten Re-Trigger-Zeitstempel (Epoch) mit dem vorherigen lokalen Wert — und zwar BEVOR die v1.2.45-Re-Stamp-Annahme (Epoch-Sprung >250 ms) ihn liest. Dadurch fiel der Epoch-Abstand auf ~0, das Re-Trigger wurde nie als solches erkannt, und der v1.2.45-Schutz behielt auf dem Projektor die client-abgeleitete Phase „frozen-last" bei: /output übernahm `reverse` nie und blieb eingefroren, bis das Dashboard fertig war und den Stopp sendete. (Vor v1.2.45 kam die Reverse-Phase über `edit-room`, das die Erhaltung komplett übersprang, sodass die Phase trotz des überschriebenen Epoch ankam — v1.2.45 deckte den schon länger bestehenden Epoch-Überschreib-Fehler erst als sichtbare Regression auf.) Fix: Der ROHE eingehende Epoch wird jetzt erfasst, BEVOR `prime` ihn überschreibt, und für die Re-Stamp-Erkennung verwendet; bei Annahme wird er dauerhaft übernommen, damit `prime` das Re-Trigger nicht bei jedem weiteren Poll erneut auslöst. Die bewährte >250-ms-Semantik bleibt erhalten — keine fragile Phasen-Heuristik —, daher startet eine unabhängige Mutation eine eingefrorene INSIDE-Animation weiterhin NICHT neu (v1.2.45 bleibt intakt). Der Render-Loop erkennt dann den Phasenwechsel frozen-last→reverse und spielt die Rückwärtsphase Leg-lokal (v1.2.42) bis zum echten Medienende ab, bevor das Verschwinden ausgelöst wird. Verifiziert (deterministischer node:test gegen die echte `applyLiveRuntimeSnapshot` mit getreuem prime-Clobber): /output übernimmt `reverse` (per edit-room UND snapshot-poll); 10× wiederholte Reverse-Snapshots bleiben stabil auf reverse; reverse-then-freeze-first replay't nicht erneut über das client-abgeleitete frozen-first; v1.2.45 weiterhin grün; im Baseline reproduzieren 4 Tests den Bug. Gilt für GIF und MP4.
+
 ## [1.2.45] — 2026-06-08
 
 ### Fixed
