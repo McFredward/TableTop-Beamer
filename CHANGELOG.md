@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.53] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: Schneespuren potenzieren sich nicht mehr, wenn mehrere Bewohner auf denselben Pfaden wandeln.** Operator-Spec (2026-06-08): „Die Schneespuren sollten sich nicht potenzieren wenn mehrere Worker auf denselben Pfaden wandeln." Bisher wurden die Spursegmente jeder Figur direkt mit Per-Segment-Alpha auf das Haupt-Canvas gezeichnet (`source-over`) — wo sich die Pfade mehrerer Figuren (oder die wiederholten Zyklen einer einzelnen Figur) auf denselben Pixeln überlagerten, stapelte sich das Alpha und ein viel begangener Korridor leuchtete N× heller/dunkler als ein einzelner Durchgang. Fix: Alle Spursegmente eines Frames werden zunächst auf einen dedizierten Offscreen-Puffer gezeichnet und dabei per **`lighten`-Merge zum MAXIMUM** zusammengeführt (nicht zur Summe) — die Per-Segment-Alpha wird als Luminanz in opaken Graustufen-Strichen getragen, sodass jeder Pixel den hellsten (= frischesten) Durchgang behält; ein einzelner CPU-Pass wandelt Luminanz→Alpha zurück, färbt auf `style.trailRGB` ein und blittet die Spur-Ebene EINMAL aufs Haupt-Canvas (Room-Clip + der `lighter`-Lift zwischen mehreren Inside-Animationen bleiben erhalten). Ergebnis: 1 und 8 Bewohner auf demselben Korridor ergeben dieselbe Spur-Helligkeit (verifiziert: 8-Figuren-Spitzenhelligkeit gleich der 1-Figur-Spitze, vorher +~33 %); getrennte Pfade bleiben getrennt; der 75-s-Verlauf, die Spuren-Intensität (0/100/300 %) und die Alpha-Obergrenze bleiben unverändert. Der Puffer ist CPU-gestützt (`willReadFrequently` → deterministisch Dashboard == SSR), wächst nur und wird über Frames/Räume wiederverwendet (keine Allokation pro Frame); Figuren zeichnen weiterhin immer (kein SSR-Strobo).
+
+---
+
 ## [1.2.52] — 2026-06-08
 
 ### Fixed

@@ -797,6 +797,67 @@
     bundle: liftDarkRGB("31, 25, 18"),
   };
 
+  // ---- non-compounding trail buffer (Phase 58-w3.9e) ---------------
+  // Operator: "Die Schneespuren sollten sich nicht potenzieren wenn
+  // mehrere Worker auf denselben Pfaden wandeln." Trails used to be
+  // stroked straight onto the main canvas with per-segment alpha, so
+  // where multiple figures (or a single figure's repeated cycles)
+  // walked the SAME pixels the source-over alpha STACKED — a shared
+  // corridor blew out N× brighter/darker than a single pass.
+  //
+  // Fix: render every trail stroke for this frame onto a dedicated
+  // offscreen buffer with a NON-ADDITIVE merge that takes the MAX, not
+  // the sum. Standard Porter-Duff 'over' (source- or destination-) all
+  // accumulate alpha at low alpha, so we cannot carry the alpha in the
+  // alpha channel and still get max. Instead each stroke is drawn
+  // OPAQUE GREYSCALE with its per-segment trail alpha encoded in
+  // luminance, composited with 'lighten' → each pixel ends up holding
+  // the MAX (= freshest) pass's alpha, never the sum. A single CPU
+  // pass then converts luminance→alpha and re-tints to style.trailRGB,
+  // and the layer is blitted ONCE onto the main canvas with the
+  // inherited composite (preserving the w3.43 between-animation
+  // 'lighter' lift AND each style's source-over blend + room clip).
+  // Result: 1 worker and 10 workers on one corridor read the SAME worn
+  // path; distinct paths still render distinct; the 75 s fade survives
+  // (per-stroke alpha unchanged); the intensity slider still scales the
+  // single-pass prominence (and the alpha ceiling still caps it).
+  //
+  // willReadFrequently → CPU raster: deterministic across GPUs
+  // (dashboard == SSR, no GPU readback variance) and no per-frame
+  // GPU→CPU stall. Buffer is grow-only and reused across frames/rooms
+  // (NO per-frame allocation); only the room bbox is cleared/read each
+  // use. Cost: CPU stroke of the (already cheap) segments + one
+  // getImageData/putImageData over the room bbox per worker room/frame.
+  function makeWorkerOffscreen(width, height) {
+    if (typeof OffscreenCanvas !== "undefined") {
+      return new OffscreenCanvas(width, height);
+    }
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const cv = document.createElement("canvas");
+      cv.width = width;
+      cv.height = height;
+      return cv;
+    }
+    return null;
+  }
+  let _workerTrailBuf = null;
+  let _workerTrailCtx = null;
+  function getWorkerTrailBuffer(minW, minH) {
+    const needW = Math.max(1, Math.ceil(minW));
+    const needH = Math.max(1, Math.ceil(minH));
+    if (!_workerTrailBuf) {
+      _workerTrailBuf = makeWorkerOffscreen(needW, needH);
+      if (!_workerTrailBuf) return null;
+      _workerTrailCtx = _workerTrailBuf.getContext("2d", { willReadFrequently: true });
+      if (!_workerTrailCtx) { _workerTrailBuf = null; return null; }
+    } else if (_workerTrailBuf.width < needW || _workerTrailBuf.height < needH) {
+      // Grow only — resizing also clears (we clear the used rect anyway).
+      _workerTrailBuf.width = Math.max(_workerTrailBuf.width, needW);
+      _workerTrailBuf.height = Math.max(_workerTrailBuf.height, needH);
+    }
+    return _workerTrailCtx;
+  }
+
   // ---- render styles (Phase 58-w3.8e) ------------------------------
   // "city-workers" vs "city-workers-lit" share the ENTIRE behaviour
   // engine (seeding, anchors, groups, gait, trails geometry, variance
@@ -1570,13 +1631,38 @@
           ? Math.max(0, Math.min(300, trailIntensityOpt)) / 100
           : 1;
         const trailProminence = Math.sqrt(overall) * trailIntensityMul;
-        const prevCap = c.lineCap;
-        const prevJoin = c.lineJoin;
+
+        // Offscreen max-merge buffer (w3.9e) — overlapping strokes from
+        // different figures (or a single figure's repeated cycles) must
+        // NOT compound. We size the buffer to the room bbox (+ a pad for
+        // the widest track) and stroke OPAQUE GREYSCALE there with
+        // 'lighten' so overlaps take the MAX per-segment alpha; one CPU
+        // pass below converts luminance→alpha + re-tints. If the offscreen
+        // env is unavailable (non-browser unit env) we fall back to the
+        // historical direct source-over stroking onto the main canvas.
+        const trailPad = Math.ceil(baseFigLen * 3) + 6;
+        const bx0 = Math.floor(roomMinX - trailPad);
+        const by0 = Math.floor(roomMinY - trailPad);
+        const usedW = Math.max(1, Math.ceil(roomWidth + trailPad * 2));
+        const usedH = Math.max(1, Math.ceil(roomHeight + trailPad * 2));
+        const tc = getWorkerTrailBuffer(usedW, usedH);
+        const useBuf = !!tc;
+        const tg = useBuf ? tc : c;
+        const prevCap = tg.lineCap;
+        const prevJoin = tg.lineJoin;
+        let bufPrevComposite = null;
+        if (useBuf) {
+          tc.setTransform(1, 0, 0, 1, 0, 0);
+          tc.clearRect(0, 0, usedW, usedH);
+          bufPrevComposite = tc.globalCompositeOperation;
+          tc.globalCompositeOperation = "lighten"; // overlaps → MAX, not sum
+          tc.setTransform(1, 0, 0, 1, -bx0, -by0); // draw in main-canvas coords
+        }
         // Butt caps on purpose: round caps double-stamp at every band
         // boundary (path flushes) and beaded the trail with dark dots;
         // round JOINS still keep the in-path corners soft.
-        c.lineCap = "butt";
-        c.lineJoin = "round";
+        tg.lineCap = "butt";
+        tg.lineJoin = "round";
         for (let i = 0; i < figureCount; i += 1) {
           const fig = scene.figures[i];
           const samples = getWorkerTrailSamples(fig, i);
@@ -1601,9 +1687,17 @@
               WORKER_TRAIL_ALPHA_CEIL,
               style.trailAlpha * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence,
             );
-            c.lineWidth = trailW;
-            c.strokeStyle = `rgba(${style.trailRGB}, ${a.toFixed(4)})`;
-            c.stroke();
+            tg.lineWidth = trailW;
+            if (useBuf) {
+              // Carry the per-segment alpha in luminance; 'lighten' keeps
+              // the MAX across overlaps. The single composite below turns
+              // luminance back into alpha and applies style.trailRGB.
+              const g = Math.max(0, Math.min(255, Math.round(a * 255)));
+              tg.strokeStyle = `rgb(${g}, ${g}, ${g})`;
+            } else {
+              tg.strokeStyle = `rgba(${style.trailRGB}, ${a.toFixed(4)})`;
+            }
+            tg.stroke();
           };
           // Cycle indices whose active stretch can intersect the
           // trailing fade window [safeAge - FADE, safeAge].
@@ -1634,16 +1728,43 @@
               if (b !== band) {
                 strokeBand(band);
                 band = b;
-                c.beginPath();
-                c.moveTo(roomX + s0.px * halfW, roomY + s0.py * halfH);
+                tg.beginPath();
+                tg.moveTo(roomX + s0.px * halfW, roomY + s0.py * halfH);
               }
-              c.lineTo(roomX + s1.px * halfW, roomY + s1.py * halfH);
+              tg.lineTo(roomX + s1.px * halfW, roomY + s1.py * halfH);
             }
             strokeBand(band);
           }
         }
-        c.lineCap = prevCap;
-        c.lineJoin = prevJoin;
+        tg.lineCap = prevCap;
+        tg.lineJoin = prevJoin;
+        if (useBuf) {
+          // Convert the greyscale max-merge buffer (luminance = max
+          // per-pixel trail alpha) into a tinted trail layer (RGB =
+          // style.trailRGB, A = max alpha), then blit ONCE onto the main
+          // canvas with the inherited composite (room clip + w3.43 lift
+          // both honoured). Overlaps now read as a SINGLE worn pass.
+          tc.setTransform(1, 0, 0, 1, 0, 0);
+          tc.globalCompositeOperation = bufPrevComposite;
+          const img = tc.getImageData(0, 0, usedW, usedH);
+          const d = img.data;
+          const parts = style.trailRGB.split(",");
+          const tr = Math.max(0, Math.min(255, parseInt(parts[0], 10) || 0));
+          const tgc = Math.max(0, Math.min(255, parseInt(parts[1], 10) || 0));
+          const tb = Math.max(0, Math.min(255, parseInt(parts[2], 10) || 0));
+          for (let p = 0; p < d.length; p += 4) {
+            const lum = d[p];        // max(alpha*255) across overlapping strokes
+            const cov = d[p + 3];    // rasterizer coverage (AA fringe softness)
+            if (lum === 0 || cov === 0) { d[p + 3] = 0; continue; }
+            // (lum/255) = max alpha; × (cov/255) preserves the soft AA edge.
+            d[p] = tr;
+            d[p + 1] = tgc;
+            d[p + 2] = tb;
+            d[p + 3] = Math.round((lum * cov) / 255);
+          }
+          tc.putImageData(img, 0, 0);
+          c.drawImage(_workerTrailBuf, 0, 0, usedW, usedH, bx0, by0, usedW, usedH);
+        }
       }
 
       // ---- drawn exclusion ring (Phase 58-w3.9c) ---------------------
