@@ -354,12 +354,11 @@
     stopButton.type = "button";
     const stopPending = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
     stopButton.textContent = stopPending ? "Stopping..." : "Stop";
-    stopButton.disabled = stopPending;
+    // Phase 58 Wave 3.9d: a "Stopping..." button must stay CLICKABLE so the
+    // operator can force a re-stop. Previously it was disabled + the click
+    // early-returned on pending, so a lost stop wedged with no escape but a
+    // server restart. A re-click now force re-issues the stop.
     stopButton.addEventListener("click", () => {
-      const pendingAtClick = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
-      if (pendingAtClick) {
-        return;
-      }
       if (shouldSuppressRapidTap(`running-stop-${anim.id}`)) {
         return;
       }

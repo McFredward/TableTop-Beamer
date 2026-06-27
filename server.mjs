@@ -545,6 +545,8 @@ function applyRoomMutationPatch(mutationType, payload) {
   const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
   const stopTargetType = normalizeNonEmptyString(payload?.targetType);
   const stopTargetBoardId = normalizeNonEmptyString(payload?.boardId);
+  // Phase 58 Wave 3.9d: room hint for the robust fallback match (see stop branch).
+  const stopTargetRoomId = normalizeNonEmptyString(payload?.roomId);
   const payloadBoardId =
     normalizeNonEmptyString(payload?.boardId)
     ?? normalizeNonEmptyString(payload?.animation?.boardId)
@@ -603,6 +605,32 @@ function applyRoomMutationPatch(mutationType, payload) {
       }
     }
     const stoppedEntry = runningAnimations.find((entry) => entry?.id === stopAnimationId);
+    // Phase 58 Wave 3.9d: robust fallback. If the id misses (client/server id
+    // drift, or a retried stop after the original instance object was
+    // replaced) match the authoritative running ROOM instance(s) by
+    // scope+type+room+board so the stop still lands instead of being a silent
+    // server no-op (which wedged the client on "Stopping" forever). Only
+    // engaged when the id resolves nothing AND room hints are present.
+    const fallbackRoomEntries =
+      (!stoppedEntry && stopTargetScope === "room" && stopTargetType)
+        ? runningAnimations.filter((entry) => (
+          entry?.scope === "room"
+          && normalizeNonEmptyString(entry?.type) === stopTargetType
+          && (!stopTargetRoomId || normalizeNonEmptyString(entry?.roomId) === stopTargetRoomId)
+          && (!stopTargetBoardId || normalizeNonEmptyString(entry?.boardId) === stopTargetBoardId)
+        ))
+        : [];
+    const resolvedStopEntry = stoppedEntry ?? fallbackRoomEntries[0] ?? null;
+    if (typeof console?.warn === "function") {
+      console.warn("[58] server-stop", JSON.stringify({
+        animationId: stopAnimationId ?? null,
+        idMatched: Boolean(stoppedEntry),
+        fallbackMatched: fallbackRoomEntries.length,
+        targetScope: stopTargetScope ?? null,
+        targetType: stopTargetType ?? null,
+        roomId: stopTargetRoomId ?? null,
+      }));
+    }
     const resolvedGlobalStopScope = stoppedEntry?.scope ?? stopTargetScope;
     const resolvedGlobalStopType = normalizeNonEmptyString(stoppedEntry?.type) ?? stopTargetType;
     const resolvedGlobalStopBoardId = normalizeNonEmptyString(stoppedEntry?.boardId) ?? stopTargetBoardId;
@@ -611,20 +639,29 @@ function applyRoomMutationPatch(mutationType, payload) {
       const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
       globalStopRevisions[triggerKey] = stopRevision + 1;
     }
-    const stopIds = new Set([stopAnimationId]);
-    if (stoppedEntry?.scope === "cluster") {
-      const linkedMemberIds = Array.isArray(stoppedEntry.memberAnimationIds)
-        ? stoppedEntry.memberAnimationIds.map((entry) => normalizeNonEmptyString(entry)).filter(Boolean)
+    const stopIds = new Set();
+    if (stopAnimationId) {
+      stopIds.add(stopAnimationId);
+    }
+    for (const fallbackEntry of fallbackRoomEntries) {
+      const fallbackId = normalizeNonEmptyString(fallbackEntry?.id);
+      if (fallbackId) {
+        stopIds.add(fallbackId);
+      }
+    }
+    if (resolvedStopEntry?.scope === "cluster") {
+      const linkedMemberIds = Array.isArray(resolvedStopEntry.memberAnimationIds)
+        ? resolvedStopEntry.memberAnimationIds.map((entry) => normalizeNonEmptyString(entry)).filter(Boolean)
         : [];
       for (const memberId of linkedMemberIds) {
         stopIds.add(memberId);
       }
     }
-    if (stoppedEntry?.scope === "room" && stoppedEntry?.parentClusterRunId) {
-      const parentClusterId = normalizeNonEmptyString(stoppedEntry.parentClusterRunId);
+    if (resolvedStopEntry?.scope === "room" && resolvedStopEntry?.parentClusterRunId) {
+      const parentClusterId = normalizeNonEmptyString(resolvedStopEntry.parentClusterRunId);
       if (parentClusterId) {
         const hasOtherMembers = runningAnimations.some((entry) => (
-          entry?.id !== stopAnimationId
+          !stopIds.has(normalizeNonEmptyString(entry?.id))
           && entry?.scope === "room"
           && normalizeNonEmptyString(entry?.parentClusterRunId) === parentClusterId
         ));
@@ -1212,7 +1249,19 @@ function applyLiveMutation({
   const normalizedSequence = Number.isFinite(Number(clientSequence)) ? Math.trunc(Number(clientSequence)) : null;
   if (Number.isInteger(normalizedSequence) && normalizedSequence > 0) {
     const lastSequence = lastClientSequenceById.get(clientId) ?? 0;
-    if (normalizedSequence <= lastSequence) {
+    // Phase 58 Wave 3.9d: control-critical mutations (stop-animation,
+    // clear-all) must NEVER be dropped by the per-client sequence-stale gate.
+    // The fair scheduler (FAIR_SEQUENCE rotating cursor) can dequeue+apply a
+    // higher-sequence STATE mutation (a rapid toggle-on trigger-room /
+    // edit-room) BEFORE an already-queued lower-sequence high-priority STOP;
+    // the stop then tripped `seq <= last` and was silently dropped, leaving
+    // the animation in runningAnimations forever and the client wedged on
+    // "Stopping" until a server restart reset this map. A stop is idempotent
+    // and already deduped by mutationId, so honoring an out-of-order one is
+    // safe. The sequence watermark still advances (max) so later state
+    // mutations behave normally.
+    const isControlCritical = CONTROL_CRITICAL_MUTATIONS.has(mutationType);
+    if (!isControlCritical && normalizedSequence <= lastSequence) {
       return {
         applied: false,
         duplicate: false,
@@ -1224,7 +1273,7 @@ function applyLiveMutation({
         version: liveSessionState.version,
       };
     }
-    lastClientSequenceById.set(clientId, normalizedSequence);
+    lastClientSequenceById.set(clientId, Math.max(lastSequence, normalizedSequence));
   }
 
   // Phase 31 Plan 04 (D-D1): V5 ASVS validation for align-corner-drag.

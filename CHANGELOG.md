@@ -10,6 +10,16 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.52] — 2026-06-08
+
+### Fixed
+
+- **Room-Animation „Stopping": Stop landet jetzt IMMER und ist IMMER erneut auslösbar — kein Server-Neustart mehr nötig.** Operator-Bug (2026-06-08): Beim Ausschalten einer laufenden Room-Animation (Loop) blieb sie gelegentlich dauerhaft grau auf „Stopping" hängen — sie stoppte nie und konnte nie wieder gestoppt werden; einzige Rettung war ein Server-Neustart (intermittierend, race-artig). Zwei sich verstärkende Ursachen:
+  - **Stop ging serverseitig verloren:** Der Sequenz-Stale-Filter (`clientSequence <= last`) verwarf einen Stop, wenn der Fair-Scheduler eine höher-sequenzierte STATE-Mutation (schnelles Wieder-Einschalten / Edit) VOR dem bereits eingereihten hoch-priorisierten Stop abarbeitete. Die Animation blieb damit für immer in `runningAnimations` (nur ein Neustart setzte den Per-Client-Sequenzzähler zurück). Fix: control-kritische Mutationen (stop-animation, clear-all) sind vom Sequenz-Stale-Filter ausgenommen (weiterhin per `mutationId` dedupliziert; Stop ist idempotent) und matchen bei Id-Drift robust per scope+type+room+board.
+  - **Kein Ausweg:** Clientseitig war ein bereits „pending" Stop nicht erneut auslösbar (`stopAnimation` brach mit „already in flight" ab; der „Stopping…"-Button war deaktiviert) und es gab keinen Timeout/Retry. Fix: Ein Stop ist jetzt immer erneut auslösbar (erneutes Umschalten erzwingt einen frischen Stop), der „Stopping…"-Button bleibt klickbar, und `reconcileStopPendingFromSnapshot` löst nach einem Karenzfenster automatisch erneut aus (Selbstheilung ohne Operator-Aktion). Permanente `[58]`-Diagnostik für Stop-Dispatch, Pending Set/Clear/Retry und Server-Match/No-Match/Fallback.
+
+---
+
 ## [1.2.51] — 2026-06-08
 
 ### Fixed
