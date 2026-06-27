@@ -201,6 +201,8 @@
       "city-workers":    "users",
       // Phase 58-w3.8e: projection-readable variant — same icon family.
       "city-workers-lit": "users",
+      // Phase 58-w3.9m: coded snow effect (decode-free snow.mp4 replacement).
+      "snow":            "snowflake",
       "slime":           "drop",
       "power-out":       "power",
       "power":           "power",
@@ -225,6 +227,7 @@
       ["explosion", "sparkles"],
       ["worker",    "users"],
       ["inhabitant","users"],
+      ["snow",      "snowflake"],
       ["slime",     "drop"],
       ["ooze",      "drop"],
       ["water",     "drop"],

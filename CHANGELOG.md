@@ -10,6 +10,15 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.61] — 2026-06-08
+
+### Added
+
+- **New coded "Snow" effect — a decode-free replacement for the snow video.** The operator reported the `snow.mp4` animation hitches on the projector hardware (it is a large clip and the decoder stalls). The snow is now a fully CODED particle field: every flake's position is a PURE function of `(age, index, seeded hash)` — no per-frame `Math.random` — so it never decodes a video, never hitches, and renders pixel-identically on the dashboard, `/output` and the SSR encoder tab. White-ish flakes are drawn additively (`lighter` composite, restored after) clipped to the effect's region, and the branch always paints SOMETHING each frame (no SSR black-strobe). "Snow" is selectable in the room, inside and outside pickers (snowflake icon), composes with other concurrent animations via the v1.2.43 concurrency lift, and at its defaults approximates the calm `snow.mp4` look.
+- **Three controls under "Coded Settings" (full editor + live editor):** "Dichte" (density, 0–100 %, default 55 — flake count), "Geschwindigkeit" (speed, 0–100 %, default 50 — fall rate), and "Sturm" (storm, boolean, default OFF). These are dedicated knobs so the operator's two requested sliders map 1:1 and the generic intensity/speed sliders stay untouched. With **Sturm ON**, the snow becomes wind-driven: a strong horizontal drift, roughly doubled density, faster fall, and motion-streaked diagonal flakes (matching `snowstorm.mp4`); OFF is calm vertical drift with a gentle per-flake sway.
+
+---
+
 ## [1.2.60] — 2026-06-08
 
 ### Added

@@ -93,6 +93,12 @@
     // Phase 58-w3.8x: optional irregular (seeded) heat pulse. Default
     // off = the regular ~0.24 Hz breathing, byte-identical to before.
     heatIrregularPulse = false,
+    // Phase 58-w3.9m: coded snow options — "Dichte" (snowDensity, 0–100 %
+    // flake count), "Geschwindigkeit" (snowSpeed, 0–100 % fall rate) and
+    // "Sturm" (snowStorm, bool). Defaults approximate the calm snow.mp4.
+    snowDensity = 55,
+    snowSpeed = 50,
+    snowStorm = false,
     // Phase 58-w3.9h: optional fade-in/fade-out (per-definition, all
     // scopes + asset types). Defaults preserve the abrupt start/stop, so a
     // caller that misses these forwards the legacy behavior (Phase 50
@@ -209,6 +215,15 @@
       workerExclusionRingVisible: workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular heat pulse.
       heatIrregularPulse: heatIrregularPulse === true,
+      // Phase 58-w3.9m: coded snow options on the instance (same
+      // factory-default-mask contract — every dispatch site forwards them).
+      snowDensity: Number.isFinite(Number(snowDensity))
+        ? Math.max(0, Math.min(100, Number(snowDensity)))
+        : 55,
+      snowSpeed: Number.isFinite(Number(snowSpeed))
+        ? Math.max(0, Math.min(100, Number(snowSpeed)))
+        : 50,
+      snowStorm: snowStorm === true,
       // Phase 58-w3.9h: per-instance fade config (same factory-default-mask
       // contract as the fields above; snapshots carry these via the full
       // object spread in buildAnimationSnapshotForLiveSync). The render

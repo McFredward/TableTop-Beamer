@@ -518,6 +518,10 @@
         workerExclusionOffsetY: animation.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: animation.workerExclusionRingVisible !== false,
         heatIrregularPulse: animation.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options.
+        snowDensity: animation.snowDensity ?? 55,
+        snowSpeed: animation.snowSpeed ?? 50,
+        snowStorm: animation.snowStorm === true,
       },
     );
   }
@@ -739,6 +743,10 @@
       workerExclusionOffsetY: definition?.workerExclusionOffsetY ?? 0,
       workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
       heatIrregularPulse: definition?.heatIrregularPulse === true,
+      // Phase 58-w3.9m: coded snow options (Dichte / Geschwindigkeit / Sturm).
+      snowDensity: definition?.snowDensity ?? 55,
+      snowSpeed: definition?.snowSpeed ?? 50,
+      snowStorm: definition?.snowStorm === true,
     };
   }
 

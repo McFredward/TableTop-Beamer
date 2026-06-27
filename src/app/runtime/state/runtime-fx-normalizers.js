@@ -165,6 +165,12 @@
       workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular (seeded) heat pulse, default off.
       heatIrregularPulse: definition?.heatIrregularPulse === true,
+      // Phase 58-w3.9m: coded snow — "Dichte" (0–100, default 55),
+      // "Geschwindigkeit" (0–100, default 50) and "Sturm" (bool, default off).
+      // Defaults approximate the calm snow.mp4 density / fall rate.
+      snowDensity: clampNumber(definition?.snowDensity, 0, 100, 55),
+      snowSpeed: clampNumber(definition?.snowSpeed, 0, 100, 50),
+      snowStorm: definition?.snowStorm === true,
       // Phase 58-w3.9h: optional fade-in/fade-out. Per-definition, shared
       // across room/inside/outside (this helper is spread into all three
       // normalizers) and across asset types (mp4/gif/coded). fadeEnabled

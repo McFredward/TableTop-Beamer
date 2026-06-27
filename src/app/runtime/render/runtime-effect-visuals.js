@@ -1500,6 +1500,123 @@
       return;
     }
 
+    if (type === "snow") {
+      // Phase 58-w3.9m — coded snow: a decode-free replacement for the
+      // snow.mp4 / snowstorm.mp4 clips (which hitch on the Pi because the
+      // big mp4 stalls the decoder). A seeded particle field: every
+      // flake's position is a PURE function of (safeAge, index, seeded
+      // hash) — no per-frame Math.random — so dashboard, /output and the
+      // SSR encoder render byte-identically (determinism trap) and the
+      // branch ALWAYS paints something (SSR black-strobe trap).
+      //
+      // The caller has already clipped the canvas to the region polygon
+      // (room polygon / inside-ship / outside), so we may overdraw the
+      // bounding box freely; the clip cuts flakes to the region shape.
+      //
+      // Controls (operator spec 2026-06-08): "Dichte" (snowDensity, flake
+      // count), "Geschwindigkeit" (snowSpeed, fall rate) and "Sturm"
+      // (snowStorm, bool). Defaults approximate the calm snow.mp4 look:
+      // small white-ish dots, moderate density, gentle vertical fall with
+      // a touch of sway. Storm matches snowstorm.mp4: denser + faster,
+      // strong horizontal wind drift, motion-streaked diagonal flakes.
+      const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
+      const overall = Math.max(0, Math.min(1, opacityOption));
+      const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
+      const safeAge = Number.isFinite(age) ? Math.max(0, age) : 0;
+      const densityFactor = Number(options.densityFactor) || 1;
+      const storm = options.snowStorm === true;
+      const densityKnob = Math.max(0, Math.min(1,
+        (Number.isFinite(Number(options.snowDensity)) ? Number(options.snowDensity) : 55) / 100));
+      const speedKnob = Math.max(0, Math.min(1,
+        (Number.isFinite(Number(options.snowSpeed)) ? Number(options.snowSpeed) : 50) / 100));
+
+      // Region bounds (bounding box of the clipped polygon).
+      const regX = roomMinX;
+      const regY = roomMinY;
+      const regW = Math.max(1, roomWidth);
+      const regH = Math.max(1, roomHeight);
+      const unit = Math.min(regW, regH); // size reference, region-relative
+
+      // Flake count. Calm default (~55 %) lands near the snow.mp4 density;
+      // storm roughly doubles it. Capped by the non-critical density scale
+      // (Pi / low-power throttle) so a dense storm never tanks fps.
+      const stormCountMul = storm ? 2.1 : 1;
+      // Calm default (~55 %) lands near snow.mp4's fine, dense flurry.
+      const rawCount = 230 * (0.2 + densityKnob * 1.55) * stormCountMul
+        * densityFactor * visualCaps.nonCriticalDensityScale;
+      const count = Math.max(0, Math.min(1400, Math.round(rawCount)));
+
+      // Fall + wind velocities, expressed in region-heights / region-widths
+      // per `safeAge` unit so the look is canvas-size independent. Storm
+      // falls faster and is driven by a strong horizontal wind.
+      const fallV = regH * (0.045 + speedKnob * 0.16) * (storm ? 1.85 : 1);
+      const windV = storm ? regW * (0.42 + speedKnob * 0.30) : regW * 0.015;
+
+      const prevComposite = c.globalCompositeOperation;
+      // White-ish flakes read best additively on black AND survive the
+      // v1.2.43 concurrency lift: set "lighter", restore prevComposite
+      // after — if an outer concurrent scope already set "lighter", the
+      // restore keeps it lifted (never downgrades a concurrent composite).
+      c.globalCompositeOperation = "lighter";
+
+      const fract = (n) => n - Math.floor(n);
+      for (let i = 0; i < count; i += 1) {
+        // Per-flake seeded hashes — fixed per index, so each flake keeps a
+        // stable size / speed / lane across frames (deterministic).
+        const h1 = fract(Math.sin((i + 1) * 12.9898) * 43758.5453); // x lane
+        const h2 = fract(Math.sin((i + 1) * 78.2330) * 24634.6345); // y phase
+        const h3 = fract(Math.sin((i + 1) * 39.4250) * 51294.1234); // size
+        const h4 = fract(Math.sin((i + 1) * 93.9890) * 19349.7654); // speed var
+
+        const speedVar = 0.6 + h3 * 0.85;
+        const vy = fallV * speedVar;
+        const vx = windV * (storm ? (0.65 + h4 * 0.7) : 1);
+
+        // Falling y wraps over region height; x drifts with wind + a small
+        // per-flake horizontal sway (calm look). Both wrapped into region.
+        const swayAmp = storm ? unit * 0.4 : regW * 0.02 * (0.5 + h2);
+        const sway = Math.sin(safeAge * (0.4 + h4 * 0.6) + i * 1.7) * swayAmp;
+        let fx = (h1 * regW + safeAge * vx + sway) % regW;
+        if (fx < 0) fx += regW;
+        let fy = (h2 * regH + safeAge * vy) % regH;
+        if (fy < 0) fy += regH;
+        const px = regX + fx;
+        const py = regY + fy;
+
+        // Size + opacity vary per flake (depth illusion). Storm flakes are
+        // a touch smaller/dimmer on average but streaked.
+        // Mostly small pinpoint flakes with a few larger ones (snow.mp4's
+        // size distribution): square the size hash to bias toward small
+        // without making the bulk invisible.
+        const sizeHash = h3 * h3;
+        const size = Math.max(0.7, unit * (0.0016 + sizeHash * 0.0072) * (storm ? 0.85 : 1));
+        const alpha = Math.max(0.06, Math.min(0.95,
+          (0.34 + h2 * 0.45) * overall * intensitySafe * (storm ? 0.8 : 1)));
+
+        if (storm) {
+          // Diagonal motion streak along the wind+fall vector.
+          const mag = Math.hypot(vx, vy) || 1;
+          const len = size * (4 + speedKnob * 7);
+          const dx = (vx / mag) * len;
+          const dy = (vy / mag) * len;
+          c.strokeStyle = `rgba(232, 240, 255, ${alpha})`;
+          c.lineWidth = Math.max(0.6, size * 0.9);
+          c.beginPath();
+          c.moveTo(px - dx, py - dy);
+          c.lineTo(px, py);
+          c.stroke();
+        } else {
+          c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
+          c.beginPath();
+          c.arc(px, py, size, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+
+      c.globalCompositeOperation = prevComposite;
+      return;
+    }
+
     if (type === "city-workers" || type === "city-workers-lit") {
       // Phase 58-w3.7y — sparse top-down inhabitants animating the
       // Frostpunk crater city. Dark, slow, occasional: tiny near-black

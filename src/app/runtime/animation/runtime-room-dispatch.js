@@ -133,6 +133,10 @@
         workerExclusionOffsetY: selectedDefinition.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: selectedDefinition.workerExclusionRingVisible !== false,
         heatIrregularPulse: selectedDefinition.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options carried onto the instance.
+        snowDensity: selectedDefinition.snowDensity ?? 55,
+        snowSpeed: selectedDefinition.snowSpeed ?? 50,
+        snowStorm: selectedDefinition.snowStorm === true,
         // Phase 58-w3.9h: optional fade-in/fade-out — per-definition, carried
         // onto every dispatched instance (same factory-default-mask trap as
         // the fields above: every createAnimation call site forwards these).
@@ -486,6 +490,10 @@
                     workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
                     workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
                     heatIrregularPulse: draftPayload.heatIrregularPulse,
+                    // Phase 58-w3.9m: coded snow options — explicit pass-through.
+                    snowDensity: draftPayload.snowDensity,
+                    snowSpeed: draftPayload.snowSpeed,
+                    snowStorm: draftPayload.snowStorm,
                     // Phase 58-w3.9h: fade config — explicit pass-through.
                     fadeEnabled: draftPayload.fadeEnabled,
                     fadeDurationMs: draftPayload.fadeDurationMs,
@@ -628,6 +636,10 @@
           workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
           workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
           heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9m: coded snow options — explicit pass-through.
+          snowDensity: draftPayload.snowDensity,
+          snowSpeed: draftPayload.snowSpeed,
+          snowStorm: draftPayload.snowStorm,
           // Phase 58-w3.9h: fade config — explicit pass-through.
           fadeEnabled: draftPayload.fadeEnabled,
           fadeDurationMs: draftPayload.fadeDurationMs,
@@ -682,6 +694,10 @@
             workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
             workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
             heatIrregularPulse: draftPayload.heatIrregularPulse,
+            // Phase 58-w3.9m: coded snow options — explicit pass-through.
+            snowDensity: draftPayload.snowDensity,
+            snowSpeed: draftPayload.snowSpeed,
+            snowStorm: draftPayload.snowStorm,
             // Phase 58-w3.9h: fade config — explicit pass-through.
             fadeEnabled: draftPayload.fadeEnabled,
             fadeDurationMs: draftPayload.fadeDurationMs,
@@ -827,6 +843,10 @@
                   workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
                   workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
                   heatIrregularPulse: draftPayload.heatIrregularPulse,
+                  // Phase 58-w3.9m: coded snow options — explicit pass-through.
+                  snowDensity: draftPayload.snowDensity,
+                  snowSpeed: draftPayload.snowSpeed,
+                  snowStorm: draftPayload.snowStorm,
                   // Phase 58-w3.9h: fade config — explicit pass-through.
                   fadeEnabled: draftPayload.fadeEnabled,
                   fadeDurationMs: draftPayload.fadeDurationMs,
@@ -975,6 +995,10 @@
         workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
         heatIrregularPulse: draftPayload.heatIrregularPulse,
+        // Phase 58-w3.9m: coded snow options — explicit pass-through.
+        snowDensity: draftPayload.snowDensity,
+        snowSpeed: draftPayload.snowSpeed,
+        snowStorm: draftPayload.snowStorm,
         // Phase 58-w3.9h: fade config — explicit pass-through.
         fadeEnabled: draftPayload.fadeEnabled,
         fadeDurationMs: draftPayload.fadeDurationMs,
@@ -1031,6 +1055,10 @@
           workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
           workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
           heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9m: coded snow options — explicit pass-through.
+          snowDensity: draftPayload.snowDensity,
+          snowSpeed: draftPayload.snowSpeed,
+          snowStorm: draftPayload.snowStorm,
           // Phase 58-w3.9h: fade config — explicit pass-through.
           fadeEnabled: draftPayload.fadeEnabled,
           fadeDurationMs: draftPayload.fadeDurationMs,

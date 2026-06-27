@@ -137,6 +137,7 @@
       isCityWorkers: coded === "city-workers" || coded === "city-workers-lit",
       isHullFlicker: coded === "hull-flicker" && scope === "room",
       isPowerOutage: coded === "power-outage" && scope === "room",
+      isSnow: coded === "snow",
     };
   }
 
@@ -145,7 +146,7 @@
   function hasCodedOptions(codedType, scope) {
     const c = classifyCodedType(codedType, scope);
     return c.isSolidColor || c.isHeat || c.isCityWorkers
-      || c.isHullFlicker || c.isPowerOutage;
+      || c.isHullFlicker || c.isPowerOutage || c.isSnow;
   }
 
   // Build the ordered list of coded option rows for a resolved effect.
@@ -154,9 +155,9 @@
     const io = { get, set };
     const rows = [];
     const {
-      isSolidColor, isHeat, isCityWorkers, isHullFlicker, isPowerOutage,
+      isSolidColor, isHeat, isCityWorkers, isHullFlicker, isPowerOutage, isSnow,
     } = classifyCodedType(codedType, scope);
-    if (!isSolidColor && !isHeat && !isCityWorkers && !isHullFlicker && !isPowerOutage) {
+    if (!isSolidColor && !isHeat && !isCityWorkers && !isHullFlicker && !isPowerOutage && !isSnow) {
       return rows;
     }
 
@@ -314,6 +315,31 @@
       applyExclusionGate(io.get("workerCenterExclusion") === true);
     }
 
+    if (isSnow) {
+      // Phase 58-w3.9m: coded snow (decode-free snow.mp4 replacement).
+      // "Dichte" = flake count, "Geschwindigkeit" = fall speed, both as
+      // dedicated 0–100 % knobs (the generic intensity/speed sliders are
+      // left untouched so the operator's two requested controls map 1:1).
+      // "Sturm" = wind-driven, denser, faster, diagonal streaks.
+      rows.push(makeSliderRow(io, {
+        key: "snowDensity",
+        label: "Dichte",
+        min: 0, max: 100, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      }));
+      rows.push(makeSliderRow(io, {
+        key: "snowSpeed",
+        label: "Geschwindigkeit",
+        min: 0, max: 100, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      }));
+      rows.push(makeToggleRow(io, {
+        key: "snowStorm",
+        label: "Sturm",
+        sub: "AN: windgepeitschter, dichterer und schnellerer Schnee mit diagonalen Schlieren. AUS: ruhiges Schneerieseln.",
+      }));
+    }
+
     if (isHullFlicker) {
       rows.push(makeToggleRow(io, {
         key: "breaksSolidColor",
@@ -383,6 +409,9 @@
     "workerExclusionOffsetX",
     "workerExclusionOffsetY",
     "workerExclusionRingVisible",
+    "snowDensity",
+    "snowSpeed",
+    "snowStorm",
     "breaksSolidColor",
   ];
 

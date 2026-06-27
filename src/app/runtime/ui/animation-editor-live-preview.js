@@ -311,6 +311,10 @@
         workerExclusionOffsetY: current.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: current.workerExclusionRingVisible !== false,
         heatIrregularPulse: current.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options in the editor preview.
+        snowDensity: current.snowDensity ?? 55,
+        snowSpeed: current.snowSpeed ?? 50,
+        snowStorm: current.snowStorm === true,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {
