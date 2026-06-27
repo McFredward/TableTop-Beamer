@@ -781,6 +781,91 @@
     state.lastVisibleFrameAtMs = performance.now();
     state.lastDecodedFrameAtMs = state.lastVisibleFrameAtMs;
     state.hasVisibleFrame = true;
+    // Phase 58 Wave 3.9f (2026-06-08, FROZEN FPS): the fallback canvas
+    // content changed in-place — invalidate any cached pre-scaled frozen
+    // bitmap (getFrozenScaledBitmap keys on this generation so a re-freeze
+    // rebuilds the bitmap from the NEW freeze frame).
+    state._fallbackGen = Number(state._fallbackGen || 0) + 1;
+  }
+
+  // Phase 58 Wave 3.9f (2026-06-08): pre-scaled frozen-frame bitmap cache.
+  //
+  // ROOT CAUSE this addresses: v1.2.15 (Wave 3.7i) made a FROZEN room/
+  // inside/outside mp4 paint EXCLUSIVELY from the fallback canvas — "one
+  // cheap blit per rAF". But that blit DOWNSCALES the full-resolution
+  // fallback canvas (e.g. 1280x720) into the much smaller room rect every
+  // frame, and Firefox's 2D-canvas downscale RESAMPLE is ~100x slower
+  // than Chromium's GPU path (measured: 0.158ms vs 0.0014ms per blit,
+  // .planning/debug/_bench_blit.py). On the operator's Firefox dashboard
+  // a "freeze-vid" therefore kept costing meaningful fps AFTER freezing,
+  // even though the decoder is idle and the JS is negligible — the cost
+  // is purely the per-frame resample. Chromium (the SSR/dev env) never
+  // showed it, so v1.2.15's "cheap blit" claim held only there.
+  //
+  // FIX: build an ImageBitmap of the frozen frame ALREADY scaled to the
+  // destination rect's pixel size, then blit it 1:1 each rAF (no resample).
+  // Firefox per-blit drops 14x (0.158ms -> 0.011ms); Chromium stays
+  // negligible (0.016ms). Build is async (createImageBitmap returns a
+  // Promise) — the caller blits the full-res fallback until the bitmap is
+  // ready (1-2 frames), so there is never an unpainted/strobing frame.
+  // The bitmap is keyed on (destW, destH, _fallbackGen): a room resize or
+  // a re-freeze (new capture bumps _fallbackGen) rebuilds it.
+  function getFrozenScaledBitmap(state, destW, destH) {
+    if (!state || typeof createImageBitmap !== "function") return null;
+    const src = getRoomMp4FallbackSource(state);
+    if (!src) return null;
+    const rw = Math.max(1, Math.round(Number(destW) || 0));
+    const rh = Math.max(1, Math.round(Number(destH) || 0));
+    if (rw <= 1 || rh <= 1) return null;
+    const gen = Number(state._fallbackGen || 0);
+    // Skip the bitmap path only when the source is ALREADY the exact dest
+    // pixel size (the blit is then 1:1 — no resample to eliminate, a
+    // bitmap would only add memory). Any other size means the per-frame
+    // drawImage resamples (up or down), which is the Firefox cost we are
+    // eliminating, so build the pre-scaled bitmap.
+    const srcW = Number(src.width || src.videoWidth || 0);
+    const srcH = Number(src.height || src.videoHeight || 0);
+    if (srcW > 0 && srcH > 0 && srcW === rw && srcH === rh) return null;
+    if (state._frozenBmp
+        && state._frozenBmpW === rw
+        && state._frozenBmpH === rh
+        && state._frozenBmpGen === gen) {
+      return state._frozenBmp;
+    }
+    const buildKey = `${rw}x${rh}@${gen}`;
+    if (state._frozenBmpBuilding !== buildKey) {
+      state._frozenBmpBuilding = buildKey;
+      try {
+        createImageBitmap(src, { resizeWidth: rw, resizeHeight: rh, resizeQuality: "low" })
+          .then((bmp) => {
+            // A newer build may have superseded this one (rect/gen change).
+            if (state._frozenBmpBuilding !== buildKey) {
+              try { bmp.close && bmp.close(); } catch { /* ignore */ }
+              return;
+            }
+            try { state._frozenBmp && state._frozenBmp.close && state._frozenBmp.close(); } catch { /* ignore */ }
+            state._frozenBmp = bmp;
+            state._frozenBmpW = rw;
+            state._frozenBmpH = rh;
+            state._frozenBmpGen = gen;
+          })
+          .catch(() => {
+            // createImageBitmap can reject on a transiently-zero-sized
+            // source; clear the guard so a later frame retries.
+            if (state._frozenBmpBuilding === buildKey) state._frozenBmpBuilding = null;
+          });
+      } catch {
+        state._frozenBmpBuilding = null;
+      }
+    }
+    // Reuse a same-size bitmap from a prior generation as a cheap bridge
+    // while the new one builds (avoids the full-res resample for the 1-2
+    // build frames; pixels differ only if the freeze frame actually
+    // changed, which is imperceptible for that brief window).
+    if (state._frozenBmp && state._frozenBmpW === rw && state._frozenBmpH === rh) {
+      return state._frozenBmp;
+    }
+    return null;
   }
 
   function getRoomMp4FallbackSource(state) {
@@ -1425,6 +1510,7 @@
     maybeWrapRoomMp4Loop,
     captureRoomMp4FallbackFrame,
     getRoomMp4FallbackSource,
+    getFrozenScaledBitmap,
     // Phase 57 diag (2026-06-02) — instrumentation only, gated on window.TT_MP4_DIAG
     recordMp4PaintDiag,
   };

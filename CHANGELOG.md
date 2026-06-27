@@ -10,6 +10,18 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.54] — 2026-06-08
+
+### Fixed
+
+- **Frozen mp4 (play-then-freeze "Freeze vid") instances cost negligible fps — the persistent ~5fps loss after freezing is gone.** Operator (2026-06-08): a freeze-vid room animation that plays then FREEZES on its last frame kept costing ~5fps even while frozen (no motion), although a static frame should be near-free. Root cause: v1.2.15 reduced the frozen paint to "one cheap fallback-canvas blit per frame", but that blit DOWNSCALES the full-resolution fallback canvas (video native res, e.g. 1280×720) into the much smaller room rect on EVERY rAF — and Firefox's 2D-canvas downscale resample is ~100× slower than Chromium's GPU path (measured 0.158 ms vs 0.0014 ms per blit). v1.2.15 was verified on Chromium (the SSR/dev env) where the resample is free, so the cost was invisible there but persisted on the operator's Firefox dashboard. The decoder is idle while frozen (0 new decodes over 6 s) and the `ensureRoomMp4Playback` JS is negligible (0.0018 ms/call) — both ruled out empirically; the resample blit was the sole growing per-frame cost (it scaled linearly with the number of frozen instances). Fix: a FROZEN instance now blits a pre-scaled `ImageBitmap` of the freeze frame, built once (async, via `createImageBitmap` with `resizeWidth/Height`) at the destination rect's pixel size and cached on the playback state — so each rAF is a 1:1 blit with no resample. The bitmap is keyed on (destWidth, destHeight, fallback generation), so a room resize or a re-freeze rebuilds it; the full-resolution canvas bridges the 1–2 frames the bitmap is building (no black-strobe). The outside-mp4 frozen path was already 1:1 (its fallback canvas is sized to the main canvas) and is untouched. Result (isolated Firefox): representative /output room blit 0.158 ms → 0.011 ms (14×); per-frame draw time for 1/5/10 frozen rooms 0.235/0.824/1.706 ms → 0.181/0.651/1.179 ms. Frozen frame stays correctly displayed and byte-stable; the reverse-on-retrigger cycle (forward→frozen-last→reverse→frozen-first→forward, same instance id) and normal playback are unchanged.
+
+### Verification
+
+- Isolated server (PORT 4590, own Xvfb), Playwright Firefox + Chromium. `_bench_blit.py`: full-res downscale blit vs pre-scaled ImageBitmap — Firefox 14× faster, Chromium negligible both ways. `_profile_frozen_fps.py`: per-frame drawImage time drops and scales linearly with frozen-instance count (cheap multi-instance). `_verify_frozen_fix.py`: 11/11 PASS on BOTH Firefox and Chromium — frozen pixels visible + byte-stable (no strobe), decoder idle while frozen, pre-scaled bitmap built (133×149) and used, full re-trigger cycle keeps the same instance id, playback (non-frozen) still decodes live, 5 concurrent frozen instances each get a bitmap. `node --check` clean on all three changed files. `npm test`: 400 pass / 14 fail — identical to the pre-change stash baseline (the 14 fails are pre-existing SSR-encoder/environment tests). Findings: `.planning/debug/phase-58-frozen-video-fps.md`.
+
+---
+
 ## [1.2.53] — 2026-06-08
 
 ### Fixed

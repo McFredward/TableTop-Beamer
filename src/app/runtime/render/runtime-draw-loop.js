@@ -293,7 +293,16 @@
               frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
             }
             if (frozenSrc) {
-              drawRoomAssetImage(c, frozenSrc, rect);
+              // Phase 58 Wave 3.9f (2026-06-08, FROZEN FPS): blit a
+              // pre-scaled ImageBitmap of the freeze frame (1:1, no
+              // resample) instead of downscaling the full-res fallback
+              // canvas every rAF. Firefox 2D-canvas downscale is ~100x
+              // slower than Chromium's — the persistent ~5fps cost of a
+              // FROZEN freeze-vid on the operator's dashboard. Falls back
+              // to the full-res canvas for the 1-2 frames the bitmap is
+              // building (no strobe). See getFrozenScaledBitmap.
+              const frozenScaled = ctx.getFrozenScaledBitmap?.(playbackState, rect.w, rect.h);
+              drawRoomAssetImage(c, frozenScaled || frozenSrc, rect);
               ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "fallback");
               _diag58Outcome = "frozen-fallback";
             } else if (haveLiveFrame) {
@@ -915,7 +924,11 @@
             frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
           }
           if (frozenSrc) {
-            drawRoomAssetImage(c, frozenSrc, insideRect);
+            // Phase 58 Wave 3.9f: pre-scaled 1:1 bitmap blit (see room-mp4
+            // frozen branch / getFrozenScaledBitmap) — eliminates the
+            // per-frame Firefox resample cost of the frozen inside frame.
+            const frozenScaled = ctx.getFrozenScaledBitmap?.(playbackState, insideRect.w, insideRect.h);
+            drawRoomAssetImage(c, frozenScaled || frozenSrc, insideRect);
             ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "fallback");
           } else if (haveLiveFrame) {
             drawRoomAssetImage(c, video, insideRect);
