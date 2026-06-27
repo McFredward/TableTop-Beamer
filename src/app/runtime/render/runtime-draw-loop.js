@@ -1590,6 +1590,11 @@
       state.runtimePerf.insideAnimationCountByBoard = insideAnimationCountByBoard;
       state.runtimePerf.roomAnimationCountByBoard = roomAnimationCountByBoard;
 
+      // Phase 58 Wave 3.9j: prune fade-in render anchors to the live running
+      // set so the fade module's per-id anchor Map stays bounded and a
+      // removed/finished instance can never re-fade from a stale anchor.
+      window.TT_BEAMER_RUNTIME_ANIMATION_FADE.pruneFadeInAnchors(state.runningAnimations);
+
       const failedAnimationIds = [];
       let renderedCount = 0;
       const maxRenderAnimationsPerFrame = Math.max(1, Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96);

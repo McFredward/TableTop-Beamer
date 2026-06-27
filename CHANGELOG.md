@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.58] — 2026-06-08
+
+### Fixed
+
+- **Fade-IN now actually ramps on trigger (it was popping straight to full opacity while fade-OUT worked).** With "Ein-/Ausblenden" ON, starting an animation — the operator hit it on the frostpunk "Generator Heat" coded effect — appeared abruptly at full brightness instead of ramping 0→1, even though stopping it ramped out correctly. Root cause: fade-in was measured from the instance's start timestamp, which every client reconstructs from the SHARED wall-clock trigger epoch broadcast by the server. That made the fade-in elapsed equal the wall-clock age of the *trigger*, not the time *this* client had been rendering the animation — so every millisecond between the server stamping the trigger and a client's first steady frame (snapshot round-trip latency, the projector/SSR tab being scheduled under encode load, live-sync absence-grace churn, or plain dashboard-vs-server clock skew) was subtracted from the visible fade window. At the 800 ms default that delay routinely consumed the whole window, so the first rendered frame was already "done" → an instant pop. (Fade-OUT was immune: its start is stamped at stop-time, when the animation is already on screen, and the instance is held alive for the full ramp.) The bug was never coded- or heat-specific — it affected every type and scope; coded heat was just where it showed first. Fade-in is now anchored to the first frame each client actually renders the animation, so it always ramps cleanly 0→1 over the configured duration on the dashboard, /output and the SSR encoder, regardless of latency or clock skew. Fade-OUT, the fade-out→fade-in resume, the OFF (byte-identical) path, and the v1.2.52 stop hardening are unchanged.
+
+---
+
 ## [1.2.57] — 2026-06-08
 
 ### Changed

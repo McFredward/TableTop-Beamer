@@ -113,6 +113,14 @@
       const tIn = api ? api.inverseSmoothstep01(v) : 1;
       anim.startedAt = perfNow - tIn * durationMs;
       anim.startedAtEpochMs = epochNow - tIn * durationMs;
+      // Phase 58 Wave 3.9j: fade-in now ramps from a client-local render
+      // anchor (runtime-animation-fade.js), not startedAt. Seed the anchor
+      // so the resumed fade-in continues from the CURRENT (mid-fade) opacity
+      // `v` instead of snapping — perfNow - tIn*durationMs gives
+      // smoothstep(tIn) === v at the next sample.
+      if (api && typeof api.seedFadeInAnchor === "function") {
+        api.seedFadeInAnchor(anim.id, perfNow - tIn * durationMs);
+      }
       clearFadeOutTimer(id);
       void emitLiveMutation("edit-room", {
         animationId: anim.id,
