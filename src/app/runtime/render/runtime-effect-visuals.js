@@ -1601,6 +1601,41 @@
       // after — if an outer concurrent scope already set "lighter", the
       // restore keeps it lifted (never downgrades a concurrent composite).
       c.globalCompositeOperation = "lighter";
+      const prevCap = c.lineCap;
+      c.lineCap = "round"; // soft streak ends (motion blur, not hard sticks)
+
+      // Phase 58-w3.9q — soft bokeh blob for OUT-OF-FOCUS flakes. The
+      // reference clips (snow_1080 / snowstorm) are full of big, soft, dim
+      // foreground flakes thrown out of focus by the camera's depth of
+      // field — that size+softness spread is what reads as real snow rather
+      // than a flat field of identical dots (operator 2026-06-27: calm "zu
+      // sehr nach Punkten"). A radial gradient gives the soft falloff; only
+      // the ~15 % OOF flakes use it, so the per-frame gradient count stays
+      // modest (Pi budget).
+      const softBlob = (x, y, r, a) => {
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(238, 244, 255, ${a})`);
+        g.addColorStop(0.45, `rgba(236, 243, 255, ${a * 0.4})`);
+        g.addColorStop(1, "rgba(236, 243, 255, 0)");
+        c.fillStyle = g;
+        c.beginPath();
+        c.arc(x, y, r, 0, TAU);
+        c.fill();
+      };
+      // Cheap soft-edged dot (no gradient allocation) — a dim wide disc + a
+      // brighter core, soft enough under additive blending. Used for the
+      // many small/medium soft flakes so only the ~15 % big OOF bokeh pay
+      // the gradient cost (Pi budget).
+      const softDot = (x, y, r, a) => {
+        c.fillStyle = `rgba(236, 243, 255, ${a * 0.5})`;
+        c.beginPath();
+        c.arc(x, y, r, 0, TAU);
+        c.fill();
+        c.fillStyle = `rgba(238, 244, 255, ${a})`;
+        c.beginPath();
+        c.arc(x, y, r * 0.5, 0, TAU);
+        c.fill();
+      };
 
       const fract = (n) => n - Math.floor(n);
       for (let i = 0; i < count; i += 1) {
@@ -1612,6 +1647,7 @@
         const h4 = fract(Math.sin((i + 1) * 93.9890) * 19349.7654); // speed var
         const h5 = fract(Math.sin((i + 1) * 27.1719) * 33285.9128); // swirl/dir A
         const h6 = fract(Math.sin((i + 1) * 57.7777) * 71234.5544); // swirl/dir B
+        const h7 = fract(Math.sin((i + 1) * 15.1234) * 61237.2199); // focus (DOF)
 
         // Per-flake constant travel. Calm clusters near "down" (±~23°);
         // storm has a clear PREVAILING wind with spread (±~51°) — variety
@@ -1626,9 +1662,12 @@
         const driftY = Math.sin(baseAng) * baseSpeed;
 
         // Per-flake looping swirl (two summed oscillators, different freqs →
-        // non-repeating whirl). Kept modest in storm so the prevailing wind
-        // (drift) stays dominant and the field doesn't read as confetti.
-        const sp = (storm ? 1.1 : 0.9) * (0.55 + speedKnob * 0.9);
+        // non-repeating whirl). LOW frequency (w3.9q): the swirl now only
+        // makes the flake wander on slow, graceful curves — the previous
+        // higher frequency made flakes (and their streaks) flick back and
+        // forth, which read as artificial (operator 2026-06-27: storm "hin &
+        // her ... zu künstlich"). Amplitude is kept so paths still curve.
+        const sp = (storm ? 0.5 : 0.6) * (0.55 + speedKnob * 0.9);
         const fA = (0.40 + h5 * 0.85) * sp;
         const fB = (0.60 + h6 * 1.05) * sp;
         const ampX = regW * (storm ? 0.12 : 0.10) * (0.5 + h3 * 0.9);
@@ -1667,66 +1706,93 @@
         const px = regX + fx;
         const py = regY + fy;
 
-        // Size + opacity vary per flake (depth illusion). Storm flakes are
-        // a touch smaller/dimmer on average but streaked.
-        // Mostly small pinpoint flakes with a few larger ones (snow.mp4's
-        // size distribution): square the size hash to bias toward small
-        // without making the bulk invisible.
+        // Depth-of-field per flake (w3.9q). ~15 % are OUT-OF-FOCUS: big,
+        // soft, dim foreground bokeh. The rest are sharp-ish, with a wide
+        // size + brightness spread (square the size hash to bias small).
+        // This spread is the immersion the operator wanted — not a uniform
+        // dot field — and matches the reference clips' look.
         const sizeHash = h3 * h3;
-        const size = Math.max(0.7, unit * (0.0016 + sizeHash * 0.0072) * (storm ? 0.85 : 1));
+        const oof = h7 < (storm ? 0.13 : 0.16);
+        let size;
+        let alphaBase;
+        if (oof) {
+          // foreground out-of-focus: large + soft + dim
+          size = unit * (0.006 + h3 * (storm ? 0.011 : 0.015));
+          alphaBase = 0.07 + h2 * 0.13;
+        } else {
+          // in-focus flake: small, sharp, with a long tail toward tiny
+          size = Math.max(0.7, unit * (0.0012 + sizeHash * (storm ? 0.0062 : 0.0058)));
+          alphaBase = 0.26 + h2 * 0.56;
+        }
         // Gust fronts brighten the snow they carry → the slug reads denser.
-        const alpha = Math.max(0.06, Math.min(0.98,
-          (0.34 + h2 * 0.45) * overall * intensitySafe * (storm ? (0.78 + gust * 0.65) : 1)));
+        const alpha = Math.max(0.05, Math.min(0.98,
+          alphaBase * overall * intensitySafe * (storm ? (0.78 + gust * 0.6) : 1)));
 
-        if (storm) {
-          // Streak along the flake's INSTANTANEOUS velocity (drift + d/dt
-          // swirl + gust-front kick). Drift dominates between stöße, so
-          // streaks lean with the prevailing wind; a passing front adds a
-          // strong shove along the wind so its snow streaks longer + faster.
-          const vX = driftX
-            + ampX * fA * Math.cos(tw * fA + i * 1.7)
-            + ampX * 0.5 * (fB * 0.6) * Math.cos(tw * fB * 0.6 + i * 0.7)
-            + gustDirX * baseSpeed * gust * 2.4;
-          const vY = driftY
-            - ampY * fB * Math.sin(tw * fB + i * 0.9)
-            + ampY * 0.5 * (fA * 0.7) * Math.cos(tw * fA * 0.7 + i * 1.3)
-            + gustDirY * baseSpeed * gust * 2.4;
-          const mag = Math.hypot(vX, vY) || 1;
+        if (oof) {
+          // Out-of-focus bokeh — soft blob in BOTH modes; never streaks
+          // (foreground flakes are too blurred to show motion lines).
+          softBlob(px, py, size, alpha * 0.95);
+        } else if (storm) {
+          // Streak direction follows the COHERENT wind: prevailing drift +
+          // a SLOW per-flake lean + the gust-front kick — deliberately NOT
+          // the fast swirl derivative, whose rapid oscillation made streaks
+          // flick back and forth ("hin & her", artificial). The position
+          // still wanders on the slow swirl; the streak just points where
+          // the flake is really heading on average.
+          const leanAng = baseAng + Math.sin(tw * 0.4 + i * 0.7) * 0.22;
+          const dirX = Math.cos(leanAng) * baseSpeed + gustDirX * baseSpeed * gust * 2.2;
+          const dirY = Math.sin(leanAng) * baseSpeed + gustDirY * baseSpeed * gust * 2.2;
+          const mag = Math.hypot(dirX, dirY) || 1;
           const speedRef = unit * 0.5;
-          if (mag < speedRef * 0.62) {
-            // Near-stalled flake (eddy centre / cross-wind cancellation) —
-            // render as a round flake. Keeps a healthy fraction of dots in
-            // the field so the storm reads as wind-blown SNOW with motion
-            // blur on the fast flakes, not a field of uniform scratches.
+          if (mag < speedRef * 0.6) {
+            // Slow flake — a soft round flake (keeps a healthy fraction of
+            // dots mixed into the storm so it reads as snow, not scratches).
+            softDot(px, py, size * 1.5, alpha * 0.9);
+          } else {
+            // Tapered motion-blur streak: a faint full-length tail + a
+            // brighter short head + a head glint, so it FADES like real
+            // motion blur instead of reading as a solid stick. Length scales
+            // with speed; the short cap lifts inside a gust front (bounded).
+            const lenScale = Math.min(1.5 + gust * 0.9, mag / speedRef);
+            const len = unit * (0.009 + speedKnob * 0.013) * (0.6 + sizeHash) * lenScale;
+            const ux = dirX / mag;
+            const uy = dirY / mag;
+            const tx = px - ux * len;
+            const ty = py - uy * len;
+            const mx = px - ux * len * 0.5;
+            const my = py - uy * len * 0.5;
+            c.strokeStyle = `rgba(228, 237, 255, ${alpha * 0.4})`;
+            c.lineWidth = Math.max(0.8, size * 1.5);
+            c.beginPath();
+            c.moveTo(tx, ty);
+            c.lineTo(px, py);
+            c.stroke();
+            c.strokeStyle = `rgba(238, 244, 255, ${alpha})`;
+            c.lineWidth = Math.max(0.7, size * 0.95);
+            c.beginPath();
+            c.moveTo(mx, my);
+            c.lineTo(px, py);
+            c.stroke();
+            c.fillStyle = `rgba(240, 246, 255, ${Math.min(1, alpha * 1.05)})`;
+            c.beginPath();
+            c.arc(px, py, Math.max(0.7, size * 0.85), 0, TAU);
+            c.fill();
+          }
+        } else {
+          // Calm in-focus flake. Medium ones get a soft edge; the tiniest
+          // stay crisp pinpoints — the size/softness mix reads as snow.
+          if (size > unit * 0.0030) {
+            softDot(px, py, size * 1.4, alpha * 0.95);
+          } else {
             c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
             c.beginPath();
             c.arc(px, py, size, 0, TAU);
             c.fill();
-          } else {
-            // Faster flakes motion-blur into short streaks; length scales
-            // with speed and is capped short between stöße, but the cap
-            // lifts inside a gust front so its slug streaks visibly longer
-            // — bounded though, so gust peaks read as a hard driving wind,
-            // not the over-long "stick/sleet" look (gust ≲ +0.9 on the cap).
-            const lenScale = Math.min(1.5 + gust * 0.9, mag / speedRef);
-            const len = unit * (0.009 + speedKnob * 0.013) * (0.6 + sizeHash) * lenScale;
-            const dx = (vX / mag) * len;
-            const dy = (vY / mag) * len;
-            c.strokeStyle = `rgba(232, 240, 255, ${alpha})`;
-            c.lineWidth = Math.max(0.7, size * 1.0);
-            c.beginPath();
-            c.moveTo(px - dx, py - dy);
-            c.lineTo(px, py);
-            c.stroke();
           }
-        } else {
-          c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
-          c.beginPath();
-          c.arc(px, py, size, 0, TAU);
-          c.fill();
         }
       }
 
+      c.lineCap = prevCap;
       c.globalCompositeOperation = prevComposite;
       return;
     }

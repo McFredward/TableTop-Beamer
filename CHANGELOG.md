@@ -10,6 +10,17 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.64] — 2026-06-27
+
+### Changed
+
+- **Snow flakes reworked for more randomness & immersion (calm) and a less artificial storm.** Re-studying the reference clips frame-by-frame:
+  - **Calm** flakes read "too much like dots". They now have a real **depth-of-field** spread: ~15% are large, soft, dim *out-of-focus* foreground bokeh (radial-gradient blobs), the rest are sharp pinpoints with a much wider size and brightness variance; medium flakes get a soft edge, the tiniest stay crisp. That size/softness/brightness mix is what the reference snow has — not a uniform dot field.
+  - **Storm** streaks read "too much like strokes", and the fast "hin & her" of the streaks looked artificial. Two fixes: (1) streaks now **taper** — a faint full-length tail + a brighter short head + a head glint with round caps — so they fade like real motion blur instead of solid sticks; (2) the streak **direction** now follows the *coherent* wind (prevailing drift + a slow per-flake lean + the gust kick) instead of the fast swirl derivative, whose rapid oscillation was causing the back-and-forth flicker. The per-flake swirl frequency was lowered so flakes wander on slow graceful curves rather than wiggling. Storm also gets the same out-of-focus soft blobs for depth, and slow flakes render as soft dots so the field stays snow-like.
+  - Only the ~15% out-of-focus flakes use a gradient; everything else uses cheap arcs/strokes, so the per-frame cost stays within the Pi budget. Still fully deterministic (no per-frame `Math.random`) — dashboard, /output and SSR render identically.
+
+---
+
 ## [1.2.63] — 2026-06-27
 
 ### Changed
