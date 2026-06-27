@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.63] — 2026-06-27
+
+### Changed
+
+- **Storm snow gets random gusts (Windstöße) that blow denser slugs of snow through.** On top of the smooth prevailing wind, the storm now has discrete travelling **gust fronts** that sweep along the wind axis and arrive irregularly (operator request: "stürmiger, mit random Windstößen die mehr Schnee mit sich tragen"). A slow global surge envelope (incommensurate sines, half-wave rectified) gates *when* a gust happens; each front is sampled spatially per flake so it reads as a moving **band** of snow rather than the whole field pulsing uniformly. Inside a passing front the flakes are shoved forward along the wind (bunching into a visible packet/slug), brightened (the gust reads as denser snow), and their motion-blur streaks lengthen (the short-streak cap lifts with gust strength); between gusts the field relaxes back to the calmer wind-blown look. Fully deterministic (no per-frame `Math.random`) so dashboard, /output and the SSR encoder stay pixel-identical. Calm snow is unaffected.
+
+---
+
 ## [1.2.62] — 2026-06-27
 
 ### Changed

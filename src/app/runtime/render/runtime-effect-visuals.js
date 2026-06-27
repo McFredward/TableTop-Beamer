@@ -1577,8 +1577,23 @@
         + Math.sin(tw * 0.19) * (storm ? 0.95 : 0.30)
         + Math.sin(tw * 0.43) * (storm ? 0.40 : 0.10);
       const gustPulse = 0.65 + 0.35 * Math.sin(tw * 0.31);
-      const gustX = Math.cos(gustAng) * gustMag * gustPulse;
-      const gustY = Math.sin(gustAng) * gustMag * gustPulse;
+      const gustDirX = Math.cos(gustAng);
+      const gustDirY = Math.sin(gustAng);
+      const gustX = gustDirX * gustMag * gustPulse;
+      const gustY = gustDirY * gustMag * gustPulse;
+
+      // Phase 58-w3.9p — random Windstöße. On top of the smooth whole-field
+      // gust above, the storm gets discrete GUST FRONTS that sweep along the
+      // wind axis and arrive irregularly (operator 2026-06-27: "stürmiger,
+      // mit random Windstößen die mehr Schnee mit sich tragen"). A slow
+      // global "surge" envelope (incommensurate sines, half-wave rectified)
+      // gates when a stoß happens; per-flake the front is sampled spatially
+      // so it reads as a travelling BAND of denser, faster, brighter snow —
+      // a packet — rather than the whole field pulsing uniformly. All
+      // deterministic (no per-frame random): dashboard == /output == SSR.
+      const gustSurge = storm
+        ? Math.max(0, Math.sin(tw * 0.29) * 0.6 + Math.sin(tw * 0.13 + 1.0) * 0.45 + 0.18)
+        : 0;
 
       const prevComposite = c.globalCompositeOperation;
       // White-ish flakes read best additively on black AND survive the
@@ -1623,9 +1638,31 @@
         const swirlY = Math.cos(tw * fB + i * 0.9) * ampY
           + Math.sin(tw * fA * 0.7 + i * 1.3) * ampY * 0.5;
 
-        let fx = (h1 * regW + driftX * safeAge + gustX + swirlX) % regW;
+        // Linear (pre-gust-front) region position.
+        let lx = h1 * regW + driftX * safeAge + gustX + swirlX;
+        let ly = h2 * regH + driftY * safeAge + gustY + swirlY;
+
+        // Sample the travelling gust front at this flake (storm only). Two
+        // incommensurate bands sweep along the wind axis; the sharpened max
+        // forms discrete moving packets, gated by the global surge so stöße
+        // arrive irregularly. `gust` ∈ ~[0..1.3]: 0 between stöße (field
+        // relaxes to the calm-storm look), high inside a passing front.
+        let gust = 0;
+        if (storm) {
+          const proj = (lx / regW) * gustDirX + (ly / regH) * gustDirY;
+          const front1 = 0.5 + 0.5 * Math.sin(proj * 6.3 - tw * 1.9 + h6 * 0.6);
+          const front2 = 0.5 + 0.5 * Math.sin(proj * 3.0 - tw * 1.15 + 2.3);
+          const band = Math.pow(Math.max(front1, front2), 3);
+          gust = Math.min(1.3, band * (0.35 + 1.7 * gustSurge));
+          // The front shoves the flake forward along the wind, bunching the
+          // field into denser slugs that visibly blow through.
+          lx += gustDirX * unit * 0.18 * gust;
+          ly += gustDirY * unit * 0.18 * gust;
+        }
+
+        let fx = lx % regW;
         if (fx < 0) fx += regW;
-        let fy = (h2 * regH + driftY * safeAge + gustY + swirlY) % regH;
+        let fy = ly % regH;
         if (fy < 0) fy += regH;
         const px = regX + fx;
         const py = regY + fy;
@@ -1637,20 +1674,23 @@
         // without making the bulk invisible.
         const sizeHash = h3 * h3;
         const size = Math.max(0.7, unit * (0.0016 + sizeHash * 0.0072) * (storm ? 0.85 : 1));
-        const alpha = Math.max(0.06, Math.min(0.95,
-          (0.34 + h2 * 0.45) * overall * intensitySafe * (storm ? 0.8 : 1)));
+        // Gust fronts brighten the snow they carry → the slug reads denser.
+        const alpha = Math.max(0.06, Math.min(0.98,
+          (0.34 + h2 * 0.45) * overall * intensitySafe * (storm ? (0.78 + gust * 0.65) : 1)));
 
         if (storm) {
           // Streak along the flake's INSTANTANEOUS velocity (drift + d/dt
-          // swirl). Drift dominates, so streaks mostly lean with the
-          // prevailing wind but spread with the turbulence — multi-
-          // directional without the omnidirectional-scratches look.
+          // swirl + gust-front kick). Drift dominates between stöße, so
+          // streaks lean with the prevailing wind; a passing front adds a
+          // strong shove along the wind so its snow streaks longer + faster.
           const vX = driftX
             + ampX * fA * Math.cos(tw * fA + i * 1.7)
-            + ampX * 0.5 * (fB * 0.6) * Math.cos(tw * fB * 0.6 + i * 0.7);
+            + ampX * 0.5 * (fB * 0.6) * Math.cos(tw * fB * 0.6 + i * 0.7)
+            + gustDirX * baseSpeed * gust * 2.4;
           const vY = driftY
             - ampY * fB * Math.sin(tw * fB + i * 0.9)
-            + ampY * 0.5 * (fA * 0.7) * Math.cos(tw * fA * 0.7 + i * 1.3);
+            + ampY * 0.5 * (fA * 0.7) * Math.cos(tw * fA * 0.7 + i * 1.3)
+            + gustDirY * baseSpeed * gust * 2.4;
           const mag = Math.hypot(vX, vY) || 1;
           const speedRef = unit * 0.5;
           if (mag < speedRef * 0.62) {
@@ -1664,8 +1704,11 @@
             c.fill();
           } else {
             // Faster flakes motion-blur into short streaks; length scales
-            // with speed but is capped well short of the old "stick" look.
-            const lenScale = Math.min(1.5, mag / speedRef);
+            // with speed and is capped short between stöße, but the cap
+            // lifts inside a gust front so its slug streaks visibly longer
+            // — bounded though, so gust peaks read as a hard driving wind,
+            // not the over-long "stick/sleet" look (gust ≲ +0.9 on the cap).
+            const lenScale = Math.min(1.5 + gust * 0.9, mag / speedRef);
             const len = unit * (0.009 + speedKnob * 0.013) * (0.6 + sizeHash) * lenScale;
             const dx = (vX / mag) * len;
             const dy = (vY / mag) * len;
