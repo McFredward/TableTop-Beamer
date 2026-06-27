@@ -10,6 +10,12 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.48] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: einzelne Figuren ruckeln nicht mehr auf /output (sub-pixel-glatte Bewegung pro Figur).** Operator: manche laufende Worker stockten sichtbar auf /output, während andere gleichzeitig glatt durch den Schnee stapften — pro Figur, sprunghaft, mal die einen, mal die anderen. Ursache (Encoder-A/B + analytische Pose-Spur, siehe `.planning/debug/phase-58-worker-perfigure-stutter.md`): der Figuren-Zeichenpfad rendert bereits mit voller Sub-Pixel-Float-Präzision (KEIN Math.round/floor auf x/y) — aber die Stapf-Geschwindigkeit liegt bei nur ~0,06–0,13 px/Frame (≈1 Pixel alle 10–16 Frames). Eine kleine, kontrastarme Figur, die so langsam wandert, lässt sich auf der diskreten Pixel-Pipeline (8-Bit-Raster → VP9/WebRTC-Encode → Beamer-Raster) nicht glatt darstellen: ihr Schwerpunkt hält einen Pixel über mehrere Frames und springt dann einen Pixel weiter — genau das Pro-Figur-Stocken. Schnellere/diagonale Figuren überqueren jeden Frame eine Pixelgrenze (glatt); hellere/größere Figuren (Laternenträger) lösen einen feineren Schwerpunkt auf, ihre Sprünge bleiben unter der Wahrnehmungsschwelle (glatt) — das ist die Helligkeits-Korrelation. Der Encoder-A/B zeigte: Helligkeit, weiche Kanten und Luma-„Atmen" beheben das NICHT; nur die Bewegungsamplitude pro Frame hilft. Fix: jede LAUFENDE Figur bekommt einen winzigen Mikro-Orbit mit konstanter Geschwindigkeit (Kreis, Radius 0,16·figLen, 1,8 Hz, gesäte Phase, mit der Schrittweite ein-/ausgeblendet). Ein Kreis hat keinen Geschwindigkeits-Nulldurchgang, daher bleibt die Bewegung pro Frame jederzeit über der Raster-Quantisierungsschwelle (~0,2 px/Frame); der Orbit MITTELT SICH ZU NULL, sodass die langsame Netto-Stapfbewegung, die dunkle/karge Stimmung, der v1.2.35-Dark-Lift, die Pro-Figur-Varianz und der Determinismus (Dashboard==SSR==/output, reine Funktion von age+Seed) erhalten bleiben. Stehende/arbeitende Figuren bleiben unangetastet. Verifiziert (Encoder-A/B durch echtes VP9@16Mbps): Plateau-dann-Sprung-Ruckler → 0 bei hellen/Laternen-/schnellen Figuren und 4–5 → 1 bei der dunkelsten+langsamsten+kleinsten Figur (inhärentes Rendering-Limit am Sichtbarkeitsboden); Einfrier-Läufe 6–9 Frames → 0–3.
+
 ## [1.2.47] — 2026-06-08
 
 ### Added

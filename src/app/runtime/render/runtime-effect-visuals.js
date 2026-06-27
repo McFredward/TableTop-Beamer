@@ -701,6 +701,36 @@
   const WORKER_PRESENCE_ENVELOPES = new Map();      // `${roomKey}::${figIdx}` → env
   const WORKER_PRESENCE_ENVELOPES_MAX = 4096;
 
+  // ---- sub-pixel anti-quantization micro-orbit (Phase 58-w3.8y) ----
+  // Operator: SOME walking workers visibly stutter on /output while
+  // others trudge smoothly, intermittently, per-figure. Root cause
+  // (encoder-A/B + analytic trace, see .planning/debug/phase-58-worker-
+  // perfigure-stutter.md): the figure draw path already renders at full
+  // sub-pixel float precision — there is NO Math.round on any x/y — but
+  // the trudge pace is only ~0.06-0.13 px/frame (≈1 pixel per 10-16
+  // frames). A small, low-contrast figure translating that slowly cannot
+  // be represented smoothly on the discrete pixel pipeline (8-bit raster
+  // → VP9/WebRTC encode → projector grid): its centroid holds a pixel for
+  // several frames then snaps a pixel — the per-figure plateau-then-jump
+  // stutter. Faster/diagonal figures cross pixel boundaries every frame
+  // (smooth); brighter/larger figures (lantern carriers) resolve a finer
+  // centroid so their snaps are sub-perceptual (smooth) — that is the
+  // brightness correlation. Encoder-A/B proved brightness/edge-feather/
+  // luma-breathing do NOT help; only per-frame MOTION MAGNITUDE does.
+  //
+  // Fix: add a tiny CONSTANT-SPEED circular micro-orbit to each WALKING
+  // figure's rendered position. A circle (cos/sin, fixed rate) has no
+  // velocity zero-crossing, so the instantaneous per-frame motion stays
+  // above the grid-quantization threshold (~0.2 px/frame) on EVERY frame.
+  // The orbit AVERAGES TO ZERO over a cycle, so the slow net trudge, the
+  // dark/sparse mood, the per-figure variance and — because it is a pure
+  // function of (age, seed) — the dashboard==SSR==/output determinism
+  // contract are all preserved. Pace-scaled so it eases in/out with the
+  // stride (no pop at work→walk) and vanishes while a figure stands/works.
+  const WORKER_ANTIQ_RADIUS = 0.16;  // orbit radius as a fraction of figLen
+  const WORKER_ANTIQ_HZ = 1.8;       // orbit rate (Hz) — fixed, cadence-independent
+  const WORKER_ANTIQ_OMEGA = WORKER_ANTIQ_HZ * Math.PI * 2;
+
   function getWorkerPresenceEnvelope(key, nowMs) {
     let env = WORKER_PRESENCE_ENVELOPES.get(key);
     if (!env) {
@@ -1525,6 +1555,16 @@
           // w3.8d (→ 0.025, ≈ 1.4°) — with the near-straight w3.8d
           // meander the body should barely visibly correct course.
           heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.025 * (0.4 + 0.6 * pace);
+          // Sub-pixel anti-quantization micro-orbit (w3.8y): a constant-
+          // speed circle (no velocity zero-crossing) that keeps the
+          // figure's per-frame motion above the pixel-grid quantization
+          // floor so slow trudgers stop stuttering on /output. Averages
+          // to zero → net trudge + dashboard/SSR determinism preserved.
+          // Pace-scaled ramp eases it in/out with the stride.
+          const antiQ = figLen * WORKER_ANTIQ_RADIUS * Math.min(1, pace * 1.5);
+          const antiQPhase = safeAge * WORKER_ANTIQ_OMEGA + fig.gaitSeed;
+          x += Math.cos(antiQPhase) * antiQ;
+          y += Math.sin(antiQPhase) * antiQ;
         } else {
           // Working: lean rhythmically along the facing axis (strike /
           // shovel motion) — subtle, the figure stays put.
