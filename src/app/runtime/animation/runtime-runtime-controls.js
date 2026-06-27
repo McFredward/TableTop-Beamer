@@ -413,6 +413,11 @@
         playbackMode: definitionPlaybackMode,
         onRetrigger: definitionOnRetrigger,
         playbackDirection: definitionPlaybackDirection,
+        // Phase 58 Wave 3.8z (2026-06-08): stamp the definition NAME onto
+        // the running instance so the Active Animations list shows the
+        // animation's name (e.g. "Snow") instead of the bare type id —
+        // exactly like room dispatch stamps selectedDefinition.name.
+        animationName: matchedDefinition?.name,
         ...insideTransformSeed,
       });
       // Stable, revision-less id (mirrors the server id scheme without the
@@ -471,6 +476,9 @@
           playbackMode: definitionPlaybackMode,
           onRetrigger: definitionOnRetrigger,
           playbackDirection: definitionPlaybackDirection,
+          // Phase 58 Wave 3.8z: stamp definition name (see above) so the
+          // Active Animations list labels inside/outside globals by name.
+          animationName: matchedDefinition?.name,
           // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
           ...insideTransformSeed,
         });
@@ -519,6 +527,9 @@
         playbackMode: definitionPlaybackMode,
         onRetrigger: definitionOnRetrigger,
         playbackDirection: definitionPlaybackDirection,
+        // Phase 58 Wave 3.8z: stamp definition name (see above) so the
+        // Active Animations list labels inside/outside globals by name.
+        animationName: matchedDefinition?.name,
         // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
         ...insideTransformSeed,
       });

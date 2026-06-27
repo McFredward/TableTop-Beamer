@@ -276,11 +276,27 @@
     li.append(iconWrap);
     const title = document.createElement("div");
     title.className = "running-title";
-    const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
-      ? anim.animationName
-      : anim.scope === "room" || anim.scope === "cluster"
-        ? getRoomAnimationLabelById(anim.type, anim.boardId)
-        : getAnimationLabel(anim.type);
+    // Resolve a global (inside/outside) animation's display name. Prefer
+    // the name stamped onto the instance at trigger time (mirrors rooms);
+    // fall back to the current board's inside/outside FX-profile definition
+    // by id; finally fall back to the bare type label so the row is never
+    // blank. Phase 58 Wave 3.8z: previously global rows always showed
+    // getAnimationLabel(type) — the raw id ("inside-xxxx-y").
+    const resolveGlobalAnimationName = (a) => {
+      if (a.animationName) return a.animationName;
+      try {
+        const inside = ctx.getInsideFxProfile?.(a.boardId);
+        const fromInside = inside?.animations?.find((d) => d.id === a.type);
+        if (fromInside?.name) return fromInside.name;
+        const outside = ctx.getOutsideFxProfile?.(a.boardId);
+        const fromOutside = outside?.animations?.find((d) => d.id === a.type);
+        if (fromOutside?.name) return fromOutside.name;
+      } catch { /* defensive — never crash the running list */ }
+      return getAnimationLabel(a.type);
+    };
+    const effectLabel = (anim.scope === "room" || anim.scope === "cluster")
+      ? (anim.animationName || getRoomAnimationLabelById(anim.type, anim.boardId))
+      : resolveGlobalAnimationName(anim);
     title.textContent = effectLabel;
 
     // Compact single-line sub-meta. For non-stacked

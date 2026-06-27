@@ -10,6 +10,12 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.49] — 2026-06-08
+
+### Fixed
+
+- **Inside-Animationen in „Active Animations" zeigen jetzt ihren Namen (wie die Rooms) statt der internen id („inside-xxxx-y").** Operator: die laufenden Inside-Animationen hießen in der „Active Animations"-Liste alle `inside-xxxx-y` statt z. B. „Snow"/„Snowstorm" — bei den Room-Animationen wird dagegen korrekt der Animationsname angezeigt. Ursache: Rooms stempeln beim Trigger `animationName` aus der Definition auf die laufende Instanz (`runtime-room-dispatch.js`), und der Renderer der Running-Liste liest dieses Feld; Inside/Outside (scope=global) taten das nicht — `upsertGlobalAnimation` erzeugte die Instanz ohne `animationName`, und der Renderer fiel für scope=global immer auf `getAnimationLabel(type)` (= die rohe id) zurück. Zusätzlich rekonstruiert der Server den autoritativen Global-Datensatz feldweise (`applyGlobalMutationPatch`, anders als `trigger-room`, das den ganzen Snapshot überträgt), sodass selbst ein gestempeltes `animationName` den Snapshot-Roundtrip nicht überlebt hätte (Phase-50-Mask-Falle). Fix wie bei den Rooms: (1) `upsertGlobalAnimation` stempelt `animationName` aus der passenden Inside/Outside-Definition auf jede erzeugte Instanz; (2) der Server bewahrt `animationName` im autoritativen Global-Datensatz; (3) der Running-Listen-Renderer zeigt für scope=global bevorzugt `animationName`, fällt sonst auf eine Definitions-Suche im aktuellen Inside/Outside-FX-Profil und erst zuletzt auf die type-id zurück (nie leer). Room-Verhalten unverändert. Verifiziert (isolierter Server, Puppeteer-Consumer-Browser): zwei verschiedene Inside-Animationen werden nach dem Snapshot-Roundtrip korrekt als „Snowstorm" und „Snow" gelistet. Outside (gleiche scope-Klasse) ist über denselben Pfad mitbehoben.
+
 ## [1.2.48] — 2026-06-08
 
 ### Fixed

@@ -805,6 +805,15 @@ function applyGlobalMutationPatch(payload) {
     const incomingSoundAssetRef = typeof incomingAnimation?.soundAssetRef === "string"
       ? incomingAnimation.soundAssetRef
       : null;
+    // Phase 58 Wave 3.8z (2026-06-08): preserve the definition NAME onto the
+    // server-authoritative global record. The authoritative object is rebuilt
+    // field-by-field (unlike trigger-room, which carries the full snapshot),
+    // so without this the trigger-global → snapshot roundtrip strips
+    // animationName and the Active Animations list falls back to the bare
+    // type id ("inside-xxxx-y") instead of the animation's name.
+    const incomingAnimationName = typeof incomingAnimation?.animationName === "string"
+      ? incomingAnimation.animationName
+      : null;
     // Phase 58 Wave 3.8l (2026-06-08): preserve the per-animation playback
     // schema (playbackMode / onRetrigger / playbackPhase) onto the
     // server-authoritative global record. Without this, the trigger-global
@@ -877,6 +886,8 @@ function applyGlobalMutationPatch(payload) {
       soundVolume: soundEnabled ? 1 : 0,
       // Phase 49 gap-closure-10: preserve sound mapping in the snapshot.
       soundAssetRef: incomingSoundAssetRef ?? "none",
+      // Phase 58 Wave 3.8z: preserve definition name (Active Animations list).
+      ...(incomingAnimationName ? { animationName: incomingAnimationName } : {}),
       // Phase 58 Wave 3.8l: per-animation playback schema (see above).
       playbackMode: incomingPlaybackMode ?? "loop",
       onRetrigger: incomingOnRetrigger ?? "instant-disappear",
