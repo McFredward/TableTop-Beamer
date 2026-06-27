@@ -306,6 +306,9 @@
         workerTrailIntensity: current.workerTrailIntensity ?? 100,
         workerCenterExclusion: current.workerCenterExclusion === true,
         workerCenterExclusionRadius: current.workerCenterExclusionRadius ?? 25,
+        workerExclusionOffsetX: current.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: current.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: current.workerExclusionRingVisible !== false,
         heatIrregularPulse: current.heatIrregularPulse === true,
       };
       try {

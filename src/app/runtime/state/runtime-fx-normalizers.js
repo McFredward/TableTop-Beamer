@@ -145,9 +145,18 @@
       // radius (0–60% of region radius, default 25). All default to the
       // historical look.
       workerClothingBrightness: clampNumber(definition?.workerClothingBrightness, 0.3, 2, 1),
-      workerTrailIntensity: clampNumber(definition?.workerTrailIntensity, 0, 100, 100),
+      // Phase 58-w3.9b: max raised 100 → 300 so trails can read much
+      // stronger; default 100 unchanged.
+      workerTrailIntensity: clampNumber(definition?.workerTrailIntensity, 0, 300, 100),
       workerCenterExclusion: definition?.workerCenterExclusion === true,
       workerCenterExclusionRadius: clampNumber(definition?.workerCenterExclusionRadius, 0, 60, 25),
+      // Phase 58-w3.9b: exclusion-zone centre offset (−50..+50% of the
+      // region half-extent, default 0 = centroid) + visible-ring toggle
+      // (default true = the current trampled-ring look). All default to
+      // the historical render.
+      workerExclusionOffsetX: clampNumber(definition?.workerExclusionOffsetX, -50, 50, 0),
+      workerExclusionOffsetY: clampNumber(definition?.workerExclusionOffsetY, -50, 50, 0),
+      workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular (seeded) heat pulse, default off.
       heatIrregularPulse: definition?.heatIrregularPulse === true,
     };

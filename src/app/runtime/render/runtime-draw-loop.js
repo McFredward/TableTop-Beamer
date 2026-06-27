@@ -499,6 +499,9 @@
         workerTrailIntensity: animation.workerTrailIntensity ?? 100,
         workerCenterExclusion: animation.workerCenterExclusion === true,
         workerCenterExclusionRadius: animation.workerCenterExclusionRadius ?? 25,
+        workerExclusionOffsetX: animation.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: animation.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: animation.workerExclusionRingVisible !== false,
         heatIrregularPulse: animation.heatIrregularPulse === true,
       },
     );
@@ -714,6 +717,9 @@
       workerTrailIntensity: definition?.workerTrailIntensity ?? 100,
       workerCenterExclusion: definition?.workerCenterExclusion === true,
       workerCenterExclusionRadius: definition?.workerCenterExclusionRadius ?? 25,
+      workerExclusionOffsetX: definition?.workerExclusionOffsetX ?? 0,
+      workerExclusionOffsetY: definition?.workerExclusionOffsetY ?? 0,
+      workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
       heatIrregularPulse: definition?.heatIrregularPulse === true,
     };
   }

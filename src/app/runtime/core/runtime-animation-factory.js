@@ -82,6 +82,10 @@
     workerTrailIntensity = 100,
     workerCenterExclusion = false,
     workerCenterExclusionRadius = 25,
+    // Phase 58-w3.9b: exclusion-zone centre offset + visible-ring toggle.
+    workerExclusionOffsetX = 0,
+    workerExclusionOffsetY = 0,
+    workerExclusionRingVisible = true,
     // Phase 58-w3.8x: optional irregular (seeded) heat pulse. Default
     // off = the regular ~0.24 Hz breathing, byte-identical to before.
     heatIrregularPulse = false,
@@ -171,13 +175,23 @@
       workerClothingBrightness: Number.isFinite(Number(workerClothingBrightness)) && Number(workerClothingBrightness) > 0
         ? Math.max(0.3, Math.min(2, Number(workerClothingBrightness)))
         : 1,
+      // Phase 58-w3.9b: trail-intensity ceiling raised 100 → 300.
       workerTrailIntensity: Number.isFinite(Number(workerTrailIntensity))
-        ? Math.max(0, Math.min(100, Number(workerTrailIntensity)))
+        ? Math.max(0, Math.min(300, Number(workerTrailIntensity)))
         : 100,
       workerCenterExclusion: workerCenterExclusion === true,
       workerCenterExclusionRadius: Number.isFinite(Number(workerCenterExclusionRadius))
         ? Math.max(0, Math.min(60, Number(workerCenterExclusionRadius)))
         : 25,
+      // Phase 58-w3.9b: exclusion-zone centre offset (−50..+50% of the
+      // region half-extent) + visible-ring toggle (default on).
+      workerExclusionOffsetX: Number.isFinite(Number(workerExclusionOffsetX))
+        ? Math.max(-50, Math.min(50, Number(workerExclusionOffsetX)))
+        : 0,
+      workerExclusionOffsetY: Number.isFinite(Number(workerExclusionOffsetY))
+        ? Math.max(-50, Math.min(50, Number(workerExclusionOffsetY)))
+        : 0,
+      workerExclusionRingVisible: workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular heat pulse.
       heatIrregularPulse: heatIrregularPulse === true,
       hold: effectiveHold,

@@ -791,7 +791,8 @@
       const trailIntensityRow = buildSliderRow(scope, def, boardId, {
         key: "workerTrailIntensity",
         label: "Spuren-Intensität",
-        min: 0, max: 100, step: 5,
+        // Phase 58-w3.9b: max raised 100 → 300 for much stronger trails.
+        min: 0, max: 300, step: 5,
         format: (v) => `${Math.round(v)}%`,
       });
       const applyTrailGate = (trailsOn) => {
@@ -817,10 +818,38 @@
         min: 0, max: 60, step: 5,
         format: (v) => `${Math.round(v)}%`,
       });
+      // Phase 58-w3.9b — offset the exclusion centre off the region
+      // centroid (align it to where the generator art sits on the big
+      // InnerTile) and toggle the visible trampled ring.
+      const exclusionOffsetXRow = buildSliderRow(scope, def, boardId, {
+        key: "workerExclusionOffsetX",
+        label: "Aussparung X",
+        min: -50, max: 50, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      });
+      const exclusionOffsetYRow = buildSliderRow(scope, def, boardId, {
+        key: "workerExclusionOffsetY",
+        label: "Aussparung Y",
+        min: -50, max: 50, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      });
+      const exclusionRingRow = buildToggleRow(scope, def, boardId, {
+        key: "workerExclusionRingVisible",
+        label: "Ring anzeigen",
+        sub: "Zeigt den sichtbaren, festgetretenen Ring um die Aussparung. Aus = kein Ring, Bewohner meiden die Zone trotzdem.",
+      });
+      const gatedExclusionRows = [
+        exclusionRadiusRow,
+        exclusionOffsetXRow,
+        exclusionOffsetYRow,
+        exclusionRingRow,
+      ];
       const applyExclusionGate = (on) => {
-        exclusionRadiusRow.classList.toggle("is-disabled", !on);
-        const input = exclusionRadiusRow.querySelector("input[type=range]");
-        if (input) input.disabled = !on;
+        for (const row of gatedExclusionRows) {
+          row.classList.toggle("is-disabled", !on);
+          const input = row.querySelector("input[type=range], .rd-toggle");
+          if (input) input.disabled = !on;
+        }
       };
       card.append(buildToggleRow(scope, def, boardId, {
         key: "workerCenterExclusion",
@@ -830,6 +859,9 @@
         onChange: (next) => applyExclusionGate(next),
       }));
       card.append(exclusionRadiusRow);
+      card.append(exclusionOffsetXRow);
+      card.append(exclusionOffsetYRow);
+      card.append(exclusionRingRow);
       applyExclusionGate(def.workerCenterExclusion === true);
     }
 

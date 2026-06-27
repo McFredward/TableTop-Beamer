@@ -10,6 +10,18 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.50] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: konstante Schrittgeschwindigkeit ENTLANG der Aussparungs-Kante (kein „Sausen" mehr).** Operator: Bewohner, die an der Mitte-Aussparung (`workerCenterExclusion`) entlanggehen, rasten dort viel zu schnell. Ursache: das Tempo-/Zeitbudget (konstantes Watt-Tempo über die Weglänge, v1.2.32) wurde aus den GERADEN Sehnen zwischen den Ankerpunkten berechnet — aber `workerWalkPoint` lenkt jeden Wegpunkt, der durch die Zone liefe, radial auf den Kreisrand um. Der tatsächlich gelaufene Bogen entlang des Rings ist damit länger als die budgetierte Sehne, und die Figur legt ihn in derselben Zeit zurück → Tempo-Spitzen. Fix: (1) das Zeitbudget wird jetzt aus der ECHTEN umgeleiteten Weglänge integriert (`workerLegLength`/`workerLegShares`, inkl. Bogen-Umweg), und (2) innerhalb jedes Beins wird die geglättete Fortschritts-Kurve per Bogenlängen-Reparametrisierung (`workerArcParam`) auf gleiche DISTANZ pro Zeit abgebildet — vorher stauchte der radiale Snap nahe der Tangente riesige Winkelwege in winzige Parameterschritte (die eigentlichen Spitzen). Pace-Trace (Aussparung r=30 %, 24 Figuren): Ring-Skirter mittlere Geschwindigkeit 23,5 px/s vs. Geraden-Beine 24,4 px/s; Spitzen vorher bis ~553 px/s → jetzt ~33–94 px/s (≈ Geraden-Niveau). Der v1.2.48 Sub-Pixel-Mikro-Orbit bleibt unangetastet.
+
+### Added
+
+- **City-Workers: Aussparung per X/Y verschiebbar.** Neue Regler „Aussparung X" und „Aussparung Y" (−50 … +50 % der Region-Halbachse, Standard 0) verschieben den MITTELPUNKT der Aussparung weg vom Region-Schwerpunkt — so lässt sich die Zone auf den tatsächlichen Generator auf dem großen InnerTile ausrichten. Anker, Wege und Spuren respektieren den verschobenen Mittelpunkt; der Offset geht in den Seed-/Szenen-Cache-Key ein. Verifiziert: +20 % X / −15 % Y verschiebt Ring + Vermeidung um exakt +118 px / −77 px.
+- **City-Workers: sichtbarer Ring abschaltbar.** Der „sichtbare Ring" um die Aussparung ist der festgetretene Schnee-RING, der entsteht, weil sich alle Wege auf dem Kreisrand konzentrieren (Trail-Pass). Neuer Schalter „Ring anzeigen" (Standard = aktuelles Verhalten). Aus = die Anker spreizen auf ein breiteres Band und jede Figur umgeht die Zone auf ihrem EIGENEN Radius (geseedetes Band), sodass der scharfe Ring zu einem diffusen Trampelfeld zerfällt — die Mitte bleibt weiterhin frei (Vermeidung aktiv). Der Ring folgt dem X/Y-Offset und dem Radius.
+- **City-Workers: Spuren-Intensität bis 300 %.** Max der „Spuren-Intensität" von 100 % auf 300 % angehoben (min 0, Standard 100 unverändert) — Spuren können deutlich kräftiger eingestellt werden. Die finale Alpha ist gedeckelt (`WORKER_TRAIL_ALPHA_CEIL`), damit 300 % als stark getrampelter Schnee liest und nicht zu reinem Weiß ausbrennt. Verifiziert (schwarzer Hintergrund): 0 % = keine Spuren, 300 % deutlich kräftiger als 100 %, ohne Ausbrennen.
+
 ## [1.2.49] — 2026-06-08
 
 ### Fixed
