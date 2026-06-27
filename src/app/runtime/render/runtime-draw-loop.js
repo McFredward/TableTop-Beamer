@@ -499,6 +499,7 @@
         workerTrailIntensity: animation.workerTrailIntensity ?? 100,
         workerCenterExclusion: animation.workerCenterExclusion === true,
         workerCenterExclusionRadius: animation.workerCenterExclusionRadius ?? 25,
+        heatIrregularPulse: animation.heatIrregularPulse === true,
       },
     );
   }
@@ -713,6 +714,7 @@
       workerTrailIntensity: definition?.workerTrailIntensity ?? 100,
       workerCenterExclusion: definition?.workerCenterExclusion === true,
       workerCenterExclusionRadius: definition?.workerCenterExclusionRadius ?? 25,
+      heatIrregularPulse: definition?.heatIrregularPulse === true,
     };
   }
 

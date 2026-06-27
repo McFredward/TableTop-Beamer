@@ -719,6 +719,15 @@
       }));
       card.append(syncRow);
       applyHeatSourceGate(def.heatShowSource !== false);
+      // Phase 58-w3.8x — optional irregular pulse. When ON the breathing
+      // period wanders via a seeded, deterministic time-noise instead of
+      // the regular ~0.24 Hz cadence; a synced hidden-source room follows
+      // the SAME irregular curve (it borrows the source's clock).
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "heatIrregularPulse",
+        label: "Unregelmäßiger Puls",
+        sub: "AN: unregelmäßig langer Atem (zufällig wirkende, aber deterministische Periode). AUS: gleichmäßiges Pulsieren.",
+      }));
     }
 
     if (isCityWorkers) {

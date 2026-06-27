@@ -306,6 +306,7 @@
         workerTrailIntensity: current.workerTrailIntensity ?? 100,
         workerCenterExclusion: current.workerCenterExclusion === true,
         workerCenterExclusionRadius: current.workerCenterExclusionRadius ?? 25,
+        heatIrregularPulse: current.heatIrregularPulse === true,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {

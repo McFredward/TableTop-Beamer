@@ -128,6 +128,7 @@
         workerTrailIntensity: selectedDefinition.workerTrailIntensity ?? 100,
         workerCenterExclusion: selectedDefinition.workerCenterExclusion === true,
         workerCenterExclusionRadius: selectedDefinition.workerCenterExclusionRadius ?? 25,
+        heatIrregularPulse: selectedDefinition.heatIrregularPulse === true,
       };
 
       if (selectedAssetType === "gif") {
@@ -471,6 +472,7 @@
                     workerTrailIntensity: draftPayload.workerTrailIntensity,
                     workerCenterExclusion: draftPayload.workerCenterExclusion,
                     workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+                    heatIrregularPulse: draftPayload.heatIrregularPulse,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -605,6 +607,7 @@
           workerTrailIntensity: draftPayload.workerTrailIntensity,
           workerCenterExclusion: draftPayload.workerCenterExclusion,
           workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+          heatIrregularPulse: draftPayload.heatIrregularPulse,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -651,6 +654,7 @@
             workerTrailIntensity: draftPayload.workerTrailIntensity,
             workerCenterExclusion: draftPayload.workerCenterExclusion,
             workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+            heatIrregularPulse: draftPayload.heatIrregularPulse,
             hold: true,
             durationSec: 0,
           });
@@ -788,6 +792,7 @@
                   workerTrailIntensity: draftPayload.workerTrailIntensity,
                   workerCenterExclusion: draftPayload.workerCenterExclusion,
                   workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+                  heatIrregularPulse: draftPayload.heatIrregularPulse,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -928,6 +933,7 @@
         workerTrailIntensity: draftPayload.workerTrailIntensity,
         workerCenterExclusion: draftPayload.workerCenterExclusion,
         workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+        heatIrregularPulse: draftPayload.heatIrregularPulse,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -976,6 +982,7 @@
           workerTrailIntensity: draftPayload.workerTrailIntensity,
           workerCenterExclusion: draftPayload.workerCenterExclusion,
           workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+          heatIrregularPulse: draftPayload.heatIrregularPulse,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

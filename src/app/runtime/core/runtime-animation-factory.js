@@ -82,6 +82,9 @@
     workerTrailIntensity = 100,
     workerCenterExclusion = false,
     workerCenterExclusionRadius = 25,
+    // Phase 58-w3.8x: optional irregular (seeded) heat pulse. Default
+    // off = the regular ~0.24 Hz breathing, byte-identical to before.
+    heatIrregularPulse = false,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -175,6 +178,8 @@
       workerCenterExclusionRadius: Number.isFinite(Number(workerCenterExclusionRadius))
         ? Math.max(0, Math.min(60, Number(workerCenterExclusionRadius)))
         : 25,
+      // Phase 58-w3.8x: optional irregular heat pulse.
+      heatIrregularPulse: heatIrregularPulse === true,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

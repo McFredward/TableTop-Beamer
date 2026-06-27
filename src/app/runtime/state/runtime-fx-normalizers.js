@@ -148,6 +148,8 @@
       workerTrailIntensity: clampNumber(definition?.workerTrailIntensity, 0, 100, 100),
       workerCenterExclusion: definition?.workerCenterExclusion === true,
       workerCenterExclusionRadius: clampNumber(definition?.workerCenterExclusionRadius, 0, 60, 25),
+      // Phase 58-w3.8x: optional irregular (seeded) heat pulse, default off.
+      heatIrregularPulse: definition?.heatIrregularPulse === true,
     };
   }
 

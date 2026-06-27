@@ -1159,8 +1159,27 @@
       // age). Two incommensurate sines so the pulse breathes instead
       // of ticking like a metronome.
       //
-      const pulse = Math.sin(safeAge * Math.PI * 2 * 0.24) * 0.72
-        + Math.sin(safeAge * Math.PI * 2 * 0.113 + 1.7) * 0.28; // -1..1
+      // Phase 58-w3.8x — optional irregular pulse. When ON, the carrier
+      // phase is WARPED by a sum of slow incommensurate sines so the
+      // instantaneous breathing period wanders (long, then short, then
+      // long) — it reads as random but stays a PURE analytic function of
+      // `safeAge`, so dashboard / /output / SSR render identically. The
+      // warp constants are fixed (a "seed" shared by all clients), NOT
+      // per-instance: two heat rooms look independent purely because
+      // their ages differ (exactly like the regular pulse), while a
+      // hidden-source room that borrows its SOURCE's age via
+      // heatSyncNearestSource evaluates the identical curve and stays in
+      // lockstep even when irregular. Default OFF = the regular pulse,
+      // byte-identical to before.
+      const pulse = options.heatIrregularPulse === true
+        ? Math.sin(
+            safeAge * Math.PI * 2 * 0.17
+            + Math.sin(safeAge * 0.213 + 0.0) * 1.7
+            + Math.sin(safeAge * 0.067 + 2.3) * 2.6
+            + Math.sin(safeAge * 0.031 + 5.1) * 3.4,
+          )
+        : Math.sin(safeAge * Math.PI * 2 * 0.24) * 0.72
+          + Math.sin(safeAge * Math.PI * 2 * 0.113 + 1.7) * 0.28; // -1..1
       const baseRadius = Math.max(12, Math.hypot(roomWidth, roomHeight) * 0.52);
 
       // Phase 58-w3.8g — heat-source visibility option. Default ON
