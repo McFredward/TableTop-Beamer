@@ -722,6 +722,11 @@
                solid-color animations (solid-color color stays in the
                static #live-editor-color-label above). -->
           <div id="live-editor-coded" class="live-editor-coded" hidden></div>
+          <!-- Phase 58-w3.9h: optional fade-in/fade-out controls for the
+               running instance. Applies to ANY animation type, so (unlike
+               #live-editor-coded) it is populated for every instance. The
+               "Fade-Dauer" slider stays hidden until the toggle is ON. -->
+          <div id="live-editor-fade" class="live-editor-coded"></div>
           <details>
             <summary>Transform</summary>
             <fieldset id="live-editor-transform" class="room-transform-options">
@@ -1133,6 +1138,9 @@
   <script type="module" src="/src/app/runtime/render/runtime-effect-dither.js"></script>
   <script src="/src/app/runtime/render/runtime-effect-visuals.js" defer></script>
   <script src="/src/app/runtime/panels/runtime-regression-tests.js" defer></script>
+  <!-- Phase 58-w3.9h: shared fade math (computeFadeMultiplier) consumed by
+       the draw loop (render ramp) + the stop pipeline (deferred fade-out). -->
+  <script src="/src/app/runtime/core/runtime-animation-fade.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-state.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-stop-pipeline.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-live-editor.js" defer></script>

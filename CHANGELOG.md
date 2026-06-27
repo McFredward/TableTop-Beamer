@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.56] — 2026-06-08
+
+### Added
+
+- **Animations now have an OPTIONAL fade-in / fade-out so starting and stopping is no longer an abrupt cut.** A new per-animation "Ein-/Ausblenden" toggle (default OFF) enables it, and a "Fade-Dauer" slider (100 ms–5000 ms, default 800 ms) — visible only once the toggle is ON — sets the ramp duration. The controls appear in BOTH the full animation editor (Defaults card) and the live editor (Active Animations → Edit) for every scope (room / inside / outside) and asset type (mp4 / gif / coded), built from one shared builder so the two never drift. When enabled, the animation's effective opacity ramps 0→1 on trigger (smoothstep, measured from the instance's start) as a GLOBAL multiplier on top of the animation's own opacity, applied uniformly across all draw paths (room/inside/outside, mp4/gif/coded). The multiplier is a pure function of time, so the dashboard, /output and the SSR encoder stay deterministic and in lock-step. On stop, a fade-enabled animation does NOT vanish instantly: the stop stamps a fade-out start onto the instance and BROADCASTS it (via the existing edit-room live mutation) so /output and every other client ramp out together (1→0 over the fade duration), and only AFTER the ramp completes does the real removal run — through the unchanged v1.2.52-hardened stop pipeline (retriable, self-healing, never wedged in "Stopping"). Re-triggering (toggling ON) an animation while it is fading out cancels the fade-out and resumes fading IN from the current opacity with no jump. With the toggle OFF the start/stop behavior is byte-identical to before. The city-workers per-figure presence envelope and the inside-animation additive compositing compose with the fade rather than fighting it.
+
+---
+
 ## [1.2.55] — 2026-06-08
 
 ### Added

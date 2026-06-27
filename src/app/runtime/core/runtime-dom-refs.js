@@ -103,6 +103,9 @@
       // (heat / city-workers / break-solid-color) on a running coded
       // animation, built from the shared coded-options builder.
       liveEditorCoded: document.querySelector("#live-editor-coded"),
+      // Phase 58-w3.9h: fade (Ein-/Ausblenden) controls for any running
+      // instance, built from the shared fade-options builder.
+      liveEditorFade: document.querySelector("#live-editor-fade"),
       liveEditorOutsideFx: document.querySelector("#live-editor-outside-fx"),
       liveEditorOutsideMode: document.querySelector("#live-editor-outside-mode"),
       liveEditorOutsideDirection: document.querySelector("#live-editor-outside-direction"),

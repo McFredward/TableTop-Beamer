@@ -274,6 +274,16 @@
     const existing = state.runningAnimations.find(
       (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
     );
+    // Phase 58-w3.9h: re-trigger (toggle ON) of a fading-out instance cancels
+    // the fade-out and resumes fading IN from the current opacity, instead of
+    // toggling it off again. Must run before the stop/advance branches below.
+    if (existing) {
+      const stopPipeline = window.TT_BEAMER_RUNTIME_LIFECYCLE_STOP_PIPELINE;
+      if (stopPipeline?.cancelFadeOutIfFading
+        && stopPipeline.cancelFadeOutIfFading(existing)) {
+        return;
+      }
+    }
     // Resolve the category dynamically. Custom outside animations
     // created by the user aren't in GLOBAL_ANIMATIONS (which only knows the
     // built-in outside-space), so we also check the board's outside profile.
@@ -419,6 +429,9 @@
         // exactly like room dispatch stamps selectedDefinition.name.
         animationName: matchedDefinition?.name,
         ...insideTransformSeed,
+        // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
+        fadeEnabled: matchedDefinition?.fadeEnabled === true,
+        fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,
       });
       // Stable, revision-less id (mirrors the server id scheme without the
       // per-trigger revision suffix) so the snapshot merges in place and
@@ -481,6 +494,9 @@
           animationName: matchedDefinition?.name,
           // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
           ...insideTransformSeed,
+          // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
+          fadeEnabled: matchedDefinition?.fadeEnabled === true,
+          fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,
         });
         void ctx.emitLiveMutation("trigger-global", {
           animationType: type,
@@ -532,6 +548,9 @@
         animationName: matchedDefinition?.name,
         // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
         ...insideTransformSeed,
+        // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
+        fadeEnabled: matchedDefinition?.fadeEnabled === true,
+        fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,
       });
       ctx.triggerFeedback.textContent = `Pending: ${ctx.getAnimationLabel(type)} start accepted (waiting for snapshot)`;
       void ctx.emitLiveMutation("trigger-global", {

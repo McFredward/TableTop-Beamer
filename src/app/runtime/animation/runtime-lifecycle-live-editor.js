@@ -140,6 +140,9 @@
       direction: animation.direction,
       // Coded-specific (solid-color) per-instance color.
       colorHex: animation.colorHex,
+      // Phase 58-w3.9h: fade config so Discard restores it.
+      fadeEnabled: animation.fadeEnabled,
+      fadeDurationMs: animation.fadeDurationMs,
     };
     // Phase 58-w3.9g: snapshot the FULL coded option set (heat /
     // city-workers / break-solid-color) so Discard restores every
@@ -442,6 +445,31 @@
     container.hidden = rows.length === 0;
   }
 
+  // Phase 58-w3.9h: build the fade (Ein-/Ausblenden) toggle + conditional
+  // duration slider for the running instance, for ANY animation type. Edits
+  // apply to the instance in real time (applyLiveEditorValue → dashboard)
+  // and broadcast so /output follows; on the next start the saved default
+  // (if Save-as-default was used) drives the fade.
+  function _populateLiveEditorFade(animation) {
+    const container = ctx.liveEditorFade;
+    if (!container) return;
+    container.replaceChildren();
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions?.buildFadeOptionRows) {
+      container.hidden = true;
+      return;
+    }
+    const rows = codedOptions.buildFadeOptionRows({
+      get: (key) => (animation[key] !== undefined ? animation[key] : undefined),
+      set: (key, value) => {
+        applyLiveEditorValue(key, value);
+        _scheduleLiveEditorBroadcast();
+      },
+    });
+    for (const row of rows) container.append(row);
+    container.hidden = rows.length === 0;
+  }
+
   function _finalizeLiveEditorOpen(animation) {
     const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
     const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
@@ -459,6 +487,7 @@
     _populateLiveEditorPanel(animation);
     _populateLiveEditorAdvancedFields(animation);
     _populateLiveEditorCoded(animation);
+    _populateLiveEditorFade(animation);
     _finalizeLiveEditorOpen(animation);
   }
 
@@ -637,6 +666,9 @@
               // Phase 58-w3.9g: persist the full coded option set (heat /
               // city-workers / break-solid-color) edited live, so future
               // triggers of this animation apply the saved coded values.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
               ..._collectCodedFieldsForSave(animation),
             },
           ),
@@ -667,6 +699,9 @@
               offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
               // Phase 58-w3.9g: inside coded effects (unified catalog)
               // persist their coded option set too.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
               ..._collectCodedFieldsForSave(animation),
             },
           ),
@@ -689,6 +724,9 @@
               direction: animation.direction ?? entry.direction,
               // Phase 58-w3.9g: outside coded effects (unified catalog)
               // persist their coded option set too.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
               ..._collectCodedFieldsForSave(animation),
             },
           ),

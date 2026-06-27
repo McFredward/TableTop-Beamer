@@ -87,7 +87,7 @@
     };
   }
 
-  function drawRoomComposition(animation, age, room, roomMetrics) {
+  function drawRoomComposition(animation, age, room, roomMetrics, fadeMul = 1) {
     const c = ctx.canvasCtx;
     const qualityScale = ctx.getRuntimeQualityScale();
     const assetType = ctx.normalizeRoomAssetType(animation.roomAssetType);
@@ -131,7 +131,8 @@
       if (gifRenderConfig.frame) {
         const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
         c.save();
-        c.globalAlpha = gifRenderConfig.opacity;
+        // Phase 58-w3.9h: global fade multiplier on top of the gif opacity.
+        c.globalAlpha = gifRenderConfig.opacity * fadeMul;
         drawRoomAssetImage(c, gifRenderConfig.frame, rect);
         c.restore();
       }
@@ -232,7 +233,8 @@
         try {
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
-          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity);
+          // Phase 58-w3.9h: global fade multiplier on top of the mp4 opacity.
+          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity) * fadeMul;
           const isSeeking = video.seeking === true;
           const haveLiveFrame =
             !isSeeking
@@ -477,7 +479,9 @@
       roomMetrics,
       {
         densityFactor: qualityScale,
-        opacity: ctx.clampRoomOpacity(animation.opacity),
+        // Phase 58-w3.9h: global fade multiplier folded into the coded
+        // effect's opacity (city-workers composes via its overall knob).
+        opacity: ctx.clampRoomOpacity(animation.opacity) * fadeMul,
         gifAssetPath: assetRef || ctx.ROOM_GIF_ANIMATION_ASSETS[animation.type],
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: playbackSpeed,
@@ -710,10 +714,12 @@
   // scope. Defaults reproduce each effect's standalone look, so the
   // full-screen overlay effects (hull-flicker / intruder-alert /
   // power-outage) are unaffected — they ignore these fields.
-  function buildScopedCodedEffectOptions(definition, { densityFactor = 1 } = {}) {
+  function buildScopedCodedEffectOptions(definition, { densityFactor = 1, fadeMul = 1 } = {}) {
     return {
       densityFactor,
-      opacity: Number.isFinite(Number(definition?.opacity)) ? Number(definition.opacity) : 1,
+      // Phase 58-w3.9h: fold the global fade multiplier into the coded
+      // effect's opacity so inside/outside coded effects ramp too.
+      opacity: (Number.isFinite(Number(definition?.opacity)) ? Number(definition.opacity) : 1) * fadeMul,
       colorHex: definition?.colorHex,
       heatShowSource: definition?.heatShowSource !== false,
       workerStyle: definition?.workerStyle === "lit" ? "lit" : "dark",
@@ -733,7 +739,7 @@
     };
   }
 
-  function drawInsideGlobalVisual(animation, age) {
+  function drawInsideGlobalVisual(animation, age, fadeMul = 1) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
     const boardId = animation.boardId ?? state.boardId;
@@ -823,7 +829,8 @@
         ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && timeline >= totalSec });
       }
       if (frame) {
-        c.globalAlpha = intensity;
+        // Phase 58-w3.9h: global fade multiplier on top of inside gif alpha.
+        c.globalAlpha = intensity * fadeMul;
         drawRoomAssetImage(c, frame, insideRect);
       }
       return;
@@ -884,7 +891,8 @@
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
-        c.globalAlpha = intensity;
+        // Phase 58-w3.9h: global fade multiplier on top of inside mp4 alpha.
+        c.globalAlpha = intensity * fadeMul;
         const isSeeking = video.seeking === true;
         const haveLiveFrame =
           !isSeeking
@@ -993,7 +1001,7 @@
       intensity,
       null,
       insideRegionMetrics,
-      buildScopedCodedEffectOptions(definition),
+      buildScopedCodedEffectOptions(definition, { fadeMul }),
     );
   }
 
@@ -1068,7 +1076,9 @@
           if (memberConcurrency >= 2 || insideConcurrent) {
             c.globalCompositeOperation = "lighter";
           }
-          drawRoomComposition(memberAnimation, age, room, roomMetrics);
+          const memberFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+            .computeFadeMultiplier(memberAnimation, now);
+          drawRoomComposition(memberAnimation, age, room, roomMetrics, memberFadeMul);
         } finally {
           c.restore();
         }
@@ -1114,7 +1124,9 @@
         if (roomConcurrency >= 2 || insideConcurrent) {
           c.globalCompositeOperation = "lighter";
         }
-        drawRoomComposition(animation, age, room, roomMetrics);
+        const roomFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+          .computeFadeMultiplier(animation, now);
+        drawRoomComposition(animation, age, room, roomMetrics, roomFadeMul);
       } finally {
         c.restore();
       }
@@ -1158,7 +1170,9 @@
       if (roomConcurrent || insideConcurrent) {
         c.globalCompositeOperation = "lighter";
       }
-      drawInsideGlobalVisual(animation, age);
+      const insideFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+        .computeFadeMultiplier(animation, now);
+      drawInsideGlobalVisual(animation, age, insideFadeMul);
     } finally {
       c.restore();
     }
@@ -1222,6 +1236,10 @@
     }) * state.animationSpeed;
     const timeline = ctx.resolveOutsideTimeline(elapsedSeconds, effectiveSpeed);
     const effectiveDirection = effectiveDirectionRaw === "reverse" ? "reverse" : "forward";
+    // Phase 58-w3.9h: global fade multiplier for the outside layer (null
+    // running instance ⇒ 1, i.e. no fade).
+    const outsideFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+      .computeFadeMultiplier(runningInstance, now);
 
     c.save();
     try {
@@ -1244,7 +1262,7 @@
           ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: totalSec > 0 && timeline.timeline >= totalSec });
         }
         if (frame) {
-          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
           c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
         }
         return;
@@ -1292,7 +1310,7 @@
             ctx.maybeTransitionPlaybackPhase?.(runningInstance, video, playbackState);
           }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
-          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
           // Phase 57 (2026-06-01): removed the Phase 30 T4 final-output
           // bypass. T4 assumed "/output/ rAF rate is below any tier-
           // target gate so shouldDrawOutsideMp4Now never returns false"
@@ -1385,7 +1403,7 @@
       // parallax controls.
       const outsideRegionMetrics = ctx.getOutsideRegionMetrics(state.boardId);
       ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, outsideRegionMetrics, {
-        ...buildScopedCodedEffectOptions(selectedDefinition),
+        ...buildScopedCodedEffectOptions(selectedDefinition, { fadeMul: outsideFadeMul }),
         outsideMode: effectiveMode,
         outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,

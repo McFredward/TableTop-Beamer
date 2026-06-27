@@ -933,6 +933,15 @@ function applyGlobalMutationPatch(payload) {
       ...(incomingRoomAssetType ? { roomAssetType: incomingRoomAssetType } : {}),
       ...(incomingRoomAssetRef ? { roomAssetRef: incomingRoomAssetRef } : {}),
       ...incomingTransform,
+      // Phase 58 Wave 3.9h: preserve the per-animation fade config onto the
+      // server-authoritative global record (rebuilt field-by-field, unlike
+      // trigger-room). Without this the trigger-global → snapshot roundtrip
+      // strips fadeEnabled/fadeDurationMs and /output never fades. (fadeOut*
+      // timestamps ride the later edit-room spread-merge, not the trigger.)
+      fadeEnabled: incomingAnimation?.fadeEnabled === true,
+      ...(Number.isFinite(Number(incomingAnimation?.fadeDurationMs))
+        ? { fadeDurationMs: Number(incomingAnimation.fadeDurationMs) }
+        : {}),
       startedAtEpochMs: serverNowEpochMs,
     };
     if (isReversibleFreezeIncoming && incomingStableId) {

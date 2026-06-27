@@ -132,6 +132,11 @@
         workerExclusionOffsetY: selectedDefinition.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: selectedDefinition.workerExclusionRingVisible !== false,
         heatIrregularPulse: selectedDefinition.heatIrregularPulse === true,
+        // Phase 58-w3.9h: optional fade-in/fade-out — per-definition, carried
+        // onto every dispatched instance (same factory-default-mask trap as
+        // the fields above: every createAnimation call site forwards these).
+        fadeEnabled: selectedDefinition.fadeEnabled === true,
+        fadeDurationMs: selectedDefinition.fadeDurationMs ?? 800,
       };
 
       if (selectedAssetType === "gif") {
@@ -479,6 +484,9 @@
                     workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
                     workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
                     heatIrregularPulse: draftPayload.heatIrregularPulse,
+                    // Phase 58-w3.9h: fade config — explicit pass-through.
+                    fadeEnabled: draftPayload.fadeEnabled,
+                    fadeDurationMs: draftPayload.fadeDurationMs,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -617,6 +625,9 @@
           workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
           workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
           heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9h: fade config — explicit pass-through.
+          fadeEnabled: draftPayload.fadeEnabled,
+          fadeDurationMs: draftPayload.fadeDurationMs,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -667,6 +678,9 @@
             workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
             workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
             heatIrregularPulse: draftPayload.heatIrregularPulse,
+            // Phase 58-w3.9h: fade config — explicit pass-through.
+            fadeEnabled: draftPayload.fadeEnabled,
+            fadeDurationMs: draftPayload.fadeDurationMs,
             hold: true,
             durationSec: 0,
           });
@@ -808,6 +822,9 @@
                   workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
                   workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
                   heatIrregularPulse: draftPayload.heatIrregularPulse,
+                  // Phase 58-w3.9h: fade config — explicit pass-through.
+                  fadeEnabled: draftPayload.fadeEnabled,
+                  fadeDurationMs: draftPayload.fadeDurationMs,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -952,6 +969,9 @@
         workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
         workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
         heatIrregularPulse: draftPayload.heatIrregularPulse,
+        // Phase 58-w3.9h: fade config — explicit pass-through.
+        fadeEnabled: draftPayload.fadeEnabled,
+        fadeDurationMs: draftPayload.fadeDurationMs,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -1004,6 +1024,9 @@
           workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
           workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
           heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9h: fade config — explicit pass-through.
+          fadeEnabled: draftPayload.fadeEnabled,
+          fadeDurationMs: draftPayload.fadeDurationMs,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

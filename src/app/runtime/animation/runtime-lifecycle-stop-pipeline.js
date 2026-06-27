@@ -24,10 +24,106 @@
   // self-heals without an operator re-toggle or a server restart.
   const STOP_RETRY_GRACE_MS = 2_500;
 
+  // Phase 58 Wave 3.9h: pending deferred-stop timers keyed by the target
+  // animation id. A fadeEnabled stop does NOT remove the instance
+  // immediately — it stamps + broadcasts a fade-out start, ramps the
+  // opacity 1→0 over fadeDurationMs, then re-enters stopAnimation to run
+  // the REAL v1.2.52-hardened removal (retriable, self-healing, never
+  // wedged). Re-triggering during the fade cancels the timer + the ramp.
+  const fadeOutTimers = new Map();
+
+  function fadeApi() {
+    return window.TT_BEAMER_RUNTIME_ANIMATION_FADE;
+  }
+
+  function clearFadeOutTimer(animationId) {
+    const timerId = fadeOutTimers.get(animationId);
+    if (timerId != null) {
+      try { window.clearTimeout(timerId); } catch { /* defensive */ }
+    }
+    fadeOutTimers.delete(animationId);
+  }
+
   function init(dependencies) {
     ctx = dependencies?.ctx ?? dependencies;
     renderRunningAnimationsList = dependencies?.renderRunningAnimationsList ?? null;
     refreshGlobalButtons = dependencies?.refreshGlobalButtons ?? null;
+  }
+
+  // Phase 58 Wave 3.9h: begin a deferred fade-out. Stamps fadeOutStartedAt*
+  // on the target (and cluster members) and BROADCASTS via the existing
+  // edit-room live mutation so /output + other clients ramp out too (not
+  // abruptly). The actual removal is scheduled for fadeDurationMs later by
+  // re-calling stopAnimation — which, with fadeOutStartedAtEpochMs now set,
+  // skips this gate and runs the hardened stop. The fade is purely a
+  // presentation deferral; the removal path is unchanged + never bypassed.
+  function beginFadeOutThenStop(target) {
+    const { state, emitLiveMutation, buildAnimationSnapshotForLiveSync } = ctx;
+    const api = fadeApi();
+    const durationMs = api ? api.clampFadeDurationMs(target.fadeDurationMs) : 800;
+    const idsToFade = collectAnimationStopIds(target, { mutateClusterMembership: false });
+    const epoch = Date.now();
+    const perf = performance.now();
+    for (const id of idsToFade) {
+      const anim = state.runningAnimations.find((entry) => entry?.id === id);
+      if (!anim) continue;
+      anim.fadeOutStartedAt = perf;
+      anim.fadeOutStartedAtEpochMs = epoch;
+      void emitLiveMutation("edit-room", {
+        animationId: anim.id,
+        animation: buildAnimationSnapshotForLiveSync(anim),
+      }).catch(() => {});
+    }
+    console.warn("[58] fade-out-start", JSON.stringify({
+      id: target.id, durationMs, ids: [...idsToFade],
+    }));
+    if (typeof renderRunningAnimationsList === "function") renderRunningAnimationsList();
+    clearFadeOutTimer(target.id);
+    const timerId = window.setTimeout(() => {
+      fadeOutTimers.delete(target.id);
+      const still = state.runningAnimations.find((entry) => entry?.id === target.id);
+      if (!still) return;
+      // Cancelled (revived) mid-fade — fadeOutStartedAtEpochMs cleared to null.
+      if (!(Number(still.fadeOutStartedAtEpochMs) > 0)) return;
+      stopAnimation(target.id);
+    }, durationMs);
+    fadeOutTimers.set(target.id, timerId);
+  }
+
+  // Phase 58 Wave 3.9h: cancel an in-progress fade-out and resume fading IN
+  // from the CURRENT opacity (no abrupt jump). Returns true if a fade-out
+  // was active. Called on re-trigger (toggle ON) of a fading instance.
+  function cancelFadeOutIfFading(animation) {
+    if (!animation || !(Number(animation.fadeOutStartedAtEpochMs) > 0)) {
+      return false;
+    }
+    const { state, emitLiveMutation, buildAnimationSnapshotForLiveSync } = ctx;
+    const api = fadeApi();
+    const idsToRevive = collectAnimationStopIds(animation, { mutateClusterMembership: false });
+    const perfNow = performance.now();
+    const epochNow = Date.now();
+    for (const id of idsToRevive) {
+      const anim = state.runningAnimations.find((entry) => entry?.id === id);
+      if (!anim) continue;
+      const durationMs = api ? api.clampFadeDurationMs(anim.fadeDurationMs) : 800;
+      // Sample the current (mid-fade) multiplier so fade-in resumes from it.
+      const v = api ? api.computeFadeMultiplier(anim, perfNow) : 1;
+      anim.fadeOutStartedAt = null;
+      anim.fadeOutStartedAtEpochMs = null;
+      const tIn = api ? api.inverseSmoothstep01(v) : 1;
+      anim.startedAt = perfNow - tIn * durationMs;
+      anim.startedAtEpochMs = epochNow - tIn * durationMs;
+      clearFadeOutTimer(id);
+      void emitLiveMutation("edit-room", {
+        animationId: anim.id,
+        animation: buildAnimationSnapshotForLiveSync(anim),
+      }).catch(() => {});
+    }
+    clearFadeOutTimer(animation.id);
+    console.warn("[58] fade-out-cancel", JSON.stringify({ id: animation.id }));
+    if (typeof renderRunningAnimationsList === "function") renderRunningAnimationsList();
+    if (typeof refreshGlobalButtons === "function") refreshGlobalButtons();
+    return true;
   }
 
   function collectAnimationStopIds(targetAnimation, { mutateClusterMembership = false } = {}) {
@@ -208,7 +304,22 @@
     if (!target) {
       return;
     }
+    // Phase 58 Wave 3.9h: deferred fade-out. On CONTROL, a fadeEnabled
+    // instance that is not already fading out ramps out first, then the real
+    // hardened stop is re-issued from beginFadeOutThenStop's timer. /output
+    // receives the fade-out stamp via the broadcast and ramps too; it is
+    // removed only when the real stop lands. (OUTPUT role removes directly.)
+    if (getOutputRole() === OUTPUT_ROLE_CONTROL
+      && target.fadeEnabled === true
+      && !(Number(target.fadeOutStartedAtEpochMs) > 0)) {
+      beginFadeOutThenStop(target);
+      return;
+    }
     const idsToStop = collectAnimationStopIds(target, { mutateClusterMembership: true });
+    // Real stop is landing now — drop any pending fade-out timers for these
+    // ids so a late timer can't re-enter after removal.
+    for (const id of idsToStop) clearFadeOutTimer(id);
+    clearFadeOutTimer(target.id);
     if (getOutputRole() === OUTPUT_ROLE_CONTROL) {
       // Phase 58 Wave 3.9d: a stop is ALWAYS re-dispatchable. Previously, if
       // every target id was already stop-pending, this bailed with "already
@@ -292,5 +403,7 @@
     buildStopCommandTargetMeta,
     emitStopAnimationCommand,
     stopAnimation,
+    beginFadeOutThenStop,
+    cancelFadeOutIfFading,
   };
 })();

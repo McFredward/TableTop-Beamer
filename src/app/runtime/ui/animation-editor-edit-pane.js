@@ -374,6 +374,18 @@
         card.append(buildSelectRow(scope, def, boardId, f));
       }
     }
+    // Phase 58-w3.9h: optional fade-in/fade-out (toggle + conditional
+    // duration slider), built by the shared options builder so the full
+    // editor and the live editor never drift. Applies to every scope +
+    // asset type. Persists to the definition via patchAnimation.
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (codedOptions?.buildFadeOptionRows) {
+      const fadeRows = codedOptions.buildFadeOptionRows({
+        get: (key) => def[key],
+        set: (key, value) => patchAnimation(scope, boardId, def.id, { [key]: value }),
+      });
+      for (const row of fadeRows) card.append(row);
+    }
     return card;
   }
 

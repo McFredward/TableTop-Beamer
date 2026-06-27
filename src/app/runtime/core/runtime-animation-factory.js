@@ -89,6 +89,12 @@
     // Phase 58-w3.8x: optional irregular (seeded) heat pulse. Default
     // off = the regular ~0.24 Hz breathing, byte-identical to before.
     heatIrregularPulse = false,
+    // Phase 58-w3.9h: optional fade-in/fade-out (per-definition, all
+    // scopes + asset types). Defaults preserve the abrupt start/stop, so a
+    // caller that misses these forwards the legacy behavior (Phase 50
+    // factory-default-mask contract — every dispatch site forwards them).
+    fadeEnabled = false,
+    fadeDurationMs = 800,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -194,6 +200,15 @@
       workerExclusionRingVisible: workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular heat pulse.
       heatIrregularPulse: heatIrregularPulse === true,
+      // Phase 58-w3.9h: per-instance fade config (same factory-default-mask
+      // contract as the fields above; snapshots carry these via the full
+      // object spread in buildAnimationSnapshotForLiveSync). The render
+      // applies the fade as a time-pure opacity multiplier; fadeOutStartedAt*
+      // are stamped later (at stop) by the deferred fade-out pipeline.
+      fadeEnabled: fadeEnabled === true,
+      fadeDurationMs: Number.isFinite(Number(fadeDurationMs))
+        ? Math.max(100, Math.min(5000, Number(fadeDurationMs)))
+        : 800,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

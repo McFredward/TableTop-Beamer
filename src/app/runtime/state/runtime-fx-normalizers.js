@@ -159,6 +159,15 @@
       workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
       // Phase 58-w3.8x: optional irregular (seeded) heat pulse, default off.
       heatIrregularPulse: definition?.heatIrregularPulse === true,
+      // Phase 58-w3.9h: optional fade-in/fade-out. Per-definition, shared
+      // across room/inside/outside (this helper is spread into all three
+      // normalizers) and across asset types (mp4/gif/coded). fadeEnabled
+      // default false ⇒ byte-identical legacy (abrupt) start/stop;
+      // fadeDurationMs clamps to 100..5000 (default 800). A whole-animation
+      // opacity ramp applied at render (see runtime-animation-fade.js) and a
+      // deferred, wedge-safe fade-out stop (see runtime-lifecycle-stop-pipeline).
+      fadeEnabled: definition?.fadeEnabled === true,
+      fadeDurationMs: clampNumber(definition?.fadeDurationMs, 100, 5000, 800),
     };
   }
 

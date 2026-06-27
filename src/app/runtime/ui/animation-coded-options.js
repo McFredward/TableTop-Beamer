@@ -322,6 +322,34 @@
     return rows;
   }
 
+  // Phase 58-w3.9h: optional fade-in/fade-out controls. NOT coded-specific
+  // — fade applies to every animation (mp4/gif/coded, all scopes) — but
+  // lives here so the full editor AND the live editor build the toggle +
+  // conditional slider from one place (same IO-bridge contract). The
+  // "Fade-Dauer" slider is hidden until the "Ein-/Ausblenden" toggle is ON
+  // (visibility dependency, mirroring the coded gating pattern above).
+  function buildFadeOptionRows({ get, set }) {
+    const io = { get, set };
+    const rows = [];
+    const durationRow = makeSliderRow(io, {
+      key: "fadeDurationMs",
+      label: "Fade-Dauer",
+      min: 100, max: 5000, step: 50,
+      format: (v) => `${(Math.round(v) / 1000).toFixed(2)} s`,
+    });
+    const applyFadeGate = (on) => {
+      durationRow.hidden = !on;
+    };
+    rows.push(makeToggleRow(io, {
+      key: "fadeEnabled",
+      label: "Ein-/Ausblenden",
+      sub: "Sanftes Ein- und Ausblenden beim Starten und Stoppen statt eines abrupten Schnitts.",
+    }, { onChange: (next) => applyFadeGate(next) }));
+    rows.push(durationRow);
+    applyFadeGate(io.get("fadeEnabled") === true);
+    return rows;
+  }
+
   // The set of definition/instance keys this builder can read/write.
   // The live editor uses it to snapshot (for Discard) + persist
   // (Save as default) the full coded field set without hard-coding the
@@ -349,6 +377,7 @@
 
   window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS = {
     buildCodedOptionRows,
+    buildFadeOptionRows,
     classifyCodedType,
     hasCodedOptions,
     CODED_OPTION_KEYS,
