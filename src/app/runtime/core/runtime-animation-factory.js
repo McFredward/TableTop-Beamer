@@ -73,6 +73,10 @@
     // Phase 58-w3.8s: "Größe der Bewohner" multiplier (0.5–2.0,
     // default 1.0). A missing field renders the historical figure size.
     workerSize = 1,
+    // Phase 58-w3.9l: "Gehbewegung" walk-sway 0–150 % of the original gait
+    // swing. Default 55 (calmer) — a missing field renders the calmer walk,
+    // NOT the old amplitude (operator: the prior walk swung too much).
+    workerSwayAmount = 55,
     // Phase 58-w3.8w: clothing brightness multiplier (0.3–2.0, default
     // 1.0 = current look), snow-trail intensity (0–100, default 100 =
     // current peak), and center-exclusion toggle + radius (0–60% of the
@@ -175,6 +179,11 @@
       workerSize: Number.isFinite(Number(workerSize)) && Number(workerSize) > 0
         ? Math.max(0.5, Math.min(2, Number(workerSize)))
         : 1,
+      // Phase 58-w3.9l: walk-sway amount, clamped 0–150 (% of the original
+      // gait swing); missing/invalid → 55 (the calmer default).
+      workerSwayAmount: Number.isFinite(Number(workerSwayAmount))
+        ? Math.max(0, Math.min(150, Number(workerSwayAmount)))
+        : 55,
       // Phase 58-w3.8w: clothing brightness / trail intensity / center
       // exclusion (same factory-default-mask contract as the fields
       // above — every dispatch call site forwards them explicitly).

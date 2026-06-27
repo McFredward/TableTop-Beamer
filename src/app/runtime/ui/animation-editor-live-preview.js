@@ -302,6 +302,7 @@
         workerLanternShare: current.workerLanternShare,
         workerTrails: current.workerTrails !== false,
         workerSize: current.workerSize ?? 1,
+        workerSwayAmount: current.workerSwayAmount ?? 55,
         workerClothingBrightness: current.workerClothingBrightness ?? 1,
         workerTrailIntensity: current.workerTrailIntensity ?? 100,
         workerCenterExclusion: current.workerCenterExclusion === true,

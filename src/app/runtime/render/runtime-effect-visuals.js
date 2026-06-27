@@ -722,7 +722,14 @@
   // a noise-like lateral drift around the straight line; the sin(πp)
   // envelope pins the path to the anchors at both ends. Returns
   // unit-disc coords.
-  function workerWalkPoint(fig, a, b, p) {
+  // Phase 58-w3.9l: `swayMul` (default 1 = original amplitude) scales the
+  // lateral meander — one component of the configurable "Gehbewegung"
+  // (walk-sway) knob. Same multiplier feeds the body bob + heading wobble
+  // in the draw branch so a single slider calms (or amplifies) the whole
+  // gait swing. swayMul=0 → straight leg (meander vanishes); the live
+  // default is 0.55 (see the draw block), so existing definitions render
+  // calmer per the operator's "schwingt zu viel" report.
+  function workerWalkPoint(fig, a, b, p, swayMul = 1) {
     const e = workerWalkProgress(fig, p);
     const eR = fig.excludeR ?? 0;
     const ox = fig.exclusionOffX ?? 0;
@@ -738,7 +745,7 @@
     const ny = dx / len;
     const lat = (Math.sin(p * Math.PI * 2 * fig.meanderFreq + fig.meanderPhase) * 0.7
       + Math.sin(p * Math.PI * 2 * fig.meanderFreq * 2.33 + fig.meanderPhase * 1.7 + 1.1) * 0.3)
-      * Math.sin(p * Math.PI) * fig.meanderScale * len;
+      * Math.sin(p * Math.PI) * fig.meanderScale * len * swayMul;
     let px = a[0] + dx * g + nx * lat;
     let py = a[1] + dy * g + ny * lat;
     // Phase 58-w3.8w "Mitte aussparen": a straight leg between two anchors
@@ -956,6 +963,14 @@
   const WORKER_ANTIQ_RADIUS = 0.16;  // orbit radius as a fraction of figLen
   const WORKER_ANTIQ_HZ = 1.8;       // orbit rate (Hz) — fixed, cadence-independent
   const WORKER_ANTIQ_OMEGA = WORKER_ANTIQ_HZ * Math.PI * 2;
+  // Phase 58-w3.9l: the walk-sway knob also scales this anti-quantization
+  // micro-orbit DOWN (it is a tiny circular motion the operator may read as
+  // part of the swinging), but never below this pixel floor — so the
+  // v1.2.48 per-frame motion stays above the /output pixel-grid threshold
+  // and slow trudgers don't stutter again. For figures whose base orbit is
+  // already sub-pixel (small figLen) the floor caps at the base radius, so
+  // the smallest figures — which need the fix most — keep their full orbit.
+  const WORKER_ANTIQ_MIN_PX = 0.5;
 
   function getWorkerPresenceEnvelope(key, nowMs) {
     let env = WORKER_PRESENCE_ENVELOPES.get(key);
@@ -972,8 +987,13 @@
     return env;
   }
 
-  function getWorkerTrailSamples(fig, figIndex) {
-    if (fig.trailSamples) return fig.trailSamples;
+  function getWorkerTrailSamples(fig, figIndex, swayMul = 1) {
+    // Phase 58-w3.9l: the trampled path follows the (sway-scaled) meander,
+    // so the memo is keyed on the sway multiplier (rounded → no float
+    // thrash). A live "Gehbewegung" drag re-samples; once committed the
+    // value is stable and the cached samples are reused.
+    const swayKey = Math.round(swayMul * 100);
+    if (fig.trailSamples && fig.trailSamplesSway === swayKey) return fig.trailSamples;
     const activeDur = (1 - fig.hiddenFrac) * fig.cycleDur;
     const count = Math.max(12, Math.min(
       WORKER_TRAIL_MAX_SAMPLES,
@@ -984,12 +1004,13 @@
       const t = fig.hiddenFrac + (j / count) * (1 - fig.hiddenFrac);
       // safeAge=0 is fine: position + fade are pure in t (the safeAge
       // param only shapes workPulse, which trails don't read).
-      const pose = workerPoseAt(fig, t, 0, figIndex);
+      const pose = workerPoseAt(fig, t, 0, figIndex, swayMul);
       samples[j] = pose
         ? { t, px: pose.px, py: pose.py, fade: pose.fade }
         : { t, px: 0, py: 0, fade: 0 };
     }
     fig.trailSamples = samples;
+    fig.trailSamplesSway = swayKey;
     return samples;
   }
 
@@ -997,7 +1018,7 @@
   // Returns null while the figure is off-stage; otherwise
   // { px, py, heading, fade, walking, workPulse } in unit-disc
   // coordinates (caller scales by room half-extents).
-  function workerPoseAt(fig, t, safeAge, figIndex) {
+  function workerPoseAt(fig, t, safeAge, figIndex, swayMul = 1) {
     if (t < fig.hiddenFrac) return null;
     const u = (t - fig.hiddenFrac) / (1 - fig.hiddenFrac); // active progress 0..1
     // Smooth fade in/out at the cycle boundaries (no popping).
@@ -1038,9 +1059,9 @@
         const p = rem / walkSeg;
         const a = anchors[k];
         const b = anchors[k + 1];
-        const pt = workerWalkPoint(fig, a, b, p);
+        const pt = workerWalkPoint(fig, a, b, p, swayMul);
         const EPS = 0.015;
-        const ahead = workerWalkPoint(fig, a, b, Math.min(1, p + EPS));
+        const ahead = workerWalkPoint(fig, a, b, Math.min(1, p + EPS), swayMul);
         const ddx = ahead[0] - pt[0];
         const ddy = ahead[1] - pt[1];
         const stepLen = Math.hypot(ddx, ddy);
@@ -1603,6 +1624,19 @@
       const clothingMul = Number.isFinite(clothingMulOpt) && clothingMulOpt > 0
         ? Math.max(0.3, Math.min(2, clothingMulOpt))
         : 1;
+      // Phase 58-w3.9l "Gehbewegung" (walk-sway): ONE knob scaling the
+      // whole gait swing — lateral meander + body bob + heading wobble —
+      // expressed as a percentage of the original (v1.2.32-era) amplitude.
+      // 0 % ⇒ near-straight walk, 100 % ⇒ today's amplitude, 150 % ⇒ a bit
+      // more. The operator reported the walk "schwingt zu viel" → the
+      // omitted/legacy default maps to 55 % (NOT byte-identical to the old
+      // look): every existing definition renders calmer, and the value is
+      // fully dialable. The micro-orbit (below) scales with the SAME knob
+      // but floors at WORKER_ANTIQ_MIN_PX so the anti-stutter fix holds.
+      const swayOpt = Number(options.workerSwayAmount);
+      const swayMul = Number.isFinite(swayOpt)
+        ? Math.max(0, Math.min(1.5, swayOpt / 100))
+        : 0.55;
       const halfW = roomWidth * 0.5;
       const halfH = roomHeight * 0.5;
       const prevComposite = c.globalCompositeOperation;
@@ -1665,7 +1699,7 @@
         tg.lineJoin = "round";
         for (let i = 0; i < figureCount; i += 1) {
           const fig = scene.figures[i];
-          const samples = getWorkerTrailSamples(fig, i);
+          const samples = getWorkerTrailSamples(fig, i, swayMul);
           const segCount = samples.length - 1;
           const cd = fig.cycleDur;
           // ≈ shoulder span of this figure (slightly wider) so the
@@ -1836,7 +1870,7 @@
       for (let i = 0; i < WORKER_MAX; i += 1) {
         const fig = scene.figures[i];
         const t = (safeAge / fig.cycleDur + fig.phase) % 1;
-        const pose = i < figureCount ? workerPoseAt(fig, t, safeAge, i) : null;
+        const pose = i < figureCount ? workerPoseAt(fig, t, safeAge, i, swayMul) : null;
         const target = pose ? 0.82 * pose.fade * overall : 0;
         // ---- presence envelope: final-stage alpha slew clamp -------
         const envKey = `${envRoomKey}::${i}`;
@@ -1901,21 +1935,33 @@
           x += Math.cos(heading) * along;
           y += Math.sin(heading) * along;
           // Body bob at the full step cadence (was half-rate): each
-          // heavy step lifts the body once, small amplitude.
-          const bob = Math.sin(stepPhase + fig.gaitSeed) * figLen * (0.02 + 0.035 * pace);
+          // heavy step lifts the body once, small amplitude. w3.9l: scaled
+          // by the "Gehbewegung" knob (swayMul) together with the meander
+          // and the wobble so one slider calms the whole gait swing.
+          const bob = Math.sin(stepPhase + fig.gaitSeed) * figLen * (0.02 + 0.035 * pace) * swayMul;
           x += -Math.sin(heading) * bob;
           y += Math.cos(heading) * bob;
           // Heading wobble halved in w3.8b (0.10 → 0.05) and again in
           // w3.8d (→ 0.025, ≈ 1.4°) — with the near-straight w3.8d
-          // meander the body should barely visibly correct course.
-          heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.025 * (0.4 + 0.6 * pace);
+          // meander the body should barely visibly correct course. w3.9l:
+          // also scaled by swayMul (→ 0 at sway 0, the body holds course).
+          heading += Math.sin(stepPhase * 0.5 + fig.gaitSeed + 0.8) * 0.025 * (0.4 + 0.6 * pace) * swayMul;
           // Sub-pixel anti-quantization micro-orbit (w3.8y): a constant-
           // speed circle (no velocity zero-crossing) that keeps the
           // figure's per-frame motion above the pixel-grid quantization
           // floor so slow trudgers stop stuttering on /output. Averages
           // to zero → net trudge + dashboard/SSR determinism preserved.
           // Pace-scaled ramp eases it in/out with the stride.
-          const antiQ = figLen * WORKER_ANTIQ_RADIUS * Math.min(1, pace * 1.5);
+          // w3.9l: the micro-orbit scales DOWN with the walk-sway knob
+          // (it's a tiny circular motion the operator may perceive as part
+          // of the swinging), but never below WORKER_ANTIQ_MIN_PX — or the
+          // base radius if that is already sub-pixel — so the v1.2.48
+          // per-frame anti-stutter motion survives at sway 0. Proportional
+          // scale (× min(1, swayMul)) then floored: deterministic, pace-
+          // independent floor.
+          const antiQBase = figLen * WORKER_ANTIQ_RADIUS * Math.min(1, pace * 1.5);
+          const antiQFloor = Math.min(antiQBase, WORKER_ANTIQ_MIN_PX);
+          const antiQ = Math.max(antiQBase * Math.min(1, swayMul), antiQFloor);
           const antiQPhase = safeAge * WORKER_ANTIQ_OMEGA + fig.gaitSeed;
           x += Math.cos(antiQPhase) * antiQ;
           y += Math.sin(antiQPhase) * antiQ;

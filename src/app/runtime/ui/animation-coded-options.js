@@ -219,6 +219,16 @@
         min: 0.5, max: 2, step: 0.1,
         format: (v) => `${Math.round(v * 100)}%`,
       }));
+      // Phase 58-w3.9l: "Gehbewegung" — one knob scaling the whole walk
+      // swing (lateral meander + body bob + heading wobble). 0 % ≈ straight
+      // walk, 100 % = the original amplitude, 150 % = a bit more. Default 55
+      // (calmer) — the operator found the prior walk "schwingt zu viel".
+      rows.push(makeSliderRow(io, {
+        key: "workerSwayAmount",
+        label: "Gehbewegung",
+        min: 0, max: 150, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      }));
       rows.push(makeSelectRow(io, {
         key: "workerGroups",
         label: "Gruppen",
@@ -362,6 +372,7 @@
     "workerStyle",
     "workerCount",
     "workerSize",
+    "workerSwayAmount",
     "workerGroups",
     "workerLanternShare",
     "workerClothingBrightness",

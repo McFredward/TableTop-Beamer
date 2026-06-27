@@ -139,6 +139,12 @@
       // Phase 58-w3.8s: "Größe der Bewohner" figure-size multiplier
       // (0.5–2.0, default 1.0 = historical size).
       workerSize: clampNumber(definition?.workerSize, 0.5, 2, 1),
+      // Phase 58-w3.9l: "Gehbewegung" walk-sway amount (0–150 % of the
+      // original gait-swing amplitude). Default 55 — the operator found the
+      // prior look "schwingt zu viel"; an omitted/legacy field therefore
+      // normalizes to the calmer 55 % (NOT byte-identical to the old walk),
+      // so existing definitions get the calmer gait while staying dialable.
+      workerSwayAmount: clampNumber(definition?.workerSwayAmount, 0, 150, 55),
       // Phase 58-w3.8w: clothing-brightness multiplier (0.3–2.0, default
       // 1.0 = current coat luminance), snow-trail intensity (0–100,
       // default 100 = current peak alpha), and center-exclusion toggle +
@@ -640,6 +646,7 @@
       //                       intensity (missing → 4.5 × intensity).
       //   workerGroups / workerLanternShare / workerTrails (w3.8i).
       //   workerSize          figure-size multiplier 0.5..2.0 (w3.8s).
+      //   workerSwayAmount    walk-sway 0..150 %, default 55 (w3.9l).
       ...normalizeCodedEffectFields(definition, rawAssetRef),
       // Phase 58: per-animation playback mode + on-retrigger sub-option
       // (gif/mp4 only; coded room effects keep their own lifecycle).

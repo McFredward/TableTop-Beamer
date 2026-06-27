@@ -10,6 +10,15 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.60] — 2026-06-08
+
+### Added
+
+- **City-workers now have a "Gehbewegung" (walk-sway) slider, and walk calmer by default.** The operator found the workers swung too much while walking ("schwingt zu viel, das ist nicht mehr immersiv"). A single new per-definition knob (0–150 %) scales the WHOLE gait swing together — the lateral meander, the per-step body bob, and the heading wobble — where 100 % is the previous amplitude, 0 % is a near-straight walk (only net translation remains), and 150 % is a bit more than before. The omitted/legacy default maps to **55 %** (NOT byte-identical to the old look): every existing city-workers definition now renders the calmer gait, and the value is fully dialable. Measured average peak lateral-chord deviation for a representative figure dropped from 0.52 px (old) to 0.29 px (new default) — exactly 55 % — with 0 % ≈ straight and 150 % ≈ 0.78 px. The control appears under "Coded Settings" in both the full animation editor and the live editor (Active Animations → Edit); slider-drag preview (v1.2.44) and dashboard-local-until-commit (v1.2.57) apply via the shared builder.
+- The v1.2.48 anti-quantization micro-orbit (the ~sub-pixel circular sway that keeps slow trudgers from stuttering on /output) is scaled down by the same knob — but floored at **0.5 px** (or the figure's base orbit radius if that is already sub-pixel), so even at sway 0 % the per-frame motion stays above the pixel-grid threshold and the v1.2.48 stutter fix still holds. Everything stays deterministic (no per-frame `Math.random`): dashboard, /output and the SSR tab render pixel-identical.
+
+---
+
 ## [1.2.59] — 2026-06-08
 
 ### Fixed
