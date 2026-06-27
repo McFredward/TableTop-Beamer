@@ -222,14 +222,66 @@
   // anchor on the central generator. Paths route around the zone via a
   // radial push in workerWalkPoint. excludeR=0 (default/off) leaves the
   // historical 0.16..0.76 band untouched — byte-identical.
-  function buildWorkerAnchors(rh, base, count, excludeR = 0) {
-    const minRad = excludeR > 0 ? excludeR + 0.05 : 0;
+  function buildWorkerAnchors(rh, base, count, excludeR = 0, offX = 0, offY = 0, anchorMargin = 0.05) {
+    const minRad = excludeR > 0 ? excludeR + anchorMargin : 0;
     return Array.from({ length: count }, (_, k) => {
       const seed = base + k * 7;
       const ang = rh(seed + 2003) * Math.PI * 2;
       const rad = Math.max(minRad, 0.16 + rh(seed + 3001) * 0.6); // 0.16..0.76
-      return [Math.cos(ang) * rad, Math.sin(ang) * rad];
+      let x = Math.cos(ang) * rad;
+      let y = Math.sin(ang) * rad;
+      // Phase 58-w3.9b: the exclusion zone can be shifted off the
+      // centroid (offX/offY, unit-disc). Push any anchor that landed
+      // inside the shifted zone back out to its boundary (radially from
+      // the shifted centre). offX=offY=0 skips this → byte-identical.
+      if (excludeR > 0 && (offX !== 0 || offY !== 0)) {
+        const dx = x - offX;
+        const dy = y - offY;
+        const d = Math.hypot(dx, dy);
+        if (d > 1e-4 && d < excludeR + anchorMargin) {
+          const s = (excludeR + anchorMargin) / d;
+          x = offX + dx * s;
+          y = offY + dy * s;
+        }
+      }
+      return [x, y];
     });
+  }
+
+  // Phase 58-w3.9b "constant pace along the ring": the trudge time
+  // budget (v1.2.32) was computed from straight anchor-to-anchor chord
+  // lengths, but workerWalkPoint radially re-routes any sample that
+  // would cut through the exclusion zone onto the circle boundary — so
+  // the ACTUAL traversed arc is longer than the budgeted chord and the
+  // figure raced along the ring ("sausen"). This integrates the real
+  // re-routed path length (same geometric push as workerWalkPoint, sans
+  // the sub-1% meander) so the budget matches what the figure walks and
+  // the wading speed stays constant on the ring. excludeR=0 returns the
+  // plain chord → byte-identical to the historical timing.
+  function workerLegLength(a, b, excludeR = 0, offX = 0, offY = 0) {
+    const straight = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-4;
+    if (!(excludeR > 0)) return straight;
+    const N = 32;
+    let px0 = a[0];
+    let py0 = a[1];
+    let total = 0;
+    for (let s = 1; s <= N; s += 1) {
+      const p = s / N;
+      let px = a[0] + (b[0] - a[0]) * p;
+      let py = a[1] + (b[1] - a[1]) * p;
+      const dx = px - offX;
+      const dy = py - offY;
+      const d = Math.hypot(dx, dy);
+      if (d > 1e-4 && d < excludeR) {
+        const sc = excludeR / d;
+        px = offX + dx * sc;
+        py = offY + dy * sc;
+      }
+      total += Math.hypot(px - px0, py - py0);
+      px0 = px;
+      py0 = py;
+    }
+    return total || 1e-4;
   }
 
   // ---- trudging pace parametrization (Phase 58-w3.8b) --------------
@@ -256,14 +308,14 @@
   // distributes the walk time budget by these so the trudge speed is
   // uniform across legs (the old equal-split made short legs crawl
   // and long legs sprint).
-  function workerLegShares(anchors) {
+  function workerLegShares(anchors, excludeR = 0, offX = 0, offY = 0) {
     const shares = [];
     let total = 0;
     for (let k = 0; k < anchors.length - 1; k += 1) {
-      const len = Math.hypot(
-        anchors[k + 1][0] - anchors[k][0],
-        anchors[k + 1][1] - anchors[k][1],
-      ) || 1e-4;
+      // w3.9b: ACTUAL re-routed arc length (incl. the detour around the
+      // exclusion ring), not the straight chord — keeps the wading pace
+      // constant along the ring. excludeR=0 → plain chord (unchanged).
+      const len = workerLegLength(anchors[k], anchors[k + 1], excludeR, offX, offY);
       shares.push(len);
       total += len;
     }
@@ -274,8 +326,8 @@
   // Derive the cycle layout from REAL durations instead of seeding an
   // arbitrary cycleDur: walking time = route length / trudge speed,
   // plus seconds-denominated work stops and an off-stage stretch.
-  function workerCycleTiming(anchors, { trudgeSpeed, workDurPerStop, hiddenDur }) {
-    const { shares, totalLen } = workerLegShares(anchors);
+  function workerCycleTiming(anchors, { trudgeSpeed, workDurPerStop, hiddenDur, excludeR = 0, offX = 0, offY = 0 }) {
+    const { shares, totalLen } = workerLegShares(anchors, excludeR, offX, offY);
     const walkDur = totalLen / trudgeSpeed;
     const workDur = workDurPerStop * anchors.length;
     const activeDur = walkDur + workDur;
@@ -325,7 +377,19 @@
     const excludeR = sceneOpts?.centerExclusion === true
       ? Math.max(0, Math.min(0.6, Number(sceneOpts?.centerExclusionRadius) / 100 || 0))
       : 0;
-    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}`;
+    // Phase 58-w3.9b: exclusion-zone centre offset (unit-disc fraction of
+    // the half-extent; ±0.50 from ±50%) and the visible-ring toggle.
+    // Both join the cache key — they change anchor seeding / path detours
+    // (offset) and the boundary-snap dispersion (ring). Defaults
+    // (0/0/true) reproduce the w3.8w scene byte-for-byte.
+    const offX = excludeR > 0
+      ? Math.max(-0.5, Math.min(0.5, Number(sceneOpts?.exclusionOffsetX) / 100 || 0))
+      : 0;
+    const offY = excludeR > 0
+      ? Math.max(-0.5, Math.min(0.5, Number(sceneOpts?.exclusionOffsetY) / 100 || 0))
+      : 0;
+    const ringVisible = sceneOpts?.exclusionRingVisible !== false;
+    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}::${offX}::${offY}::${ringVisible ? 1 : 0}`;
     const cached = WORKER_SCENE_CACHE.get(cacheKey);
     if (cached) return cached;
     const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
@@ -349,10 +413,15 @@
     const hasGroup = groupTuning.prob > 0 && rh(13007) < groupTuning.prob;
     const groupSize = hasGroup ? 2 + Math.floor(rh(13013) * 3) : 0; // 2..4
     const GROUP_START = 1;
+    // w3.9b: with the visible ring hidden, anchors are pushed onto a
+    // wider band (margin 0.05 → 0.22) so figures spread well clear of
+    // the zone and their chords rarely snap onto the boundary circle —
+    // the concentrated trampled ring dissolves while avoidance stays.
+    const anchorMargin = ringVisible ? 0.05 : 0.22;
     let groupAnchors = null;
     let groupCycle = null;
     if (hasGroup) {
-      groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2), excludeR); // 2..3 stops
+      groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2), excludeR, offX, offY, anchorMargin); // 2..3 stops
       // Shared timing derived from the LEADER route length (w3.8b) so
       // the whole group trudges at the same slow pace and stays loosely
       // together; see the trudge-speed parametrization below.
@@ -363,6 +432,7 @@
         // keeps the historical 70-140 s ("group events stay
         // occasional"), "rare"/"frequent" stretch/compress it.
         hiddenDur: groupTuning.hiddenBase + rh(15401) * groupTuning.hiddenSpan,
+        excludeR, offX, offY,
       });
       groupCycle.phase = rh(15307);
     }
@@ -393,6 +463,17 @@
       // palettes.
       const coatIdx = Math.floor(rh(i + 18001) * WORKER_COAT_PALETTE.length)
         % WORKER_COAT_PALETTE.length;
+      // w3.9b: per-figure boundary-snap radius. With the ring VISIBLE all
+      // figures snap crossing legs onto the SAME circle (excludeR) → the
+      // trails concentrate into the sharp trampled ring (current look).
+      // With the ring HIDDEN each figure routes around the zone at its
+      // OWN slightly larger radius (a seeded band excludeR..excludeR+0.18,
+      // still ≥ the true zone so the centre stays clear and < the widened
+      // anchor margin so anchors are untouched) → the trails spread into a
+      // diffuse worn annulus with no distinct ring.
+      const figSnapR = excludeR > 0 && !ringVisible && !inGroup
+        ? excludeR + rh(i + 21001) * 0.18
+        : excludeR;
       let anchors;
       let cycleDur;
       let phase;
@@ -409,12 +490,16 @@
           const sr = 0.035 + rh(i * 311 + k * 41 + 16007) * 0.075;
           let ax = a[0] + Math.cos(sa) * sr;
           let ay = a[1] + Math.sin(sa) * sr;
-          // Scatter must not push a member anchor back into the zone.
+          // Scatter must not push a member anchor back into the (possibly
+          // offset) zone — clamp radially from the shifted centre.
           if (excludeR > 0) {
-            const d = Math.hypot(ax, ay);
-            if (d > 1e-4 && d < excludeR + 0.05) {
-              const s = (excludeR + 0.05) / d;
-              ax *= s; ay *= s;
+            const dx = ax - offX;
+            const dy = ay - offY;
+            const d = Math.hypot(dx, dy);
+            if (d > 1e-4 && d < excludeR + anchorMargin) {
+              const s = (excludeR + anchorMargin) / d;
+              ax = offX + dx * s;
+              ay = offY + dy * s;
             }
           }
           return [ax, ay];
@@ -431,15 +516,15 @@
         // pace (the v1.2.31 speed outliers were ALL group members).
         // Work stops absorb the few-% difference; segment boundaries
         // shift slightly per member — welcome, no formation lockstep.
-        const memberRoute = workerLegShares(anchors);
-        const leaderRoute = workerLegShares(groupAnchors);
+        const memberRoute = workerLegShares(anchors, excludeR, offX, offY);
+        const leaderRoute = workerLegShares(groupAnchors, excludeR, offX, offY);
         walkShare = Math.min(
           0.9,
           groupCycle.walkShare * (memberRoute.totalLen / leaderRoute.totalLen),
         );
         legShares = memberRoute.shares;
       } else {
-        anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3), excludeR);
+        anchors = buildWorkerAnchors(rh, 101 + i * 97, 2 + Math.floor(rh(i + 1009) * 3), excludeR, offX, offY, anchorMargin);
         // w3.8b: cycle derived from durations — slow wading pace,
         // long heavy work stops, long off-stage stretches. Typical
         // cycle lands at ~110-220 s @ speed 1 (was 38-72 s).
@@ -452,6 +537,7 @@
             + rh(i + 4003) * WORKER_TRUDGE_SPEED_SPAN * (hasSled ? 0.3 : hasBundle ? 0.55 : 1),
           workDurPerStop: 8 + rh(i + 4007) * 8,   // 8-16 s leaning into the work
           hiddenDur: 55 + rh(i + 6007) * 65,      // 55-120 s off-stage
+          excludeR: figSnapR, offX, offY,
         });
         cycleDur = timing.cycleDur;
         phase = rh(i + 5003);                     // cycle offset 0..1
@@ -467,8 +553,14 @@
         walkShare,
         legShares,
         // Phase 58-w3.8w: walk legs route around this central exclusion
-        // radius (unit-disc; 0 = off). Read by workerWalkPoint.
-        excludeR,
+        // radius (unit-disc; 0 = off). Read by workerWalkPoint. w3.9b:
+        // this is the per-figure snap radius (= the true zone radius when
+        // the ring is visible; a seeded band above it when hidden, so the
+        // sharp ring dissolves while the centre stays avoided).
+        excludeR: figSnapR,
+        // Phase 58-w3.9b: shifted exclusion-zone centre (unit-disc).
+        exclusionOffX: offX,
+        exclusionOffY: offY,
         inGroup,
         // Heavy-step cadence (w3.8b): ~1.2-1.6 steps/s at speed 1
         // (rad/s here; Hz = stepFreq / 2π). Was 0.8-1.2 — combined
@@ -556,12 +648,72 @@
     return Math.max(0, Math.min(1, e));
   }
 
+  // Radial push: any point inside the (possibly offset) exclusion circle
+  // is projected out to its boundary. Shared by the walk path, the
+  // arc-length budget and the within-leg reparametrization so all three
+  // agree on the same geometry.
+  function workerSnapOutside(px, py, eR, ox, oy) {
+    if (!(eR > 0)) return [px, py];
+    const dx = px - ox;
+    const dy = py - oy;
+    const d = Math.hypot(dx, dy);
+    if (d > 1e-4 && d < eR) {
+      const s = eR / d;
+      return [ox + dx * s, oy + dy * s];
+    }
+    return [px, py];
+  }
+
+  // Phase 58-w3.9b: the geometric chord parameter g∈[0,1] whose
+  // re-routed (snapped) arc-length fraction equals `e`. When a leg's
+  // chord is re-routed around the exclusion circle, equal steps in the
+  // chord parameter are NOT equal steps in distance — near the circle's
+  // tangent the snapped point swings far per unit chord, which raced the
+  // figure ("sausen") even after the per-leg time budget was fixed.
+  // Inverting arc-length here makes the figure cover equal DISTANCE per
+  // unit time along the ring, so the wading speed is constant on the
+  // ring exactly as on a straight leg. excludeR=0 returns e unchanged.
+  function workerArcParam(a, b, e, eR, ox, oy) {
+    if (!(eR > 0) || e <= 0) return Math.max(0, e);
+    if (e >= 1) return 1;
+    const N = 48;
+    let prev = workerSnapOutside(a[0], a[1], eR, ox, oy);
+    let total = 0;
+    const segLen = new Array(N);
+    for (let k = 1; k <= N; k += 1) {
+      const u = k / N;
+      const cur = workerSnapOutside(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, eR, ox, oy);
+      const l = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]);
+      segLen[k - 1] = l;
+      total += l;
+      prev = cur;
+    }
+    if (total < 1e-9) return e;
+    const target = e * total;
+    let acc = 0;
+    for (let k = 0; k < N; k += 1) {
+      if (acc + segLen[k] >= target) {
+        const frac = segLen[k] > 1e-9 ? (target - acc) / segLen[k] : 0;
+        return (k + frac) / N;
+      }
+      acc += segLen[k];
+    }
+    return 1;
+  }
+
   // Walk-leg position with meander: two incommensurate sinusoids give
   // a noise-like lateral drift around the straight line; the sin(πp)
   // envelope pins the path to the anchors at both ends. Returns
   // unit-disc coords.
   function workerWalkPoint(fig, a, b, p) {
     const e = workerWalkProgress(fig, p);
+    const eR = fig.excludeR ?? 0;
+    const ox = fig.exclusionOffX ?? 0;
+    const oy = fig.exclusionOffY ?? 0;
+    // w3.9b: map the eased time-fraction `e` onto an EQUAL-DISTANCE
+    // position along the (re-routed) leg. eR=0 → g === e (byte-identical
+    // straight-leg behaviour); eR>0 removes the tangent speed spike.
+    const g = workerArcParam(a, b, e, eR, ox, oy);
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     const len = Math.hypot(dx, dy) || 1e-4;
@@ -570,23 +722,15 @@
     const lat = (Math.sin(p * Math.PI * 2 * fig.meanderFreq + fig.meanderPhase) * 0.7
       + Math.sin(p * Math.PI * 2 * fig.meanderFreq * 2.33 + fig.meanderPhase * 1.7 + 1.1) * 0.3)
       * Math.sin(p * Math.PI) * fig.meanderScale * len;
-    let px = a[0] + dx * e + nx * lat;
-    let py = a[1] + dy * e + ny * lat;
+    let px = a[0] + dx * g + nx * lat;
+    let py = a[1] + dy * g + ny * lat;
     // Phase 58-w3.8w "Mitte aussparen": a straight leg between two anchors
-    // that already sit outside the zone can still cut a chord THROUGH it.
-    // Push any in-zone sample radially out to the boundary so the path
-    // hugs (routes around) the exclusion circle instead of crossing the
-    // generator — pure + deterministic, so the trail samples (which call
-    // this same function) respect the zone too.
-    const eR = fig.excludeR ?? 0;
-    if (eR > 0) {
-      const d = Math.hypot(px, py);
-      if (d > 1e-4 && d < eR) {
-        const s = eR / d;
-        px *= s;
-        py *= s;
-      }
-    }
+    // that already sit outside the zone can still cut a chord THROUGH it
+    // (or the meander can nudge a sample inside). Push any in-zone sample
+    // radially out to the (possibly offset) boundary so the path hugs the
+    // exclusion circle — pure + deterministic, so the trail samples
+    // (which call this same function) respect the zone too.
+    [px, py] = workerSnapOutside(px, py, eR, ox, oy);
     return [px, py];
   }
 
@@ -615,6 +759,10 @@
   const WORKER_TRAIL_MAX_SAMPLES = 200;
   const WORKER_TRAIL_BANDS = 7;        // alpha quantization → batched strokes
   const WORKER_TRAIL_ALPHA = 0.085;    // peak alpha of a fresh segment
+  // w3.9b: with "Spuren-Intensität" raised to 300% a fresh brightest-band
+  // stroke peaks ≈ 0.24; this ceiling caps any pathological stack/lit
+  // spike so the trail stays trampled-snow, never a white band.
+  const WORKER_TRAIL_ALPHA_CEIL = 0.30;
   // Trampled wet snow: cool dark grey-blue ("22, 30, 44" historical),
   // lifted with the rest of the dark style (w3.8j) so established
   // paths survive stream encoding too.
@@ -1322,6 +1470,11 @@
         // radii), so it joins the scene cache key inside getWorkerScene.
         centerExclusion: options.workerCenterExclusion === true,
         centerExclusionRadius: options.workerCenterExclusionRadius,
+        // Phase 58-w3.9b: zone centre offset + visible-ring toggle — also
+        // seed inputs, so they join the scene cache key.
+        exclusionOffsetX: options.workerExclusionOffsetX,
+        exclusionOffsetY: options.workerExclusionOffsetY,
+        exclusionRingVisible: options.workerExclusionRingVisible !== false,
       });
       // Inhabitant count — sparse by design. w3.8i semantics
       // ("Anzahl Bewohner" option, DECOUPLED from intensity):
@@ -1387,14 +1540,17 @@
       // checkbox (workerTrails, default ON — undefined rides the
       // historical look) skips the whole trail pass when OFF.
       if (overall > 0.02 && options.workerTrails !== false) {
-        // Phase 58-w3.8w "Spuren-Intensität" (0..100, default 100 =
+        // Phase 58-w3.8w/w3.9b "Spuren-Intensität" (0..300, default 100 =
         // historical peak): scales the trail's pre-fade alpha. 100 ⇒
-        // ×1.0 (byte-identical); composes multiplicatively with the
-        // existing opacity-driven sqrt prominence. "Spuren im Schnee"
-        // OFF still skips the whole pass (guard above).
+        // ×1.0 (byte-identical); 300 ⇒ ×3 (much more prominent). Composes
+        // multiplicatively with the existing opacity-driven sqrt
+        // prominence. "Spuren im Schnee" OFF still skips the whole pass
+        // (guard above). The per-stroke alpha is clamped below
+        // (WORKER_TRAIL_ALPHA_CEIL) so 300% reads as strongly trampled
+        // snow, never a blown-out white band.
         const trailIntensityOpt = Number(options.workerTrailIntensity);
         const trailIntensityMul = Number.isFinite(trailIntensityOpt)
-          ? Math.max(0, Math.min(100, trailIntensityOpt)) / 100
+          ? Math.max(0, Math.min(300, trailIntensityOpt)) / 100
           : 1;
         const trailProminence = Math.sqrt(overall) * trailIntensityMul;
         const prevCap = c.lineCap;
@@ -1424,7 +1580,10 @@
             // Single low-alpha stroke per band: at these alphas the
             // AA edge already reads soft; a second "halo" stroke
             // doubled the rasterization cost and beaded the path.
-            const a = style.trailAlpha * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence;
+            const a = Math.min(
+              WORKER_TRAIL_ALPHA_CEIL,
+              style.trailAlpha * ((bandIdx + 0.5) / WORKER_TRAIL_BANDS) * trailProminence,
+            );
             c.lineWidth = trailW;
             c.strokeStyle = `rgba(${style.trailRGB}, ${a.toFixed(4)})`;
             c.stroke();
