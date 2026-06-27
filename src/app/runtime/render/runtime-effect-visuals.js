@@ -378,18 +378,20 @@
       ? Math.max(0, Math.min(0.6, Number(sceneOpts?.centerExclusionRadius) / 100 || 0))
       : 0;
     // Phase 58-w3.9b: exclusion-zone centre offset (unit-disc fraction of
-    // the half-extent; ±0.50 from ±50%) and the visible-ring toggle.
-    // Both join the cache key — they change anchor seeding / path detours
-    // (offset) and the boundary-snap dispersion (ring). Defaults
-    // (0/0/true) reproduce the w3.8w scene byte-for-byte.
+    // the half-extent; ±0.50 from ±50%). Joins the cache key — it changes
+    // anchor seeding / path detours. Defaults (0/0) reproduce the w3.8w
+    // scene byte-for-byte.
+    // w3.9c: the "Ring anzeigen" toggle no longer influences SEEDING at
+    // all — avoidance is now ALWAYS natural (per-figure varied clearance,
+    // anchors well clear of the zone). The toggle only gates a drawn ring
+    // primitive at draw time, so it is NOT part of the scene cache key.
     const offX = excludeR > 0
       ? Math.max(-0.5, Math.min(0.5, Number(sceneOpts?.exclusionOffsetX) / 100 || 0))
       : 0;
     const offY = excludeR > 0
       ? Math.max(-0.5, Math.min(0.5, Number(sceneOpts?.exclusionOffsetY) / 100 || 0))
       : 0;
-    const ringVisible = sceneOpts?.exclusionRingVisible !== false;
-    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}::${offX}::${offY}::${ringVisible ? 1 : 0}`;
+    const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}::${offX}::${offY}`;
     const cached = WORKER_SCENE_CACHE.get(cacheKey);
     if (cached) return cached;
     const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
@@ -413,18 +415,27 @@
     const hasGroup = groupTuning.prob > 0 && rh(13007) < groupTuning.prob;
     const groupSize = hasGroup ? 2 + Math.floor(rh(13013) * 3) : 0; // 2..4
     const GROUP_START = 1;
-    // w3.9b: with the visible ring hidden, anchors are pushed onto a
-    // wider band (margin 0.05 → 0.22) so figures spread well clear of
-    // the zone and their chords rarely snap onto the boundary circle —
-    // the concentrated trampled ring dissolves while avoidance stays.
-    const anchorMargin = ringVisible ? 0.05 : 0.22;
+    // w3.9c "natural avoidance, no rim-hugging": anchors are ALWAYS pushed
+    // onto a band well clear of the zone (proportional margin) so figures
+    // spread away from the centre and most legs never come near it — this
+    // no longer depends on whether a ring is drawn. The margin scales with
+    // the zone (excludeR·0.40 + 0.06) so it always sits OUTSIDE every
+    // figure's varied detour radius (max excludeR·1.34, see figSnapR below)
+    // — anchors are never re-pushed by a detour. excludeR=0 keeps the
+    // historical 0.05 (unused: minRad=0) → byte-identical when off.
+    const anchorMargin = excludeR > 0 ? excludeR * 0.40 + 0.06 : 0.05;
+    // w3.9c: the whole group detours the zone at ONE seeded clearance
+    // radius (1.06–1.34× the true radius) so members stay loosely together
+    // yet never trace the exact rim. Singles each get their own (below).
+    const groupSnapR = excludeR > 0 ? excludeR * (1.06 + rh(15601) * 0.28) : 0;
     let groupAnchors = null;
     let groupCycle = null;
     if (hasGroup) {
       groupAnchors = buildWorkerAnchors(rh, 901, 2 + Math.floor(rh(15101) * 2), excludeR, offX, offY, anchorMargin); // 2..3 stops
       // Shared timing derived from the LEADER route length (w3.8b) so
       // the whole group trudges at the same slow pace and stays loosely
-      // together; see the trudge-speed parametrization below.
+      // together; see the trudge-speed parametrization below. The arc
+      // budget uses groupSnapR so the pace stays constant on the detour.
       groupCycle = workerCycleTiming(groupAnchors, {
         trudgeSpeed: WORKER_TRUDGE_SPEED_MIN + rh(15203) * WORKER_TRUDGE_SPEED_SPAN,
         workDurPerStop: 9 + rh(15211) * 7,
@@ -432,7 +443,7 @@
         // keeps the historical 70-140 s ("group events stay
         // occasional"), "rare"/"frequent" stretch/compress it.
         hiddenDur: groupTuning.hiddenBase + rh(15401) * groupTuning.hiddenSpan,
-        excludeR, offX, offY,
+        excludeR: groupSnapR, offX, offY,
       });
       groupCycle.phase = rh(15307);
     }
@@ -463,17 +474,18 @@
       // palettes.
       const coatIdx = Math.floor(rh(i + 18001) * WORKER_COAT_PALETTE.length)
         % WORKER_COAT_PALETTE.length;
-      // w3.9b: per-figure boundary-snap radius. With the ring VISIBLE all
-      // figures snap crossing legs onto the SAME circle (excludeR) → the
-      // trails concentrate into the sharp trampled ring (current look).
-      // With the ring HIDDEN each figure routes around the zone at its
-      // OWN slightly larger radius (a seeded band excludeR..excludeR+0.18,
-      // still ≥ the true zone so the centre stays clear and < the widened
-      // anchor margin so anchors are untouched) → the trails spread into a
-      // diffuse worn annulus with no distinct ring.
-      const figSnapR = excludeR > 0 && !ringVisible && !inGroup
-        ? excludeR + rh(i + 21001) * 0.18
-        : excludeR;
+      // w3.9c: per-figure detour radius — the heart of the "no rim-hugging"
+      // fix. EVERY single routes around the zone at its OWN seeded clearance
+      // (1.06–1.34× the true radius), so no two figures trace the same
+      // circle and nobody walks the precise rim; the old code snapped every
+      // crossing path onto the EXACT boundary (excludeR), which made the
+      // workers conspicuously circle the centre. The band stays ≥ the true
+      // zone (centre always clear) and < anchorMargin (anchors untouched).
+      // Group members share groupSnapR so they detour together. This is now
+      // independent of whether a ring is drawn.
+      const figSnapR = excludeR > 0
+        ? (inGroup ? groupSnapR : excludeR * (1.06 + rh(i + 21001) * 0.28))
+        : 0;
       let anchors;
       let cycleDur;
       let phase;
@@ -516,8 +528,8 @@
         // pace (the v1.2.31 speed outliers were ALL group members).
         // Work stops absorb the few-% difference; segment boundaries
         // shift slightly per member — welcome, no formation lockstep.
-        const memberRoute = workerLegShares(anchors, excludeR, offX, offY);
-        const leaderRoute = workerLegShares(groupAnchors, excludeR, offX, offY);
+        const memberRoute = workerLegShares(anchors, groupSnapR, offX, offY);
+        const leaderRoute = workerLegShares(groupAnchors, groupSnapR, offX, offY);
         walkShare = Math.min(
           0.9,
           groupCycle.walkShare * (memberRoute.totalLen / leaderRoute.totalLen),
@@ -619,6 +631,11 @@
       lanternBias, // exposed for diag — per-room lantern density
       hasGroup,    // exposed for diag — group-frequency option evidence
       groupSize,
+      // Phase 58-w3.9c: the TRUE exclusion zone (unit-disc) — the drawn
+      // ring renders at this exact radius/centre at draw time (0 = off).
+      excludeR,
+      exclusionOffX: offX,
+      exclusionOffY: offY,
     };
     if (WORKER_SCENE_CACHE.size >= WORKER_SCENE_CACHE_MAX) WORKER_SCENE_CACHE.clear();
     WORKER_SCENE_CACHE.set(cacheKey, scene);
@@ -1627,6 +1644,63 @@
         }
         c.lineCap = prevCap;
         c.lineJoin = prevJoin;
+      }
+
+      // ---- drawn exclusion ring (Phase 58-w3.9c) ---------------------
+      // Operator UAT: the "ring" used to be only an emergent trampled-trail
+      // concentration on the boundary — invisible with trails off / on a
+      // fresh trigger. This draws an ACTUAL ring primitive at the true
+      // exclusion circle, visible IMMEDIATELY (no trail accumulation),
+      // identically on dashboard / /output / SSR (pure age-independent
+      // geometry; only the opacity envelope `overall` modulates it).
+      //
+      // Shows ONLY when the zone exists (workerCenterExclusion ON →
+      // scene.excludeR > 0) AND "Ring anzeigen" is ON (default ON;
+      // undefined rides the default). It follows the zone radius and the
+      // X/Y offset exactly (same px mapping as the snap geometry: the
+      // unit-disc circle maps to an ellipse on non-square tiles, so we draw
+      // in a y-scaled space to stay faithful).
+      //
+      // Style (beamer-black rule — non-pure-black tones read on the black
+      // /output background; light elements survive additive layering): a
+      // soft-edged faint COOL worn-snow glow (frostpunk palette) under a
+      // dim defining stroke, both via 'lighter' so they read on black AND
+      // lift the board art without a hard garish edge. Composite restored
+      // after. Drawn AFTER the trails / BEFORE the figures so the workers
+      // walk over the boundary, never under it.
+      if (scene.excludeR > 0 && options.workerExclusionRingVisible !== false && overall > 0.02) {
+        const zoneR = scene.excludeR;
+        const zx = roomX + (scene.exclusionOffX ?? 0) * halfW;
+        const zy = roomY + (scene.exclusionOffY ?? 0) * halfH;
+        const rx = zoneR * halfW;        // px radius along X (= the circle in scaled space)
+        const ry = zoneR * halfH;        // px radius along Y
+        if (rx > 0.5 && ry > 0.5) {
+          c.save();
+          c.globalCompositeOperation = "lighter";
+          c.translate(zx, zy);
+          c.scale(1, ry / rx);           // work in a circular space of radius rx
+          // Soft worn-snow glow annulus centred ON the boundary radius.
+          const maxGlow = rx * 1.22;
+          const glowA = Math.min(0.32, 0.22 * overall);
+          const grad = c.createRadialGradient(0, 0, 0, 0, 0, maxGlow);
+          grad.addColorStop(0, "rgba(170, 192, 220, 0)");
+          grad.addColorStop(0.66, "rgba(170, 192, 220, 0)");
+          grad.addColorStop(rx / maxGlow, `rgba(176, 198, 224, ${glowA.toFixed(3)})`);
+          grad.addColorStop(1, "rgba(176, 198, 224, 0)");
+          c.fillStyle = grad;
+          c.beginPath();
+          c.arc(0, 0, maxGlow, 0, Math.PI * 2);
+          c.fill();
+          // Dim defining stroke right on the boundary — reads as an
+          // intentional worn edge, not a halo. Kept low so it never garish.
+          c.lineWidth = Math.max(0.8, rx * 0.035);
+          c.strokeStyle = `rgba(198, 216, 238, ${Math.min(0.30, 0.20 * overall).toFixed(3)})`;
+          c.beginPath();
+          c.arc(0, 0, rx, 0, Math.PI * 2);
+          c.stroke();
+          c.restore();
+          c.globalCompositeOperation = prevComposite;
+        }
       }
 
       // Figure pass (w3.8h): iterate ALL slots, not just the active

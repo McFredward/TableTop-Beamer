@@ -10,6 +10,16 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.51] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: echter, sichtbarer Aussparungs-Ring + natürliches Ausweichen (kein „Am-Rand-entlang-Laufen" mehr).** Operator-UAT: (1) „Ich sehe KEINEN sichtbaren Ring, obwohl die Einstellung eingeschaltet ist" — der „Ring" war bisher nur eine emergente Verdichtung getrampelter Spuren auf der Grenze, also bei frischem Trigger / ohne Spuren unsichtbar. (2) „Die Worker laufen auffällig oft genau um den blockierten Kreis herum" — Ursache: jeder Wegpunkt, der die Zone gekreuzt hätte, wurde radial auf den EXAKTEN Grenzradius (`excludeR`) geschnappt, sodass alle Figuren denselben Kreis nachzeichneten. Fix:
+  - **Natürliches Ausweichen:** Jede Einzelfigur umgeht die Zone jetzt mit ihrem EIGENEN gesäten Abstandsradius (1,06–1,34× des echten Radius, deterministisch per Figur), Gruppen teilen sich einen gemeinsamen gesäten Umweg-Radius — kein Snap mehr auf die exakte Kante, keine zwei Figuren auf demselben Kreis. Anker liegen immer deutlich außerhalb der Zone (proportionaler Rand `excludeR·0,40 + 0,06`), sodass die meisten Beine gar nicht in Zonennähe kommen; das Watt-Tempo/Bogen-Budget aus v1.2.50 gilt weiter für den Umweg. Dieses Verhalten ist jetzt UNABHÄNGIG davon, ob ein Ring gezeichnet wird.
+  - **Echter Ring:** „Ring anzeigen" (AN) zeichnet jetzt ein ECHTES Ring-Primitiv am Aussparungs-Kreis — SOFORT sichtbar beim Trigger (nicht von Spuren-Akkumulation abhängig), auf Dashboard UND /output, folgt `workerCenterExclusionRadius` + Offset X/Y. Stil (Beamer-Schwarz-Regel): weiche, kühle „abgelaufener-Schnee"-Glut-Annulus unter einer dezenten definierenden Linie, beide via `lighter`-Composite (Composite danach wiederhergestellt) — klar sichtbar auf Schwarz und auf der Brettkunst, ohne grell zu sein. Der Ring erscheint NUR, wenn die Aussparung AN ist (kein Zone → kein Ring) UND „Ring anzeigen" AN ist; AUS = gar kein Ring (kombiniert mit dem natürlichen Ausweichen gibt es dann überhaupt keinen Ring mehr). Der v1.2.48 Sub-Pixel-Mikro-Orbit und der v1.2.50 Bogen-Tempo-Fix bleiben unangetastet.
+
+---
+
 ## [1.2.50] — 2026-06-08
 
 ### Fixed
