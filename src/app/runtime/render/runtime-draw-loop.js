@@ -712,41 +712,54 @@
 
   // Phase 58-w3.8p — coded-effect options contract shared by the
   // inside + outside scopes, mirroring the per-instance options the
-  // room path (drawRoomComposition) hands drawEffectVisual. Inside and
-  // outside read these from the DEFINITION (their renderers already
-  // pull intensity/speed from the definition, not the running
-  // instance), so the editor's Coded-effect card (colorHex, heat
-  // source, worker style/count/…) drives the live board for every
-  // scope. Defaults reproduce each effect's standalone look, so the
-  // full-screen overlay effects (hull-flicker / intruder-alert /
-  // power-outage) are unaffected — they ignore these fields.
-  function buildScopedCodedEffectOptions(definition, { densityFactor = 1, fadeMul = 1 } = {}) {
+  // room path (drawRoomComposition) hands drawEffectVisual.
+  //
+  // Phase 58-w3.9n — read INSTANCE-FIRST with definition fallback (was
+  // definition-only). The room path always read the running instance, and
+  // the live editor (w3.9i) mutates the running instance for its dashboard-
+  // local coded preview — but inside/outside rendered from the definition,
+  // so live-edit coded changes (and trigger-time option overrides like
+  // "Sturm") were INERT on the inside/outside board (operator UAT
+  // 2026-06-27: storm snow never rendered; standing intent: room/inside/
+  // outside identical except trigger area). Reading the instance first
+  // fixes that. The fallback keeps the w3.8p "full editor drives the live
+  // board" behaviour intact: a fresh trigger that did NOT carry a given
+  // coded field leaves instance[key] === undefined, so `pick` falls through
+  // to the definition exactly as before; only fields the instance actually
+  // carries (live-edit set them, or trigger-global now plumbs them) win.
+  // Defaults reproduce each effect's standalone look, so the full-screen
+  // overlay effects (hull-flicker / intruder-alert / power-outage) are
+  // unaffected — they ignore these fields.
+  function buildScopedCodedEffectOptions(definition, instance, { densityFactor = 1, fadeMul = 1 } = {}) {
+    const pick = (key) => (instance?.[key] !== undefined && instance?.[key] !== null
+      ? instance[key]
+      : definition?.[key]);
     return {
       densityFactor,
       // Phase 58-w3.9h: fold the global fade multiplier into the coded
       // effect's opacity so inside/outside coded effects ramp too.
-      opacity: (Number.isFinite(Number(definition?.opacity)) ? Number(definition.opacity) : 1) * fadeMul,
-      colorHex: definition?.colorHex,
-      heatShowSource: definition?.heatShowSource !== false,
-      workerStyle: definition?.workerStyle === "lit" ? "lit" : "dark",
-      workerCount: definition?.workerCount ?? null,
-      workerGroups: definition?.workerGroups,
-      workerLanternShare: definition?.workerLanternShare,
-      workerTrails: definition?.workerTrails !== false,
-      workerSize: definition?.workerSize ?? 1,
-      workerSwayAmount: definition?.workerSwayAmount ?? 55,
-      workerClothingBrightness: definition?.workerClothingBrightness ?? 1,
-      workerTrailIntensity: definition?.workerTrailIntensity ?? 100,
-      workerCenterExclusion: definition?.workerCenterExclusion === true,
-      workerCenterExclusionRadius: definition?.workerCenterExclusionRadius ?? 25,
-      workerExclusionOffsetX: definition?.workerExclusionOffsetX ?? 0,
-      workerExclusionOffsetY: definition?.workerExclusionOffsetY ?? 0,
-      workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
-      heatIrregularPulse: definition?.heatIrregularPulse === true,
+      opacity: (Number.isFinite(Number(pick("opacity"))) ? Number(pick("opacity")) : 1) * fadeMul,
+      colorHex: pick("colorHex"),
+      heatShowSource: pick("heatShowSource") !== false,
+      workerStyle: pick("workerStyle") === "lit" ? "lit" : "dark",
+      workerCount: pick("workerCount") ?? null,
+      workerGroups: pick("workerGroups"),
+      workerLanternShare: pick("workerLanternShare"),
+      workerTrails: pick("workerTrails") !== false,
+      workerSize: pick("workerSize") ?? 1,
+      workerSwayAmount: pick("workerSwayAmount") ?? 55,
+      workerClothingBrightness: pick("workerClothingBrightness") ?? 1,
+      workerTrailIntensity: pick("workerTrailIntensity") ?? 100,
+      workerCenterExclusion: pick("workerCenterExclusion") === true,
+      workerCenterExclusionRadius: pick("workerCenterExclusionRadius") ?? 25,
+      workerExclusionOffsetX: pick("workerExclusionOffsetX") ?? 0,
+      workerExclusionOffsetY: pick("workerExclusionOffsetY") ?? 0,
+      workerExclusionRingVisible: pick("workerExclusionRingVisible") !== false,
+      heatIrregularPulse: pick("heatIrregularPulse") === true,
       // Phase 58-w3.9m: coded snow options (Dichte / Geschwindigkeit / Sturm).
-      snowDensity: definition?.snowDensity ?? 55,
-      snowSpeed: definition?.snowSpeed ?? 50,
-      snowStorm: definition?.snowStorm === true,
+      snowDensity: pick("snowDensity") ?? 55,
+      snowSpeed: pick("snowSpeed") ?? 50,
+      snowStorm: pick("snowStorm") === true,
     };
   }
 
@@ -1012,7 +1025,7 @@
       intensity,
       null,
       insideRegionMetrics,
-      buildScopedCodedEffectOptions(definition, { fadeMul }),
+      buildScopedCodedEffectOptions(definition, animation, { fadeMul }),
     );
   }
 
@@ -1414,7 +1427,7 @@
       // parallax controls.
       const outsideRegionMetrics = ctx.getOutsideRegionMetrics(state.boardId);
       ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, outsideRegionMetrics, {
-        ...buildScopedCodedEffectOptions(selectedDefinition, { fadeMul: outsideFadeMul }),
+        ...buildScopedCodedEffectOptions(selectedDefinition, runningInstance, { fadeMul: outsideFadeMul }),
         outsideMode: effectiveMode,
         outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,

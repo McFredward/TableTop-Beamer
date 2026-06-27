@@ -1514,11 +1514,14 @@
       // bounding box freely; the clip cuts flakes to the region shape.
       //
       // Controls (operator spec 2026-06-08): "Dichte" (snowDensity, flake
-      // count), "Geschwindigkeit" (snowSpeed, fall rate) and "Sturm"
-      // (snowStorm, bool). Defaults approximate the calm snow.mp4 look:
-      // small white-ish dots, moderate density, gentle vertical fall with
-      // a touch of sway. Storm matches snowstorm.mp4: denser + faster,
-      // strong horizontal wind drift, motion-streaked diagonal flakes.
+      // count), "Geschwindigkeit" (snowSpeed, swirl/drift rate) and "Sturm"
+      // (snowStorm, bool). Calm approximates snow.mp4: small white-ish dots
+      // that drift mostly downward but WANDER/swirl (no rigid straight fall).
+      // Storm matches snowstorm.mp4: denser, faster, multi-directional
+      // turbulence — gusts whose direction rotates + motion-streaked flakes
+      // pointing every which way (operator 2026-06-27: not one fall
+      // direction, "wirbeln wild durch die Gegend"). See the swirl model
+      // (w3.9n) below for how drift + gust + per-flake Lissajous combine.
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const overall = Math.max(0, Math.min(1, opacityOption));
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
@@ -1540,17 +1543,42 @@
       // Flake count. Calm default (~55 %) lands near the snow.mp4 density;
       // storm roughly doubles it. Capped by the non-critical density scale
       // (Pi / low-power throttle) so a dense storm never tanks fps.
-      const stormCountMul = storm ? 2.1 : 1;
+      const stormCountMul = storm ? 2.4 : 1;
       // Calm default (~55 %) lands near snow.mp4's fine, dense flurry.
       const rawCount = 230 * (0.2 + densityKnob * 1.55) * stormCountMul
         * densityFactor * visualCaps.nonCriticalDensityScale;
       const count = Math.max(0, Math.min(1400, Math.round(rawCount)));
 
-      // Fall + wind velocities, expressed in region-heights / region-widths
-      // per `safeAge` unit so the look is canvas-size independent. Storm
-      // falls faster and is driven by a strong horizontal wind.
-      const fallV = regH * (0.045 + speedKnob * 0.16) * (storm ? 1.85 : 1);
-      const windV = storm ? regW * (0.42 + speedKnob * 0.30) : regW * 0.015;
+      // Phase 58-w3.9n — turbulent swirl model. The reference clips do NOT
+      // fall straight top→bottom (operator 2026-06-27: "wirbeln wild durch
+      // die Gegend"); the storm clip in particular has NO single fall
+      // direction — flakes streak every which way through eddies and gusts.
+      // So each flake's position is base linear drift + a whole-field gust
+      // offset + a per-flake looping swirl, all PURE functions of (safeAge,
+      // index, seeded hash) — still deterministic (dashboard == /output ==
+      // SSR), still always painting (no black-strobe).
+      //
+      //   driftX/Y  per-flake constant-velocity travel. Calm: clustered
+      //             around "down" (gravity). Storm: spread across a WIDE arc
+      //             so flakes head in many directions at once.
+      //   gustX/Y   whole-field surge whose DIRECTION rotates over time —
+      //             this is what kills the "single fall direction"; in storm
+      //             the wind angle sweeps a big arc, calm just sways.
+      //   swirlX/Y  per-flake two-frequency Lissajous loop → each flake
+      //             wanders/whirls along its own non-repeating path.
+      const TAU = Math.PI * 2;
+      const tw = safeAge;
+
+      // Whole-field gust: a bounded offset (px) whose direction rotates.
+      // The storm has a PREVAILING wind that shifts over time (wind-driven
+      // turbulence — not omnidirectional confetti), so the swing is moderate.
+      const gustMag = unit * (storm ? 0.18 : 0.05) * (0.5 + speedKnob);
+      const gustAng = (Math.PI * 0.5)
+        + Math.sin(tw * 0.19) * (storm ? 0.95 : 0.30)
+        + Math.sin(tw * 0.43) * (storm ? 0.40 : 0.10);
+      const gustPulse = 0.65 + 0.35 * Math.sin(tw * 0.31);
+      const gustX = Math.cos(gustAng) * gustMag * gustPulse;
+      const gustY = Math.sin(gustAng) * gustMag * gustPulse;
 
       const prevComposite = c.globalCompositeOperation;
       // White-ish flakes read best additively on black AND survive the
@@ -1562,23 +1590,42 @@
       const fract = (n) => n - Math.floor(n);
       for (let i = 0; i < count; i += 1) {
         // Per-flake seeded hashes — fixed per index, so each flake keeps a
-        // stable size / speed / lane across frames (deterministic).
+        // stable size / speed / lane / swirl across frames (deterministic).
         const h1 = fract(Math.sin((i + 1) * 12.9898) * 43758.5453); // x lane
-        const h2 = fract(Math.sin((i + 1) * 78.2330) * 24634.6345); // y phase
+        const h2 = fract(Math.sin((i + 1) * 78.2330) * 24634.6345); // y lane
         const h3 = fract(Math.sin((i + 1) * 39.4250) * 51294.1234); // size
         const h4 = fract(Math.sin((i + 1) * 93.9890) * 19349.7654); // speed var
+        const h5 = fract(Math.sin((i + 1) * 27.1719) * 33285.9128); // swirl/dir A
+        const h6 = fract(Math.sin((i + 1) * 57.7777) * 71234.5544); // swirl/dir B
 
-        const speedVar = 0.6 + h3 * 0.85;
-        const vy = fallV * speedVar;
-        const vx = windV * (storm ? (0.65 + h4 * 0.7) : 1);
+        // Per-flake constant travel. Calm clusters near "down" (±~23°);
+        // storm has a clear PREVAILING wind with spread (±~51°) — variety
+        // without the omnidirectional-scratches look. Drift dominates the
+        // velocity so streaks mostly lean with the wind, swirl adds wander.
+        const baseAng = (Math.PI * 0.5)
+          + (h5 - 0.5) * (storm ? 1.8 : 0.8);
+        const baseSpeed = unit
+          * (storm ? (0.16 + speedKnob * 0.32) : (0.05 + speedKnob * 0.11))
+          * (0.6 + h4 * 0.85);
+        const driftX = Math.cos(baseAng) * baseSpeed;
+        const driftY = Math.sin(baseAng) * baseSpeed;
 
-        // Falling y wraps over region height; x drifts with wind + a small
-        // per-flake horizontal sway (calm look). Both wrapped into region.
-        const swayAmp = storm ? unit * 0.4 : regW * 0.02 * (0.5 + h2);
-        const sway = Math.sin(safeAge * (0.4 + h4 * 0.6) + i * 1.7) * swayAmp;
-        let fx = (h1 * regW + safeAge * vx + sway) % regW;
+        // Per-flake looping swirl (two summed oscillators, different freqs →
+        // non-repeating whirl). Kept modest in storm so the prevailing wind
+        // (drift) stays dominant and the field doesn't read as confetti.
+        const sp = (storm ? 1.1 : 0.9) * (0.55 + speedKnob * 0.9);
+        const fA = (0.40 + h5 * 0.85) * sp;
+        const fB = (0.60 + h6 * 1.05) * sp;
+        const ampX = regW * (storm ? 0.12 : 0.10) * (0.5 + h3 * 0.9);
+        const ampY = regH * (storm ? 0.12 : 0.11) * (0.5 + h4 * 0.9);
+        const swirlX = Math.sin(tw * fA + i * 1.7) * ampX
+          + Math.sin(tw * fB * 0.6 + i * 0.7) * ampX * 0.5;
+        const swirlY = Math.cos(tw * fB + i * 0.9) * ampY
+          + Math.sin(tw * fA * 0.7 + i * 1.3) * ampY * 0.5;
+
+        let fx = (h1 * regW + driftX * safeAge + gustX + swirlX) % regW;
         if (fx < 0) fx += regW;
-        let fy = (h2 * regH + safeAge * vy) % regH;
+        let fy = (h2 * regH + driftY * safeAge + gustY + swirlY) % regH;
         if (fy < 0) fy += regH;
         const px = regX + fx;
         const py = regY + fy;
@@ -1594,21 +1641,45 @@
           (0.34 + h2 * 0.45) * overall * intensitySafe * (storm ? 0.8 : 1)));
 
         if (storm) {
-          // Diagonal motion streak along the wind+fall vector.
-          const mag = Math.hypot(vx, vy) || 1;
-          const len = size * (4 + speedKnob * 7);
-          const dx = (vx / mag) * len;
-          const dy = (vy / mag) * len;
-          c.strokeStyle = `rgba(232, 240, 255, ${alpha})`;
-          c.lineWidth = Math.max(0.6, size * 0.9);
-          c.beginPath();
-          c.moveTo(px - dx, py - dy);
-          c.lineTo(px, py);
-          c.stroke();
+          // Streak along the flake's INSTANTANEOUS velocity (drift + d/dt
+          // swirl). Drift dominates, so streaks mostly lean with the
+          // prevailing wind but spread with the turbulence — multi-
+          // directional without the omnidirectional-scratches look.
+          const vX = driftX
+            + ampX * fA * Math.cos(tw * fA + i * 1.7)
+            + ampX * 0.5 * (fB * 0.6) * Math.cos(tw * fB * 0.6 + i * 0.7);
+          const vY = driftY
+            - ampY * fB * Math.sin(tw * fB + i * 0.9)
+            + ampY * 0.5 * (fA * 0.7) * Math.cos(tw * fA * 0.7 + i * 1.3);
+          const mag = Math.hypot(vX, vY) || 1;
+          const speedRef = unit * 0.5;
+          if (mag < speedRef * 0.62) {
+            // Near-stalled flake (eddy centre / cross-wind cancellation) —
+            // render as a round flake. Keeps a healthy fraction of dots in
+            // the field so the storm reads as wind-blown SNOW with motion
+            // blur on the fast flakes, not a field of uniform scratches.
+            c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
+            c.beginPath();
+            c.arc(px, py, size, 0, TAU);
+            c.fill();
+          } else {
+            // Faster flakes motion-blur into short streaks; length scales
+            // with speed but is capped well short of the old "stick" look.
+            const lenScale = Math.min(1.5, mag / speedRef);
+            const len = unit * (0.009 + speedKnob * 0.013) * (0.6 + sizeHash) * lenScale;
+            const dx = (vX / mag) * len;
+            const dy = (vY / mag) * len;
+            c.strokeStyle = `rgba(232, 240, 255, ${alpha})`;
+            c.lineWidth = Math.max(0.7, size * 1.0);
+            c.beginPath();
+            c.moveTo(px - dx, py - dy);
+            c.lineTo(px, py);
+            c.stroke();
+          }
         } else {
           c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
           c.beginPath();
-          c.arc(px, py, size, 0, Math.PI * 2);
+          c.arc(px, py, size, 0, TAU);
           c.fill();
         }
       }

@@ -10,6 +10,21 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.62] — 2026-06-27
+
+### Changed
+
+- **Coded "Snow" now swirls turbulently instead of falling straight down.** Re-checking the reference clips, the operator pointed out the flakes "wirbeln wild durch die Gegend" rather than dropping top-to-bottom — and the storm clip has **no single fall direction** at all (frames show flakes streaking every which way through eddies and gusts). The motion model was reworked from a straight vertical fall + tiny sway into a deterministic turbulence field: each flake's position is now `base drift + whole-field gust + per-flake swirl`, all still pure functions of `(age, index, seed)` (dashboard == /output == SSR, no black-strobe). Calm drifts mostly downward but genuinely wanders/whirls along a per-flake two-frequency Lissajous loop; the whole-field gust sways gently.
+- **Sturm is now far more extreme and multi-directional — wind-driven, not a single fall direction.** With storm ON there is a clear *prevailing* wind that shifts over time (the whole-field gust direction rotates), with per-flake spread around it (≈ ±51°) so flakes head in many directions at once without the field collapsing into one uniform diagonal — matching `snowstorm.mp4`'s gusting turbulence. Density is bumped (×2.4) and speed/swirl are higher. Each flake motion-blurs into a short streak along its **instantaneous velocity** (drift dominates, so streaks mostly lean with the wind but fan out with the turbulence); streak length scales with the flake's speed but is capped well short of a "scratch" look, and near-stalled flakes (eddy centres) stay round — so the storm reads as wind-blown snow with motion blur, not a field of confetti/sticks. All three controls (Dichte / Geschwindigkeit / Sturm) are unchanged and still drive the new model.
+
+### Fixed
+
+- **Inside/outside coded effects now honour the running instance — so "Sturm" (and live-edited coded settings) actually render on the board.** Two coupled gaps, both surfaced by the snow work:
+  - **Render side (the real culprit):** the inside-ship and outside renderers built their coded-effect options (`snowStorm`/`snowDensity`/`snowSpeed`, the full `worker*` set, `heatShowSource`, `heatIrregularPulse`, `colorHex`) from the board's **definition only**, never the running animation instance. But the room path always read the instance, and the Live Editor (Active Animations → Edit, v1.2.x) mutates the *instance* for its dashboard-local coded preview — so on inside/outside, live-edited coded changes and trigger-time overrides like "Sturm" were silently **inert on the board** (the snow always rendered calm regardless of the toggle). The renderer now reads **instance-first with definition fallback**: fields the instance actually carries (live-edit set them, or a trigger plumbed them) win, while a fresh trigger that didn't carry a field still falls back to the definition exactly as before — so the existing "full editor drives the live board" behaviour is preserved. This also realigns inside/outside with the operator's standing intent that room/inside/outside behave identically except for the trigger area.
+  - **Server side (plumbing parity):** the `trigger-global` handler rebuilds the authoritative inside/outside record field-by-field and was not carrying any coded-option keys, so they never reached the SSR/`/output` snapshot on a fresh trigger. It now copies all present coded-option keys (booleans included; omitted fields keep renderer defaults), bringing it to parity with `trigger-room` (which already spread-merges). Together with the render-side fix, a configured "Sturm" snow now storms on the beamer from the first trigger — no follow-up edit needed.
+
+---
+
 ## [1.2.61] — 2026-06-08
 
 ### Added

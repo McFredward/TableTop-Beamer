@@ -904,6 +904,30 @@ function applyGlobalMutationPatch(payload) {
       const v = incomingAnimation?.[key];
       if (v !== undefined && v !== null) incomingTransform[key] = v;
     }
+    // Phase 58 Wave 3.9n: carry ALL coded-effect options through the
+    // trigger-global field-by-field rebuild. Without this, a FRESH inside/
+    // outside coded trigger (snow / heat / city-workers) lands on the SSR
+    // and /output (beamer) snapshot with these stripped, so the renderer
+    // falls back to factory defaults — e.g. a "Sturm" snow trigger renders
+    // as CALM snow on the beamer until a later edit-room spread-merge
+    // happens to re-supply them. trigger-room already preserves the full
+    // payload via spread-merge; this brings the global (inside/outside)
+    // path to parity. Only present values are copied (booleans included),
+    // so any omitted field keeps the renderer's own default. Keys mirror
+    // the coded-option set read in runtime-draw-loop.js (drawEffectVisual).
+    const codedOptionKeys = [
+      "colorHex", "heatShowSource", "heatIrregularPulse",
+      "workerStyle", "workerCount", "workerGroups", "workerLanternShare",
+      "workerTrails", "workerSize", "workerSwayAmount", "workerClothingBrightness",
+      "workerTrailIntensity", "workerCenterExclusion", "workerCenterExclusionRadius",
+      "workerExclusionOffsetX", "workerExclusionOffsetY", "workerExclusionRingVisible",
+      "snowDensity", "snowSpeed", "snowStorm",
+    ];
+    const incomingCodedOptions = {};
+    for (const key of codedOptionKeys) {
+      const v = incomingAnimation?.[key];
+      if (v !== undefined && v !== null) incomingCodedOptions[key] = v;
+    }
     const authoritativeAnimation = {
       id: "",
       scope: "global",
@@ -933,6 +957,10 @@ function applyGlobalMutationPatch(payload) {
       ...(incomingRoomAssetType ? { roomAssetType: incomingRoomAssetType } : {}),
       ...(incomingRoomAssetRef ? { roomAssetRef: incomingRoomAssetRef } : {}),
       ...incomingTransform,
+      // Phase 58 Wave 3.9n: coded-effect options (snow/heat/workers) — see
+      // codedOptionKeys above. Brings inside/outside triggers to parity
+      // with trigger-room so storm snow etc. reach the beamer on first fire.
+      ...incomingCodedOptions,
       // Phase 58 Wave 3.9h: preserve the per-animation fade config onto the
       // server-authoritative global record (rebuilt field-by-field, unlike
       // trigger-room). Without this the trigger-global → snapshot roundtrip
