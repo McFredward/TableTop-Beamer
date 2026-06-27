@@ -717,11 +717,22 @@
           <!-- Phase 58-w3.9g: coded-effect option controls for a running
                coded animation (heat / city-workers / break-solid-color).
                Populated live from the SHARED coded-options builder; each
-               control edits the running instance in real time and
-               broadcasts to /output. Empty + hidden for non-coded or
-               solid-color animations (solid-color color stays in the
-               static #live-editor-color-label above). -->
-          <div id="live-editor-coded" class="live-editor-coded" hidden></div>
+               control edits the running instance in real time on the
+               DASHBOARD only. Phase 58-w3.9i: dashboard-local preview —
+               edits no longer broadcast to /output during dragging; the
+               change reaches /output + other clients only on Done or
+               Save-as-default (matching the non-coded live-editor model).
+               Empty + hidden for non-coded or solid-color animations
+               (solid-color color stays in the static
+               #live-editor-color-label above). Phase 58-w3.9i: grouped
+               under a collapsible "Coded Settings" subsection mirroring
+               the "Transform" details below (collapsed by default). The
+               whole <details> is hidden when the instance has no coded
+               options so non-coded animations show no empty summary. -->
+          <details id="live-editor-coded-section" class="live-editor-coded-section" hidden>
+            <summary>Coded Settings</summary>
+            <div id="live-editor-coded" class="live-editor-coded"></div>
+          </details>
           <!-- Phase 58-w3.9h: optional fade-in/fade-out controls for the
                running instance. Applies to ANY animation type, so (unlike
                #live-editor-coded) it is populated for every instance. The

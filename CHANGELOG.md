@@ -10,6 +10,15 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.57] — 2026-06-08
+
+### Changed
+
+- **Live edits to a running coded effect now preview on the DASHBOARD only and reach /output (and other clients) just like every other live-editor setting — on "Done" or "Save as default", not mid-drag.** Previously (v1.2.55) dragging a coded control (e.g. heat tint, worker lantern share, exclusion radius) broadcast a throttled edit-room mutation on every frame, so /output and every connected client updated in real time WHILE you were still tweaking. That broke the established live-editor model: the non-coded sliders (opacity / intensity / speed / transform) have always applied to the dashboard's running instance locally and only propagated to /output on commit. Coded controls now match exactly — the change is applied to the dashboard's running instance for immediate real-time preview, but is NOT broadcast until you press "Done" (commits the edited values via the normal edit-room mutation so /output + others adopt them) or "Save as default" (persists to the animation definition AND commits). "Discard" reverts the dashboard preview to the pre-edit values; /output never saw the abandoned tweaks. The v1.2.55 shared coded-options builder and the v1.2.44 slider-drag fix are unchanged.
+- **The live editor's coded controls are now grouped under a collapsible "Coded Settings" subsection**, mirroring the existing "Transform" subsection (collapsed by default; click to expand). The whole subsection is hidden for animations that expose no coded options (non-coded / solid-color), so it never shows an empty header.
+
+---
+
 ## [1.2.56] — 2026-06-08
 
 ### Added

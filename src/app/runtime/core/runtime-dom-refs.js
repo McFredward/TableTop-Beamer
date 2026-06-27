@@ -103,6 +103,11 @@
       // (heat / city-workers / break-solid-color) on a running coded
       // animation, built from the shared coded-options builder.
       liveEditorCoded: document.querySelector("#live-editor-coded"),
+      // Phase 58-w3.9i: collapsible "Coded Settings" subsection wrapping
+      // the coded option controls (mirrors the Transform <details>).
+      // Hidden as a whole when the running instance exposes no coded
+      // options, so non-coded animations don't show an empty summary.
+      liveEditorCodedSection: document.querySelector("#live-editor-coded-section"),
       // Phase 58-w3.9h: fade (Ein-/Ausblenden) controls for any running
       // instance, built from the shared fade-options builder.
       liveEditorFade: document.querySelector("#live-editor-fade"),

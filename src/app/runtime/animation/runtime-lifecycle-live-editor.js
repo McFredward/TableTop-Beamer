@@ -414,15 +414,24 @@
 
   // Phase 58-w3.9g: build the full coded option set (heat / city-workers
   // / break-solid-color) for a running coded animation into the live
-  // editor's coded container. Each control edits the running instance in
-  // REAL TIME (applyLiveEditorValue → dashboard) and broadcasts so
-  // /output follows. solid-color color stays in the static
-  // #live-editor-color picker (handled by _populateLiveEditorAdvancedFields).
+  // editor's coded container. Phase 58-w3.9i: each control now edits the
+  // running instance for a DASHBOARD-LOCAL preview only — applyLiveEditorValue
+  // mutates the running instance (the dashboard's own canvas reflects it
+  // next rAF) but DOES NOT broadcast to /output during dragging. The
+  // change reaches /output + other clients only on Done (closeLiveEditor)
+  // or Save-as-default, exactly like the non-coded sliders (opacity /
+  // intensity / speed / transform), which have always been dashboard-local
+  // until commit. solid-color color stays in the static #live-editor-color
+  // picker (handled by _populateLiveEditorAdvancedFields). The rows live
+  // inside the collapsible "Coded Settings" <details>; the whole section
+  // is hidden when the instance exposes no coded options.
   function _populateLiveEditorCoded(animation) {
     const container = ctx.liveEditorCoded;
+    const section = ctx.liveEditorCodedSection;
     if (!container) return;
     container.replaceChildren();
     container.hidden = true;
+    if (section) section.hidden = true;
     const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
     if (!codedOptions) return;
     const { codedType, scope, def } = _resolveRunningCoded(animation);
@@ -436,13 +445,17 @@
       // Read the running instance first (seeded at trigger time); fall
       // back to the definition for legacy snapshots that predate a field.
       get: (key) => (animation[key] !== undefined ? animation[key] : def?.[key]),
+      // Phase 58-w3.9i: dashboard-local preview — apply to the running
+      // instance ONLY (no _scheduleLiveEditorBroadcast). /output adopts
+      // the value on Done / Save-as-default, not during the drag.
       set: (key, value) => {
         applyLiveEditorValue(key, value);
-        _scheduleLiveEditorBroadcast();
       },
     });
     for (const row of rows) container.append(row);
-    container.hidden = rows.length === 0;
+    const hasRows = rows.length > 0;
+    container.hidden = !hasRows;
+    if (section) section.hidden = !hasRows;
   }
 
   // Phase 58-w3.9h: build the fade (Ein-/Ausblenden) toggle + conditional
@@ -498,10 +511,15 @@
       );
       if (animation) {
         Object.assign(animation, liveEditorSnapshot);
-        // Phase 58-w3.9g: live coded edits broadcast to /output while
-        // editing, so a Discard must also push the restored values out —
-        // otherwise /output keeps the abandoned tweaks until the next
-        // server snapshot. Broadcast BEFORE clearing the animation id.
+        // Phase 58-w3.9i: coded edits are now dashboard-local (they never
+        // reach /output before commit), so a coded-only Discard is a pure
+        // local revert. The fade controls (w3.9h) still broadcast live
+        // while editing, so a Discard must push the restored values out —
+        // otherwise /output keeps the abandoned fade tweak until the next
+        // server snapshot. Restoring + broadcasting the original snapshot
+        // is a no-op for /output where only coded fields changed (it never
+        // saw the preview), and a correct revert where fade changed.
+        // Broadcast BEFORE clearing the animation id.
         _broadcastLiveEditorEdit();
       }
     }
