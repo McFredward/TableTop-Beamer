@@ -10,6 +10,15 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.59] — 2026-06-08
+
+### Fixed
+
+- **The fade controls ("Ein-/Ausblenden" toggle + "Fade-Dauer" slider, added in v1.2.56) now render in the LIVE editor (Active Animations → Edit), not only in the full animation editor.** The shared fade builder was already invoked by the live editor, but its DOM container ref (`liveEditorFade`) was never threaded through the runtime orchestration ctx — it was absent from both the `collectDomRefs` destructure and the lifecycle init object — so `ctx.liveEditorFade` was undefined and `_populateLiveEditorFade` bailed out before building anything. Wired the ref through both allowlists (mirroring the v1.2.57 `liveEditorCodedSection` fix), so opening the live editor on any running animation now shows the fade toggle, and turning it ON reveals the duration slider. The controls live in a new labeled "Fade" subsection (open by default, since fade is universal) consistent with the "Coded Settings" / "Transform" subsections.
+- **Live fade edits now preview on the DASHBOARD only and reach /output (and other clients) on "Done" or "Save as default" — not mid-drag — matching every other live-editor control.** Previously the live fade controls carried a per-drag `_scheduleLiveEditorBroadcast`, so toggling fade or dragging the duration broadcast to /output in real time while you were still tweaking (the same divergence the v1.2.57 coded-control fix removed). The fade set() bridge now only mutates the dashboard's running instance for an immediate preview; the change propagates to /output via the normal edit-room mutation on Done / Save-as-default, and "Discard" reverts the dashboard preview locally. Save-as-default still persists `fadeEnabled` + `fadeDurationMs` into the animation definition. The full-editor fade controls and the actual fade-in/out ramp behaviour are unchanged.
+
+---
+
 ## [1.2.58] — 2026-06-08
 
 ### Fixed

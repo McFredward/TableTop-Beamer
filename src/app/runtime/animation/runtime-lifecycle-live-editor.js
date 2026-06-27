@@ -459,10 +459,16 @@
   }
 
   // Phase 58-w3.9h: build the fade (Ein-/Ausblenden) toggle + conditional
-  // duration slider for the running instance, for ANY animation type. Edits
-  // apply to the instance in real time (applyLiveEditorValue → dashboard)
-  // and broadcast so /output follows; on the next start the saved default
-  // (if Save-as-default was used) drives the fade.
+  // duration slider for the running instance, for ANY animation type.
+  // Phase 58-w3.9k: each control now edits the running instance for a
+  // DASHBOARD-LOCAL preview only — applyLiveEditorValue mutates the running
+  // instance (the dashboard's own canvas reflects it next rAF) but DOES NOT
+  // broadcast to /output during dragging. The change reaches /output + other
+  // clients only on Done (closeLiveEditor) or Save-as-default, exactly like
+  // the non-coded sliders (opacity / intensity / speed / transform) and the
+  // coded controls (w3.9i). On the next start the saved default (if
+  // Save-as-default was used) drives the fade. The "Fade-Dauer" slider stays
+  // hidden until the "Ein-/Ausblenden" toggle is ON (builder gating).
   function _populateLiveEditorFade(animation) {
     const container = ctx.liveEditorFade;
     if (!container) return;
@@ -474,9 +480,11 @@
     }
     const rows = codedOptions.buildFadeOptionRows({
       get: (key) => (animation[key] !== undefined ? animation[key] : undefined),
+      // Phase 58-w3.9k: dashboard-local preview — apply to the running
+      // instance ONLY (no _scheduleLiveEditorBroadcast). /output adopts
+      // the value on Done / Save-as-default, not during the drag.
       set: (key, value) => {
         applyLiveEditorValue(key, value);
-        _scheduleLiveEditorBroadcast();
       },
     });
     for (const row of rows) container.append(row);
@@ -511,15 +519,14 @@
       );
       if (animation) {
         Object.assign(animation, liveEditorSnapshot);
-        // Phase 58-w3.9i: coded edits are now dashboard-local (they never
-        // reach /output before commit), so a coded-only Discard is a pure
-        // local revert. The fade controls (w3.9h) still broadcast live
-        // while editing, so a Discard must push the restored values out —
-        // otherwise /output keeps the abandoned fade tweak until the next
-        // server snapshot. Restoring + broadcasting the original snapshot
-        // is a no-op for /output where only coded fields changed (it never
-        // saw the preview), and a correct revert where fade changed.
-        // Broadcast BEFORE clearing the animation id.
+        // Phase 58-w3.9k: every live-editor control (non-coded sliders,
+        // coded controls w3.9i, and now the fade controls) is dashboard-
+        // local — none broadcast to /output before commit — so Discard is
+        // a pure local revert and /output never saw the abandoned tweaks.
+        // Re-broadcasting the restored original snapshot is a harmless
+        // no-op for /output (it already holds those values); kept for
+        // belt-and-suspenders parity with the commit path. Broadcast
+        // BEFORE clearing the animation id.
         _broadcastLiveEditorEdit();
       }
     }

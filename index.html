@@ -736,8 +736,18 @@
           <!-- Phase 58-w3.9h: optional fade-in/fade-out controls for the
                running instance. Applies to ANY animation type, so (unlike
                #live-editor-coded) it is populated for every instance. The
-               "Fade-Dauer" slider stays hidden until the toggle is ON. -->
-          <div id="live-editor-fade" class="live-editor-coded"></div>
+               "Fade-Dauer" slider stays hidden until the toggle is ON.
+               Phase 58-w3.9k: wired into the live editor (the dom ref was
+               previously absent from the orchestration ctx, so the section
+               never rendered) and grouped under a labeled "Fade" subsection
+               mirroring the "Coded Settings"/"Transform" details. Open by
+               default — fade is universal, so unlike Coded Settings it is
+               never hidden as a whole. Edits preview on the dashboard only
+               and reach /output on Done / Save-as-default. -->
+          <details open class="live-editor-fade-section">
+            <summary>Fade</summary>
+            <div id="live-editor-fade" class="live-editor-coded"></div>
+          </details>
           <details>
             <summary>Transform</summary>
             <fieldset id="live-editor-transform" class="room-transform-options">
