@@ -540,7 +540,21 @@
     ctx.liveEditorPanel.hidden = true;
   }
 
-  function closeLiveEditor() {
+  // Phase 58 follow-up (2026-06-28): the Auto-start checkbox is a
+  // PERSISTENT choice, unlike the transform tweaks (which Done leaves
+  // run-local by design — see the Phase 50 note inside). Before this fix
+  // Done mutated defaultAnimationsByBoard in memory only and never POSTed,
+  // so checking "Auto-start" + Done (or Save-as-default) was lost on the
+  // next server restart — the board JSON kept defaultAnimations: [] and
+  // frostpunk never auto-started. We now persist whenever the autostart
+  // membership actually changes. saveLiveEditorAsDefault passes
+  // { persist: false } and runs its own single save afterward, so the
+  // combined path POSTs exactly once (no clobbering race). Wired as a
+  // click handler too — there opts is the MouseEvent, whose `.persist` is
+  // undefined, so the default-true branch is taken.
+  function closeLiveEditor(opts) {
+    const persistDefaults = opts?.persist !== false;
+    let defaultsChanged = false;
     if (liveEditorAnimationId !== null) {
       const animation = ctx.state.runningAnimations.find(
         (item) => item?.id === liveEditorAnimationId,
@@ -553,6 +567,12 @@
         const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId];
         // Remove any existing default for same type+roomId+scope
         const filtered = defaults.filter(d => !(d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope));
+        // The autostart set changed if we just removed an existing default
+        // (filtered shorter than defaults) or are about to add one
+        // (makeDefault) — covers add, remove, and the re-add/update case.
+        // When neither, the user only tweaked a non-default animation and
+        // clicked Done; we skip the POST to preserve the run-local behavior.
+        defaultsChanged = makeDefault || filtered.length !== defaults.length;
         if (makeDefault) {
           filtered.push({
             type: animation.type,
@@ -620,6 +640,14 @@
     // W3.4-C1 bridge: mirror to the lifecycle-state module.
     lifecycleState.setLiveEditorAnimationId(null);
     ctx.liveEditorPanel.hidden = true;
+    // Persist the autostart change to the board JSON so it survives a
+    // server restart: buildBoardProfilesFromState serializes
+    // defaultAnimationsByBoard → POST /api/global-defaults →
+    // persistBoardProfileToBoardFile writes defaultAnimations. Fire-and-
+    // forget like every other live-editor save.
+    if (persistDefaults && defaultsChanged && typeof ctx.saveAndCaptureCleanBaseline === "function") {
+      void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+    }
   }
 
   // Phase 50 (2026-05-22): commit the running animation's current
@@ -771,24 +799,32 @@
       if (scopeForProfile === "room" && ctx.state?.roomDraft) {
         ctx.state.roomDraft.lastSyncedAnimationId = null;
       }
-      // Silent direct save + clean baseline — clicking Save IS the
-      // explicit commit, no need to also force the user through the
-      // apply/discard bar.
-      if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
-        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
-      }
       if (ctx.triggerFeedback) {
         const name = animation.animationName || animation.type;
         ctx.triggerFeedback.textContent = `Status: saved "${name}" defaults — future starts apply these values`;
       }
       // Phase 50 (2026-05-25): operator UAT — "Das 'Save as default for
       // this animation' soll TROTZDEM auch zusätzlich den selben effect
-      // wie 'Done' haben, wenn man es anklickt". After persisting the
-      // values, close the editor like Done does (broadcasts edit-room
-      // + persists the auto-start checkbox + hides the panel). The
-      // status message set above survives closeLiveEditor since that
-      // function does not touch triggerFeedback.
-      closeLiveEditor();
+      // wie 'Done' haben, wenn man es anklickt". After updating the
+      // definition, close the editor like Done does (broadcasts edit-room
+      // + folds the auto-start checkbox into defaultAnimationsByBoard +
+      // hides the panel). The status message set above survives
+      // closeLiveEditor since that function does not touch triggerFeedback.
+      //
+      // Phase 58 follow-up (2026-06-28): persist AFTER closeLiveEditor has
+      // folded in the autostart entry, not before — otherwise the POST
+      // captured the stale defaults and the auto-start flag was lost on
+      // restart. closeLiveEditor mutates defaultAnimationsByBoard
+      // synchronously, so the single save below carries both the updated
+      // definition AND the new default. Suppress closeLiveEditor's own
+      // POST ({ persist: false }) so the combined path saves exactly once.
+      closeLiveEditor({ persist: false });
+      // Silent direct save + clean baseline — clicking Save IS the
+      // explicit commit, no need to also force the user through the
+      // apply/discard bar.
+      if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
+        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+      }
     } else if (ctx.triggerFeedback) {
       ctx.triggerFeedback.textContent = `Status: no matching definition to save (scope=${animation.scope})`;
     }
