@@ -10,6 +10,18 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.68] — 2026-06-28
+
+### Fixed
+
+- **Snow stutter on /output traced to the real cause: SSR render cost, not GC.** Instrumenting the actual pipeline revealed `/output` is a **WebRTC video consumer** — the snow is rendered server-side in the SSR Chromium tab, encoded, and streamed; the dashboard renders its own local canvas at 60 fps (smooth, as observed) while `/output` shows the SSR video, whose framerate dropped from ~30 to ~25 fps at density 100 % + small flakes because the snow draw exceeded the SSR frame budget (on Win32, tab-capture starvation turns that overrun into the discrete ~0.5 s freezes). The earlier age-re-stamp/teleport hypothesis was measured and **refuted** (zero re-stamps). Fix: **halve the per-flake draw cost** — soft dots are now a single arc (was two) and storm streaks a single round-capped stroke (was two passes) — so the SSR render holds its framerate at high density. The look is preserved (additive blend + round caps keep dots/streaks soft; the out-of-focus bokeh still carry the depth). Pairs with the v1.2.66 sprite cache + v1.2.67 allocation-free drawing.
+
+### Changed
+
+- **Snowstorm gusts hit harder, in bursts.** Operator wanted the storm to occasionally surge more forcefully while staying immersive. The slow wind swell is stronger (so gusts actually advect the snow faster, not just visually), and each depth layer now gets an intermittent, sharply-peaked **gust punch** — mostly calm with brief bursts (layers punch at different times) that lengthen and brighten that layer's streaks. Bounded so it reads as a hard gust, not a cartoon.
+
+---
+
 ## [1.2.67] — 2026-06-28
 
 ### Fixed

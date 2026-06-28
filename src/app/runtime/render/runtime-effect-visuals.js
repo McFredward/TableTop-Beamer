@@ -1637,7 +1637,6 @@
       // are constant string literals (interned, not allocated). fillStyle is
       // set ONCE here (only streaks change strokeStyle); globalAlpha is reset
       // to 1 after the loop.
-      const COL_TAIL = "rgb(228, 237, 255)";
       const COL_CORE = "rgb(240, 246, 255)";
       c.fillStyle = "rgb(237, 243, 255)";
       // Blit the cached blob sprite at the flake's size, modulating opacity
@@ -1647,17 +1646,14 @@
         c.globalAlpha = a < 0 ? 0 : (a > 1 ? 1 : a);
         c.drawImage(snowBlobSprite, x - r, y - r, r * 2, r * 2);
       };
-      // Cheap soft-edged dot — a dim wide disc + a brighter core (additive
-      // blend softens it). No string/style allocation: constant fillStyle +
-      // globalAlpha for opacity.
+      // Single-arc dot (w3.9u: was two arcs — halved to fit the SSR render
+      // budget at density 100, which feeds the /output video stream and was
+      // dropping below 30 fps). The additive 'lighter' blend + round bias
+      // keep it soft enough; the big OOF bokeh carry the real softness.
       const softDot = (x, y, r, a) => {
-        c.globalAlpha = a * 0.5;
-        c.beginPath();
-        c.arc(x, y, r, 0, TAU);
-        c.fill();
         c.globalAlpha = a;
         c.beginPath();
-        c.arc(x, y, r * 0.5, 0, TAU);
+        c.arc(x, y, r, 0, TAU);
         c.fill();
       };
 
@@ -1680,8 +1676,11 @@
         const STORM_LAYERS = 3;
         const vBase = unit * (0.085 + speedKnob * 0.14);
         const prevAng = Math.PI * 0.52; // prevailing wind: just right-of-down
-        // [amp, omega]: slow swell, mid, fast quick-turn.
-        const COMPS = [[0.42, 0.16], [0.24, 0.39], [0.15, 0.83]];
+        // [amp, omega]: slow swell (stronger now), mid, fast quick-turn. The
+        // bigger slow swell drives real, periodic GUST surges (operator
+        // 2026-06-28: "stoßweise etwas heftiger, nicht übertrieben") — it is
+        // integrated, so flakes actually advect faster during a swell.
+        const COMPS = [[0.55, 0.16], [0.26, 0.39], [0.16, 0.85]];
         for (let L = 0; L < STORM_LAYERS; L += 1) {
           const meanAng = prevAng + (L - 1) * 0.23; // layers fan ±~13°
           const cm = Math.cos(meanAng);
@@ -1701,12 +1700,18 @@
             dy += (a / w) * Math.sin(w * tw + phy);
           }
           const speed = Math.hypot(wx, wy) || 1;
+          // Intermittent gust PUNCH: a sharply-peaked, per-layer-phased
+          // envelope that is mostly ~0 with brief bursts. It boosts the
+          // streak length + brightness (via speedFrac below) so a stoß hits
+          // visibly harder than the steady swell — bounded so it stays
+          // immersive, not cartoonish. Layers punch at different times.
+          const punch = Math.pow(Math.max(0, Math.sin(tw * 0.24 + L * 2.3)), 8);
           layerWind.push({
             ux: wx / speed,
             uy: wy / speed,
             dx: vBase * dx,
             dy: vBase * dy,
-            speedFrac: Math.min(1.8, speed), // ~wind speed in units of the mean (≈1)
+            speedFrac: Math.min(2.4, speed + punch * 1.0), // gust bursts on top of the swell
           });
         }
       }
@@ -1813,21 +1818,17 @@
             // caps. No bright head dot → no comet/"sperm" shape (operator
             // 2026-06-28); it fades evenly at both ends like wind-blurred
             // snow and points along the shared layer wind (coherent).
+            // Single round-capped stroke centred on the flake (w3.9u: was
+            // two passes — halved for the SSR budget). Round caps + additive
+            // blend keep it a soft symmetric motion-blur, no head/"sperm".
             const hx = windUX * len * 0.5;
             const hy = windUY * len * 0.5;
-            c.globalAlpha = alpha * 0.5;
-            c.strokeStyle = COL_TAIL;
-            c.lineWidth = Math.max(0.7, size * 1.1);
+            c.globalAlpha = alpha * 0.92;
+            c.strokeStyle = COL_CORE;
+            c.lineWidth = Math.max(0.7, size * 0.95);
             c.beginPath();
             c.moveTo(px - hx, py - hy);
             c.lineTo(px + hx, py + hy);
-            c.stroke();
-            c.globalAlpha = alpha * 0.95;
-            c.strokeStyle = COL_CORE;
-            c.lineWidth = Math.max(0.6, size * 0.65);
-            c.beginPath();
-            c.moveTo(px - hx * 0.62, py - hy * 0.62);
-            c.lineTo(px + hx * 0.62, py + hy * 0.62);
             c.stroke();
           }
         } else {
