@@ -41,6 +41,11 @@ and trigger everything from your phone during play.
     width="250"
     alt="TableTop Beamer overview"
   />
+  <img
+    src="readme-assets/example_board_frostpunk.gif"
+    width="250"
+    alt="TableTop Beamer overview"
+  />
 </p>
 
 Two browsers run side-by-side:
@@ -66,7 +71,7 @@ at once.
 ## Highlights
 
 - 📦 **Pre-shipped boards.** `Nemesis` (both base-game boards) and `Nemesis
-  Lockdown` (both boards) are included with hand-crafted polygons and a starter
+  Lockdown` (both boards) & `Frostpunk the board game` are included with hand-crafted polygons and a starter
   animation library.
 - 🎯 **In-browser projection mapping.** A WebGL-accelerated mesh-warp grid you
   drag, rotate, and scale until the projection sits perfectly on the physical
