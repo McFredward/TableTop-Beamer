@@ -1,13 +1,13 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-06-28T09:13:42.936Z",
+  "savedAt": "2026-06-28T11:54:15.480Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
     "volume": 0.7
   },
   "animationSpeed": 1,
-  "diagnosticOverlay": true,
+  "diagnosticOverlay": false,
   "projectionMapping": {
     "corners": {
       "topLeft": {
@@ -34,6 +34,6 @@
     "fpsTarget": 30,
     "streamFpsCap": 60,
     "streamBitrateMbps": 16,
-    "codecPreference": "vp9"
+    "codecPreference": "h264"
   }
 }
