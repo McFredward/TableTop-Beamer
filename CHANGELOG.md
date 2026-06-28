@@ -10,6 +10,15 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.72] — 2026-06-28
+
+### Fixed
+
+- **Snow-only /output lag — root cause confirmed (spatial encoder quantization) and fixed with a minimum flake size.** An offline encoder A/B (libx264 + libvpx-vp9, faithful flake model) finally **reproduced** the operator's size-correlation and proved the mechanism: a flake's frame-to-frame motion lives in *high-spatial-frequency* DCT coefficients; once the video encoder's realized QP climbs (≈ ≥ 32 — which happens when the stream is bandwidth- or CPU-limited *below* its configured bitrate cap), those coefficients are quantized to zero, so a **small** flake freezes for several frames then jumps ("stick then jump") while a **larger** flake (whose energy sits in low-frequency coefficients) stays smooth. This is exactly why it's snow-only (the only effect with hundreds of tiny high-frequency features), why it scales with size (smaller = higher frequency), and why per-frame *motion* fixes did nothing — it is spatial, not temporal. The v1.2.71 anti-quantization micro-orbit is therefore removed (the repro confirmed it does not help), and v1.2.70's softening was likewise the wrong axis. **Fix:** every flake's drawn radius is now floored at ~3 px (≈ 6 px diameter), moving the smallest flakes out of the quantization dead-zone so the field streams smoothly even at high QP. ~6 px soft is about as small as a flake can be and still stream cleanly on a quality-limited encoder.
+- **If you still want finer flakes,** the encoder-side fix is to keep the realized QP down (the repro: at 1080p the snow is smooth as long as ≥ ~0.8–1 Mbps actually reaches the encoder; the stutter only appears under ~0.5 Mbps flowing). On the projector, check the consumer `qualityLimitationReason` — if it reads "bandwidth" or "cpu", the configured 16 Mbps cap isn't flowing (network congestion or encode CPU), and raising effective throughput removes the stutter. `codecPreference: vp9` (already the default) buys ~8 QP of headroom over H.264. **Do NOT drop the SSR resolution to 720p for snow** — the A/B showed that makes small-flake sticking strictly worse.
+
+---
+
 ## [1.2.71] — 2026-06-28
 
 ### Fixed

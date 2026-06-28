@@ -1639,26 +1639,23 @@
       // dashboard has no encoder, so it's smooth there). Drawing every flake
       // as a SOFT blob (energy spread into low-freq coefficients the encoder
       // tracks smoothly) with a minimum radius keeps small flakes moving.
-      // Modest soft floor (the anti-quantization orbit below — not size — is
-      // what keeps small flakes smooth, so small can stay genuinely small).
-      const minSoftR = Math.max(1.0, unit * 0.0014);
-      // Phase 58-w3.9x — sub-pixel ANTI-QUANTIZATION micro-orbit, the SAME
-      // proven fix the workers needed (v1.2.48 / w3.8y). Operator 2026-06-28:
-      // the lag affects ONLY snow — every other animation runs smoothly on
-      // /output in parallel — and it's worse for SMALLER flakes. That is the
-      // worker stutter exactly: a small, slow-moving element translating
-      // <~0.2 px/frame can't be represented on the discrete pixel pipeline
-      // (raster → VP9/WebRTC encode → projector grid); its centroid holds a
-      // pixel for several frames then snaps — "stick then jump". The worker
-      // debug proved brightness/edge-feather do NOT help; only per-frame
-      // MOTION MAGNITUDE does. Fix: add a tiny constant-speed circular orbit
-      // to every flake's rendered position. A circle has no velocity zero-
-      // crossing, so per-frame motion stays above the grid threshold EVERY
-      // frame, even for a near-stationary flake; it averages to zero over a
-      // cycle (net drift, determinism, look all preserved). This is the real
-      // lag fix — softening the flakes (w3.9w) was the wrong lever.
-      const SNOW_ANTIQ_R = Math.max(0.7, unit * 0.001);
-      const SNOW_ANTIQ_OMEGA = 2.2 * Math.PI * 2; // 2.2 Hz, cadence-independent
+      // Phase 58-w3.9y — MINIMUM SOFT FOOTPRINT is the real lever for the
+      // snow-only /output lag. Offline encoder A/B (libx264 + libvpx-vp9, a
+      // faithful flake model) reproduced the operator's size-correlation and
+      // proved the cause is SPATIAL quantization: a flake's frame-to-frame
+      // motion lives in high-frequency DCT coefficients, and once the
+      // encoder's realized QP climbs (≈≥32 — the stream is bandwidth/CPU-
+      // limited well below its bitrate cap) those coefficients are zeroed, so
+      // a SMALL flake freezes for several frames then jumps while a LARGER
+      // flake (energy in low-freq coefficients) stays smooth. It is NOT
+      // temporal — the w3.9x micro-orbit (per-frame motion) did NOT help in
+      // the repro and is removed. Flooring every flake's drawn radius at ~3 px
+      // (≈6 px diameter) moves the smallest flakes out of the dead-zone, so
+      // the field streams smoothly even at high QP. ~6 px soft is about as
+      // small as a flake can be and still stream cleanly on a quality-limited
+      // encoder; going smaller needs more FLOWING bitrate (lower QP), not a
+      // render change — see CHANGELOG for the encoder-side levers.
+      const minSoftR = Math.max(3.0, unit * 0.004);
       // Blit the cached blob sprite at the flake's size, modulating opacity
       // via globalAlpha (cheap GPU blit vs a per-flake gradient build).
       const softBlob = (x, y, r, a) => {
@@ -1832,13 +1829,6 @@
           py = regY + fy;
         }
 
-        // Anti-quantization micro-orbit (w3.9x): keeps EVERY flake's per-
-        // frame motion above the /output pixel-grid threshold so small/slow
-        // flakes don't plateau-then-jump. Per-flake phase (i) desyncs them.
-        const aq = SNOW_ANTIQ_OMEGA * safeAge + i * 2.39963;
-        px += Math.cos(aq) * SNOW_ANTIQ_R;
-        py += Math.sin(aq) * SNOW_ANTIQ_R;
-
         // Wind gusts brighten the snow they carry → the field reads denser
         // when a stoß blows through (windSpeedFrac peaks across the layer).
         const alpha = Math.max(0.05, Math.min(0.96,
@@ -1846,7 +1836,7 @@
 
         if (oof) {
           // Out-of-focus bokeh — soft blob in BOTH modes; never streaks.
-          softBlob(px, py, size, alpha * 0.95);
+          softBlob(px, py, Math.max(minSoftR, size), alpha * 0.95);
         } else if (storm) {
           // Velocity direction = layer wind rotated by a fixed per-flake
           // offset (chaos around the prevailing wind; static → no flicker).
