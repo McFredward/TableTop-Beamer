@@ -164,7 +164,7 @@ const {
 } = window.TT_BEAMER_RUNTIME_POLYGON_NORMALIZERS;
 
 const {
-  stage, boardImage, canvas, roomOverlay, boardSelect, boardImportFileInput,
+  stage, boardImage, canvas, roomOverlay, boardSelect, boardCodecSelect, boardImportFileInput,
   boardImportImageInput, boardImportNameInput, boardImportIdInput, boardImportButton,
   boardStatus, zonesStatus, alignModeToggleInput, alignModeButton, alignModeStatus,
   exportGlobalDefaultsButton, globalDefaultsStatus, apiDiagnoseStatus, triggerFeedback,
@@ -843,6 +843,7 @@ window.TT_BEAMER_RUNTIME_ZONE_LOADER.init({
   state,
   zonesStatus,
   boardSelect,
+  boardCodecSelect,
   INLINE_FALLBACK_BOARDS,
   getBoards: () => BOARDS,
   setBoards: (next) => { BOARDS = next; },
@@ -2014,6 +2015,7 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   stage,
   boardImage,
   boardSelect,
+  boardCodecSelect,
   boardStatus,
   topbarBoardLabel,
   triggerFeedback,
@@ -2654,6 +2656,7 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
   state,
   triggerFeedback,
   boardSelect,
+  boardCodecSelect,
   boardImportButton,
   boardImportFileInput,
   boardImportImageInput,
