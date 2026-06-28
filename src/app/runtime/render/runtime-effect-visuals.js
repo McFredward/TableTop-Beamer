@@ -1597,8 +1597,6 @@
       // after — if an outer concurrent scope already set "lighter", the
       // restore keeps it lifted (never downgrades a concurrent composite).
       c.globalCompositeOperation = "lighter";
-      const prevCap = c.lineCap;
-      c.lineCap = "round"; // soft streak ends (motion blur, not hard sticks)
 
       // Phase 58-w3.9q — soft bokeh blob for OUT-OF-FOCUS flakes. The
       // reference clips (snow_1080 / snowstorm) are full of big, soft, dim
@@ -1629,16 +1627,19 @@
           snowBlobSprite = off;
         }
       }
-      // Phase 58-w3.9t — ALLOCATION-FREE drawing. Per-flake `rgba(…,${a})`
-      // template strings (built for every flake every frame — hundreds to
-      // ~1400 at density 100) churned the GC, which stalled /output: small
-      // flakes froze ~0.5 s then jumped (operator 2026-06-28). All flake
-      // opacity now rides c.globalAlpha (a number, no allocation); colours
-      // are constant string literals (interned, not allocated). fillStyle is
-      // set ONCE here (only streaks change strokeStyle); globalAlpha is reset
-      // to 1 after the loop.
-      const COL_CORE = "rgb(240, 246, 255)";
-      c.fillStyle = "rgb(237, 243, 255)";
+      // Phase 58-w3.9t — ALLOCATION-FREE drawing: every flake is a cached
+      // sprite blit (drawImage) with opacity on c.globalAlpha (a number); no
+      // per-flake strings/fills/strokes → no GC churn (which had stalled
+      // /output). globalAlpha is reset to 1 after the loop.
+      // Phase 58-w3.9w — minimum SOFT footprint. Hard, sub-~2px flakes are
+      // high-spatial-frequency points whose tiny per-frame motion falls below
+      // the /output VIDEO ENCODER's quantization deadzone, so the encoder
+      // leaves them unchanged for several frames — small flakes "stick then
+      // jump" on the stream while big ones move fluidly (operator 2026-06-28;
+      // dashboard has no encoder, so it's smooth there). Drawing every flake
+      // as a SOFT blob (energy spread into low-freq coefficients the encoder
+      // tracks smoothly) with a minimum radius keeps small flakes moving.
+      const minSoftR = Math.max(1.6, unit * 0.0024);
       // Blit the cached blob sprite at the flake's size, modulating opacity
       // via globalAlpha (cheap GPU blit vs a per-flake gradient build).
       const softBlob = (x, y, r, a) => {
@@ -1646,15 +1647,30 @@
         c.globalAlpha = a < 0 ? 0 : (a > 1 ? 1 : a);
         c.drawImage(snowBlobSprite, x - r, y - r, r * 2, r * 2);
       };
-      // Single-arc dot (w3.9u: was two arcs — halved to fit the SSR render
-      // budget at density 100, which feeds the /output video stream and was
-      // dropping below 30 fps). The additive 'lighter' blend + round bias
-      // keep it soft enough; the big OOF bokeh carry the real softness.
-      const softDot = (x, y, r, a) => {
-        c.globalAlpha = a;
-        c.beginPath();
-        c.arc(x, y, r, 0, TAU);
-        c.fill();
+      // Phase 58-w3.9w — NEW snowstorm system: soft volumetric bokeh with
+      // directional motion-blur. The previous stroked lines were always
+      // recognizable as "sticks" and broke immersion (operator 2026-06-28:
+      // "fang ganz von vorne an … Fokus auf Immersion"). Every flake is now
+      // the cached SOFT radial sprite, drawn ELONGATED along its wind
+      // velocity — a feathered, gradient-edged SMEAR (real motion blur), not
+      // a hard line. `stretch` grows continuously from 1 (a round soft flake)
+      // with speed, so flakes never pop between dot and streak; the smear
+      // points along the wind (no vertical sticks); and being soft + low
+      // spatial-frequency it also survives the /output video encoder (small
+      // hard points were getting quantized → "stick then jump"). Only pays
+      // the rotate transform when actually moving (slow → cheap round blit).
+      const softStreak = (x, y, r, a, dirX, dirY, stretch) => {
+        if (!snowBlobSprite) return;
+        c.globalAlpha = a < 0 ? 0 : (a > 1 ? 1 : a);
+        if (stretch <= 1.08) {
+          c.drawImage(snowBlobSprite, x - r, y - r, r * 2, r * 2);
+          return;
+        }
+        c.save();
+        c.translate(x, y);
+        c.rotate(Math.atan2(dirY, dirX));
+        c.drawImage(snowBlobSprite, -r * stretch, -r, r * 2 * stretch, r * 2);
+        c.restore();
       };
 
       // Phase 58-w3.9r — layered COHERENT wind for the storm. Real wind-blown
@@ -1675,43 +1691,47 @@
       if (storm) {
         const STORM_LAYERS = 3;
         const vBase = unit * (0.085 + speedKnob * 0.14);
-        const prevAng = Math.PI * 0.52; // prevailing wind: just right-of-down
-        // [amp, omega]: slow swell (stronger now), mid, fast quick-turn. The
-        // bigger slow swell drives real, periodic GUST surges (operator
-        // 2026-06-28: "stoßweise etwas heftiger, nicht übertrieben") — it is
-        // integrated, so flakes actually advect faster during a swell.
-        const COMPS = [[0.55, 0.16], [0.26, 0.39], [0.16, 0.85]];
+        // Wind model = gravity (down) + a strong GUSTING HORIZONTAL wind
+        // (operator 2026-06-28: previous near-vertical mean read as strokes
+        // FALLING top→bottom, not wind). Gravity is a modest constant down;
+        // the horizontal wind has a prevailing side (baseH, "großteil in eine
+        // Richtung") plus big gust oscillations that strengthen/ease it (and
+        // occasionally nudge it back). Because the horizontal gusts are large
+        // relative to gravity, a gust slants the snow toward HORIZONTAL and a
+        // lull lets it fall steeper — so the slant SHIFTS over time = reads as
+        // wind. Layers gust out of phase (parallax + cross-wind chaos). All
+        // integrable → shared closed-form displacement, no per-flake cost.
+        const gravityV = 0.5;            // constant downward (units of vBase)
+        const baseH = 0.6;               // prevailing horizontal wind (rightward)
+        // [amp, omega] horizontal gusts: slow strong swell + mid + fast.
+        const HWIND = [[0.55, 0.13], [0.34, 0.31], [0.2, 0.72]];
         for (let L = 0; L < STORM_LAYERS; L += 1) {
-          const meanAng = prevAng + (L - 1) * 0.23; // layers fan ±~13°
-          const cm = Math.cos(meanAng);
-          const sm = Math.sin(meanAng);
-          let wx = cm;
-          let wy = sm;
-          let dx = cm * tw;
-          let dy = sm * tw;
-          for (let k = 0; k < COMPS.length; k += 1) {
-            const a = COMPS[k][0];
-            const w = COMPS[k][1];
-            const phx = L * 2.1 + k * 0.9;
-            const phy = phx + 1.4; // quadrature → the wind vector rotates/turns
-            wx += a * Math.cos(w * tw + phx);
-            wy += a * Math.cos(w * tw + phy);
-            dx += (a / w) * Math.sin(w * tw + phx);
-            dy += (a / w) * Math.sin(w * tw + phy);
+          const layerH = baseH * (0.8 + 0.25 * L); // layers: different wind strength
+          let wx = layerH;
+          let wy = gravityV;
+          let dx = layerH * tw;
+          let dy = gravityV * tw;
+          for (let k = 0; k < HWIND.length; k += 1) {
+            const a = HWIND[k][0];
+            const w = HWIND[k][1];
+            const ph = L * 1.7 + k * 0.9; // layers gust out of phase
+            wx += a * Math.cos(w * tw + ph);
+            dx += (a / w) * Math.sin(w * tw + ph);
           }
+          // gentle vertical flutter so the fall isn't dead-constant
+          wy += 0.14 * Math.cos(tw * 0.5 + L);
+          dy += (0.14 / 0.5) * Math.sin(tw * 0.5 + L);
           const speed = Math.hypot(wx, wy) || 1;
           // Intermittent gust PUNCH: a sharply-peaked, per-layer-phased
-          // envelope that is mostly ~0 with brief bursts. It boosts the
-          // streak length + brightness (via speedFrac below) so a stoß hits
-          // visibly harder than the steady swell — bounded so it stays
-          // immersive, not cartoonish. Layers punch at different times.
+          // envelope (mostly ~0, brief bursts) that boosts streak length +
+          // brightness so a stoß hits visibly harder — bounded, immersive.
           const punch = Math.pow(Math.max(0, Math.sin(tw * 0.26 + L * 2.3)), 5);
           layerWind.push({
             ux: wx / speed,
             uy: wy / speed,
             dx: vBase * dx,
             dy: vBase * dy,
-            speedFrac: Math.min(3.0, speed + punch * 1.7), // gust bursts on top of the swell
+            speedFrac: Math.min(3.0, speed + punch * 1.7),
           });
         }
       }
@@ -1732,7 +1752,7 @@
         // soft, dim foreground bokeh. The rest are sharp-ish, with a wide
         // size + brightness spread (square the size hash to bias small).
         const sizeHash = h3 * h3;
-        const oof = h7 < (storm ? 0.13 : 0.16);
+        const oof = h7 < (storm ? 0.2 : 0.16); // storm: more soft foreground haze (depth/immersion)
         let size;
         let alphaBase;
         if (oof) {
@@ -1802,50 +1822,29 @@
           // Out-of-focus bokeh — soft blob in BOTH modes; never streaks.
           softBlob(px, py, size, alpha * 0.95);
         } else if (storm) {
-          // Per-flake direction = the layer wind ROTATED by a FIXED per-flake
-          // offset → chaos around the prevailing wind. The wind still drives
-          // the bulk one general way, but each flake leans differently
-          // (operator 2026-06-28: "mehr chaos auch wenn der wind den großteil
-          // in eine richtung treibt"). The offset is static per flake (+ a
-          // slow gentle drift), so directions DON'T flicker frame-to-frame.
-          const angOff = (h5 - 0.5) * 1.5 + Math.sin(tw * 0.3 + i * 1.3) * 0.16;
+          // Velocity direction = layer wind rotated by a fixed per-flake
+          // offset (chaos around the prevailing wind; static → no flicker).
+          const angOff = (h5 - 0.5) * 1.15 + Math.sin(tw * 0.3 + i * 1.3) * 0.16;
           const co = Math.cos(angOff);
           const so = Math.sin(angOff);
           const ux = windUX * co - windUY * so;
           const uy = windUX * so + windUY * co;
-          // CONTINUOUS length: a round-capped capsule centred on the flake,
-          // whose length grows from ~0 (a soft dot) smoothly with speed. No
-          // binary dot↔streak switch, so flakes no longer POP in and out as
-          // the gust waxes/wanes (operator: "Striche verschwinden und tauchen
-          // wieder auf"). Per-flake speed factor adds length chaos. One op.
+          // Soft motion-blur: a feathered bokeh elongated along the wind by a
+          // continuous, speed-driven stretch (gusts smear it longer, lulls
+          // round it off). No hard line; points along the wind, not vertical.
           const flakeSpeed = windSpeedFrac * (0.35 + h4 * 1.15);
-          const len = unit * (0.010 + speedKnob * 0.012) * (0.5 + sizeHash)
-            * Math.min(2.7, flakeSpeed * 2.3);
-          const hx = ux * len * 0.5;
-          const hy = uy * len * 0.5;
-          c.globalAlpha = alpha;
-          c.strokeStyle = COL_CORE;
-          c.lineWidth = Math.max(0.8, size * 1.5);
-          c.beginPath();
-          c.moveTo(px - hx, py - hy);
-          c.lineTo(px + hx, py + hy);
-          c.stroke();
+          const stretch = 1 + Math.min(4.5, flakeSpeed * (0.8 + speedKnob * 0.8));
+          const r = Math.max(minSoftR, size * 1.1);
+          softStreak(px, py, r, alpha, ux, uy, stretch);
         } else {
-          // Calm in-focus flake. Medium ones get a soft edge; the tiniest
-          // stay crisp pinpoints — the size/softness mix reads as snow.
-          if (size > unit * 0.0030) {
-            softDot(px, py, size * 1.4, alpha * 0.95);
-          } else {
-            c.globalAlpha = alpha;
-            c.beginPath();
-            c.arc(px, py, size, 0, TAU);
-            c.fill();
-          }
+          // Calm flake: a SOFT, low-frequency blob with the minimum footprint
+          // so even small flakes move smoothly through the /output encoder
+          // (see minSoftR above). Cached sprite → cheap.
+          softBlob(px, py, Math.max(minSoftR, size * 1.25), alpha);
         }
       }
 
       c.globalAlpha = 1;
-      c.lineCap = prevCap;
       c.globalCompositeOperation = prevComposite;
       return;
     }

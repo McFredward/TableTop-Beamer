@@ -94,233 +94,6 @@
         }
       },
       {
-        "id": "room-2",
-        "name": "Generator",
-        "polygon": [
-          [
-            0.5336999330809797,
-            0.4623455431681216
-          ],
-          [
-            0.5375237493749716,
-            0.46373486775744865
-          ],
-          [
-            0.5401236986733581,
-            0.4656897785538612
-          ],
-          [
-            0.544176329911759,
-            0.4681927407522745
-          ],
-          [
-            0.5468534923209476,
-            0.4711550356311455
-          ],
-          [
-            0.5488036483728728,
-            0.4732480112377457
-          ],
-          [
-            0.5511343790995911,
-            0.4772854217260783
-          ],
-          [
-            0.5526999790128987,
-            0.48060863824698496
-          ],
-          [
-            0.5542108850430616,
-            0.484546653710861
-          ],
-          [
-            0.554994513746724,
-            0.48878209158213937
-          ],
-          [
-            0.5563369775385048,
-            0.4922257429241692
-          ],
-          [
-            0.5568536259139069,
-            0.4960691349941022
-          ],
-          [
-            0.5568834441617715,
-            0.49982938575256014
-          ],
-          [
-            0.5568964710445097,
-            0.5046808856283722
-          ],
-          [
-            0.5567940472792979,
-            0.5081713917470049
-          ],
-          [
-            0.5561165399038794,
-            0.5119699173703192
-          ],
-          [
-            0.5551716494632295,
-            0.515839907444071
-          ],
-          [
-            0.5541173733204813,
-            0.5198955281085654
-          ],
-          [
-            0.552200826504391,
-            0.5243151823462001
-          ],
-          [
-            0.5497876376091198,
-            0.5305235850547209
-          ],
-          [
-            0.5466559090039957,
-            0.5348659523164319
-          ],
-          [
-            0.5430144166573525,
-            0.5379684292892186
-          ],
-          [
-            0.5389978107985601,
-            0.541501425722952
-          ],
-          [
-            0.5341463654220522,
-            0.5440476774982729
-          ],
-          [
-            0.5283623768339896,
-            0.5459899047578941
-          ],
-          [
-            0.5230917004250082,
-            0.5461069199867524
-          ],
-          [
-            0.5174721984091186,
-            0.5460578488606489
-          ],
-          [
-            0.511406753440738,
-            0.5442907301702106
-          ],
-          [
-            0.5074803046989058,
-            0.5419403916752857
-          ],
-          [
-            0.5041488538726937,
-            0.5402523974862147
-          ],
-          [
-            0.5011108398771892,
-            0.5373130029485708
-          ],
-          [
-            0.49751500245775987,
-            0.533904005297126
-          ],
-          [
-            0.49464986874538547,
-            0.5290663818311069
-          ],
-          [
-            0.49221203293872084,
-            0.5231982032717145
-          ],
-          [
-            0.4906829692243133,
-            0.5192155618944965
-          ],
-          [
-            0.4891249422096786,
-            0.5154826644013389
-          ],
-          [
-            0.4882872140052443,
-            0.5116417193427788
-          ],
-          [
-            0.4876975897147999,
-            0.5090839855668702
-          ],
-          [
-            0.4879159576258695,
-            0.5045479407646758
-          ],
-          [
-            0.4880125635358373,
-            0.5010260595657434
-          ],
-          [
-            0.48857236357799905,
-            0.4965184034716904
-          ],
-          [
-            0.48841774757915246,
-            0.49182421367346435
-          ],
-          [
-            0.4890999851499914,
-            0.4871577838071136
-          ],
-          [
-            0.49056481234624016,
-            0.48317398970153913
-          ],
-          [
-            0.4931599346490454,
-            0.4799896449034319
-          ],
-          [
-            0.49502657845208076,
-            0.4756123696431911
-          ],
-          [
-            0.4979283460447544,
-            0.47134842035165675
-          ],
-          [
-            0.502261597557853,
-            0.4674831445948002
-          ],
-          [
-            0.506484158140191,
-            0.4636645773143842
-          ],
-          [
-            0.5127460141646553,
-            0.4618053933039712
-          ],
-          [
-            0.5170928780988957,
-            0.46099611320300726
-          ],
-          [
-            0.5218772301508509,
-            0.46083370411508057
-          ],
-          [
-            0.5263358438309375,
-            0.4613551663860862
-          ],
-          [
-            0.5296089670925777,
-            0.4612613537299783
-          ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "hexagon",
-          "templateSource": null
-        }
-      },
-      {
         "id": "room-3",
         "name": "O1",
         "polygon": [
@@ -1369,6 +1142,101 @@
           "spawnShape": "hexagon",
           "templateSource": null
         }
+      },
+      {
+        "id": "room-33",
+        "name": "Generator",
+        "polygon": [
+          [
+            0.46437858443707997,
+            0.30237412239169603
+          ],
+          [
+            0.4783696505075417,
+            0.28392673710214816
+          ],
+          [
+            0.49996936701646766,
+            0.2749958161542966
+          ],
+          [
+            0.5205373938370716,
+            0.27525321182663925
+          ],
+          [
+            0.5368227357151307,
+            0.2768367890021497
+          ],
+          [
+            0.5501849436748286,
+            0.2825769832126832
+          ],
+          [
+            0.5616127978329754,
+            0.29449741620472536
+          ],
+          [
+            0.5743302211835634,
+            0.31451230481256987
+          ],
+          [
+            0.5896989163407335,
+            0.3513900272814064
+          ],
+          [
+            0.5911595940179829,
+            0.38622304721531975
+          ],
+          [
+            0.5892623696820493,
+            0.42552555177153517
+          ],
+          [
+            0.5721079420040547,
+            0.45116451573335503
+          ],
+          [
+            0.5445688695671557,
+            0.46536683743529483
+          ],
+          [
+            0.514351724547939,
+            0.47264949679033375
+          ],
+          [
+            0.48490833737822014,
+            0.47251878094852334
+          ],
+          [
+            0.4635667071962419,
+            0.4643589579493439
+          ],
+          [
+            0.45065045359105976,
+            0.4441668191604739
+          ],
+          [
+            0.4412337622657871,
+            0.41185586635624105
+          ],
+          [
+            0.43869492449734,
+            0.37801352047628495
+          ],
+          [
+            0.44273578156057436,
+            0.3484330563074151
+          ],
+          [
+            0.4524508750069638,
+            0.32246227801620175
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
       }
     ],
     "roomClusters": [
@@ -1432,22 +1300,233 @@
         {
           "id": "inside-mpu7xifg-2",
           "name": "Snow",
-          "assetType": "mp4",
-          "assetRef": "/resources/animations/snow.mp4",
-          "intensity": 1,
+          "assetType": "coded",
+          "assetRef": "snow",
+          "intensity": 0.3,
           "speed": 1,
           "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 80,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 40,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
           "playbackDirection": "forward",
           "soundAssetRef": "none",
           "icon": "twinkle"
+        },
+        {
+          "id": "inside-mq27plol-2",
+          "name": "Snowstorm",
+          "assetType": "coded",
+          "assetRef": "snow",
+          "intensity": 0.3,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": true,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "sparkles"
+        },
+        {
+          "id": "inside-mq5dhjsc-3",
+          "name": "Freeze",
+          "assetType": "gif",
+          "assetRef": "/resources/animations/freeze.gif",
+          "intensity": 0.7,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 0.93,
+          "heightScale": 0.97,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.15,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "play-then-freeze",
+          "onRetrigger": "reverse-then-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "target"
+        },
+        {
+          "id": "inside-mq5ob3lt-5",
+          "name": "Freeze vid",
+          "assetType": "mp4",
+          "assetRef": "/resources/animations/freeze.mp4",
+          "intensity": 0.4,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 0.88,
+          "heightScale": 0.98,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "play-then-freeze",
+          "onRetrigger": "reverse-then-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "target"
+        },
+        {
+          "id": "inside-mq5j6ldm-4",
+          "name": "Generator Heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "intensity": 0.7,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": true,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": true,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "flame"
         }
       ],
-      "intensity": 1,
+      "intensity": 0.3,
       "speed": 1,
-      "assetType": "mp4",
-      "assetRef": "/resources/animations/snow.mp4",
+      "assetType": "coded",
+      "assetRef": "snow",
       "loopUntilStopped": false
     },
     "roomFx": {
@@ -1461,8 +1540,8 @@
           "soundAssetRef": "none",
           "rotationDeg": 0,
           "stretchToPolygon": false,
-          "widthScale": 1.77,
-          "heightScale": 1.15,
+          "widthScale": 2.37,
+          "heightScale": 1.38,
           "offsetXScale": 0,
           "offsetYScale": 0,
           "opacity": 1,
@@ -1471,6 +1550,29 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
           "playbackDirection": "forward",
@@ -1494,9 +1596,32 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
-          "playbackMode": "boomerang",
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
-          "playbackDirection": "reverse",
+          "playbackDirection": "forward",
           "icon": "flame"
         },
         {
@@ -1517,6 +1642,29 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
           "playbackMode": "boomerang",
           "onRetrigger": "instant-disappear",
           "playbackDirection": "forward",
@@ -1540,6 +1688,29 @@
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
           "playbackMode": "play-then-freeze",
           "onRetrigger": "reverse-then-freeze-first",
           "playbackDirection": "forward",
@@ -1557,16 +1728,269 @@
           "heightScale": 1,
           "offsetXScale": 0,
           "offsetYScale": 0,
-          "opacity": 0.9,
+          "opacity": 0.5,
           "intensity": 0.8,
           "speed": 1,
           "soundVolume": 1,
           "colorHex": "#ff0000",
           "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
           "playbackMode": "play-then-freeze",
           "onRetrigger": "reverse-then-freeze-first",
           "playbackDirection": "forward",
           "icon": "crosshair"
+        },
+        {
+          "id": "room-mq298p2j-6",
+          "name": "Generator heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "picker"
+        },
+        {
+          "id": "room-mq2yxpr7-10",
+          "name": "Heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": false,
+          "heatSyncNearestSource": true,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "picker"
+        },
+        {
+          "id": "room-mq2j8xk3-7",
+          "name": "Worker (many)",
+          "assetType": "coded",
+          "assetRef": "city-workers",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 1,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#c98a4b",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 24,
+          "workerGroups": "frequent",
+          "workerLanternShare": 50,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 0.7,
+          "workerTrailIntensity": 200,
+          "workerCenterExclusion": true,
+          "workerCenterExclusionRadius": 50,
+          "workerExclusionOffsetX": 15,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": false,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "users"
+        },
+        {
+          "id": "room-mq2yfwx9-8",
+          "name": "Worker (few)",
+          "assetType": "coded",
+          "assetRef": "city-workers",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.5,
+          "intensity": 1,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#c98a4b",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "lit",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 75,
+          "workerTrails": true,
+          "workerSize": 1.5,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 0.7,
+          "workerTrailIntensity": 200,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "users"
+        },
+        {
+          "id": "room-mq2yml6k-9",
+          "name": "Light",
+          "assetType": "coded",
+          "assetRef": "solid-color",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.3,
+          "intensity": 0.35,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ffffff",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 1.575,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "picker"
         }
       ]
     },

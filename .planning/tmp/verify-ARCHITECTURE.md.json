@@ -1,0 +1,56 @@
+{
+  "doc_path": "docs/ARCHITECTURE.md",
+  "claims_checked": 18,
+  "claims_passed": 10,
+  "claims_failed": 8,
+  "failures": [
+    {
+      "line": 24,
+      "claim": "101 modules in src/app/runtime/ + src/app/lib/",
+      "expected": "101 modules total",
+      "actual": "97 modules in src/app/runtime/ + 19 in src/app/lib/ = 116 total"
+    },
+    {
+      "line": 39,
+      "claim": "runtime tier — 84 modules",
+      "expected": "84 .js files under src/app/runtime/",
+      "actual": "97 .js files found"
+    },
+    {
+      "line": 54,
+      "claim": "lib tier — 17 modules",
+      "expected": "17 .js files under src/app/lib/",
+      "actual": "19 .js files found"
+    },
+    {
+      "line": 67,
+      "claim": "index.html carries 102 <script> tags",
+      "expected": "102 script tags",
+      "actual": "107 script tags (grep -c '<script src=' index.html = 107)"
+    },
+    {
+      "line": 138,
+      "claim": "runtime-orchestration.js ... 2965-line sanctioned residual",
+      "expected": "2965 lines",
+      "actual": "3307 lines (wc -l)"
+    },
+    {
+      "line": 122,
+      "claim": "runtime-orchestration-ctx-builder.js, 251 lines",
+      "expected": "251 lines",
+      "actual": "248 lines (wc -l)"
+    },
+    {
+      "line": 260,
+      "claim": "In-flight merge (500 ms grace) runs role-unconditionally",
+      "expected": "500 ms in-flight grace window",
+      "actual": "The old 500ms per-instance protection was replaced in Wave 3.7h with ABSENCE_REMOVAL_GRACE_MS = 2000 (2s absence-based model). No 500ms constant in current live-sync-core.js."
+    },
+    {
+      "line": 566,
+      "claim": "index.html loads 102 <script src> tags with defer",
+      "expected": "102 script tags",
+      "actual": "107 script tags"
+    }
+  ]
+}

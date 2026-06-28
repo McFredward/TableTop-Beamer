@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.asset-manifest.v1",
-  "generatedAt": "2026-06-06T09:41:10.764Z",
+  "generatedAt": "2026-06-28T09:12:12.747Z",
   "hashByPath": {
     "/resources/animations/burst.gif": {
       "hash": "ea0b0774b013",
@@ -61,6 +61,11 @@
       "hash": "3cb6b2b3afd7",
       "size": 64412007,
       "mtime": "2026-05-31T20:05:20.000Z"
+    },
+    "/resources/animations/snowstorm.mp4": {
+      "hash": "67e73d500f63",
+      "size": 5386710,
+      "mtime": "2026-06-06T10:31:21.655Z"
     },
     "/resources/animations/topdown_burst.gif": {
       "hash": "19fe79192087",

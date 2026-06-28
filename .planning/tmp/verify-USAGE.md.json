@@ -1,0 +1,14 @@
+{
+  "doc_path": "docs/USAGE.md",
+  "claims_checked": 12,
+  "claims_passed": 11,
+  "claims_failed": 1,
+  "failures": [
+    {
+      "line": 445,
+      "claim": "resources/ tree shows .reverse-cache/ but omits .proxy-cache/",
+      "expected": "Data layout tree lists both cache directories",
+      "actual": "Only .reverse-cache/ is listed; .proxy-cache/ is absent from the tree. INSTALL.md correctly lists both (lines 221-224)."
+    }
+  ]
+}

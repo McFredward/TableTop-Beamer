@@ -10,6 +10,20 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.70] — 2026-06-28
+
+### Changed
+
+- **Snowstorm rebuilt from scratch as a soft volumetric system — no more recognizable "sticks".** The operator found the stroked-line streaks broke immersion (they read as discrete lines, popped in/out, and could point vertically). The whole streak approach is gone. Every storm flake is now the cached **soft radial bokeh sprite drawn elongated along its wind velocity** — a feathered, gradient-edged motion-blur smear rather than a hard line. Consequences:
+  - **No discernible streaks:** the smears are soft with no crisp edges, so the eye reads a turbulent snow field, not individual lines.
+  - **No pop:** the elongation grows *continuously* from a round soft flake (stretch = 1) with speed — flakes smoothly stretch in gusts and round off in lulls; nothing appears/disappears abruptly.
+  - **Points along the wind:** the smear is aligned to each flake's velocity, and the wind is the gravity-plus-gusting-**horizontal** model (v1.2.x), so the snow blows diagonally with the wind and the slant shifts as it gusts — not vertical falling.
+  - **More atmospheric depth:** a larger fraction of big, soft, out-of-focus foreground bokeh (haze) for immersion.
+- **Fixes the small-flake /output stutter** as a side effect. Small, hard, high-spatial-frequency points were falling below the `/output` video encoder's quantization deadzone, so the encoder left them unchanged for several frames — small flakes "stuck then jumped" while large ones moved fluidly (the dashboard, with no encoder, stayed smooth). Every flake is now a soft, low-frequency blob with a minimum footprint, whose energy lands in low-frequency coefficients the encoder tracks smoothly, so small flakes move fluidly on the stream. Calm flakes also render as soft min-footprint blobs for the same reason.
+- Drawing is entirely cached-sprite blits now (no per-flake fills/strokes/strings); the rotate transform is only paid by flakes that are actually moving (slow flakes take the cheap round blit).
+
+---
+
 ## [1.2.69] — 2026-06-28
 
 ### Fixed
