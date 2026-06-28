@@ -35,6 +35,7 @@ improvements, and a deep round of **projector (/output) smoothness** work.
 
 - A long, decisive round on the **snow /output smoothness**: the projector receives a server-side **WebRTC video** of the SSR-rendered tab, so smoothness is bound by the server encoder. Small high-frequency flakes were being quantized away at high QP (the "stick then jump"); fixes include a minimum soft flake footprint, brighter dim flakes, and the finding that **H.264 is the right codec on this hardware** (software VP9 only sustained ~15 fps at 1080p; H.264 reaches ~30 fps and lower QP). The SSR encoder also logs avg QP / quality-limitation reason for diagnosis.
 - Various stability fixes: a room/loop animation could wedge in "Stopping"; order-independent inside animation layering; a frozen inside animation restarting on an unrelated room edit; editor slider drag-release on first move.
+- **Auto-start animations now survive a server restart.** Ticking "Auto-start animation" in the live editor and pressing **Done** (or **Save as default**) now persists the animation into the board's default set, so it auto-starts on the next server boot — exactly like the other boards. Previously the live-editor path only updated the in-memory default set: Done never wrote it to disk, and Save-as-default saved *before* folding the entry in, so the autostart was lost on restart (the board JSON kept an empty `defaultAnimations`).
 
 ---
 

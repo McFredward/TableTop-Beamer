@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-1.2.24-7c3aed.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-1.3.0-7c3aed.svg)](#project-status)
 
 <br>
 
@@ -79,9 +79,19 @@ at once.
 - 📱 **Mobile-first control UI.** Designed for one-thumb operation during a game.
 - 🪐 **Animation editor.** Built-in coded effects, plus your own GIF / MP4 /
   audio uploads. Per-scope library (Room / Inside / Outside) with drag-and-drop reorder.
+  The same coded-effect catalog is offered in every scope.
   <div align="center">
   <img src="./readme-assets/edit_animations.gif" width="75%" />
   </div>
+- ❄️ **Rich coded effects.** Decode-free, resolution-independent effects that
+  never hitch like a video: **Snow** — with a menacing, gusting **Snowstorm**
+  blizzard mode and density / speed / mean-flake-size controls — plus
+  **City Workers** (lantern-carrying figures, configurable count, size, and
+  stronger-lighting mode), **Heat**, scanners, alarms, hull-flicker, solid
+  colour, and parallax space.
+- 🎚️ **Fade & live editing.** Fade-in / fade-out for any animation, and live
+  editing of a running coded effect's settings straight from the Active
+  Animations list — tweak it on the fly, then keep it as the new default.
 - 🎬 **Per-animation playback modes.** Each GIF or MP4 can be set to loop,
   play-once-disappear, play-then-freeze, or boomerang. Freeze mode supports
   re-trigger to reverse: tap again and the animation plays backward, freezing
@@ -159,7 +169,10 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
   In Settings → System (Server Side Rendering) you can switch the codec
   (H.264 / VP9), pick a content-hint (detail / motion / auto), and step
   the bitrate up to Maximum (30 Mbit) or down to Low (3 Mbit) if you see
-  jitter.
+  jitter. **Keep the codec on H.264 unless your server has a hardware VP9
+  encoder** — software VP9 only sustains ~15 fps at 1080p and makes
+  fast effects (e.g. the Snow blizzard) stutter on `/output/`; H.264
+  reaches the full ~30 fps.
 - **Adaptive video quality** — when multiple play-then-freeze MP4 rooms are
   active simultaneously, the runtime automatically downswitches to 480p proxy
   variants under frame-drop pressure. The toggle is in Settings → System

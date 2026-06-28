@@ -2,7 +2,7 @@
 # TableTop Beamer — Architecture Overview
 
 This document describes the post-Phase-24 module map of TableTop Beamer,
-updated through Phase 58 (v1.2.24).
+updated through Phase 58 (v1.3.0).
 It is a static-codebase reference: how the source tree is organised,
 how modules talk to each other, what the load order is, and what the
 public-API surface looks like.
@@ -21,8 +21,9 @@ For history and per-wave detail, see the Phase 24 closure summary at
 - **IIFE-with-window-globals module pattern.** Each `.js` file wraps
   its body in `(() => { … window.TT_BEAMER_<NAME> = { … }; })()` and
   consumers read other modules via `window.TT_BEAMER_*`.
-- **116 modules** in `src/app/runtime/` + `src/app/lib/`, exposing
-  **100** `window.TT_BEAMER_*` namespaces (one shim removed in W5.3).
+- **118 modules** in `src/app/runtime/` + `src/app/lib/`, exposing
+  **~109** `window.TT_BEAMER_*` namespaces (the locked Phase-24 set of 100
+  plus the Phase-58 additions, e.g. `…ANIMATION_CODED_OPTIONS`).
 - **`runtime-orchestration.js`** is the wire-up centre — it
   destructures every other module's namespace, builds a 95-key context
   bag (the `ctx`), and fans `init({ ctx })` calls out in dependency
@@ -36,7 +37,7 @@ For history and per-wave detail, see the Phase 24 closure summary at
 ```
 src/
 ├── app/
-│   ├── runtime/        # runtime tier — 97 modules
+│   ├── runtime/        # runtime tier — 99 modules
 │   │   ├── runtime-orchestration.js          # the wire-up centre
 │   │   ├── runtime-orchestration-helpers.js  # split out in W3.5
 │   │   ├── runtime-orchestration-ctx-builder.js  # split out in W3.5; 95 keys grouped into 17 areas (W4)
@@ -64,7 +65,7 @@ src/
 └── styles/             # CSS only — design system + theme
 ```
 
-`index.html` carries 107 `<script>` tags, all `defer`. The order in
+`index.html` carries 109 `<script src>` tags, all `defer`. The order in
 `index.html` IS the dependency-load contract.
 
 ---
@@ -157,7 +158,7 @@ distinct namespaces (`TT_BEAMER_BOOT` and `TT_BEAMER_RUNTIME_BOOTSTRAP`).
 | `lib/state/runtime-state.js` | Runtime-state factory — owns `state` (rooms, animations, drafts, selection). |
 | `lib/state/live-sync-state.js` | Live-sync state factory (echo suppression, ack tracking). |
 | `state/runtime-board-profiles.js` | Board-profile sync into `state` via `applyBoardProfilesToState`. |
-| `state/runtime-fx-normalizers.js` | Normalizer functions for FX field values. Carries Phase 58 schema fields: `playbackMode`, `onRetrigger`, `playbackDirection` (default `"forward"`) on every gif/mp4 definition. |
+| `state/runtime-fx-normalizers.js` | Normalizer functions for FX field values. Carries Phase 58 schema fields: `playbackMode`, `onRetrigger`, `playbackDirection` (default `"forward"`) on every gif/mp4 definition; `fadeEnabled` / `fadeDurationMs` on every definition; and the coded-effect option fields (e.g. `snowFlakeSize`, `workerStyle`) flowed through the Phase-50 definition→normalizer→dispatch→instance→snapshot chain. |
 | `state/runtime-play-area-geometry.js` | Play-area polygon geometry + `mergePolygonPrecedence`. |
 | `lib/persistence/board-profiles.js` | Board-profile localStorage persistence. |
 | `lib/shared/normalizers.js` | Cross-cutting value normalizers. |
@@ -197,6 +198,7 @@ Split into 4 sub-modules in W3.3 under the `animation-editor-view.js` shell, plu
 | `ui/animation-editor-edit-pane.js` | Identity / Defaults / Source / Sound cards + create/delete/patch helpers. Hosts the Phase 58 playback-mode dropdown (Loop / Play-once-disappear / Play-then-freeze / Boomerang) and the conditional On-retrigger sub-dropdown. |
 | `ui/animation-editor-edit-pane-asset-picker.js` | Asset / sound picker rows extracted in W3.6. |
 | `ui/animation-editor-live-preview.js` | Live preview swatch + coded preview rAF + GIF preview. Phase 58: preview respects `playbackMode`, `playbackDirection`, and boomerang src-swap; GIF preview honors mode + direction. |
+| `ui/animation-coded-options.js` | Per-coded-effect option rows (namespace `TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS`, exposing `CODED_OPTION_KEYS`). Builds the "Coded Settings" controls for snow (density/speed/mean-size/storm), city-workers (count/size/walk-sway/trails/center-ring + `workerStyle` toggle via `makeToggleRow` `trueValue`/`falseValue`), heat, and break-solid-color. Shared by the edit-pane and the live editor so the same field set persists from definition to running instance. |
 
 ### Projection mapping
 
@@ -246,7 +248,7 @@ orchestration. Several were sub-split in W3.6 to bring them under the
 |--------|------|
 | `render/runtime-draw-loop.js` | The main rAF draw loop (`draw`, `drawAnimation`, `drawOutsideFxLayer`). Phase 58: per-rAF `isRvfcFresh()` gate on all three mp4 paths; frozen instances branch on `playbackPhase` and paint exclusively from fallback canvas; pressure-skipped rooms fold into the fallback-blit gate (never leave region transparent). |
 | `render/runtime-draw-loop-cluster-pads.js` | `drawClusterPadCanvases` extracted in W3.6 to drop draw-loop under 800 lines. |
-| `render/runtime-effect-visuals.js` | Per-effect visual generators (solid color, fire, scanning, alarm, flicker). |
+| `render/runtime-effect-visuals.js` | Per-effect visual generators for every coded effect: solid color, scanning, alarm/intruder, hull-flicker, power-outage, **heat**, **city-workers** (lantern figures, configurable count/size/walk-sway/trails/center-ring + `workerStyle` lit-vs-silhouette), and **snow** (depth-of-field flurry plus a soft volumetric-bokeh **Storm** blizzard; deterministic, allocation-free, with a minimum flake footprint tuned to survive SSR encoder quantization). |
 | `render/runtime-audio.js` | Per-animation sample playback + master gain. |
 | `render/runtime-perf.js` | Mobile / RPi perf controls + frame-cost telemetry. Phase 58 v1.2.19: adaptive video quality controller (`_adaptiveTier`: `"full"` / `"proxy480"`). Downswitches on sustained distress (fps EMA < 20 or pressure ≥ 2 for ≥ 2.5 s with ≥ 2 playing room-mp4 instances); upswitches on sustained health (fps > 28, pressure = 0 for ≥ 10 s, ≤ 1 playing instance). Toggle persisted in localStorage `tt-beamer.adaptive-video-quality.v1`. |
 | `render/runtime-gif-decoder.js` | GIF playback frame decoder. |
@@ -344,9 +346,13 @@ removed without rewriting consumer call sites.
 
 ## Phase 58 subsystems
 
-Phase 58 (v1.2.0 – v1.2.24) shipped per-animation playback modes and
+Phase 58 (v1.2.0 – v1.3.0) shipped per-animation playback modes and
 a cluster of supporting runtime subsystems. This section collects them
-for cross-module reference.
+for cross-module reference. The v1.2.6 → v1.3.0 collection work
+(rolled up into the 1.3.0 release) added the coded-effect catalog,
+fade, live coded editing, and the auto-start persistence fix — see
+[Coded-effect catalog & live editing](#coded-effect-catalog--live-editing-v126--130)
+below.
 
 ### Playback-mode runtime
 
@@ -483,6 +489,50 @@ Two opt-in debug gates remain for deeper investigation:
 and `runtime-outside-mp4.js`) and `window.TT_MP4_DIAG` (per-1000 ms
 mp4 paint summary, also activatable via `?mp4diag=1` URL query param).
 
+### Coded-effect catalog & live editing (v1.2.6 – 1.3.0)
+
+The 1.3.0 collection work extended the coded layer:
+
+- **Unified coded-effect catalog.** `ALL_CODED_EFFECT_TYPES` in
+  `lib/shared/config.js` is the single source of truth; the room / inside /
+  outside pickers all resolve their keys from it (see `runtime-asset-refs.js`),
+  so every coded effect is selectable in every scope and renders against that
+  scope's region. New entries: `heat`, `city-workers`, `snow`.
+- **`snow`** (`runtime-effect-visuals.js`) — a deterministic, allocation-free
+  soft-bokeh snow with a calm depth-of-field flurry and a menacing gusting
+  **Storm** blizzard. Controls: density, speed, `snowFlakeSize` (mean size),
+  and a storm toggle. The minimum drawn flake footprint and the contrast/alpha
+  floor are tuned so small flakes survive the SSR H.264 encoder's spatial
+  quantization (the `/output/` "stick-then-jump" stutter was an encoder-QP
+  artifact, not a render-cost or temporal issue — software VP9 only sustained
+  ~15 fps, H.264 reaches ~30 fps; `CODEC_DEFAULT = "h264"`).
+- **`city-workers`** — lantern-carrying figures with configurable count
+  (≤ 24), size, walk-sway, trail intensity (≤ 300 %, non-compounding on
+  overlap), a movable/toggleable center-exclusion ring, and a `workerStyle`
+  field (`"lit"` vs `"dark"`) surfaced as the **Stronger lighting** toggle.
+- **Per-coded-effect option plumbing** lives in
+  `ui/animation-coded-options.js` (`CODED_OPTION_KEYS`). Each option field
+  flows the Phase-50 chain (definition → `runtime-fx-normalizers` →
+  dispatch sites → `runtime-animation-factory` → instance → snapshot spread →
+  draw loop), so a configured effect renders identically on dashboard, SSR,
+  and `/output/` from the first trigger — not only in the editor preview.
+- **Fade** — `fadeEnabled` / `fadeDurationMs` on every definition; the draw
+  loop ramps opacity in on start and out on stop.
+- **Live coded editing** — `animation/runtime-lifecycle-live-editor.js`
+  edits a running instance's coded options, fade, and transform under a
+  collapsible "Coded Settings" block. Edits preview dashboard-local and
+  commit to all clients on **Done** (run-local) or **Save as default**
+  (persisted to the definition).
+- **Auto-start persistence fix** — the live editor's "Auto-start" checkbox
+  folds the instance into `state.defaultAnimationsByBoard[boardId]`, which
+  `buildBoardProfilesFromState` serializes to `defaultAnimations` in the
+  board JSON via `POST /api/global-defaults`. `closeLiveEditor` now persists
+  when that membership changes (Done previously never POSTed), and
+  `saveLiveEditorAsDefault` saves *after* folding the entry in (it previously
+  saved before, capturing stale defaults) — so an auto-started animation
+  survives a server restart and is re-created by
+  `buildDefaultAnimationsForBoard` on boot.
+
 ---
 
 ## Public API surface (locked through Phase 24)
@@ -563,7 +613,7 @@ verifying the new line still satisfies the constraint they describe.
 
 ## Load order
 
-`index.html` loads 107 `<script src>` tags with `defer`. With every
+`index.html` loads 109 `<script src>` tags with `defer`. With every
 tag deferred, the browser executes them in document order after HTML
 parse — which means HTML line order IS the dependency graph topology.
 

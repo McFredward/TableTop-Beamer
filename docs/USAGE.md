@@ -19,6 +19,7 @@ for the high-level overview see the [README](../README.md).
 - [Rooms, play areas, clusters](#rooms-play-areas-clusters)
 - [Animation editor](#animation-editor)
 - [Playback modes](#playback-modes)
+- [Live editing & auto-start](#live-editing--auto-start)
 - [Built-in animations](#built-in-animations)
 - [Sounds](#sounds)
 - [Custom assets (GIF / MP4 / audio)](#custom-assets-gif--mp4--audio)
@@ -182,7 +183,7 @@ Settings has three subtabs:
 |---|---|
 | **Board** | Rooms, polygons, play areas, clusters, board catalog, zoom, per-board export / import |
 | **Animations** | The full-page animation editor |
-| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings (incl. adaptive video quality) |
+| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings (incl. adaptive video quality), and **Server Side Rendering** stream tuning — codec (H.264 / VP9), content-hint (detail / motion / auto), and bitrate cap. Keep the codec on **H.264** unless the server has a hardware VP9 encoder; software VP9 only sustains ~15 fps at 1080p and stutters fast effects on `/output/`. |
 
 ---
 
@@ -236,6 +237,15 @@ Each animation definition exposes:
 - **Source** — built-in name, or a file under `resources/`
 - **Sound** — event sound that plays on start (per-definition)
 - **Intensity / Speed / Opacity** — per-type tweakable ranges
+- **Fade in / out** — optional fade on start and stop; a duration slider
+  appears when fade is enabled. Applies to any animation type.
+- **Effect-specific controls** *(coded effects)* — each coded effect exposes
+  its own settings under a **Coded Settings** section, e.g.
+  **Snow**: density, speed, mean flake size, and a **Storm** (blizzard)
+  toggle; **City Workers**: count (up to 24), figure size, walk-sway,
+  trail intensity, a movable center-exclusion ring, and a **Stronger
+  lighting** toggle (brighter, lit figures for the beamer vs. dark
+  silhouettes); **Heat**: intensity.
 - **Playback configuration** *(GIF and MP4 only)* — see [Playback modes](#playback-modes) below
 - **Transform defaults** *(Room only)* — rotation, stretch-to-polygon,
   width / height scale, X / Y offset
@@ -320,15 +330,42 @@ The preview in the editor honors the configured mode and direction:
 
 ---
 
+## Live editing & auto-start
+
+Tap any animation in the **Active Animations** list (dashboard) to open the
+**Live Editor** for that running instance. You can adjust its sliders,
+transform, fade, and — for coded effects — its **Coded Settings** in real
+time. While the editor is open the changes preview **dashboard-local** only;
+they apply to every client (`/output/` included) when you commit:
+
+| Button | What it does |
+|---|---|
+| **Done** | Applies the current values to all clients for the rest of this run. Does **not** change the saved definition. |
+| **Save as default** | Writes the current values into the animation's definition, so every future trigger of that animation starts with them. Also applies + closes like Done. |
+
+**Auto-start animation** — tick this checkbox in the Live Editor and press
+**Done** (or **Save as default**) to mark the running animation as a board
+default. Default animations **start automatically on every server boot**.
+The setting is saved per board into `config/boards/<board-id>.json`
+(`defaultAnimations`), so it survives restarts. Untick + Done removes it from
+the auto-start set.
+
+---
+
 ## Built-in animations
 
 A starter library ships with each pre-shipped board (and is available to
-copy into your own boards):
+copy into your own boards). Since v1.3.0 the **coded** effects form a single
+catalog that is selectable in **every** scope (Room / Inside / Outside); the
+"Scope" column below is just where each is most commonly used:
 
 | Name | Engine | Scope |
 |---|---|---|
 | **Outside Space** | Coded (parallax stars) | Outside |
 | **Outside Sandstorm** | MP4 | Outside |
+| **Snow** *(with Storm/blizzard mode)* | Coded | Any |
+| **City Workers** | Coded | Any |
+| **Heat** | Coded | Any |
 | **Hull Flicker** | Coded | Inside / Room |
 | **Intruder Alert** *(used as "Alarm" in rooms)* | Coded | Inside / Room |
 | **Power Outage** | Coded | Inside |
