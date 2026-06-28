@@ -1775,10 +1775,20 @@
           // Base sizes reduced (operator 2026-06-28: flakes too big) then
           // scaled by the mean-size knob; the variance term scales too.
           size = unit * (0.0040 + h3 * (storm ? 0.0070 : 0.0100)) * sizeMul;
-          alphaBase = 0.07 + h2 * 0.13;
+          alphaBase = 0.12 + h2 * 0.15;
         } else {
           size = Math.max(0.6, unit * (0.0009 + sizeHash * (storm ? 0.0034 : 0.0040)) * sizeMul);
-          alphaBase = 0.26 + h2 * 0.56;
+          // Phase 58-w3.9aa — brighter dim flakes. At the encoder's realized
+          // QP (~26 on the operator's OpenH264 path) a flake's motion residual
+          // = contrast × motion × size; the DIMMEST flakes have the smallest
+          // residual, so they're the ones the encoder quantizes — they freeze
+          // just before they fade out / leave (operator 2026-06-28). For the
+          // encoder's SPATIAL quantization (unlike the workers' temporal
+          // grid) contrast DOES help, so the minimum in-focus brightness is
+          // lifted (0.26→0.42) to keep even the dimmest flakes' motion above
+          // the quantizer. Brighter elements also survive additive beamer
+          // projection better. The size floor (minSoftR) covers the size term.
+          alphaBase = 0.42 + h2 * 0.42;
         }
 
         // ---- position ----
@@ -1831,7 +1841,7 @@
 
         // Wind gusts brighten the snow they carry → the field reads denser
         // when a stoß blows through (windSpeedFrac peaks across the layer).
-        const alpha = Math.max(0.05, Math.min(0.96,
+        const alpha = Math.max(0.14, Math.min(0.96,
           alphaBase * overall * intensitySafe * (storm ? (0.78 + windSpeedFrac * 0.42) : 1)));
 
         if (oof) {

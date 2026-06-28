@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.74] — 2026-06-28
+
+### Fixed
+
+- **Dim flakes no longer freeze just before they fade out.** With the operator on H.264 the encoder now runs at QP ≈ 26 / ~30 fps (the framerate + bulk-quantization problem is solved — keep `codecPreference: h264`, since the server has no hardware encoder and software VP9 only sustained ~15 fps). The remaining artifact — *some* flakes appearing to stand still right before they disappear — is the lowest-contrast flakes: a flake's per-frame motion residual is `contrast × motion × size`, and at QP 26 the dimmest flakes' residual is the first to be quantized to zero, so they freeze as they dim. The encoder can't be pushed below QP 26 from the server (it parks there using only ~0.35 of the 16 Mbit/s budget, and `videoGoogleMinBitrate` is a no-op on the Chromium/OpenH264 path), so the fix is render-side: the minimum in-focus flake brightness is raised (and the out-of-focus haze lifted slightly) so even the dimmest flakes keep enough contrast for their motion to survive the quantizer. Unlike the workers' *temporal* pixel-grid stutter (where brightness didn't matter), the encoder's *spatial* quantization does respond to contrast. Brighter flakes also project better through additive beamer blending.
+
+---
+
 ## [1.2.73] — 2026-06-28
 
 ### Diagnostics
