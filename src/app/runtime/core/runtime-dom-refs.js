@@ -218,6 +218,8 @@
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
       // Phase 50 (2026-05-24): codec + content-hint operator levers.
       ssrCodecSelect: document.querySelector("#ssr-codec-select"),
+      // Phase 58 hotfix (2026-06-28): per-board video codec select (Board Setup).
+      boardCodecSelect: document.querySelector("#board-codec-select"),
       ssrContentHintSelect: document.querySelector("#ssr-content-hint-select"),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),

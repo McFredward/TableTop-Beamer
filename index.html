@@ -392,6 +392,20 @@
             Delete
           </button>
         </div>
+        <!-- Phase 58 hotfix (2026-06-28): per-board video codec. Only takes
+             effect when Settings → System → Video codec is "Board-specific".
+             Switching the active board to one with a different codec briefly
+             restarts the render server (/output reconnect). -->
+        <label for="board-codec-select">
+          Video codec (this board)
+          <span class="ssr-info-icon" tabindex="0" role="img"
+                aria-label="Info"
+                title="The codec used for THIS board when Settings → System → Video codec is set to 'Board-specific'. H.264 is software-encoder friendly (smooth on a Pi/CPU-only server); VP9 is sharper at the same bitrate but needs a capable/hardware encoder. Changing it restarts the render server when this is the active board (brief /output reconnect).">ⓘ</span>
+          <select id="board-codec-select">
+            <option value="h264">H.264 (broad compatibility)</option>
+            <option value="vp9">VP9 (sharper, needs a capable encoder)</option>
+          </select>
+        </label>
         <!-- Phase 49 gap-closure-31 (2026-05-18): visibility toggles grouped
              at the top of Board Setup per operator UAT. Moved from
              "Room Editor" + "Play Area" panels. IDs preserved so existing
@@ -861,10 +875,11 @@
           Video codec
           <span class="ssr-info-icon" tabindex="0" role="img"
                 aria-label="Info"
-                title="H.264 is the safest default (Chromium-bundled OpenH264 encoder). VP9 produces visibly cleaner text/edges at the same bitrate (libvpx is ~30-50% more efficient than OpenH264) but uses more CPU on software-only setups: bench shows libvpx ~24 fps vs OpenH264 ~30 fps. A hardware encoder removes the gap.">ⓘ</span>
+                title="Board-specific (default): each board uses its own codec, set under Settings → Board. Force H.264 / Force VP9: override every board with one codec. H.264 is the safest (Chromium-bundled OpenH264); VP9 is sharper at the same bitrate (~30-50% more efficient) but costs more CPU on software-only setups (~24 fps vs ~30 fps) — a hardware encoder removes the gap. Changing this restarts the render server (brief /output reconnect).">ⓘ</span>
           <select id="ssr-codec-select">
-            <option value="h264">H.264 (broad compatibility)</option>
-            <option value="vp9">VP9 (sharper at same bitrate, modern decoders)</option>
+            <option value="board">Board-specific (default)</option>
+            <option value="h264">Force H.264 (all boards)</option>
+            <option value="vp9">Force VP9 (all boards)</option>
           </select>
         </label>
 

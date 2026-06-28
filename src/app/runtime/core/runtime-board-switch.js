@@ -329,6 +329,15 @@
     ctx.syncRoomFxPanel();
     ctx.syncInsideFxPanel();
     ctx.syncOutsideFxPanel();
+    // Phase 58 hotfix (2026-06-28): reflect this board's per-board video
+    // codec in the Board Setup select (re-synced on every snapshot apply so
+    // a change from another client is mirrored).
+    if (ctx.boardCodecSelect) {
+      const vc = ctx.state.videoCodecByBoard?.[board.id];
+      ctx.boardCodecSelect.value = (vc === "h264" || vc === "vp9")
+        ? vc
+        : (window.TT_BEAMER_CONFIG?.defaultVideoCodecForBoard?.(board.id) ?? "vp9");
+    }
     ctx.syncOutsideRuntimeMirror(board.id);
     ctx.syncBoardZoomPanel();
     ctx.setPanCursorState();

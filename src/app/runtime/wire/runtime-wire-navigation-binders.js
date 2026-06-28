@@ -55,6 +55,26 @@
       });
     });
 
+    // Phase 58 hotfix (2026-06-28): per-board video codec select. Persists
+    // the choice into the board profile (videoCodec) and saves; the server
+    // restarts the SSR host if this is the active board and its effective
+    // codec changed (board-specific mode). Reflected on board switch by
+    // switchBoard.
+    if (ctx.boardCodecSelect) {
+      ctx.boardCodecSelect.addEventListener("change", () => {
+        const next = ctx.boardCodecSelect.value;
+        if (next !== "h264" && next !== "vp9") return;
+        if (!state.videoCodecByBoard) state.videoCodecByBoard = {};
+        state.videoCodecByBoard[state.boardId] = next;
+        if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
+          void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+        }
+        if (triggerFeedback) {
+          triggerFeedback.textContent = `Status: video codec for this board set to ${next.toUpperCase()}`;
+        }
+      });
+    }
+
     boardImportButton?.addEventListener("click", async () => {
       const jsonFile = boardImportFileInput?.files?.[0] ?? null;
       const imageFile = boardImportImageInput?.files?.[0] ?? null;

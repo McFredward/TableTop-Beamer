@@ -10,6 +10,20 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.3.1] — 2026-06-28
+
+### Added
+
+- **Per-board video codec.** Each board now has its own codec (Settings → Board → "Video codec (this board)"). Defaults: all Nemesis boards (and newly imported boards) → **VP9**; Frostpunk → **H.264**.
+- **Global codec mode** (Settings → System → "Video codec"): **Board-specific** (default — each board uses its own codec), or **Force H.264 / Force VP9** to override every board at once.
+- The active board now persists across server restarts (`config/active-board.json`).
+
+### Changed
+
+- Switching to a board whose codec differs from the running one automatically restarts the render server so the right codec applies (brief `/output` "Reconnecting"; only when the codec actually changes). Editing a board's codec, or the global mode, does the same.
+
+---
+
 ## [1.3.0] — 2026-06-28
 
 Release milestone rolling up the Phase 58 collection work (v1.2.6 → v1.2.76).

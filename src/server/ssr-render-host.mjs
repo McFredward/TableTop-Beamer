@@ -294,6 +294,7 @@ import {
   ENCODER_PRIORITY,
 } from "./server-encoder-detect.mjs";
 import { injectInPagePublisher } from "./ssr-stream-publisher.mjs";
+import { resolveEffectiveCodec } from "./ssr-server-rendering-config.mjs";
 
 // ---------------------------------------------------------------------
 // Stream-quality preset → concrete bitrate / fps / keyframe-interval map.
@@ -367,6 +368,17 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (err && err.code !== "ENOENT") {
       logger.warn(`[ssr-host] could not parse config: ${err.message}`);
     }
+  }
+
+  // Phase 58 hotfix (2026-06-28): the effective codec is no longer just
+  // serverRendering.codecPreference — it depends on the global codec MODE
+  // and, in "board" mode, the active board's per-board codec. Resolve it
+  // here so a host self-restart (crash recovery) also picks up the right
+  // codec for whatever board is currently active (active-board.json).
+  try {
+    userCodecPreference = await resolveEffectiveCodec({ rootDir });
+  } catch (err) {
+    logger.warn(`[ssr-host] effective-codec resolve failed, using ${userCodecPreference}: ${err?.message || err}`);
   }
 
   // Phase 32 D-A3: effectiveStreamFpsCap. 0 = native (no cap) → 60 actual constraint.

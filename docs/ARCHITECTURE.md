@@ -2,7 +2,7 @@
 # TableTop Beamer — Architecture Overview
 
 This document describes the post-Phase-24 module map of TableTop Beamer,
-updated through Phase 58 (v1.3.0).
+updated through Phase 58 (v1.3.1).
 It is a static-codebase reference: how the source tree is organised,
 how modules talk to each other, what the load order is, and what the
 public-API surface looks like.
@@ -409,6 +409,29 @@ The `/api/animation-reverse` optional `height` param (v1.2.19) allows
 the adaptive quality controller to request a combined reverse +
 downscale in one ffmpeg pass, keeping boomerang and reverse-on-retrigger
 seamless at the proxy tier.
+
+### Per-board video codec (v1.3.1)
+
+The SSR encoder codec is per-board. `ssr-server-rendering-config.mjs` is the
+single source of truth: `resolveEffectiveCodec({rootDir})` reads the global
+codec **mode** (`serverRendering.codecMode` ∈ `board` | `h264` | `vp9`,
+default `board`) and, in board mode, the active board's `videoCodec` (from
+`config/boards/<id>.json`), falling back to `defaultCodecForBoard(boardId)`
+(Frostpunk → `h264`, all others → `vp9`). It is consumed by both the SSR
+host's `resolveEncoderConfig` (so crash self-restarts pick the right codec)
+and `server.mjs`.
+
+Because the codec is baked into the in-page WebRTC publisher at stream start,
+changing it requires a full SSR host restart. `server.mjs` writes the active
+board to `config/active-board.json` (also persisting board selection across
+restarts) and calls `maybeRestartSsrForCodec(reason)` on board switch
+(`context-update`), per-board codec edit (`/api/global-defaults` save), and
+the global-mode change (`serverRendering-update`; `codecMode` is in
+`restartKeys`). The restart fires **only when the effective codec actually
+differs** from the running one. Per-board state flows through the standard
+board-profile chain (`videoCodecByBoard` ↔ `BOARD_PROFILE_FIELDS.videoCodec`);
+the client mirror of the default lives in `lib/shared/config.js`
+(`defaultVideoCodecForBoard`).
 
 ### Adaptive quality controller (`runtime-perf.js`)
 

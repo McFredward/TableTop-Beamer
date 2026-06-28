@@ -50,6 +50,23 @@ export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
 export const CODEC_VALUES = ["h264", "vp9"];
 export const CODEC_DEFAULT = "h264"; // broad compatibility on Pi-side decoders
 
+// Phase 58 hotfix (2026-06-28): per-board codec. The System "Video codec"
+// control is now a 3-way MODE, not a single codec:
+//   "board" → each board uses its own codec (config/boards/<id>.json.videoCodec)
+//   "h264" / "vp9" → force that codec for ALL boards (global override)
+// Default mode is "board" so per-board defaults (below) take effect.
+export const CODEC_MODE_VALUES = ["board", "h264", "vp9"];
+export const CODEC_MODE_DEFAULT = "board";
+
+// Per-board default codec when a board carries no explicit `videoCodec`.
+// Operator spec (2026-06-28): Frostpunk → H.264 (smooth on software-only
+// encoders); every other board (Nemesis * and newly imported boards) → VP9
+// (sharper at the same bitrate where the encoder can keep up). MUST stay in
+// lockstep with the client mirror in lib/shared/config.js.
+export function defaultCodecForBoard(boardId) {
+  return boardId === "frostpunk" ? "h264" : "vp9";
+}
+
 export const CONTENT_HINT_VALUES = ["default", "detail", "motion", "text"];
 export const CONTENT_HINT_DEFAULT = "detail"; // board content has fine detail
 
@@ -60,6 +77,7 @@ const KNOWN_KEYS = new Set([
   "fpsTarget",
   "streamFpsCap",
   "codecPreference",
+  "codecMode",
   "contentHint",
 ]);
 
@@ -88,6 +106,7 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
     fpsTarget: 30,
     streamFpsCap: STREAM_FPS_CAP_DEFAULT,
     codecPreference: CODEC_DEFAULT,
+    codecMode: CODEC_MODE_DEFAULT,
     contentHint: CONTENT_HINT_DEFAULT,
   };
 }
@@ -145,6 +164,10 @@ export function validateServerRenderingPatch(patch) {
   if ("codecPreference" in patch) {
     if (typeof patch.codecPreference !== "string") return { valid: false, reason: "codecPreference-wrong-type" };
     if (!CODEC_VALUES.includes(patch.codecPreference)) return { valid: false, reason: "codecPreference-not-in-enum" };
+  }
+  if ("codecMode" in patch) {
+    if (typeof patch.codecMode !== "string") return { valid: false, reason: "codecMode-wrong-type" };
+    if (!CODEC_MODE_VALUES.includes(patch.codecMode)) return { valid: false, reason: "codecMode-not-in-enum" };
   }
   if ("contentHint" in patch) {
     if (typeof patch.contentHint !== "string") return { valid: false, reason: "contentHint-wrong-type" };
@@ -213,12 +236,64 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
       streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,
       codecPreference: typeof sr.codecPreference === "string" && CODEC_VALUES.includes(sr.codecPreference) ? sr.codecPreference : defaults.codecPreference,
+      codecMode: typeof sr.codecMode === "string" && CODEC_MODE_VALUES.includes(sr.codecMode) ? sr.codecMode : defaults.codecMode,
       contentHint: typeof sr.contentHint === "string" && CONTENT_HINT_VALUES.includes(sr.contentHint) ? sr.contentHint : defaults.contentHint,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") return defaults;
     throw err;
   }
+}
+
+// ── Per-board codec resolution (Phase 58 hotfix, 2026-06-28) ──
+// Single source of truth for the EFFECTIVE codec, used by both the SSR host
+// (resolveEncoderConfig) and server.mjs (board-switch restart decision).
+
+const BOARD_ID_SAFE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+async function readActiveBoardIdForCodec(rootDir) {
+  try {
+    const raw = await readFile(path.join(rootDir, "config", "active-board.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.boardId === "string" && BOARD_ID_SAFE.test(parsed.boardId)) {
+      return parsed.boardId;
+    }
+  } catch { /* missing / unreadable → null */ }
+  return null;
+}
+
+async function readBoardVideoCodec(rootDir, boardId) {
+  if (!boardId || !BOARD_ID_SAFE.test(boardId)) return null;
+  try {
+    const raw = await readFile(path.join(rootDir, "config", "boards", `${boardId}.json`), "utf8");
+    const parsed = JSON.parse(raw);
+    const inner = parsed && typeof parsed === "object" ? (parsed.board ?? parsed) : null;
+    const vc = inner?.videoCodec;
+    if (typeof vc === "string" && CODEC_VALUES.includes(vc)) return vc;
+  } catch { /* missing / unreadable → null */ }
+  return null;
+}
+
+/**
+ * Resolve the effective SSR codec, honoring the global codec MODE and (in
+ * "board" mode) the active board's per-board codec, falling back to the
+ * per-board default and finally CODEC_DEFAULT.
+ *
+ * @param {{rootDir?: string}} [opts]
+ * @returns {Promise<"h264"|"vp9">}
+ */
+export async function resolveEffectiveCodec({ rootDir = process.cwd() } = {}) {
+  let codecMode = CODEC_MODE_DEFAULT;
+  try {
+    const raw = await readFile(path.join(rootDir, "config", "global-defaults.json"), "utf8");
+    const sr = JSON.parse(raw)?.serverRendering;
+    if (sr && typeof sr.codecMode === "string" && CODEC_MODE_VALUES.includes(sr.codecMode)) {
+      codecMode = sr.codecMode;
+    }
+  } catch { /* missing → board mode default */ }
+  if (codecMode === "h264" || codecMode === "vp9") return codecMode;
+  const boardId = await readActiveBoardIdForCodec(rootDir);
+  return (await readBoardVideoCodec(rootDir, boardId)) || defaultCodecForBoard(boardId) || CODEC_DEFAULT;
 }
 
 /**

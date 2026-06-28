@@ -244,7 +244,16 @@
   // `package.json` — both must stay in lockstep or the topbar chip
   // drifts from the actual build (surfaced via the small chip in the
   // topbar, index.html #app-version + inline script).
-  const APP_VERSION = "1.3.0";
+  const APP_VERSION = "1.3.1";
+
+  // Phase 58 hotfix (2026-06-28): per-board video codec. Mirror of the
+  // server's defaultCodecForBoard (ssr-server-rendering-config.mjs) — used
+  // to seed the Board-settings codec select for boards with no explicit
+  // `videoCodec` yet. Frostpunk → H.264; every other board → VP9. MUST stay
+  // in lockstep with the server.
+  function defaultVideoCodecForBoard(boardId) {
+    return boardId === "frostpunk" ? "h264" : "vp9";
+  }
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,
@@ -279,5 +288,6 @@
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
     APP_VERSION,
+    defaultVideoCodecForBoard,
   };
 })();

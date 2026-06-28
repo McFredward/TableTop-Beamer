@@ -183,7 +183,7 @@ Settings has three subtabs:
 |---|---|
 | **Board** | Rooms, polygons, play areas, clusters, board catalog, zoom, per-board export / import |
 | **Animations** | The full-page animation editor |
-| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings (incl. adaptive video quality), and **Server Side Rendering** stream tuning — codec (H.264 / VP9), content-hint (detail / motion / auto), and bitrate cap. Keep the codec on **H.264** unless the server has a hardware VP9 encoder; software VP9 only sustains ~15 fps at 1080p and stutters fast effects on `/output/`. |
+| **System** | Global animation-speed multiplier, audio enable + master volume, performance settings (incl. adaptive video quality), and **Server Side Rendering** stream tuning — **Video codec** mode (Board-specific / Force H.264 / Force VP9), content-hint (detail / motion / auto), and bitrate cap. In **Board-specific** mode each board uses its own codec (set under Settings → Board); use **Force H.264** if your server has no hardware VP9 encoder (software VP9 only sustains ~15 fps at 1080p and stutters fast effects on `/output/`). |
 
 ---
 
@@ -433,6 +433,10 @@ boards. Each board has its own:
 - Sound assignments
 - Align-mode calibration profiles
 - Default-animation set (auto-started on server boot)
+- **Video codec** (H.264 / VP9), used when the global codec mode (Settings →
+  System) is "Board-specific". Defaults: Nemesis boards → VP9, Frostpunk →
+  H.264, newly imported boards → VP9. Changing the active board's codec
+  briefly restarts the render server.
 
 **Importing** a new board:
 

@@ -30,6 +30,7 @@ import {
   readFullConfig as readServerRenderingFullConfig,
   scheduleServerRenderingWrite,
   SERVER_RENDERING_DEFAULTS,
+  resolveEffectiveCodec,
 } from "./src/server/ssr-server-rendering-config.mjs";
 // Phase-31 h15: hardware-agnostic resource header helper (Connection: close
 // for /resources/animations/* etc.) — see module header for rationale.
@@ -103,7 +104,71 @@ const BOARD_PROFILE_FIELDS = Object.freeze([
   // projection profile. Read+written via the existing extract/persist
   // iterators below — no other server.mjs change is required.
   "lastUsedProfileName",
+  // Phase 58 hotfix (2026-06-28): per-board video codec ("h264" | "vp9").
+  // The effective codec used by the SSR encoder is this value when the
+  // global codec MODE is "board" (see resolveEffectiveCodec).
+  "videoCodec",
 ]);
+
+// ── Per-board video codec (Phase 58 hotfix, 2026-06-28) ──
+// The SSR encoder's codec is baked into the in-page WebRTC publisher at
+// stream start — there is no live codec swap — so changing it requires a
+// full SSR host restart. The effective codec depends on the global codec
+// MODE and (in "board" mode) the active board's per-board codec. We persist
+// the active board to config/active-board.json (which resolveEffectiveCodec
+// reads, and which doubles as board-selection persistence across restarts),
+// then re-evaluate the effective codec and restart the host ONLY when it
+// actually changed — so a board switch with the same codec causes no
+// /output reconnect.
+const ACTIVE_BOARD_JSON_PATH = path.join(ROOT_DIR, "config", "active-board.json");
+
+async function persistActiveBoardId(boardId) {
+  if (!boardId || typeof boardId !== "string") return;
+  try {
+    await writeFile(ACTIVE_BOARD_JSON_PATH, `${JSON.stringify({ boardId }, null, 2)}\n`, "utf8");
+  } catch (err) {
+    console.warn("[active-board] persist failed:", err?.message || err);
+  }
+}
+
+function bootSsrHostWithStandardWiring() {
+  // Mirrors the boot options used at server start + serverRendering-update.
+  return bootSsrRenderHost({
+    port: PORT,
+    autoStart: true,
+    onHostDown: () => {
+      try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
+        console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
+      }
+    },
+    getPublisherWsAgeMs: () => {
+      try { return signalingState?.getPublisherWsAgeMs?.() ?? -1; }
+      catch { return -1; }
+    },
+  });
+}
+
+async function maybeRestartSsrForCodec(reason) {
+  try {
+    const next = await resolveEffectiveCodec({ rootDir: ROOT_DIR });
+    const host = getActiveSsrRenderHost?.();
+    const current = host?.getStatus?.()?.encoderConfig?.codecPreference ?? null;
+    // Skip when the host hasn't resolved a codec yet (cold boot already used
+    // the right codec) or when nothing changed — no spurious reconnects.
+    if (!next || !current || current === next) return;
+    console.log(`[codec] effective codec ${current} → ${next} (${reason}); restarting SSR render host…`);
+    try { await shutdownSsrRenderHost(); } catch (err) {
+      console.warn("[codec] shutdown error:", err?.message || err);
+    }
+    const ssrHost = bootSsrHostWithStandardWiring();
+    setActiveSsrRenderHost(ssrHost);
+    try { await globalThis.__ttbRefreshServerInfo?.(ssrHost); } catch (err) {
+      console.warn("[codec] serverInfo refresh failed:", err?.message || err);
+    }
+  } catch (err) {
+    console.warn(`[codec] restart check failed (${reason}):`, err?.message || err);
+  }
+}
 
 function extractProfileFromUnifiedBoard(board) {
   if (!board || typeof board !== "object") return {};
@@ -1391,7 +1456,18 @@ function applyLiveMutation({
   } else if (mutationType === "trigger-global") {
     nextSnapshotPatch = applyGlobalMutationPatch(payload);
   } else if (mutationType === "context-update") {
+    const prevBoardForCodec = liveSessionState.snapshot?.selectedBoard ?? null;
     nextSnapshotPatch = applyContextUpdatePatch(payload);
+    const nextBoardForCodec = nextSnapshotPatch?.selectedBoard ?? null;
+    // Phase 58 hotfix: on a real board switch, persist the active board
+    // (also makes selection survive a restart) THEN re-evaluate the codec
+    // so resolveEffectiveCodec reads the new board; restart SSR only if the
+    // effective codec actually changed.
+    if (nextBoardForCodec && nextBoardForCodec !== prevBoardForCodec) {
+      void persistActiveBoardId(nextBoardForCodec)
+        .then(() => maybeRestartSsrForCodec("board-switch"))
+        .catch(() => {});
+    }
   } else if (
     mutationType === "trigger-room" ||
     mutationType === "edit-room" ||
@@ -1516,7 +1592,7 @@ function applyLiveMutation({
         // the new key at SSR launch; without it in restartKeys, slider
         // changes persisted to global-defaults.json but the running SSR
         // tab kept the old bitrate.
-        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap", "codecPreference", "contentHint"];
+        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap", "codecPreference", "codecMode", "contentHint"];
         const needsRestart =
           payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));
@@ -3958,6 +4034,12 @@ async function handleGlobalDefaultsSave(req, res) {
     }
   }
 
+  // Phase 58 hotfix: a per-board codec edit (Board settings) lands here via
+  // the board profile's `videoCodec`. In "board" codec mode this may change
+  // the active board's effective codec → restart SSR if so (idempotent: only
+  // restarts when the codec actually differs from the running one).
+  void maybeRestartSsrForCodec("board-profile-save");
+
   const incomingDiagnosticOverlay = typeof parsed.diagnosticOverlay === "boolean" ? parsed.diagnosticOverlay : null;
   const existingDiagnosticOverlay = typeof existing?.diagnosticOverlay === "boolean" ? existing.diagnosticOverlay : null;
   const diagnosticOverlay = incomingDiagnosticOverlay ?? existingDiagnosticOverlay ?? false;
@@ -5441,6 +5523,22 @@ try {
   }
 
   if (activeBoardId) {
+    // Phase 58 hotfix: persist the active board for codec resolution +
+    // selection persistence, and (one-time) re-sync the SSR codec — the
+    // host booted before the active board was known, so on a fresh install
+    // (no active-board.json yet) its cold-boot codec guess may be wrong.
+    void persistActiveBoardId(activeBoardId)
+      .then(() => {
+        // Wait until the freshly-booted host has resolved its codec, then
+        // re-sync once (active-board.json is now written, so resolveEffective-
+        // Codec reads the right board). No-op unless the cold-boot guess was
+        // wrong (e.g. fresh install with no active-board.json yet).
+        const refreshServerInfo = globalThis.__ttbRefreshServerInfo;
+        return typeof refreshServerInfo === "function"
+          ? refreshServerInfo().then(() => maybeRestartSsrForCodec("boot"))
+          : undefined;
+      })
+      .catch(() => {});
     const boardDefaults = buildDefaultAnimationsForBoard(activeBoardId);
     if (boardDefaults.length > 0) {
       if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};

@@ -123,8 +123,16 @@
         }
       }
       // Phase 50 (2026-05-24): codec + content-hint reflectance.
-      if (typeof serverRendering.codecPreference === "string" && refs.ssrCodecSelect) {
-        refs.ssrCodecSelect.value = serverRendering.codecPreference;
+      // Phase 58 hotfix (2026-06-28): the codec select is now a 3-way MODE
+      // (board / h264 / vp9) driven by serverRendering.codecMode. Fall back
+      // to "board" for legacy configs that only carry codecPreference.
+      if (refs.ssrCodecSelect) {
+        const mode = (serverRendering.codecMode === "h264"
+          || serverRendering.codecMode === "vp9"
+          || serverRendering.codecMode === "board")
+          ? serverRendering.codecMode
+          : "board";
+        refs.ssrCodecSelect.value = mode;
       }
       if (typeof serverRendering.contentHint === "string" && refs.ssrContentHintSelect) {
         refs.ssrContentHintSelect.value = serverRendering.contentHint;
@@ -204,8 +212,11 @@
     // includes codecPreference + contentHint).
     if (refs.ssrCodecSelect) {
       refs.ssrCodecSelect.addEventListener("change", (e) => {
+        // Phase 58 hotfix: the select now drives the codec MODE (board /
+        // h264 / vp9). codecMode is in server.mjs's restartKeys, so this
+        // restarts the SSR host to apply the effective codec.
         sendPatch(
-          { codecPreference: e.target.value },
+          { codecMode: e.target.value },
           "Restarting render server (codec change)…",
         );
       });
