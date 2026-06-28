@@ -12,7 +12,6 @@
       state,
       triggerFeedback,
       globalDefaultsStatus,
-      dashboardGlobalLoopUntilStopInput,
       dashboardGlobalPlaySoundInput,
       dashboardTransformOptions,
       dashboardRotationDegInput,
@@ -116,16 +115,12 @@
       pushUndoState,
     } = ctx;
 
-    dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
-      const modeLabel = dashboardGlobalLoopUntilStopInput.checked ? "loop until stop" : "one-shot";
-      const soundLabel = dashboardGlobalPlaySoundInput?.checked ? "with sound" : "muted";
-      triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
-    });
-
+    // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
+    // stopped" switch was removed (looping is driven by the animation's
+    // own playbackMode). Only the Play-sound toggle remains.
     dashboardGlobalPlaySoundInput?.addEventListener("change", () => {
-      const modeLabel = dashboardGlobalLoopUntilStopInput?.checked ? "loop until stop" : "one-shot";
       const soundLabel = dashboardGlobalPlaySoundInput.checked ? "with sound" : "muted";
-      triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
+      triggerFeedback.textContent = `Status: global trigger sound ${soundLabel}`;
     });
 
     stopAllButton.addEventListener("click", () => {
@@ -224,12 +219,28 @@
     }
 
     roomAnimationSelect.addEventListener("change", () => {
-      const selected = roomAnimationSelect.value;
+      // Phase 58 Wave 3.7q: when the select's value is EMPTY, fall back
+      // to the current draft id. Assigning select.value an id with no
+      // matching <option> yields "" (HTML spec) — that happened when the
+      // quick-pill picker selected an animation created in the editor
+      // while the dropdown options were still stale, and the ""-path
+      // below then "validated" the selection back to animations[0],
+      // silently overwriting the pill's draft assignment. The draft id
+      // is the selection source of truth at that moment.
+      const rawSelectValue = roomAnimationSelect.value;
+      const selected = rawSelectValue || state.roomDraft.animationId;
       const roomFx = getRoomFxProfile(state.boardId);
       state.roomDraft.animationId = roomFx.animations.some((entry) => entry.id === selected)
         ? selected
         : roomFx.animations[0]?.id ?? "kaputt";
       roomAnimationSelect.value = state.roomDraft.animationId;
+      // PERMANENT [58] diagnostic (user-action frequency): makes a
+      // selection that lands on a different id than the raw select
+      // value explainable from console output.
+      console.warn("[58] select", JSON.stringify({
+        raw: rawSelectValue,
+        resolved: state.roomDraft.animationId,
+      }));
       const selectedDefinition = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
       if (normalizeRoomAssetType(selectedDefinition?.assetType) === "gif") {
         warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });
@@ -572,6 +583,30 @@
     diagnosticOverlayToggle?.addEventListener("change", () => {
       setDiagnosticOverlay(diagnosticOverlayToggle.checked);
     });
+
+    // Phase 58 Wave 3.7n — adaptive video quality toggle. Per-client
+    // persisted flag (localStorage key tt-beamer.adaptive-video-
+    // quality.v1, default ON). Queried directly from the DOM (same
+    // pattern as the apply/discard global-config buttons above); the
+    // controller itself lives in TT_BEAMER_RUNTIME_PERF.
+    (function wireAdaptiveVideoQualityToggle() {
+      const toggle = document.getElementById("adaptive-video-quality-toggle");
+      if (!toggle) return;
+      const statusLine = document.getElementById("adaptive-video-quality-status");
+      const perfApi = window.TT_BEAMER_RUNTIME_PERF;
+      const reflect = () => {
+        const enabled = perfApi?.isAdaptiveVideoQualityEnabled?.() !== false;
+        toggle.checked = enabled;
+        if (statusLine) {
+          statusLine.textContent = `Adaptive Video-Qualität: ${enabled ? "an (480p bei Framedrops)" : "aus (immer volle Auflösung)"}`;
+        }
+      };
+      reflect();
+      toggle.addEventListener("change", () => {
+        perfApi?.setAdaptiveVideoQualityEnabled?.(toggle.checked);
+        reflect();
+      });
+    })();
 
     // Phase 31 Plan 05 (publishability) — wire the System & Performance
     // subtab Server-side Rendering section to live-sync. Initialised once

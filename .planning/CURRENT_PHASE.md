@@ -1,24 +1,70 @@
 # CURRENT PHASE
 
-- Active: Phase 34 — SSR Render-Quality + /output/ Thin-Consumer Refactor
-  PLANNING (context captured 2026-05-10). Two tracks bundled: (A) GL→2D
-  fallback fix in the SSR-tab (banding in solid colors) + (B) /output/
-  thin-consumer refactor with separate HTML entry point and new `/ssr`
-  route for the SSR Chromium tab. See 34-CONTEXT.md for full decisions.
-- Status: 34-CONTEXT.md complete. Locked decisions: probe + GL-force in
-  parallel (D-01); SSR-tab forbids 2D-fallback (D-02, /ssr-route only —
-  Phase 30 B2 h10 stays for dashboard + Pi /output/); separate HTML entry
-  point (D-03); server-side path split /output/ (thin) vs new /ssr (full
-  app) (D-04); render-mode probe + manual visual smoketest on gaming-PC
-  (D-05); connection-stability regression hard gate (D-06). Pi-hardware
-  visual UAT deferred. Next: /gsd-plan-phase 34.
-- Previous Phase: Phase 33 (Connection Stability Deep Dive)
-  CLOSED-PASS-WITH-LIVE-FIX on 2026-05-09. Root cause was VAAPI hardware
-  encoder starving the SSR-tab's main thread (Phase 32 introduced VAAPI
-  auto-pick); fixed by default-disabling VAAPI (commit 3cd6748). User
-  confirmed stable connection on 2026-05-09. See 33-CLOSURE.md for full
-  root-cause analysis + iter-cycle history.
-- App version: `0.33.0-delivered-to-uat`
+- Active: **none.** Phase 58 closed PARTIAL 2026-06-04 at v1.2.0
+  (Wave 1 schema/UI + Wave 2 runtime state machine for non-reverse
+  modes). Wave 3 (reverse playback for boomerang + reverse-on-
+  retrigger) + Wave 4 (dashboard per-trigger override) carry forward
+  to Phase 59.
+
+- App version: `1.2.0` (CHANGELOG.md, package.json, src/app/lib/shared/config.js)
+  Wave 1+2 ships a new operator-visible feature (per-animation playback
+  mode) so the bump is MINOR. 3 of 6 modes are functional end-to-end
+  (loop, play-once-disappear, play-then-freeze+instant-disappear);
+  the other 3 (boomerang + reverse-on-retrigger sub-options) are
+  selectable in the UI and persist correctly but fall back to loop /
+  instant-disappear at runtime until Phase 59 lands.
+
+- Previous Phase (CLOSED PARTIAL): **Phase 58 — Per-animation playback modes**
+  Released v1.2.0 on 2026-06-04. Schema + editor UI + non-reverse
+  runtime state machine. Boomerang + reverse-then-X deferred to
+  Phase 59. See CHANGELOG.md [1.2.0] for full feature list and
+  deferred-work notes.
+
+- Pre-Phase-58: **Phase 57 — SSR mp4 playback quality / smoothness**
+  CLOSED PASS 2026-06-02. Four iterations shipped: v1.1.4 (tier-gating),
+  v1.1.5 (rVFC paint gate + diagnostic infra), v1.1.6 (ANGLE Vulkan
+  backend — root-cause fix), v1.1.7 (overlay strobo + inside/room
+  layering). See CHANGELOG.md `[1.1.7]` and ROADMAP.md Phase 57 for
+  closure detail. Operator confirmed smooth playback + order-independent
+  layering at close.
+
+- Pre-Phase-57: **Phase 50 — Post-launch Sammelphase**
+  CLOSED at v1.1.0 release on 2026-05-25 (commit `64ade85`). Rolled up
+  31 PATCH releases (1.0.1 → 1.0.31): aspect-ratio support for any
+  board, VP9 codec option, content-hint dropdown, bitrate preset radio,
+  animation editor UX polish, mobile cold-start fixes, all-English UI
+  strings, `/output/` overlay stability. See CHANGELOG.md `[1.1.0]` for
+  full feature list.
+
+  - **Post-closure hotfixes:**
+    - **v1.1.1** (commit `89bbb92`, 2026-05-25) — Win32 SSR stream
+      regressed to 1-2 fps when outside-space active. Empirically
+      bisected to `f6383b2` (Phase 50 v1.0.31 starfield batch
+      optimization). Reverted the batching; introduced
+      `SSR_PUBLISHER_DEBUG=1` env var for future Win32 capture-pipeline
+      diagnostics.
+    - **v1.1.3** (commit `7de162b`, 2026-05-25) — Align-mode handles +
+      grid lines persisted on `/output/` after align-OFF → board-switch.
+      Empirically reproduced via Playwright on Linux; root cause:
+      `_applyAlignGridSnapshot()` rebuilt handle DOM unconditionally on
+      WS grid-snapshot. Gated on `getHandlesVisible() === true`. v1.1.2's
+      defensive `#room-overlay` scrub kept as belt-and-suspenders.
+
+- **Previous closures (pre-v1.1.0):**
+  - Phase 49 — Release-prep small-fixes Sammelphase (rolled into v1.0.0
+    on 2026-05-19, then continued as the live v1.0.x patch line until
+    Phase 50 cut)
+  - Phase 48 — Align-mode exit dashboard hiccup smoothing
+  - Phase 47 — Windows SSR Chrome launch (headless=new flip, off-screen
+    iter15 baseline, full Win32 gap-closure run)
+  - Phase 46 — v1.0.0 release prep
+  - Phase 38 — Connection-stability iteration (recv-anchor + grid-snapshot
+    machinery in `output-live-sync.js` that v1.1.3 had to gate)
+  - Phase 33 — VAAPI default-disable (commit `3cd6748`) — last entry
+    documented in this file before this cleanup. Tag pending
+    `phase-33-delivered-to-uat`.
+
+Phase summaries from before Phase 33 remain referenced below for archival:
 
 Phase 33 closure: `.planning/phases/phase-33/33-SUMMARY.md` (tag pending `phase-33-delivered-to-uat`)
 Phase 32 closure: `.planning/phases/phase-32/32-CLOSURE-ADDENDUM.md` + `32-SUMMARY.md` (status FAILED-AT-MANUAL-UAT, superseded by phase-33)

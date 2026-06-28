@@ -1,0 +1,1935 @@
+{
+  "schema": "tt-beamer.board-import.v1",
+  "importedAt": "2026-05-21T21:17:20.426Z",
+  "board": {
+    "schema": "tt-beamer.board.v2",
+    "boardId": "frostpunk",
+    "metadata": {
+      "name": "Frostpunk",
+      "imageSrc": "/config/boards/assets/frostpunk-mpfzrpgp.png",
+      "source": "catalog-image"
+    },
+    "roomCatalog": [
+      {
+        "id": "room-1",
+        "name": "InnerTile",
+        "polygon": [
+          [
+            0.44700003183912956,
+            0.3083695656901812
+          ],
+          [
+            0.4979332652658483,
+            0.3413605168414616
+          ],
+          [
+            0.5511639442473646,
+            0.3079134842199966
+          ],
+          [
+            0.6037383863320942,
+            0.3410834876434533
+          ],
+          [
+            0.6040373002837578,
+            0.4240697107000677
+          ],
+          [
+            0.6557553929990476,
+            0.45723376483980244
+          ],
+          [
+            0.6561860329960574,
+            0.5381482101680093
+          ],
+          [
+            0.6032983672802597,
+            0.5718210001066912
+          ],
+          [
+            0.6037514337842897,
+            0.6551535922817873
+          ],
+          [
+            0.5518872231021072,
+            0.6886938760309963
+          ],
+          [
+            0.49968787229487505,
+            0.6558347530029192
+          ],
+          [
+            0.449223463776796,
+            0.6888067053449892
+          ],
+          [
+            0.3968101801843399,
+            0.6555722371279435
+          ],
+          [
+            0.39608308680975796,
+            0.573562632585171
+          ],
+          [
+            0.3444335304627923,
+            0.5410037588509377
+          ],
+          [
+            0.34514753136700177,
+            0.45710264439916115
+          ],
+          [
+            0.3964237121972704,
+            0.4216093170050326
+          ],
+          [
+            0.39614549273002986,
+            0.3415491506856842
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-3",
+        "name": "O1",
+        "polygon": [
+          [
+            0.3958822729099713,
+            0.11063742743156224
+          ],
+          [
+            0.3959297436372767,
+            0.1933073313136589
+          ],
+          [
+            0.34365439660481273,
+            0.22652862500148196
+          ],
+          [
+            0.29249172591292316,
+            0.19400679335447896
+          ],
+          [
+            0.29188376722446785,
+            0.11129549710944944
+          ],
+          [
+            0.3429143505380856,
+            0.07833567304238265
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-4",
+        "name": "O2",
+        "polygon": [
+          [
+            0.5001778591836419,
+            0.11016267254579434
+          ],
+          [
+            0.5002253299109474,
+            0.192832576427891
+          ],
+          [
+            0.44794998287848337,
+            0.22605387011571407
+          ],
+          [
+            0.3967873121865938,
+            0.19353203846871106
+          ],
+          [
+            0.3961793534981385,
+            0.11082074222368155
+          ],
+          [
+            0.44720993681175625,
+            0.07786091815661475
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-5",
+        "name": "O3",
+        "polygon": [
+          [
+            0.6039137195918008,
+            0.10980660638146841
+          ],
+          [
+            0.6039611903191063,
+            0.19247651026356508
+          ],
+          [
+            0.5516858432866423,
+            0.22569780395138814
+          ],
+          [
+            0.5005231725947528,
+            0.19317597230438513
+          ],
+          [
+            0.49991521390629745,
+            0.11046467605935562
+          ],
+          [
+            0.5509457972199152,
+            0.07750485199228882
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-6",
+        "name": "O4",
+        "polygon": [
+          [
+            0.7078361552884637,
+            0.11028136126723634
+          ],
+          [
+            0.7078836260157692,
+            0.192951265149333
+          ],
+          [
+            0.6556082789833051,
+            0.22617255883715606
+          ],
+          [
+            0.6044456082914156,
+            0.19365072719015305
+          ],
+          [
+            0.6038376496029603,
+            0.11093943094512354
+          ],
+          [
+            0.654868232916578,
+            0.07797960687805675
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-7",
+        "name": "O5",
+        "polygon": [
+          [
+            0.7594028742856143,
+            0.22490228679970253
+          ],
+          [
+            0.7594503450129197,
+            0.3075721906817992
+          ],
+          [
+            0.7071749979804557,
+            0.34079348436962226
+          ],
+          [
+            0.6560123272885662,
+            0.30827165272261925
+          ],
+          [
+            0.6554043686001109,
+            0.22556035647758974
+          ],
+          [
+            0.7064349519137286,
+            0.19260053241052294
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-8",
+        "name": "O6",
+        "polygon": [
+          [
+            0.8114003230836899,
+            0.3410940529783997
+          ],
+          [
+            0.8114477938109954,
+            0.42376395686049634
+          ],
+          [
+            0.7591724467785314,
+            0.4569852505483194
+          ],
+          [
+            0.7080097760866418,
+            0.4244634189013164
+          ],
+          [
+            0.7074018173981865,
+            0.34175212265628685
+          ],
+          [
+            0.7584324007118043,
+            0.3087922985892201
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-9",
+        "name": "O7",
+        "polygon": [
+          [
+            0.8635342655710342,
+            0.4563222699524881
+          ],
+          [
+            0.8635817362983397,
+            0.5389921738345846
+          ],
+          [
+            0.8113063892658756,
+            0.5722134675224078
+          ],
+          [
+            0.7601437185739861,
+            0.5396916358754047
+          ],
+          [
+            0.7595357598855308,
+            0.45698033963037527
+          ],
+          [
+            0.8105663431991486,
+            0.4240205155633085
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-10",
+        "name": "O8",
+        "polygon": [
+          [
+            0.8121805601060429,
+            0.5722893712970297
+          ],
+          [
+            0.8122280308333484,
+            0.6549592751791262
+          ],
+          [
+            0.7599526838008843,
+            0.6881805688669493
+          ],
+          [
+            0.7087900131089948,
+            0.6556587372199463
+          ],
+          [
+            0.7081820544205395,
+            0.5729474409749168
+          ],
+          [
+            0.7592126377341573,
+            0.53998761690785
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-11",
+        "name": "O9",
+        "polygon": [
+          [
+            0.7602966394499692,
+            0.687889999584951
+          ],
+          [
+            0.7603441101772747,
+            0.7705599034670475
+          ],
+          [
+            0.7080687631448106,
+            0.8037811971548706
+          ],
+          [
+            0.6569060924529211,
+            0.7712593655078676
+          ],
+          [
+            0.6562981337644658,
+            0.6885480692628381
+          ],
+          [
+            0.7073287170780835,
+            0.6555882451957713
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-12",
+        "name": "O10",
+        "polygon": [
+          [
+            0.7086558787928735,
+            0.8040375293629348
+          ],
+          [
+            0.708703349520179,
+            0.8867074332450313
+          ],
+          [
+            0.6564280024877149,
+            0.9199287269328544
+          ],
+          [
+            0.6052653317958254,
+            0.8874068952858514
+          ],
+          [
+            0.6046573731073701,
+            0.8046955990408219
+          ],
+          [
+            0.6556879564209879,
+            0.7717357749737551
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-13",
+        "name": "O11",
+        "polygon": [
+          [
+            0.6048348072897266,
+            0.8041994153063325
+          ],
+          [
+            0.6048822780170321,
+            0.886869319188429
+          ],
+          [
+            0.552606930984568,
+            0.9200906128762522
+          ],
+          [
+            0.5014442602926785,
+            0.8875687812292491
+          ],
+          [
+            0.5008363016042232,
+            0.8048574849842196
+          ],
+          [
+            0.551866884917841,
+            0.7718976609171528
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-14",
+        "name": "O12",
+        "polygon": [
+          [
+            0.5008039264284854,
+            0.8046301960185468
+          ],
+          [
+            0.5008513971557909,
+            0.8873000999006433
+          ],
+          [
+            0.4485760501233268,
+            0.9205213935884664
+          ],
+          [
+            0.3974133794314373,
+            0.8879995619414633
+          ],
+          [
+            0.396805420742982,
+            0.8052882656964339
+          ],
+          [
+            0.44783600405659973,
+            0.7723284416293671
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-15",
+        "name": "O13",
+        "polygon": [
+          [
+            0.39711163264897315,
+            0.8053840622649218
+          ],
+          [
+            0.39715910337627863,
+            0.8880539661470183
+          ],
+          [
+            0.3448837563438146,
+            0.9212752598348414
+          ],
+          [
+            0.29372108565192506,
+            0.8887534281878383
+          ],
+          [
+            0.29311312696346975,
+            0.8060421319428088
+          ],
+          [
+            0.3441437102770875,
+            0.7730823078757421
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-16",
+        "name": "O14",
+        "polygon": [
+          [
+            0.34483462983759455,
+            0.6890165584208652
+          ],
+          [
+            0.34488210056490004,
+            0.7716864623029617
+          ],
+          [
+            0.292606753532436,
+            0.8049077559907848
+          ],
+          [
+            0.24144408284054647,
+            0.7723859243437817
+          ],
+          [
+            0.24083612415209116,
+            0.6896746280987522
+          ],
+          [
+            0.2918667074657089,
+            0.6567148040316855
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-17",
+        "name": "O15",
+        "polygon": [
+          [
+            0.29281252116429474,
+            0.5731238180676933
+          ],
+          [
+            0.2928599918916002,
+            0.6557937219497898
+          ],
+          [
+            0.24058464485913617,
+            0.6890150156376129
+          ],
+          [
+            0.18942197416724665,
+            0.6564931839906099
+          ],
+          [
+            0.18881401547879134,
+            0.5737818877455804
+          ],
+          [
+            0.2398445987924091,
+            0.5408220636785136
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-18",
+        "name": "O16",
+        "polygon": [
+          [
+            0.24079041249099487,
+            0.4577542955039261
+          ],
+          [
+            0.24083788321830035,
+            0.5404241993860226
+          ],
+          [
+            0.1885625361858363,
+            0.5736454930738457
+          ],
+          [
+            0.13739986549394678,
+            0.5411236614268427
+          ],
+          [
+            0.13679190680549147,
+            0.45841236518181316
+          ],
+          [
+            0.18782249011910923,
+            0.4254525411147464
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-19",
+        "name": "O17",
+        "polygon": [
+          [
+            0.29291533165574396,
+            0.34212316404545645
+          ],
+          [
+            0.29296280238304945,
+            0.42479306792755295
+          ],
+          [
+            0.24068745535058536,
+            0.45801436161537606
+          ],
+          [
+            0.18952478465869585,
+            0.425492529968373
+          ],
+          [
+            0.18891682597024054,
+            0.3427812337233435
+          ],
+          [
+            0.2399474092838583,
+            0.30982140965627675
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-20",
+        "name": "O18",
+        "polygon": [
+          [
+            0.344526198363247,
+            0.2266228370343381
+          ],
+          [
+            0.3445736690905525,
+            0.3092927409164346
+          ],
+          [
+            0.2922983220580884,
+            0.3425140346042577
+          ],
+          [
+            0.24113565136619888,
+            0.30999220295725466
+          ],
+          [
+            0.24052769267774357,
+            0.22728090671222517
+          ],
+          [
+            0.29155827599136136,
+            0.1943210826451584
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-21",
+        "name": "I1",
+        "polygon": [
+          [
+            0.44830616803364665,
+            0.22634315582862605
+          ],
+          [
+            0.448353638760952,
+            0.3090130597107227
+          ],
+          [
+            0.3960782917284881,
+            0.3422343533985458
+          ],
+          [
+            0.3449156210365985,
+            0.30971252175154274
+          ],
+          [
+            0.3443076623481432,
+            0.22700122550651325
+          ],
+          [
+            0.39533824566176096,
+            0.19404140143944645
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-22",
+        "name": "I2",
+        "polygon": [
+          [
+            0.5519984618131588,
+            0.2258046799383582
+          ],
+          [
+            0.5520459325404643,
+            0.30847458382045484
+          ],
+          [
+            0.4997705855080003,
+            0.34169587750827796
+          ],
+          [
+            0.44860791481611073,
+            0.3091740458612749
+          ],
+          [
+            0.4479999561276554,
+            0.2264627496162454
+          ],
+          [
+            0.4990305394412732,
+            0.1935029255491786
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-23",
+        "name": "I3",
+        "polygon": [
+          [
+            0.6561139894448322,
+            0.22515850887003677
+          ],
+          [
+            0.6561614601721377,
+            0.3078284127521334
+          ],
+          [
+            0.6038861131396738,
+            0.3410497064399565
+          ],
+          [
+            0.5527234424477842,
+            0.30852787479295346
+          ],
+          [
+            0.5521154837593288,
+            0.22581657854792397
+          ],
+          [
+            0.6031460670729466,
+            0.19285675448085718
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-24",
+        "name": "I4",
+        "polygon": [
+          [
+            0.7083410468015334,
+            0.3409308252776285
+          ],
+          [
+            0.7083885175288389,
+            0.4236007291597252
+          ],
+          [
+            0.656113170496375,
+            0.4568220228475483
+          ],
+          [
+            0.6043579724114595,
+            0.4241924960224917
+          ],
+          [
+            0.60434254111603,
+            0.34158889495551575
+          ],
+          [
+            0.6553731244296478,
+            0.30862907088844893
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-25",
+        "name": "I5",
+        "polygon": [
+          [
+            0.7604834573878023,
+            0.45681083686327384
+          ],
+          [
+            0.7605309281151078,
+            0.5394807407453704
+          ],
+          [
+            0.7082555810826439,
+            0.5727020344331937
+          ],
+          [
+            0.6565003829977284,
+            0.5400725076081371
+          ],
+          [
+            0.6564849517022989,
+            0.45746890654116107
+          ],
+          [
+            0.7075155350159167,
+            0.42450908247409425
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-26",
+        "name": "I6",
+        "polygon": [
+          [
+            0.7082564000311011,
+            0.5718292870244907
+          ],
+          [
+            0.7083038707584066,
+            0.6544991909065873
+          ],
+          [
+            0.6560285237259427,
+            0.6877204845944105
+          ],
+          [
+            0.6042733256410272,
+            0.6550909577693539
+          ],
+          [
+            0.6042578943455977,
+            0.5724873567023778
+          ],
+          [
+            0.6552884776592155,
+            0.5395275326353111
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-27",
+        "name": "I7",
+        "polygon": [
+          [
+            0.6568604449805655,
+            0.6878426659554682
+          ],
+          [
+            0.656907915707871,
+            0.7705125698375648
+          ],
+          [
+            0.604632568675407,
+            0.803733863525388
+          ],
+          [
+            0.5528773705904916,
+            0.7711043367003314
+          ],
+          [
+            0.5528619392950621,
+            0.6885007356333553
+          ],
+          [
+            0.6038925226086799,
+            0.6555409115662886
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-28",
+        "name": "I8",
+        "polygon": [
+          [
+            0.5525828925526536,
+            0.6885667653195633
+          ],
+          [
+            0.5526303632799591,
+            0.7712366692016599
+          ],
+          [
+            0.5003550162474951,
+            0.8044579628894831
+          ],
+          [
+            0.44859981816257966,
+            0.7718284360644265
+          ],
+          [
+            0.4485843868671502,
+            0.6892248349974505
+          ],
+          [
+            0.49961497018076795,
+            0.6562650109303837
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-29",
+        "name": "I9",
+        "polygon": [
+          [
+            0.4488408601835534,
+            0.6891767984783156
+          ],
+          [
+            0.4488883309108589,
+            0.7718467023604122
+          ],
+          [
+            0.39661298387839494,
+            0.8050679960482354
+          ],
+          [
+            0.3448577857934795,
+            0.7724384692231788
+          ],
+          [
+            0.34484235449805,
+            0.6898348681562028
+          ],
+          [
+            0.39587293781166777,
+            0.656875044089136
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-30",
+        "name": "I10",
+        "polygon": [
+          [
+            0.39655081715240115,
+            0.5730517925920616
+          ],
+          [
+            0.39659828787970663,
+            0.6557216964741582
+          ],
+          [
+            0.3443229408472427,
+            0.6889429901619815
+          ],
+          [
+            0.2925677427623272,
+            0.6563134633369249
+          ],
+          [
+            0.29255231146689775,
+            0.5737098622699488
+          ],
+          [
+            0.3435828947805155,
+            0.540750038202882
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-31",
+        "name": "I11",
+        "polygon": [
+          [
+            0.3449786788748776,
+            0.4576054516469216
+          ],
+          [
+            0.3450261496021831,
+            0.5402753555290183
+          ],
+          [
+            0.29275080256971914,
+            0.5734966492168414
+          ],
+          [
+            0.24099560448480367,
+            0.5408671223917849
+          ],
+          [
+            0.2409801731893742,
+            0.4582635213248088
+          ],
+          [
+            0.29201075650299196,
+            0.42530369725774203
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-32",
+        "name": "I12",
+        "polygon": [
+          [
+            0.3968396398577437,
+            0.34202412793029885
+          ],
+          [
+            0.3965386501912821,
+            0.4227433255905882
+          ],
+          [
+            0.3446117635525852,
+            0.45791532550021863
+          ],
+          [
+            0.29285656546766975,
+            0.42528579867516214
+          ],
+          [
+            0.2928411341722403,
+            0.342682197608186
+          ],
+          [
+            0.34387171748585804,
+            0.30972237354111926
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      },
+      {
+        "id": "room-33",
+        "name": "Generator",
+        "polygon": [
+          [
+            0.46437858443707997,
+            0.30237412239169603
+          ],
+          [
+            0.4783696505075417,
+            0.28392673710214816
+          ],
+          [
+            0.49996936701646766,
+            0.2749958161542966
+          ],
+          [
+            0.5205373938370716,
+            0.27525321182663925
+          ],
+          [
+            0.5368227357151307,
+            0.2768367890021497
+          ],
+          [
+            0.5501849436748286,
+            0.2825769832126832
+          ],
+          [
+            0.5616127978329754,
+            0.29449741620472536
+          ],
+          [
+            0.5743302211835634,
+            0.31451230481256987
+          ],
+          [
+            0.5896989163407335,
+            0.3513900272814064
+          ],
+          [
+            0.5911595940179829,
+            0.38622304721531975
+          ],
+          [
+            0.5892623696820493,
+            0.42552555177153517
+          ],
+          [
+            0.5721079420040547,
+            0.45116451573335503
+          ],
+          [
+            0.5445688695671557,
+            0.46536683743529483
+          ],
+          [
+            0.514351724547939,
+            0.47264949679033375
+          ],
+          [
+            0.48490833737822014,
+            0.47251878094852334
+          ],
+          [
+            0.4635667071962419,
+            0.4643589579493439
+          ],
+          [
+            0.45065045359105976,
+            0.4441668191604739
+          ],
+          [
+            0.4412337622657871,
+            0.41185586635624105
+          ],
+          [
+            0.43869492449734,
+            0.37801352047628495
+          ],
+          [
+            0.44273578156057436,
+            0.3484330563074151
+          ],
+          [
+            0.4524508750069638,
+            0.32246227801620175
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
+      }
+    ],
+    "roomClusters": [
+      {
+        "clusterId": "cluster-1",
+        "name": "Inner Ring",
+        "roomIds": [
+          "room-21",
+          "room-22",
+          "room-23",
+          "room-24",
+          "room-25",
+          "room-26",
+          "room-27",
+          "room-28",
+          "room-29",
+          "room-30",
+          "room-31",
+          "room-32"
+        ]
+      },
+      {
+        "clusterId": "cluster-2",
+        "name": "Outer Ring",
+        "roomIds": [
+          "room-3",
+          "room-4",
+          "room-5",
+          "room-6",
+          "room-7",
+          "room-8",
+          "room-9",
+          "room-10",
+          "room-11",
+          "room-12",
+          "room-13",
+          "room-14",
+          "room-15",
+          "room-16",
+          "room-17",
+          "room-18",
+          "room-19",
+          "room-20"
+        ]
+      }
+    ],
+    "outsideFx": {
+      "enabled": false,
+      "selectedAnimationId": "",
+      "animations": [],
+      "intensity": 1,
+      "speed": 1,
+      "mode": "standard",
+      "direction": "forward",
+      "assetType": "coded",
+      "assetRef": ""
+    },
+    "insideFx": {
+      "selectedAnimationId": "inside-mpu7xifg-2",
+      "animations": [
+        {
+          "id": "inside-mpu7xifg-2",
+          "name": "Snow",
+          "assetType": "coded",
+          "assetRef": "snow",
+          "intensity": 0.3,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 100,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 30,
+          "fadeEnabled": true,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "twinkle"
+        },
+        {
+          "id": "inside-mq27plol-2",
+          "name": "Snowstorm",
+          "assetType": "coded",
+          "assetRef": "snow",
+          "intensity": 0.5,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 100,
+          "snowSpeed": 80,
+          "snowStorm": true,
+          "snowFlakeSize": 30,
+          "fadeEnabled": true,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "sparkles"
+        },
+        {
+          "id": "inside-mq5ob3lt-5",
+          "name": "Freeze",
+          "assetType": "mp4",
+          "assetRef": "/resources/animations/freeze.mp4",
+          "intensity": 0.4,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 0.88,
+          "heightScale": 0.98,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "play-then-freeze",
+          "onRetrigger": "reverse-then-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "target"
+        },
+        {
+          "id": "inside-mq5j6ldm-4",
+          "name": "Generator Heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "intensity": 0.7,
+          "speed": 1,
+          "loopUntilStopped": false,
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": true,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": true,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "soundAssetRef": "none",
+          "icon": "flame"
+        }
+      ],
+      "intensity": 0.3,
+      "speed": 1,
+      "assetType": "coded",
+      "assetRef": "snow",
+      "loopUntilStopped": false
+    },
+    "roomFx": {
+      "selectedAnimationId": "room-mphf0q8m-1",
+      "animations": [
+        {
+          "id": "room-mphf0q8m-1",
+          "name": "Generator boost",
+          "assetType": "mp4",
+          "assetRef": "/resources/animations/generator_boost.mp4",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 2.37,
+          "heightScale": 1.38,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 1,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": true,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "flame"
+        },
+        {
+          "id": "room-mpvicr6g-2",
+          "name": "Fire",
+          "assetType": "gif",
+          "assetRef": "/resources/animations/fire.gif",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 1,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "flame"
+        },
+        {
+          "id": "room-mq1iu4h3-4",
+          "name": "Freeze",
+          "assetType": "mp4",
+          "assetRef": "/resources/animations/freeze.mp4",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff0000",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "play-then-freeze",
+          "onRetrigger": "reverse-then-freeze-first",
+          "playbackDirection": "forward",
+          "icon": "crosshair"
+        },
+        {
+          "id": "room-mq298p2j-6",
+          "name": "Generator heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": true,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "picker"
+        },
+        {
+          "id": "room-mq2yxpr7-10",
+          "name": "Heat",
+          "assetType": "coded",
+          "assetRef": "heat",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.9,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#ff7a1a",
+          "breaksSolidColor": false,
+          "heatShowSource": false,
+          "heatSyncNearestSource": true,
+          "workerStyle": "dark",
+          "workerCount": 3.6,
+          "workerGroups": "normal",
+          "workerLanternShare": 30,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 1,
+          "workerTrailIntensity": 100,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "picker"
+        },
+        {
+          "id": "room-mq2j8xk3-7",
+          "name": "Workers (Generator)",
+          "assetType": "coded",
+          "assetRef": "city-workers",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 1,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#c98a4b",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "dark",
+          "workerCount": 24,
+          "workerGroups": "frequent",
+          "workerLanternShare": 50,
+          "workerTrails": true,
+          "workerSize": 1,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 0.7,
+          "workerTrailIntensity": 200,
+          "workerCenterExclusion": true,
+          "workerCenterExclusionRadius": 50,
+          "workerExclusionOffsetX": 15,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": false,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "users"
+        },
+        {
+          "id": "room-mq2yfwx9-8",
+          "name": "Workers",
+          "assetType": "coded",
+          "assetRef": "city-workers",
+          "soundAssetRef": "none",
+          "rotationDeg": 0,
+          "stretchToPolygon": true,
+          "widthScale": 1,
+          "heightScale": 1,
+          "offsetXScale": 0,
+          "offsetYScale": 0,
+          "opacity": 0.5,
+          "intensity": 1,
+          "speed": 1,
+          "soundVolume": 1,
+          "colorHex": "#c98a4b",
+          "breaksSolidColor": false,
+          "heatShowSource": true,
+          "heatSyncNearestSource": false,
+          "workerStyle": "lit",
+          "workerCount": 4.5,
+          "workerGroups": "normal",
+          "workerLanternShare": 75,
+          "workerTrails": true,
+          "workerSize": 1.5,
+          "workerSwayAmount": 55,
+          "workerClothingBrightness": 0.7,
+          "workerTrailIntensity": 200,
+          "workerCenterExclusion": false,
+          "workerCenterExclusionRadius": 25,
+          "workerExclusionOffsetX": 0,
+          "workerExclusionOffsetY": 0,
+          "workerExclusionRingVisible": true,
+          "heatIrregularPulse": false,
+          "snowDensity": 55,
+          "snowSpeed": 50,
+          "snowStorm": false,
+          "snowFlakeSize": 50,
+          "fadeEnabled": false,
+          "fadeDurationMs": 800,
+          "playbackMode": "loop",
+          "onRetrigger": "instant-disappear",
+          "playbackDirection": "forward",
+          "icon": "users"
+        }
+      ]
+    },
+    "playAreas": [
+      {
+        "id": "play-area-1",
+        "name": "Play Area 1",
+        "polygon": [
+          [
+            0.268999575751382,
+            0.017977303106042848
+          ],
+          [
+            0.7192338548108629,
+            0.018041983795334407
+          ],
+          [
+            0.9404858598728829,
+            0.49902611328370805
+          ],
+          [
+            0.7228989739562893,
+            0.9889050951393238
+          ],
+          [
+            0.2811559473400501,
+            0.9949989519342836
+          ],
+          [
+            0.05829217964583676,
+            0.50451599417426
+          ]
+        ]
+      }
+    ],
+    "selectedPlayAreaId": "play-area-1",
+    "defaultAnimations": [
+      {
+        "type": "room-mphf0q8m-1",
+        "animationName": "Generator boost",
+        "scope": "room",
+        "roomId": "room-33",
+        "boardId": "frostpunk",
+        "roomAssetType": "mp4",
+        "roomAssetRef": "/resources/animations/generator_boost.mp4",
+        "soundAssetRef": "none",
+        "opacity": 1,
+        "intensity": 0.8,
+        "speed": 1,
+        "soundVolume": 1,
+        "rotationDeg": 0,
+        "stretchToPolygon": false,
+        "widthScale": 2.37,
+        "heightScale": 1.38,
+        "offsetXScale": 0,
+        "offsetYScale": 0,
+        "colorHex": "#ff0000"
+      },
+      {
+        "type": "room-mq2j8xk3-7",
+        "animationName": "Workers (Generator)",
+        "scope": "room",
+        "roomId": "room-1",
+        "boardId": "frostpunk",
+        "roomAssetType": "coded",
+        "roomAssetRef": "city-workers",
+        "soundAssetRef": "none",
+        "opacity": 1,
+        "intensity": 0.8,
+        "speed": 1,
+        "soundVolume": 1,
+        "rotationDeg": 0,
+        "stretchToPolygon": true,
+        "widthScale": 1,
+        "heightScale": 1,
+        "offsetXScale": 0,
+        "offsetYScale": 0,
+        "colorHex": "#c98a4b"
+      },
+      {
+        "type": "inside-mpu7xifg-2",
+        "animationName": "Snow",
+        "scope": "global",
+        "boardId": "frostpunk",
+        "roomAssetType": "coded",
+        "roomAssetRef": "snow",
+        "soundAssetRef": "none",
+        "opacity": 1,
+        "intensity": 0.3,
+        "speed": 1,
+        "soundVolume": 1,
+        "rotationDeg": 0,
+        "stretchToPolygon": true,
+        "widthScale": 1,
+        "heightScale": 1,
+        "offsetXScale": 0,
+        "offsetYScale": 0,
+        "colorHex": "#ff0000"
+      },
+      {
+        "type": "inside-mq5j6ldm-4",
+        "animationName": "Generator Heat",
+        "scope": "global",
+        "boardId": "frostpunk",
+        "roomAssetType": "coded",
+        "roomAssetRef": "heat",
+        "soundAssetRef": "none",
+        "opacity": 1,
+        "intensity": 0.7,
+        "speed": 1,
+        "soundVolume": 1,
+        "rotationDeg": 0,
+        "stretchToPolygon": true,
+        "widthScale": 1,
+        "heightScale": 1,
+        "offsetXScale": 0,
+        "offsetYScale": 0,
+        "colorHex": "#ff7a1a"
+      }
+    ],
+    "frozenRooms": {},
+    "lastUsedProfileName": null,
+    "videoCodec": "h264"
+  }
+}

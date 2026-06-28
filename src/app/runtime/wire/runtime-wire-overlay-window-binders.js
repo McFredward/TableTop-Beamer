@@ -653,7 +653,6 @@
 
   function _wireOverlayGlobalButtonClick(ctx) {
     const {
-      dashboardGlobalLoopUntilStopInput,
       dashboardGlobalPlaySoundInput,
       GLOBAL_ONE_SHOT_DURATION_SEC,
       shouldSuppressRapidTap,
@@ -673,9 +672,12 @@
       }
       recordTriggerIntent();
       setDashboardZone("trigger");
-      const loopUntilStopped = Boolean(dashboardGlobalLoopUntilStopInput?.checked);
+      // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
+      // stopped" dashboard switch was removed — looping is driven
+      // entirely by the animation's own playbackMode (loop loops until
+      // stopped; non-loop modes manage their own lifecycle).
       const playSound = dashboardGlobalPlaySoundInput ? dashboardGlobalPlaySoundInput.checked : true;
-      upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped, playSound });
+      upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { playSound });
     });
   }
 

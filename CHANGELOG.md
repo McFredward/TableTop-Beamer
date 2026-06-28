@@ -10,6 +10,2024 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.3.1] — 2026-06-28
+
+### Added
+
+- **Per-board video codec.** Each board now has its own codec (Settings → Board → "Video codec (this board)"). Defaults: all Nemesis boards (and newly imported boards) → **VP9**; Frostpunk → **H.264**. The codec is stored in the board's config (`config/boards/<id>.json` → `videoCodec`) and travels with board **export / import**.
+- **Global codec mode** (Settings → System → "Video codec"): **Board-specific** (default — each board uses its own codec), or **Force H.264 / Force VP9** to override every board at once.
+- The active board now persists across server restarts (`config/active-board.json`).
+
+### Changed
+
+- Switching to a board whose codec differs from the running one automatically restarts the render server so the right codec applies (brief `/output` "Reconnecting"; only when the codec actually changes). Editing a board's codec, or the global mode, does the same.
+
+---
+
+## [1.3.0] — 2026-06-28
+
+Release milestone rolling up the Phase 58 collection work (v1.2.6 → v1.2.76).
+Headline: a new coded **Snow / Snowstorm** effect, per-animation **playback
+modes** and **fade**, **live editing** of coded animations, big **city-workers**
+improvements, and a deep round of **projector (/output) smoothness** work.
+
+### Added
+
+- **Coded "Snow" effect** — a decode-free snow that never hitches like the snow video. Three controls (Dichte / Geschwindigkeit / Sturm) plus a **Mittlere Größe** (mean flake size) slider. "Sturm" is a full menacing, gusting, wind-driven **blizzard** built as a soft volumetric bokeh field (no hard streaks), and the calm mode is a depth-of-field flurry. Selectable in every scope (room / inside / outside).
+- **Per-animation playback modes** (loop / play-once / play-then-freeze / boomerang / reverse-on-retrigger) with the inside/outside reverse paths fixed to always play to completion before ending.
+- **Fade-in / fade-out** for any animation, with a duration slider that appears when fade is enabled.
+- **Live editing of coded animations** in Active Animations — edit a running effect's coded settings in real time (preview is dashboard-local until Done / Save-as-default), under a collapsible "Coded Settings" section.
+- **Unified coded-effect catalog** — room, inside and outside now offer the identical set of coded effects.
+
+### Changed
+
+- **City-workers**: a "Stronger lighting" toggle (replaces the old Dashboard/Beamer dropdown), configurable count (up to 24) and figure size, a calmer walk with a "Gehbewegung" sway slider, a movable/toggleable center-exclusion ring, and trail-intensity up to 300 % that no longer compounds where workers overlap.
+- **Inside/outside coded effects now honour the running instance**, so a configured "Snowstorm" (or any worker/heat setting) renders on the dashboard *and* the beamer from the first trigger — not only in the editor preview.
+- Frozen ("freeze") videos cost far less while parked on a still frame.
+
+### Fixed
+
+- A long, decisive round on the **snow /output smoothness**: the projector receives a server-side **WebRTC video** of the SSR-rendered tab, so smoothness is bound by the server encoder. Small high-frequency flakes were being quantized away at high QP (the "stick then jump"); fixes include a minimum soft flake footprint, brighter dim flakes, and the finding that **H.264 is the right codec on this hardware** (software VP9 only sustained ~15 fps at 1080p; H.264 reaches ~30 fps and lower QP). The SSR encoder also logs avg QP / quality-limitation reason for diagnosis.
+- Various stability fixes: a room/loop animation could wedge in "Stopping"; order-independent inside animation layering; a frozen inside animation restarting on an unrelated room edit; editor slider drag-release on first move.
+- **Auto-start animations now survive a server restart.** Ticking "Auto-start animation" in the live editor and pressing **Done** (or **Save as default**) now persists the animation into the board's default set, so it auto-starts on the next server boot — exactly like the other boards. Previously the live-editor path only updated the in-memory default set: Done never wrote it to disk, and Save-as-default saved *before* folding the entry in, so the autostart was lost on restart (the board JSON kept an empty `defaultAnimations`).
+
+---
+
+## [1.2.76] — 2026-06-28
+
+### Changed
+
+- **Snowstorm now reads as snow FLAKES, not streaks.** The menacing storm (v1.2.75) was going the right way but the long motion-blur smears still looked like streaks/lines. The per-flake stretch is cut right down (cap 6.5 → 1.5) so the flakes stay mostly round and flake-like — like the calm "snow" — with only the fastest gust flakes getting a mild elongation. The storm keeps its menace from the dense, fast, gusting, brightening wind field, not from drawn streaks.
+
+---
+
+## [1.2.75] — 2026-06-28
+
+### Changed
+
+- **Snowstorm made much more menacing** (operator: it read like a slightly hard breeze, too close to calm "snow"; it should feel threatening). The prevailing wind is stronger and more horizontal (a driving blizzard, not a gentle fall), the flakes move faster, the gust swells are bigger and the intermittent gust punches hit harder (peak wind speedFrac raised 3.0 → 4.0), the motion-blur smears are longer in the wind (stretch cap 4.5 → 6.5), the field is denser (storm count ×1.9 → ×2.3), and gusts brighten the snow more strongly so a stoß reads as a surging wall of snow. Still the soft-bokeh system (no hard streaks) and still deterministic. Because the menace comes mostly from faster/bigger/brighter snow — which is *lower* spatial frequency and therefore encoder-friendly — it does not reintroduce the /output stutter; the density bump is kept moderate to stay within the encoder budget.
+
+---
+
+## [1.2.74] — 2026-06-28
+
+### Fixed
+
+- **Dim flakes no longer freeze just before they fade out.** With the operator on H.264 the encoder now runs at QP ≈ 26 / ~30 fps (the framerate + bulk-quantization problem is solved — keep `codecPreference: h264`, since the server has no hardware encoder and software VP9 only sustained ~15 fps). The remaining artifact — *some* flakes appearing to stand still right before they disappear — is the lowest-contrast flakes: a flake's per-frame motion residual is `contrast × motion × size`, and at QP 26 the dimmest flakes' residual is the first to be quantized to zero, so they freeze as they dim. The encoder can't be pushed below QP 26 from the server (it parks there using only ~0.35 of the 16 Mbit/s budget, and `videoGoogleMinBitrate` is a no-op on the Chromium/OpenH264 path), so the fix is render-side: the minimum in-focus flake brightness is raised (and the out-of-focus haze lifted slightly) so even the dimmest flakes keep enough contrast for their motion to survive the quantizer. Unlike the workers' *temporal* pixel-grid stutter (where brightness didn't matter), the encoder's *spatial* quantization does respond to contrast. Brighter flakes also project better through additive beamer blending.
+
+---
+
+## [1.2.73] — 2026-06-28
+
+### Diagnostics
+
+- **The SSR encoder now logs its average QP and quality-limitation reason periodically (every 4 s) under load**, not just one-shot at boot. The snow-only `/output` stutter is now confirmed to be server-side (it persists with a strong gaming PC as the `/output` client, so it is baked into the stream, not a client-decode issue). The offline A/B proved the cause is the encoder's realized QP climbing past ~32 (which quantizes small high-frequency flakes' motion away). This log surfaces that exact number live — `[ssr-publisher] enc-stats [periodic]: avgQp=… qualityLimitReason=… framesPerSecond=… encoderImpl=…` — so the realized QP and whether the encoder is "cpu"- or "bandwidth"-limited can be read directly from the server console while snow runs. `avgQp` ≳ 30 with snow running confirms encoder quantization (fix = lower realized QP: hardware encoder / more flowing bitrate); `avgQp` < ~26 means the cause is elsewhere.
+
+---
+
+## [1.2.72] — 2026-06-28
+
+### Fixed
+
+- **Snow-only /output lag — root cause confirmed (spatial encoder quantization) and fixed with a minimum flake size.** An offline encoder A/B (libx264 + libvpx-vp9, faithful flake model) finally **reproduced** the operator's size-correlation and proved the mechanism: a flake's frame-to-frame motion lives in *high-spatial-frequency* DCT coefficients; once the video encoder's realized QP climbs (≈ ≥ 32 — which happens when the stream is bandwidth- or CPU-limited *below* its configured bitrate cap), those coefficients are quantized to zero, so a **small** flake freezes for several frames then jumps ("stick then jump") while a **larger** flake (whose energy sits in low-frequency coefficients) stays smooth. This is exactly why it's snow-only (the only effect with hundreds of tiny high-frequency features), why it scales with size (smaller = higher frequency), and why per-frame *motion* fixes did nothing — it is spatial, not temporal. The v1.2.71 anti-quantization micro-orbit is therefore removed (the repro confirmed it does not help), and v1.2.70's softening was likewise the wrong axis. **Fix:** every flake's drawn radius is now floored at ~3 px (≈ 6 px diameter), moving the smallest flakes out of the quantization dead-zone so the field streams smoothly even at high QP. ~6 px soft is about as small as a flake can be and still stream cleanly on a quality-limited encoder.
+- **If you still want finer flakes,** the encoder-side fix is to keep the realized QP down (the repro: at 1080p the snow is smooth as long as ≥ ~0.8–1 Mbps actually reaches the encoder; the stutter only appears under ~0.5 Mbps flowing). On the projector, check the consumer `qualityLimitationReason` — if it reads "bandwidth" or "cpu", the configured 16 Mbps cap isn't flowing (network congestion or encode CPU), and raising effective throughput removes the stutter. `codecPreference: vp9` (already the default) buys ~8 QP of headroom over H.264. **Do NOT drop the SSR resolution to 720p for snow** — the A/B showed that makes small-flake sticking strictly worse.
+
+---
+
+## [1.2.71] — 2026-06-28
+
+### Fixed
+
+- **The snow-only /output lag — small flakes "stick then jump" — fixed with the same anti-quantization the workers needed.** Decisive operator observation (2026-06-28): the lag affects ONLY the snow animation; every other animation runs smoothly on `/output` in parallel, and it's worse for smaller flakes. That is precisely the per-figure worker stutter solved in v1.2.48: a small, slowly-translating element moving under ~0.2 px/frame cannot be represented on the discrete pixel pipeline (canvas raster → VP9/WebRTC encode → projector grid) — its centroid holds a pixel for several frames then snaps ("stick then jump"). The worker debugging proved brightness and edge-feather do NOT help — only per-frame motion magnitude does (so the earlier softening attempt was the wrong lever). Every snow flake now carries a tiny constant-speed circular **micro-orbit** (~0.7–0.8 px radius, 2.2 Hz, per-flake phase): a circle has no velocity zero-crossing, so each flake's per-frame motion stays above the grid threshold every frame even when nearly stationary, while the orbit averages to zero over a cycle so the net drift, the look, and the dashboard==SSR==/output determinism are all preserved. Because motion magnitude (not size) is what matters, the minimum flake footprint was also reduced so the "Mittlere Größe" slider can make flakes genuinely small again without bringing the stutter back.
+
+---
+
+## [1.2.70] — 2026-06-28
+
+### Changed
+
+- **Snowstorm rebuilt from scratch as a soft volumetric system — no more recognizable "sticks".** The operator found the stroked-line streaks broke immersion (they read as discrete lines, popped in/out, and could point vertically). The whole streak approach is gone. Every storm flake is now the cached **soft radial bokeh sprite drawn elongated along its wind velocity** — a feathered, gradient-edged motion-blur smear rather than a hard line. Consequences:
+  - **No discernible streaks:** the smears are soft with no crisp edges, so the eye reads a turbulent snow field, not individual lines.
+  - **No pop:** the elongation grows *continuously* from a round soft flake (stretch = 1) with speed — flakes smoothly stretch in gusts and round off in lulls; nothing appears/disappears abruptly.
+  - **Points along the wind:** the smear is aligned to each flake's velocity, and the wind is the gravity-plus-gusting-**horizontal** model (v1.2.x), so the snow blows diagonally with the wind and the slant shifts as it gusts — not vertical falling.
+  - **More atmospheric depth:** a larger fraction of big, soft, out-of-focus foreground bokeh (haze) for immersion.
+- **Fixes the small-flake /output stutter** as a side effect. Small, hard, high-spatial-frequency points were falling below the `/output` video encoder's quantization deadzone, so the encoder left them unchanged for several frames — small flakes "stuck then jumped" while large ones moved fluidly (the dashboard, with no encoder, stayed smooth). Every flake is now a soft, low-frequency blob with a minimum footprint, whose energy lands in low-frequency coefficients the encoder tracks smoothly, so small flakes move fluidly on the stream. Calm flakes also render as soft min-footprint blobs for the same reason.
+- Drawing is entirely cached-sprite blits now (no per-flake fills/strokes/strings); the rotate transform is only paid by flakes that are actually moving (slow flakes take the cheap round blit).
+
+---
+
+## [1.2.69] — 2026-06-28
+
+### Fixed
+
+- **Snowstorm streaks no longer pop in and out of existence.** Each flake was rendered by a binary choice — a dot below a length threshold, a streak above it — so as the gust waxed and waned, flakes flipped between the two and the streaks appeared/disappeared (very visible, not immersive). A flake is now always drawn as ONE round-capped capsule whose length grows continuously from ~0 (which reads as a soft dot) with the wind speed — so it smoothly stretches and shrinks instead of popping.
+
+### Changed
+
+- **Snowstorm has more chaos again, while still wind-driven.** The coherent wind made every flake in a layer point the *exact* same way, which read as too uniform. Each flake now takes a FIXED per-flake angular offset around its layer's prevailing wind (≈ ±43°), plus a slow gentle drift — so the wind still drives the bulk one general direction but individual flakes scatter around it (operator: "mehr chaos auch wenn der wind den großteil in eine richtung treibt"). The offset is static per flake, so directions don't flicker frame-to-frame.
+- **Gust punches hit noticeably harder.** The intermittent per-layer gust burst is stronger and a touch more frequent (the operator felt no difference before), so a stoß now clearly lengthens and brightens that layer's snow before settling back — still bounded.
+
+---
+
+## [1.2.68] — 2026-06-28
+
+### Fixed
+
+- **Snow stutter on /output traced to the real cause: SSR render cost, not GC.** Instrumenting the actual pipeline revealed `/output` is a **WebRTC video consumer** — the snow is rendered server-side in the SSR Chromium tab, encoded, and streamed; the dashboard renders its own local canvas at 60 fps (smooth, as observed) while `/output` shows the SSR video, whose framerate dropped from ~30 to ~25 fps at density 100 % + small flakes because the snow draw exceeded the SSR frame budget (on Win32, tab-capture starvation turns that overrun into the discrete ~0.5 s freezes). The earlier age-re-stamp/teleport hypothesis was measured and **refuted** (zero re-stamps). Fix: **halve the per-flake draw cost** — soft dots are now a single arc (was two) and storm streaks a single round-capped stroke (was two passes) — so the SSR render holds its framerate at high density. The look is preserved (additive blend + round caps keep dots/streaks soft; the out-of-focus bokeh still carry the depth). Pairs with the v1.2.66 sprite cache + v1.2.67 allocation-free drawing.
+
+### Changed
+
+- **Snowstorm gusts hit harder, in bursts.** Operator wanted the storm to occasionally surge more forcefully while staying immersive. The slow wind swell is stronger (so gusts actually advect the snow faster, not just visually), and each depth layer now gets an intermittent, sharply-peaked **gust punch** — mostly calm with brief bursts (layers punch at different times) that lengthen and brighten that layer's streaks. Bounded so it reads as a hard gust, not a cartoon.
+
+---
+
+## [1.2.67] — 2026-06-28
+
+### Fixed
+
+- **Snow no longer stutters/freezes at high density (the "flakes stand still for ~½ s then jump" lag on /output).** With density at 100 % the snow draws up to ~1400 flakes per frame, and each flake was building fresh `rgba(…, ${alpha})` colour strings (several per flake, every frame) — hundreds to thousands of throwaway strings per frame. That garbage triggered periodic GC pauses, which froze the whole render for a fraction of a second and read as flakes (especially the small fast ones) stalling then jumping. Drawing is now **allocation-free**: every flake's opacity rides `globalAlpha` (a number) and all colours are constant string literals, so no per-frame strings are created. Combined with the v1.2.66 sprite cache, the snow holds up at density 100 %. Purely a rendering-cost fix — the look and determinism are unchanged.
+
+---
+
+## [1.2.66] — 2026-06-28
+
+### Fixed
+
+- **"Snowstorm" (the Storm toggle) now actually renders on the dashboard and /output — not only in the editor preview.** A triggered inside/outside coded animation was created without ANY of its definition's coded options (`snowStorm`, `snowDensity`, `snowSpeed`, the `worker*`/`heat*` set, `colorHex`): `upsertGlobalAnimation` forwarded transform/playback/sound/fade but not the coded options, so the running instance carried none and — since the renderer reads instance-first — fell back to the renderer's defaults (storm → calm). The editor *preview* read the definition directly, which is why only it showed the difference. The trigger dispatch now seeds the full coded-option set from the definition onto the instance (a `codedOptionsSeed`, mirroring the existing transform seed), so a "Snowstorm" definition storms everywhere from the first trigger. This also fixes any configured worker/heat option not showing on a freshly-triggered inside/outside animation.
+
+### Added
+
+- **"Mittlere Größe" (mean flake size) slider for the coded snow effect** (0–100 %, default 50). Sets the average flake size; the per-flake size variance scales with it, so the whole field grows or shrinks around the chosen mean (the operator's "von dort aus gibt es in der Standardabweichung größere oder kleinere"). Plumbed through the full Phase-50 chain (definition → normalizer → all dispatch sites → instance → snapshot → draw loop → both editors). Default flake sizes were also reduced (operator: flakes too big), so the default look is finer.
+
+### Changed
+
+- **Snow rendering is cheaper / smoother on the projector.** Following a single flake on /output looked slightly jerky despite ~30 fps. The soft out-of-focus bokeh flakes now blit a **cached sprite** (built once) instead of allocating a radial gradient per flake every frame — the single most expensive primitive on low-power hardware — and the storm's per-flake turbulence was reduced from two oscillators per axis to one (lower-frequency, smoother). Combined with the smaller default flake size and the reduced storm density, per-frame cost drops, so frames are more even and the motion reads smoother. Still fully deterministic (dashboard == /output == SSR).
+
+---
+
+## [1.2.65] — 2026-06-28
+
+### Changed
+
+- **Snowstorm reworked to a physical, layered, coherent-wind model — more natural, less "sperm-shaped".** Operator feedback: the storm streaks still showed a recognisable shape (a comet/tadpole that "looks almost like sperm rather than snowflakes"), the motion should simulate **wind gusts blowing through the snow** (the wind can turn quickly but pushes the snow the *same* way), and different depth **layers** should have winds from different-but-similar directions — and the whole thing should stay natural, not extreme. Three changes:
+  - **Streak shape:** the bright head-glint + tapered tail (which made the comet/sperm shape) is gone. Streaks are now a **symmetric** soft motion-blur centred on the flake — a faint full-length pass + a brighter inner pass, round caps — so they fade evenly at both ends like real wind-blurred snow.
+  - **Coherent layered wind:** instead of each flake choosing its own direction, the storm now advects the snow with **wind sheets**. Three depth layers each carry one shared wind (a constant mean + summed oscillating gust components — slow swells plus a faster quick-turn term), so every flake in a layer moves the *same* way and streaks point the *same* direction (the operator's "beeinflusst den schnee in die selbe richtung"). The wind surges and turns over time (gusts that drive through), and the three layers fan ±~13° around the prevailing wind so depths differ but stay similar. Because the wind components are integrable, the layer's shared displacement is closed-form — no per-flake cost. Small independent per-flake turbulence keeps each sheet from looking rigid.
+  - **Calmer overall:** density reduced (storm multiplier 2.4 → 1.9), streak length bounded and gusts moderated so the storm reads as natural wind-blown snow rather than the previous over-extreme look. Still fully deterministic (dashboard == /output == SSR).
+
+---
+
+## [1.2.64] — 2026-06-27
+
+### Changed
+
+- **Snow flakes reworked for more randomness & immersion (calm) and a less artificial storm.** Re-studying the reference clips frame-by-frame:
+  - **Calm** flakes read "too much like dots". They now have a real **depth-of-field** spread: ~15% are large, soft, dim *out-of-focus* foreground bokeh (radial-gradient blobs), the rest are sharp pinpoints with a much wider size and brightness variance; medium flakes get a soft edge, the tiniest stay crisp. That size/softness/brightness mix is what the reference snow has — not a uniform dot field.
+  - **Storm** streaks read "too much like strokes", and the fast "hin & her" of the streaks looked artificial. Two fixes: (1) streaks now **taper** — a faint full-length tail + a brighter short head + a head glint with round caps — so they fade like real motion blur instead of solid sticks; (2) the streak **direction** now follows the *coherent* wind (prevailing drift + a slow per-flake lean + the gust kick) instead of the fast swirl derivative, whose rapid oscillation was causing the back-and-forth flicker. The per-flake swirl frequency was lowered so flakes wander on slow graceful curves rather than wiggling. Storm also gets the same out-of-focus soft blobs for depth, and slow flakes render as soft dots so the field stays snow-like.
+  - Only the ~15% out-of-focus flakes use a gradient; everything else uses cheap arcs/strokes, so the per-frame cost stays within the Pi budget. Still fully deterministic (no per-frame `Math.random`) — dashboard, /output and SSR render identically.
+
+---
+
+## [1.2.63] — 2026-06-27
+
+### Changed
+
+- **Storm snow gets random gusts (Windstöße) that blow denser slugs of snow through.** On top of the smooth prevailing wind, the storm now has discrete travelling **gust fronts** that sweep along the wind axis and arrive irregularly (operator request: "stürmiger, mit random Windstößen die mehr Schnee mit sich tragen"). A slow global surge envelope (incommensurate sines, half-wave rectified) gates *when* a gust happens; each front is sampled spatially per flake so it reads as a moving **band** of snow rather than the whole field pulsing uniformly. Inside a passing front the flakes are shoved forward along the wind (bunching into a visible packet/slug), brightened (the gust reads as denser snow), and their motion-blur streaks lengthen (the short-streak cap lifts with gust strength); between gusts the field relaxes back to the calmer wind-blown look. Fully deterministic (no per-frame `Math.random`) so dashboard, /output and the SSR encoder stay pixel-identical. Calm snow is unaffected.
+
+---
+
+## [1.2.62] — 2026-06-27
+
+### Changed
+
+- **Coded "Snow" now swirls turbulently instead of falling straight down.** Re-checking the reference clips, the operator pointed out the flakes "wirbeln wild durch die Gegend" rather than dropping top-to-bottom — and the storm clip has **no single fall direction** at all (frames show flakes streaking every which way through eddies and gusts). The motion model was reworked from a straight vertical fall + tiny sway into a deterministic turbulence field: each flake's position is now `base drift + whole-field gust + per-flake swirl`, all still pure functions of `(age, index, seed)` (dashboard == /output == SSR, no black-strobe). Calm drifts mostly downward but genuinely wanders/whirls along a per-flake two-frequency Lissajous loop; the whole-field gust sways gently.
+- **Sturm is now far more extreme and multi-directional — wind-driven, not a single fall direction.** With storm ON there is a clear *prevailing* wind that shifts over time (the whole-field gust direction rotates), with per-flake spread around it (≈ ±51°) so flakes head in many directions at once without the field collapsing into one uniform diagonal — matching `snowstorm.mp4`'s gusting turbulence. Density is bumped (×2.4) and speed/swirl are higher. Each flake motion-blurs into a short streak along its **instantaneous velocity** (drift dominates, so streaks mostly lean with the wind but fan out with the turbulence); streak length scales with the flake's speed but is capped well short of a "scratch" look, and near-stalled flakes (eddy centres) stay round — so the storm reads as wind-blown snow with motion blur, not a field of confetti/sticks. All three controls (Dichte / Geschwindigkeit / Sturm) are unchanged and still drive the new model.
+
+### Fixed
+
+- **Inside/outside coded effects now honour the running instance — so "Sturm" (and live-edited coded settings) actually render on the board.** Two coupled gaps, both surfaced by the snow work:
+  - **Render side (the real culprit):** the inside-ship and outside renderers built their coded-effect options (`snowStorm`/`snowDensity`/`snowSpeed`, the full `worker*` set, `heatShowSource`, `heatIrregularPulse`, `colorHex`) from the board's **definition only**, never the running animation instance. But the room path always read the instance, and the Live Editor (Active Animations → Edit, v1.2.x) mutates the *instance* for its dashboard-local coded preview — so on inside/outside, live-edited coded changes and trigger-time overrides like "Sturm" were silently **inert on the board** (the snow always rendered calm regardless of the toggle). The renderer now reads **instance-first with definition fallback**: fields the instance actually carries (live-edit set them, or a trigger plumbed them) win, while a fresh trigger that didn't carry a field still falls back to the definition exactly as before — so the existing "full editor drives the live board" behaviour is preserved. This also realigns inside/outside with the operator's standing intent that room/inside/outside behave identically except for the trigger area.
+  - **Server side (plumbing parity):** the `trigger-global` handler rebuilds the authoritative inside/outside record field-by-field and was not carrying any coded-option keys, so they never reached the SSR/`/output` snapshot on a fresh trigger. It now copies all present coded-option keys (booleans included; omitted fields keep renderer defaults), bringing it to parity with `trigger-room` (which already spread-merges). Together with the render-side fix, a configured "Sturm" snow now storms on the beamer from the first trigger — no follow-up edit needed.
+
+---
+
+## [1.2.61] — 2026-06-08
+
+### Added
+
+- **New coded "Snow" effect — a decode-free replacement for the snow video.** The operator reported the `snow.mp4` animation hitches on the projector hardware (it is a large clip and the decoder stalls). The snow is now a fully CODED particle field: every flake's position is a PURE function of `(age, index, seeded hash)` — no per-frame `Math.random` — so it never decodes a video, never hitches, and renders pixel-identically on the dashboard, `/output` and the SSR encoder tab. White-ish flakes are drawn additively (`lighter` composite, restored after) clipped to the effect's region, and the branch always paints SOMETHING each frame (no SSR black-strobe). "Snow" is selectable in the room, inside and outside pickers (snowflake icon), composes with other concurrent animations via the v1.2.43 concurrency lift, and at its defaults approximates the calm `snow.mp4` look.
+- **Three controls under "Coded Settings" (full editor + live editor):** "Dichte" (density, 0–100 %, default 55 — flake count), "Geschwindigkeit" (speed, 0–100 %, default 50 — fall rate), and "Sturm" (storm, boolean, default OFF). These are dedicated knobs so the operator's two requested sliders map 1:1 and the generic intensity/speed sliders stay untouched. With **Sturm ON**, the snow becomes wind-driven: a strong horizontal drift, roughly doubled density, faster fall, and motion-streaked diagonal flakes (matching `snowstorm.mp4`); OFF is calm vertical drift with a gentle per-flake sway.
+
+---
+
+## [1.2.60] — 2026-06-08
+
+### Added
+
+- **City-workers now have a "Gehbewegung" (walk-sway) slider, and walk calmer by default.** The operator found the workers swung too much while walking ("schwingt zu viel, das ist nicht mehr immersiv"). A single new per-definition knob (0–150 %) scales the WHOLE gait swing together — the lateral meander, the per-step body bob, and the heading wobble — where 100 % is the previous amplitude, 0 % is a near-straight walk (only net translation remains), and 150 % is a bit more than before. The omitted/legacy default maps to **55 %** (NOT byte-identical to the old look): every existing city-workers definition now renders the calmer gait, and the value is fully dialable. Measured average peak lateral-chord deviation for a representative figure dropped from 0.52 px (old) to 0.29 px (new default) — exactly 55 % — with 0 % ≈ straight and 150 % ≈ 0.78 px. The control appears under "Coded Settings" in both the full animation editor and the live editor (Active Animations → Edit); slider-drag preview (v1.2.44) and dashboard-local-until-commit (v1.2.57) apply via the shared builder.
+- The v1.2.48 anti-quantization micro-orbit (the ~sub-pixel circular sway that keeps slow trudgers from stuttering on /output) is scaled down by the same knob — but floored at **0.5 px** (or the figure's base orbit radius if that is already sub-pixel), so even at sway 0 % the per-frame motion stays above the pixel-grid threshold and the v1.2.48 stutter fix still holds. Everything stays deterministic (no per-frame `Math.random`): dashboard, /output and the SSR tab render pixel-identical.
+
+---
+
+## [1.2.59] — 2026-06-08
+
+### Fixed
+
+- **The fade controls ("Ein-/Ausblenden" toggle + "Fade-Dauer" slider, added in v1.2.56) now render in the LIVE editor (Active Animations → Edit), not only in the full animation editor.** The shared fade builder was already invoked by the live editor, but its DOM container ref (`liveEditorFade`) was never threaded through the runtime orchestration ctx — it was absent from both the `collectDomRefs` destructure and the lifecycle init object — so `ctx.liveEditorFade` was undefined and `_populateLiveEditorFade` bailed out before building anything. Wired the ref through both allowlists (mirroring the v1.2.57 `liveEditorCodedSection` fix), so opening the live editor on any running animation now shows the fade toggle, and turning it ON reveals the duration slider. The controls live in a new labeled "Fade" subsection (open by default, since fade is universal) consistent with the "Coded Settings" / "Transform" subsections.
+- **Live fade edits now preview on the DASHBOARD only and reach /output (and other clients) on "Done" or "Save as default" — not mid-drag — matching every other live-editor control.** Previously the live fade controls carried a per-drag `_scheduleLiveEditorBroadcast`, so toggling fade or dragging the duration broadcast to /output in real time while you were still tweaking (the same divergence the v1.2.57 coded-control fix removed). The fade set() bridge now only mutates the dashboard's running instance for an immediate preview; the change propagates to /output via the normal edit-room mutation on Done / Save-as-default, and "Discard" reverts the dashboard preview locally. Save-as-default still persists `fadeEnabled` + `fadeDurationMs` into the animation definition. The full-editor fade controls and the actual fade-in/out ramp behaviour are unchanged.
+
+---
+
+## [1.2.58] — 2026-06-08
+
+### Fixed
+
+- **Fade-IN now actually ramps on trigger (it was popping straight to full opacity while fade-OUT worked).** With "Ein-/Ausblenden" ON, starting an animation — the operator hit it on the frostpunk "Generator Heat" coded effect — appeared abruptly at full brightness instead of ramping 0→1, even though stopping it ramped out correctly. Root cause: fade-in was measured from the instance's start timestamp, which every client reconstructs from the SHARED wall-clock trigger epoch broadcast by the server. That made the fade-in elapsed equal the wall-clock age of the *trigger*, not the time *this* client had been rendering the animation — so every millisecond between the server stamping the trigger and a client's first steady frame (snapshot round-trip latency, the projector/SSR tab being scheduled under encode load, live-sync absence-grace churn, or plain dashboard-vs-server clock skew) was subtracted from the visible fade window. At the 800 ms default that delay routinely consumed the whole window, so the first rendered frame was already "done" → an instant pop. (Fade-OUT was immune: its start is stamped at stop-time, when the animation is already on screen, and the instance is held alive for the full ramp.) The bug was never coded- or heat-specific — it affected every type and scope; coded heat was just where it showed first. Fade-in is now anchored to the first frame each client actually renders the animation, so it always ramps cleanly 0→1 over the configured duration on the dashboard, /output and the SSR encoder, regardless of latency or clock skew. Fade-OUT, the fade-out→fade-in resume, the OFF (byte-identical) path, and the v1.2.52 stop hardening are unchanged.
+
+---
+
+## [1.2.57] — 2026-06-08
+
+### Changed
+
+- **Live edits to a running coded effect now preview on the DASHBOARD only and reach /output (and other clients) just like every other live-editor setting — on "Done" or "Save as default", not mid-drag.** Previously (v1.2.55) dragging a coded control (e.g. heat tint, worker lantern share, exclusion radius) broadcast a throttled edit-room mutation on every frame, so /output and every connected client updated in real time WHILE you were still tweaking. That broke the established live-editor model: the non-coded sliders (opacity / intensity / speed / transform) have always applied to the dashboard's running instance locally and only propagated to /output on commit. Coded controls now match exactly — the change is applied to the dashboard's running instance for immediate real-time preview, but is NOT broadcast until you press "Done" (commits the edited values via the normal edit-room mutation so /output + others adopt them) or "Save as default" (persists to the animation definition AND commits). "Discard" reverts the dashboard preview to the pre-edit values; /output never saw the abandoned tweaks. The v1.2.55 shared coded-options builder and the v1.2.44 slider-drag fix are unchanged.
+- **The live editor's coded controls are now grouped under a collapsible "Coded Settings" subsection**, mirroring the existing "Transform" subsection (collapsed by default; click to expand). The whole subsection is hidden for animations that expose no coded options (non-coded / solid-color), so it never shows an empty header.
+
+---
+
+## [1.2.56] — 2026-06-08
+
+### Added
+
+- **Animations now have an OPTIONAL fade-in / fade-out so starting and stopping is no longer an abrupt cut.** A new per-animation "Ein-/Ausblenden" toggle (default OFF) enables it, and a "Fade-Dauer" slider (100 ms–5000 ms, default 800 ms) — visible only once the toggle is ON — sets the ramp duration. The controls appear in BOTH the full animation editor (Defaults card) and the live editor (Active Animations → Edit) for every scope (room / inside / outside) and asset type (mp4 / gif / coded), built from one shared builder so the two never drift. When enabled, the animation's effective opacity ramps 0→1 on trigger (smoothstep, measured from the instance's start) as a GLOBAL multiplier on top of the animation's own opacity, applied uniformly across all draw paths (room/inside/outside, mp4/gif/coded). The multiplier is a pure function of time, so the dashboard, /output and the SSR encoder stay deterministic and in lock-step. On stop, a fade-enabled animation does NOT vanish instantly: the stop stamps a fade-out start onto the instance and BROADCASTS it (via the existing edit-room live mutation) so /output and every other client ramp out together (1→0 over the fade duration), and only AFTER the ramp completes does the real removal run — through the unchanged v1.2.52-hardened stop pipeline (retriable, self-healing, never wedged in "Stopping"). Re-triggering (toggling ON) an animation while it is fading out cancels the fade-out and resumes fading IN from the current opacity with no jump. With the toggle OFF the start/stop behavior is byte-identical to before. The city-workers per-figure presence envelope and the inside-animation additive compositing compose with the fade rather than fighting it.
+
+---
+
+## [1.2.55] — 2026-06-08
+
+### Added
+
+- **The live editor (Active Animations → Edit) now exposes the FULL coded-effect settings of a running coded animation — editable in real time, with Save and Save-as-default — exactly like the full animation editor, but live.** Previously the live editor only surfaced a single solid-color picker for coded animations; heat and city-workers running instances could not be re-tuned live (the operator had to stop, edit the definition in the full editor, and re-trigger). Now, when a running animation resolves to a coded effect, the live panel renders that effect's complete option set — heat: Heat tint, "Hitzequelle anzeigen", "Mit nächster Hitzequelle synchronisieren", "Unregelmäßiger Puls"; city-workers: Laternen-Farbe, Darstellung, Anzahl Bewohner, Größe der Bewohner, Gruppen, Laternen-Anteil, Helligkeit der Kleidung, Spuren im Schnee + Spuren-Intensität, Mitte aussparen + Aussparungs-Radius/X/Y + Ring anzeigen; hull-flicker / power-outage: Break solid color — with the same gating (sync greys out while the source is shown; trail intensity greys while trails are off; exclusion knobs grey while "Mitte aussparen" is off). The coded option controls are now built by ONE shared builder (`animation-coded-options.js`) used by BOTH the full editor and the live editor, so the two can never drift. Changing any coded control updates the RUNNING instance immediately (dashboard reflects it the same rAF) and broadcasts a throttled edit-room mutation so /output follows in real time, mirroring how the existing transform/opacity sliders write to the instance. "Save as default for this animation" now writes the full coded field set (not just transform/opacity/colorHex) into the persistent definition for room, inside and outside scopes, so future triggers apply the saved coded values. The slider drag fix (setPointerCapture) and the .is-disabled gating apply to these live controls via the shared row primitives. Non-coded (mp4/gif) and solid-color animations are unchanged; solid-color color continues to use the existing static live-editor color picker.
+
+---
+
+## [1.2.54] — 2026-06-08
+
+### Fixed
+
+- **Frozen mp4 (play-then-freeze "Freeze vid") instances cost negligible fps — the persistent ~5fps loss after freezing is gone.** Operator (2026-06-08): a freeze-vid room animation that plays then FREEZES on its last frame kept costing ~5fps even while frozen (no motion), although a static frame should be near-free. Root cause: v1.2.15 reduced the frozen paint to "one cheap fallback-canvas blit per frame", but that blit DOWNSCALES the full-resolution fallback canvas (video native res, e.g. 1280×720) into the much smaller room rect on EVERY rAF — and Firefox's 2D-canvas downscale resample is ~100× slower than Chromium's GPU path (measured 0.158 ms vs 0.0014 ms per blit). v1.2.15 was verified on Chromium (the SSR/dev env) where the resample is free, so the cost was invisible there but persisted on the operator's Firefox dashboard. The decoder is idle while frozen (0 new decodes over 6 s) and the `ensureRoomMp4Playback` JS is negligible (0.0018 ms/call) — both ruled out empirically; the resample blit was the sole growing per-frame cost (it scaled linearly with the number of frozen instances). Fix: a FROZEN instance now blits a pre-scaled `ImageBitmap` of the freeze frame, built once (async, via `createImageBitmap` with `resizeWidth/Height`) at the destination rect's pixel size and cached on the playback state — so each rAF is a 1:1 blit with no resample. The bitmap is keyed on (destWidth, destHeight, fallback generation), so a room resize or a re-freeze rebuilds it; the full-resolution canvas bridges the 1–2 frames the bitmap is building (no black-strobe). The outside-mp4 frozen path was already 1:1 (its fallback canvas is sized to the main canvas) and is untouched. Result (isolated Firefox): representative /output room blit 0.158 ms → 0.011 ms (14×); per-frame draw time for 1/5/10 frozen rooms 0.235/0.824/1.706 ms → 0.181/0.651/1.179 ms. Frozen frame stays correctly displayed and byte-stable; the reverse-on-retrigger cycle (forward→frozen-last→reverse→frozen-first→forward, same instance id) and normal playback are unchanged.
+
+### Verification
+
+- Isolated server (PORT 4590, own Xvfb), Playwright Firefox + Chromium. `_bench_blit.py`: full-res downscale blit vs pre-scaled ImageBitmap — Firefox 14× faster, Chromium negligible both ways. `_profile_frozen_fps.py`: per-frame drawImage time drops and scales linearly with frozen-instance count (cheap multi-instance). `_verify_frozen_fix.py`: 11/11 PASS on BOTH Firefox and Chromium — frozen pixels visible + byte-stable (no strobe), decoder idle while frozen, pre-scaled bitmap built (133×149) and used, full re-trigger cycle keeps the same instance id, playback (non-frozen) still decodes live, 5 concurrent frozen instances each get a bitmap. `node --check` clean on all three changed files. `npm test`: 400 pass / 14 fail — identical to the pre-change stash baseline (the 14 fails are pre-existing SSR-encoder/environment tests). Findings: `.planning/debug/phase-58-frozen-video-fps.md`.
+
+---
+
+## [1.2.53] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: Schneespuren potenzieren sich nicht mehr, wenn mehrere Bewohner auf denselben Pfaden wandeln.** Operator-Spec (2026-06-08): „Die Schneespuren sollten sich nicht potenzieren wenn mehrere Worker auf denselben Pfaden wandeln." Bisher wurden die Spursegmente jeder Figur direkt mit Per-Segment-Alpha auf das Haupt-Canvas gezeichnet (`source-over`) — wo sich die Pfade mehrerer Figuren (oder die wiederholten Zyklen einer einzelnen Figur) auf denselben Pixeln überlagerten, stapelte sich das Alpha und ein viel begangener Korridor leuchtete N× heller/dunkler als ein einzelner Durchgang. Fix: Alle Spursegmente eines Frames werden zunächst auf einen dedizierten Offscreen-Puffer gezeichnet und dabei per **`lighten`-Merge zum MAXIMUM** zusammengeführt (nicht zur Summe) — die Per-Segment-Alpha wird als Luminanz in opaken Graustufen-Strichen getragen, sodass jeder Pixel den hellsten (= frischesten) Durchgang behält; ein einzelner CPU-Pass wandelt Luminanz→Alpha zurück, färbt auf `style.trailRGB` ein und blittet die Spur-Ebene EINMAL aufs Haupt-Canvas (Room-Clip + der `lighter`-Lift zwischen mehreren Inside-Animationen bleiben erhalten). Ergebnis: 1 und 8 Bewohner auf demselben Korridor ergeben dieselbe Spur-Helligkeit (verifiziert: 8-Figuren-Spitzenhelligkeit gleich der 1-Figur-Spitze, vorher +~33 %); getrennte Pfade bleiben getrennt; der 75-s-Verlauf, die Spuren-Intensität (0/100/300 %) und die Alpha-Obergrenze bleiben unverändert. Der Puffer ist CPU-gestützt (`willReadFrequently` → deterministisch Dashboard == SSR), wächst nur und wird über Frames/Räume wiederverwendet (keine Allokation pro Frame); Figuren zeichnen weiterhin immer (kein SSR-Strobo).
+
+---
+
+## [1.2.52] — 2026-06-08
+
+### Fixed
+
+- **Room-Animation „Stopping": Stop landet jetzt IMMER und ist IMMER erneut auslösbar — kein Server-Neustart mehr nötig.** Operator-Bug (2026-06-08): Beim Ausschalten einer laufenden Room-Animation (Loop) blieb sie gelegentlich dauerhaft grau auf „Stopping" hängen — sie stoppte nie und konnte nie wieder gestoppt werden; einzige Rettung war ein Server-Neustart (intermittierend, race-artig). Zwei sich verstärkende Ursachen:
+  - **Stop ging serverseitig verloren:** Der Sequenz-Stale-Filter (`clientSequence <= last`) verwarf einen Stop, wenn der Fair-Scheduler eine höher-sequenzierte STATE-Mutation (schnelles Wieder-Einschalten / Edit) VOR dem bereits eingereihten hoch-priorisierten Stop abarbeitete. Die Animation blieb damit für immer in `runningAnimations` (nur ein Neustart setzte den Per-Client-Sequenzzähler zurück). Fix: control-kritische Mutationen (stop-animation, clear-all) sind vom Sequenz-Stale-Filter ausgenommen (weiterhin per `mutationId` dedupliziert; Stop ist idempotent) und matchen bei Id-Drift robust per scope+type+room+board.
+  - **Kein Ausweg:** Clientseitig war ein bereits „pending" Stop nicht erneut auslösbar (`stopAnimation` brach mit „already in flight" ab; der „Stopping…"-Button war deaktiviert) und es gab keinen Timeout/Retry. Fix: Ein Stop ist jetzt immer erneut auslösbar (erneutes Umschalten erzwingt einen frischen Stop), der „Stopping…"-Button bleibt klickbar, und `reconcileStopPendingFromSnapshot` löst nach einem Karenzfenster automatisch erneut aus (Selbstheilung ohne Operator-Aktion). Permanente `[58]`-Diagnostik für Stop-Dispatch, Pending Set/Clear/Retry und Server-Match/No-Match/Fallback.
+
+---
+
+## [1.2.51] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: echter, sichtbarer Aussparungs-Ring + natürliches Ausweichen (kein „Am-Rand-entlang-Laufen" mehr).** Operator-UAT: (1) „Ich sehe KEINEN sichtbaren Ring, obwohl die Einstellung eingeschaltet ist" — der „Ring" war bisher nur eine emergente Verdichtung getrampelter Spuren auf der Grenze, also bei frischem Trigger / ohne Spuren unsichtbar. (2) „Die Worker laufen auffällig oft genau um den blockierten Kreis herum" — Ursache: jeder Wegpunkt, der die Zone gekreuzt hätte, wurde radial auf den EXAKTEN Grenzradius (`excludeR`) geschnappt, sodass alle Figuren denselben Kreis nachzeichneten. Fix:
+  - **Natürliches Ausweichen:** Jede Einzelfigur umgeht die Zone jetzt mit ihrem EIGENEN gesäten Abstandsradius (1,06–1,34× des echten Radius, deterministisch per Figur), Gruppen teilen sich einen gemeinsamen gesäten Umweg-Radius — kein Snap mehr auf die exakte Kante, keine zwei Figuren auf demselben Kreis. Anker liegen immer deutlich außerhalb der Zone (proportionaler Rand `excludeR·0,40 + 0,06`), sodass die meisten Beine gar nicht in Zonennähe kommen; das Watt-Tempo/Bogen-Budget aus v1.2.50 gilt weiter für den Umweg. Dieses Verhalten ist jetzt UNABHÄNGIG davon, ob ein Ring gezeichnet wird.
+  - **Echter Ring:** „Ring anzeigen" (AN) zeichnet jetzt ein ECHTES Ring-Primitiv am Aussparungs-Kreis — SOFORT sichtbar beim Trigger (nicht von Spuren-Akkumulation abhängig), auf Dashboard UND /output, folgt `workerCenterExclusionRadius` + Offset X/Y. Stil (Beamer-Schwarz-Regel): weiche, kühle „abgelaufener-Schnee"-Glut-Annulus unter einer dezenten definierenden Linie, beide via `lighter`-Composite (Composite danach wiederhergestellt) — klar sichtbar auf Schwarz und auf der Brettkunst, ohne grell zu sein. Der Ring erscheint NUR, wenn die Aussparung AN ist (kein Zone → kein Ring) UND „Ring anzeigen" AN ist; AUS = gar kein Ring (kombiniert mit dem natürlichen Ausweichen gibt es dann überhaupt keinen Ring mehr). Der v1.2.48 Sub-Pixel-Mikro-Orbit und der v1.2.50 Bogen-Tempo-Fix bleiben unangetastet.
+
+---
+
+## [1.2.50] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: konstante Schrittgeschwindigkeit ENTLANG der Aussparungs-Kante (kein „Sausen" mehr).** Operator: Bewohner, die an der Mitte-Aussparung (`workerCenterExclusion`) entlanggehen, rasten dort viel zu schnell. Ursache: das Tempo-/Zeitbudget (konstantes Watt-Tempo über die Weglänge, v1.2.32) wurde aus den GERADEN Sehnen zwischen den Ankerpunkten berechnet — aber `workerWalkPoint` lenkt jeden Wegpunkt, der durch die Zone liefe, radial auf den Kreisrand um. Der tatsächlich gelaufene Bogen entlang des Rings ist damit länger als die budgetierte Sehne, und die Figur legt ihn in derselben Zeit zurück → Tempo-Spitzen. Fix: (1) das Zeitbudget wird jetzt aus der ECHTEN umgeleiteten Weglänge integriert (`workerLegLength`/`workerLegShares`, inkl. Bogen-Umweg), und (2) innerhalb jedes Beins wird die geglättete Fortschritts-Kurve per Bogenlängen-Reparametrisierung (`workerArcParam`) auf gleiche DISTANZ pro Zeit abgebildet — vorher stauchte der radiale Snap nahe der Tangente riesige Winkelwege in winzige Parameterschritte (die eigentlichen Spitzen). Pace-Trace (Aussparung r=30 %, 24 Figuren): Ring-Skirter mittlere Geschwindigkeit 23,5 px/s vs. Geraden-Beine 24,4 px/s; Spitzen vorher bis ~553 px/s → jetzt ~33–94 px/s (≈ Geraden-Niveau). Der v1.2.48 Sub-Pixel-Mikro-Orbit bleibt unangetastet.
+
+### Added
+
+- **City-Workers: Aussparung per X/Y verschiebbar.** Neue Regler „Aussparung X" und „Aussparung Y" (−50 … +50 % der Region-Halbachse, Standard 0) verschieben den MITTELPUNKT der Aussparung weg vom Region-Schwerpunkt — so lässt sich die Zone auf den tatsächlichen Generator auf dem großen InnerTile ausrichten. Anker, Wege und Spuren respektieren den verschobenen Mittelpunkt; der Offset geht in den Seed-/Szenen-Cache-Key ein. Verifiziert: +20 % X / −15 % Y verschiebt Ring + Vermeidung um exakt +118 px / −77 px.
+- **City-Workers: sichtbarer Ring abschaltbar.** Der „sichtbare Ring" um die Aussparung ist der festgetretene Schnee-RING, der entsteht, weil sich alle Wege auf dem Kreisrand konzentrieren (Trail-Pass). Neuer Schalter „Ring anzeigen" (Standard = aktuelles Verhalten). Aus = die Anker spreizen auf ein breiteres Band und jede Figur umgeht die Zone auf ihrem EIGENEN Radius (geseedetes Band), sodass der scharfe Ring zu einem diffusen Trampelfeld zerfällt — die Mitte bleibt weiterhin frei (Vermeidung aktiv). Der Ring folgt dem X/Y-Offset und dem Radius.
+- **City-Workers: Spuren-Intensität bis 300 %.** Max der „Spuren-Intensität" von 100 % auf 300 % angehoben (min 0, Standard 100 unverändert) — Spuren können deutlich kräftiger eingestellt werden. Die finale Alpha ist gedeckelt (`WORKER_TRAIL_ALPHA_CEIL`), damit 300 % als stark getrampelter Schnee liest und nicht zu reinem Weiß ausbrennt. Verifiziert (schwarzer Hintergrund): 0 % = keine Spuren, 300 % deutlich kräftiger als 100 %, ohne Ausbrennen.
+
+## [1.2.49] — 2026-06-08
+
+### Fixed
+
+- **Inside-Animationen in „Active Animations" zeigen jetzt ihren Namen (wie die Rooms) statt der internen id („inside-xxxx-y").** Operator: die laufenden Inside-Animationen hießen in der „Active Animations"-Liste alle `inside-xxxx-y` statt z. B. „Snow"/„Snowstorm" — bei den Room-Animationen wird dagegen korrekt der Animationsname angezeigt. Ursache: Rooms stempeln beim Trigger `animationName` aus der Definition auf die laufende Instanz (`runtime-room-dispatch.js`), und der Renderer der Running-Liste liest dieses Feld; Inside/Outside (scope=global) taten das nicht — `upsertGlobalAnimation` erzeugte die Instanz ohne `animationName`, und der Renderer fiel für scope=global immer auf `getAnimationLabel(type)` (= die rohe id) zurück. Zusätzlich rekonstruiert der Server den autoritativen Global-Datensatz feldweise (`applyGlobalMutationPatch`, anders als `trigger-room`, das den ganzen Snapshot überträgt), sodass selbst ein gestempeltes `animationName` den Snapshot-Roundtrip nicht überlebt hätte (Phase-50-Mask-Falle). Fix wie bei den Rooms: (1) `upsertGlobalAnimation` stempelt `animationName` aus der passenden Inside/Outside-Definition auf jede erzeugte Instanz; (2) der Server bewahrt `animationName` im autoritativen Global-Datensatz; (3) der Running-Listen-Renderer zeigt für scope=global bevorzugt `animationName`, fällt sonst auf eine Definitions-Suche im aktuellen Inside/Outside-FX-Profil und erst zuletzt auf die type-id zurück (nie leer). Room-Verhalten unverändert. Verifiziert (isolierter Server, Puppeteer-Consumer-Browser): zwei verschiedene Inside-Animationen werden nach dem Snapshot-Roundtrip korrekt als „Snowstorm" und „Snow" gelistet. Outside (gleiche scope-Klasse) ist über denselben Pfad mitbehoben.
+
+## [1.2.48] — 2026-06-08
+
+### Fixed
+
+- **City-Workers: einzelne Figuren ruckeln nicht mehr auf /output (sub-pixel-glatte Bewegung pro Figur).** Operator: manche laufende Worker stockten sichtbar auf /output, während andere gleichzeitig glatt durch den Schnee stapften — pro Figur, sprunghaft, mal die einen, mal die anderen. Ursache (Encoder-A/B + analytische Pose-Spur, siehe `.planning/debug/phase-58-worker-perfigure-stutter.md`): der Figuren-Zeichenpfad rendert bereits mit voller Sub-Pixel-Float-Präzision (KEIN Math.round/floor auf x/y) — aber die Stapf-Geschwindigkeit liegt bei nur ~0,06–0,13 px/Frame (≈1 Pixel alle 10–16 Frames). Eine kleine, kontrastarme Figur, die so langsam wandert, lässt sich auf der diskreten Pixel-Pipeline (8-Bit-Raster → VP9/WebRTC-Encode → Beamer-Raster) nicht glatt darstellen: ihr Schwerpunkt hält einen Pixel über mehrere Frames und springt dann einen Pixel weiter — genau das Pro-Figur-Stocken. Schnellere/diagonale Figuren überqueren jeden Frame eine Pixelgrenze (glatt); hellere/größere Figuren (Laternenträger) lösen einen feineren Schwerpunkt auf, ihre Sprünge bleiben unter der Wahrnehmungsschwelle (glatt) — das ist die Helligkeits-Korrelation. Der Encoder-A/B zeigte: Helligkeit, weiche Kanten und Luma-„Atmen" beheben das NICHT; nur die Bewegungsamplitude pro Frame hilft. Fix: jede LAUFENDE Figur bekommt einen winzigen Mikro-Orbit mit konstanter Geschwindigkeit (Kreis, Radius 0,16·figLen, 1,8 Hz, gesäte Phase, mit der Schrittweite ein-/ausgeblendet). Ein Kreis hat keinen Geschwindigkeits-Nulldurchgang, daher bleibt die Bewegung pro Frame jederzeit über der Raster-Quantisierungsschwelle (~0,2 px/Frame); der Orbit MITTELT SICH ZU NULL, sodass die langsame Netto-Stapfbewegung, die dunkle/karge Stimmung, der v1.2.35-Dark-Lift, die Pro-Figur-Varianz und der Determinismus (Dashboard==SSR==/output, reine Funktion von age+Seed) erhalten bleiben. Stehende/arbeitende Figuren bleiben unangetastet. Verifiziert (Encoder-A/B durch echtes VP9@16Mbps): Plateau-dann-Sprung-Ruckler → 0 bei hellen/Laternen-/schnellen Figuren und 4–5 → 1 bei der dunkelsten+langsamsten+kleinsten Figur (inhärentes Rendering-Limit am Sichtbarkeitsboden); Einfrier-Läufe 6–9 Frames → 0–3.
+
+## [1.2.47] — 2026-06-08
+
+### Added
+
+- **City-Workers: Regler „Helligkeit der Kleidung", „Spuren-Intensität", Option „Mitte aussparen" mit Radius — und Kopf/Laterne neu ausbalanciert.** Vier neue Stellschrauben am Coded-Effekt „City Workers", alle voll durch die Phase-50-Mask-Trap geführt (Definition → Normalizer → draftPayload/Trigger-Payload an allen 6 createAnimation-Stellen → Instanz → Snapshot → Draw-Loop → Editor-Live-Preview), exakt nach dem v1.2.35/v1.2.44-Worker-Plumbing-Muster. (1) „Helligkeit der Kleidung" (0,3–2,0×, Default 1,0) skaliert die Mantel-Leuchtkraft in BEIDEN Stilen (am sichtbarsten in „Beleuchtet"); die 7-Tönungen-Varianz bleibt, nur die Gesamthelligkeit verschiebt sich (Kopfpunkt und Laterne werden NICHT mitskaliert). Default 1,0 ist byte-identisch (mul===1 gibt die Seed-Strings unverändert zurück). (2) „Spuren-Intensität" (0–100 %, Default 100 = bisheriger Spitzen-Alpha) skaliert die Pfad-Prominenz vor dem Verblassen, multiplikativ zur bestehenden Opazitäts-sqrt-Prominenz; komponiert mit „Spuren im Schnee" (aus = keine Spuren, an + 0 % = keine Spuren). (3) „Mitte aussparen" (Toggle, Default aus) + „Aussparungs-Radius" (0–60 % des Regionsradius, Default 25 %): Anker werden außerhalb der Zone neu geklemmt und Pfade folgen dem Kreisrand (radiale Auswärts-Verschiebung in workerWalkPoint), sodass Figuren UND Spuren nie den Generator in der Mitte überlaufen. Die Option ist Teil des Seeds und geht in den Szenen-Cache-Key ein. (4) Kopf/Laterne-Rebalance (nur „Beleuchtet"/Beamer, „Silhouette" bleibt byte-identisch): auf dem Beamer las jede Figur als „umherwandernder weißer Punkt", weil der weiße Kopf das hellste Element war und die Laterne kaum sichtbar. Der bloße Kopfpunkt sitzt jetzt nur noch knapp über Mantel-Niveau (×1,08 statt ~0,42 Richtung 212) und wird mit ×0,95 statt ×1,1 Alpha gezeichnet; die getragene Laterne (warmer additiver Glow + Flammenkern) wurde angehoben (Glow 0,30→0,46, Mitte 0,13→0,22, Flamme 0,78→0,95) — ein Laternenträger liest jetzt als „Person mit Licht", Nicht-Träger als dunkle Figuren. Verifiziert (vm-Harness gegen `drawEffectVisual` + headless-Chromium-Screenshots gegen Schwarz/Beamer-View): Determinismus identisch über zwei Modulinstanzen; „Silhouette" byte-identisch zu vorher; Ausschluss-Geometrie 0 Verletzungen über 2060/2273 Pose+Spur-Samples (minDist == Radius, Pfade folgen dem Rand); Kleidung 0,5×<1,0×<1,8× monoton; Spuren-Alpha skaliert linear (100 %=0,0418, 40 %=0,0167, 0 %/aus=keine Strokes); Before/After-Beamer-Screenshot zeigt gedämpften Kopf + hellste Laterne.
+
+- **Heat: optionaler „Unregelmäßiger Puls" (deterministisch, gesät).** Neue Option am Coded-Effekt „Heat" (Toggle, Default aus). AN: die Atemperiode wandert (mal lang, mal kurz) — die Trägerphase wird von einer Summe langsamer inkommensurabler Sinus-Terme verzerrt, bleibt aber eine REINE analytische Funktion von `safeAge`, sodass Dashboard, /output und SSR identisch rendern. Die Warp-Konstanten sind fix (kein per-Frame-Random, kein per-Instanz-Seed): zwei Heat-Räume wirken unabhängig, weil ihre Alter differieren (genau wie der reguläre Puls), während ein verborgener Quell-Raum mit „Mit nächster Hitzequelle synchronisieren" das Alter SEINER Quelle übernimmt und dieselbe unregelmäßige Kurve im Gleichschritt durchläuft. Default aus = der reguläre ~0,24-Hz-Puls, byte-identisch zu vorher. Verifiziert (vm-Harness): Spitzenabstand-Std regulär 0,36 vs. unregelmäßig 1,29 (Abstände 4–5 vs. 4–8), Sync-Kurve == Quell-Kurve (Lockstep), aus = byte-identisch.
+
+## [1.2.46] — 2026-06-08
+
+### Fixed
+
+- **Die Rückwärts-Wiedergabe einer INSIDE-Animation läuft jetzt auch auf dem Beamer (/output, Projektor-Rolle).** Bei einer INSIDE-Animation im Modus „play-then-freeze" mit „reverse on re-trigger" spielte der 2. Trigger auf dem Dashboard die Animation korrekt rückwärts und beendete sie dann. Auf /output (der SSR-gestreamte Projektor) lief die Rückwärtsphase NICHT — das eingefrorene Standbild verschwand stattdessen schlagartig in dem Moment, in dem das Dashboard seine Rückwärtsphase beendete. Ursache: `primeGlobalTriggerRuntimeTimestamps` überschreibt bei global-Animationen den neu gestempelten Re-Trigger-Zeitstempel (Epoch) mit dem vorherigen lokalen Wert — und zwar BEVOR die v1.2.45-Re-Stamp-Annahme (Epoch-Sprung >250 ms) ihn liest. Dadurch fiel der Epoch-Abstand auf ~0, das Re-Trigger wurde nie als solches erkannt, und der v1.2.45-Schutz behielt auf dem Projektor die client-abgeleitete Phase „frozen-last" bei: /output übernahm `reverse` nie und blieb eingefroren, bis das Dashboard fertig war und den Stopp sendete. (Vor v1.2.45 kam die Reverse-Phase über `edit-room`, das die Erhaltung komplett übersprang, sodass die Phase trotz des überschriebenen Epoch ankam — v1.2.45 deckte den schon länger bestehenden Epoch-Überschreib-Fehler erst als sichtbare Regression auf.) Fix: Der ROHE eingehende Epoch wird jetzt erfasst, BEVOR `prime` ihn überschreibt, und für die Re-Stamp-Erkennung verwendet; bei Annahme wird er dauerhaft übernommen, damit `prime` das Re-Trigger nicht bei jedem weiteren Poll erneut auslöst. Die bewährte >250-ms-Semantik bleibt erhalten — keine fragile Phasen-Heuristik —, daher startet eine unabhängige Mutation eine eingefrorene INSIDE-Animation weiterhin NICHT neu (v1.2.45 bleibt intakt). Der Render-Loop erkennt dann den Phasenwechsel frozen-last→reverse und spielt die Rückwärtsphase Leg-lokal (v1.2.42) bis zum echten Medienende ab, bevor das Verschwinden ausgelöst wird. Verifiziert (deterministischer node:test gegen die echte `applyLiveRuntimeSnapshot` mit getreuem prime-Clobber): /output übernimmt `reverse` (per edit-room UND snapshot-poll); 10× wiederholte Reverse-Snapshots bleiben stabil auf reverse; reverse-then-freeze-first replay't nicht erneut über das client-abgeleitete frozen-first; v1.2.45 weiterhin grün; im Baseline reproduzieren 4 Tests den Bug. Gilt für GIF und MP4.
+
+## [1.2.45] — 2026-06-08
+
+### Fixed
+
+- **Eine eingefrorene INSIDE-Animation startet nicht mehr neu, wenn eine andere (Raum-)Animation bearbeitet+gespeichert wird.** Eine INSIDE-Animation im Modus „play-then-freeze", die auf ihrem eingefrorenen Bild stand (frozen-last/frozen-first), sprang bei einer komplett unabhängigen `edit-room`-Mutation plötzlich zurück an den Anfang und spielte vorwärts ab. Ursache: `applyLiveRuntimeSnapshot` schützte die client-seitig abgeleiteten Wiedergabe-Felder (`playbackPhase` = frozen-* sowie die GIF-Leg-Clock-Marker `_gifLegPhase`/`_gifLegStartPerfMs`) nur, wenn `mutationType !== "edit-room"` war. Bei einem `edit-room`-Snapshot wurde dieser Schutz für ALLE Animationen übersprungen — auch für die, die gar nicht bearbeitet wurden. Die eingefrorene INSIDE-Instanz übernahm dadurch die Server-Phase „forward" (der Server speichert frozen-* nie), die Leg-Clock setzte sich auf 0 zurück → Vorwärts-Replay. Fix: Die client-abgeleiteten Render-Wiedergabe-Felder werden jetzt bei JEDEM Mutationstyp erhalten (sie gehören dem Client, nie dem Server); nur die Live-Editor-Felder (Opazität/Speed/Scale/…) bleiben bei `edit-room` server-autoritativ. Der bestehende Re-Stamp-Schutz (Epoch-Sprung >250 ms) lässt ein echtes INSIDE-Re-Trigger weiterhin korrekt vorwärts neu starten. Verifiziert (deterministischer node:test gegen die echte `applyLiveRuntimeSnapshot`): unabhängige `edit-room` lässt eingefrorenes GIF+MP4 eingefroren (Phase + Leg-Clock unverändert), während die Bearbeitung selbst weiterhin greift; 10× verschiedene unabhängige Mutationen starten die INSIDE-Instanz nie neu; legitimes Re-Trigger spielt weiterhin vorwärts; identisch auf Dashboard- und Projektor-Rolle; Räume unverändert.
+
+## [1.2.44] — 2026-06-08
+
+### Added
+
+- **City-Workers: beschrifteter Laternen-Farbwähler, einstellbare Bewohner-Größe, doppelte Maximal-Anzahl.** Beim Coded-Effekt „City Workers" war nicht klar, was der Farbwähler einstellt — er ist jetzt mit „Laternen-Farbe" über dem Feld beschriftet (nur für City-Workers; Heat behält „Heat tint"). Die Farbe tönt weiterhin die von den Bewohnern getragenen Laternen (verifiziert: `colorHex` rot/blau steuert die Laternen-Glut-Gradienten deterministisch). Neu ist ein Regler „Größe der Bewohner" (0,5–2,0×, Default 1,0), der die Figuren skaliert — multipliziert auf den bisherigen `clamp(2,5% Polygonbreite, 2, 7px)`; Default 1,0 ist byte-identisch zum bisherigen Look. Die „Anzahl Bewohner" geht jetzt bis 24 (vorher 12; Minimum 1, Default unverändert). Beides ist voll durch die Phase-50-Mask-Trap geführt (Definition → Normalizer → draftPayload/Trigger-Payload an allen 6 createAnimation-Stellen → Instanz → Snapshot), exakt nach dem v1.2.35-Plumbing-Muster der übrigen Worker-Optionen. Verifiziert (vm-Harness gegen `drawEffectVisual` + Playwright auf dem frostpunk-Board): Größe 0,5→2,0 skaliert die Figurengeometrie exakt 4,0× bei gleicher Figurenzahl; Anzahl 24 rendert mehr Figuren als 12; Editor-Bounds min 1 / max 24 bzw. 0,5–2,0.
+
+### Fixed
+
+- **Editor-Schieberegler: der erste Zug wird nicht mehr durch das Dirty-Flag „losgelassen".** Bisher: zog man einen Regler im Animations-Menü zum ersten Mal, erschien das Dirty-Flag (gewollt), aber der Griff löste sich — man konnte zu Beginn nur einen einzigen Tick verschieben und musste ein zweites Mal drücken. Ursache: Die false→true-Dirty-Transition blendet die Dirty-Leiste in der Topbar ein (Layout-Reflow, der den Regler ~2px unter dem gehaltenen Zeiger wegschiebt, verifiziert) und blurrt den Fokus — beides löst im echten Browser einen nativen `<input type=range>`-Zug mitten in der Geste. Fix (an der gemeinsamen Slider-Komponente, betrifft ALLE Editor-Regler): `setPointerCapture` auf `pointerdown` bindet die Geste an das Element bis `pointerup`, unabhängig von Fokus oder Layout-Verschiebung; zusätzlich blurrt `syncDirtyBar` Range-Inputs nicht mehr beim ersten Dirty (Range-Inputs rufen keine Soft-Tastatur). Verifiziert (Playwright, kontinuierlicher Zeiger-Zug ohne Loslassen, zwei verschiedene Regler): eine durchgehende Geste streicht über 83–85% des Reglerbereichs (16–18 Zwischenwerte) und das Dirty-Flag erscheint dabei — vorher blieb es bei einem Tick.
+
+## [1.2.43] — 2026-06-08
+
+### Fixed
+
+- **Zwei gleichzeitige INSIDE-Animationen überdecken sich nicht mehr — die Trigger-Reihenfolge ist jetzt egal.** Bisher galt: wurde zuerst „Generator Heat" (Coded-Effekt) und danach „Snow" (mp4) als Inside-Animation getriggert, verdeckte Snow den Heat-Effekt — sichtbar war beides nur, wenn man erst Snow und dann Heat triggerte. Ursache: Der Inside-Zeichenpfad hob nur dann auf additives Compositing (`globalCompositeOperation = "lighter"`) an, wenn gleichzeitig eine ROOM-Animation lief (Phase 57 Bug B) — bei zwei reinen INSIDE-Animationen blieb das Default-`source-over` aktiv, sodass die zuletzt gezeichnete Ebene die frühere opak übermalte. Fix: Der Inside-Pfad zählt jetzt die gleichzeitig laufenden Inside-Animationen pro Board (`insideAnimationCountByBoard`) und hebt bei ≥ 2 genau wie der Room-Pfad auf „lighter" an — jede Inside-Ebene wird additiv gezeichnet und kann keine andere mehr verdecken, unabhängig von der Trigger-Reihenfolge. Die immer zeichnenden Basis-Layer (Heat-Ambient-Feld, City-Workers-Vignette — existieren gegen den SSR-Schwarz-Strobe-Trap) lesen dieses Composite und addieren dadurch nur noch minimal, statt zu übermalen. Verifiziert (frostpunk, SSR + /output): Heat→Snow und Snow→Heat zeigen beide BEIDE Effekte (visuell gleichwertig); Tripel Heat+Snow+Freeze alle drei sichtbar; 10-Sample-No-Strobe in der Mehrebenen-Szene (Luminanz 41–73, kein Schwarzbild); Room-Mehrfach-Layering und Einzel-Inside-Look unverändert.
+
+- **Inside-Animation „Freeze, reverse on re-trigger“ (gif) spielt das Reverse jetzt IMMER vollständig ab, bevor das Ende triggert.** Auf dem Beamer/Projektor (SSR-Tab, FINAL-Rolle) verschwand eine Inside-GIF-Animation mit `play-then-freeze` + `reverse-then-disappear` beim ERSTEN Re-Trigger sofort (statt rückwärts zu laufen), und das eingestellte Ende (Disappear) feuerte mitten in der Animation. Ursache: Der Re-Trigger stempelt `startedAt` neu, aber dieser neue Zeitstempel erreichte den Projektor über das Live-Sync (Poll/edit-room-Race) nicht zuverlässig — der Reverse-Leg erbte die (große) Zeit des Forward-Legs. Dadurch klemmte der GIF-Cursor sofort auf dem ersten Frame (kein sichtbares Reverse) und die Abschluss-Erkennung (`elapsedScaledSec >= totalDuration`) feuerte beim Dekodieren sofort → Disappear. Fix: Die Inside-GIF-Playback-Zeit für `play-then-freeze` wird jetzt LEG-LOKAL gemessen (ab dem Moment, in dem dieser Client die aktuelle Phase erstmals sieht) statt aus dem clientübergreifenden Epoch — der volle Leg (forward UND reverse) läuft immer bis zum echten Medien-Ende, bevor das Ende triggert, unabhängig von der Epoch-Propagation. Verifiziert: Ende feuert bei `ct=10.03` vs. `dur=10` (innerhalb 0,03 s des echten Endes), nie mehr vorzeitig; erstes Re-Trigger verschwindet nicht mehr. Inside-MP4 (läuft über `video.currentTime`, bereits leg-lokal) und der Room-Pfad bleiben unverändert.
+
+## [1.2.41] — 2026-06-08
+
+### Changed
+
+- **Einheitlicher CODED-Effekt-Katalog für room/inside/outside.** Bisher boten die
+  drei Bereiche unterschiedliche Coded-Effekte an: "inside" kannte nur
+  hull-flicker / intruder-alert / power-outage (abgeleitet aus den Default-Inside-
+  Definitionen), "outside" war fest auf outside-space verdrahtet, nur "room" hatte
+  den vollen Satz. Jetzt gibt es EINE Quelle der Wahrheit
+  (`ALL_CODED_EFFECT_TYPES`): hull-flicker, intruder-alert, power-outage,
+  special-scanning, special-slime, solid-color, heat, city-workers, outside-space —
+  in ALLEN drei Bereichen identisch wählbar. Der Editor zeigt für room, inside und
+  outside dieselbe Effekt-Liste; die per-Effekt-Optionen (Farbe / Hitzequelle /
+  Stadt-Bewohner-Darstellung) erscheinen nun auch für inside + outside.
+
+### Added
+
+- **Cross-Scope-Rendering der Coded-Effekte.** Jeder Coded-Effekt rendert jetzt im
+  jeweiligen Bereich gegen dessen Region: room gegen das Raum-Polygon (unverändert),
+  inside gegen die Schiff-Innenregion (Play-Area-Polygon), outside gegen die
+  Außenregion (Canvas ohne Schiff). heat strahlt vom Regionszentrum, city-workers
+  laufen innerhalb der Region, hull-flicker / intruder-alert / power-outage füllen
+  sie. Dieselbe Render-Funktion (`drawEffectVisual`) wird wiederverwendet — kein
+  Fork pro Bereich; inside/outside liefern lediglich Region-Metriken
+  (`getInsideRegionMetrics` / `getOutsideRegionMetrics`) und den vollständigen
+  Options-Kontrakt.
+
+### Fixed
+
+- **Outside-Isolations-Selbsttest erkennt jetzt alle Outside-Typen.** Der
+  Regression-Guard hielt nur "outside-space" für eine Outside-Animation; mit dem
+  vereinheitlichten Katalog (outside kann heat / city-workers / hull-flicker hosten)
+  meldete er beim Aktivieren eines Nicht-Space-Outside-Effekts eine
+  Schein-Verletzung. Er nutzt jetzt `isOutsideAnimationType` wie
+  `findOutsideGlobalAnimation`.
+
+### Notes
+
+- Bereichsspezifisches Verhalten bleibt erhalten: heat solid-color-Kopplung +
+  nearest-source-Pulssync greifen weiterhin pro Raum (room-Kontext). Im
+  inside/outside-Bereich rendert heat seine Basis-Optik; die "Hitzequelle hidden +
+  Sync"-Option und die solid-color-Kopplung sind dort folgenlos (kein Raum-Kontext)
+  — dokumentierter Degrade. outside-space ignoriert die Region (füllt den ganzen
+  Frame, durch den Outside-Clip auf den Bereich um das Schiff begrenzt).
+
+## [1.2.40] — 2026-06-08
+
+### Fixed
+
+- **Inside "Freeze"-Button jetzt zuverlässig (play-then-freeze + reverse-on-retrigger).**
+  Der Inside-Freeze-Button verhielt sich uneinheitlich: mal verschwand die
+  Animation, mal passierte nichts, mal funktionierte er korrekt — Raum-Animationen
+  mit derselben Konfiguration waren dagegen stabil. Ursache: Inside-Animationen
+  (global scope) wurden beim Auslösen nie lokal in die Running-Liste eingetragen
+  (anders als Raum-Animationen). Der Re-Trigger-Kandidat war daher nur vorhanden,
+  wenn der Server-Snapshot rechtzeitig zurückkam — ein Druck im Roundtrip-Fenster
+  löste entweder einen Neustart (Phase zurück auf forward = "nichts passiert")
+  oder den Stop/Remove-Pfad aus (Animation "verschwindet"). Fix: Die
+  Inside-Reversible-Freeze-Animation wird jetzt — exakt wie Raum-Animationen —
+  lokal mit einer STABILEN ID erzeugt (der Server behält diese ID bei statt sie
+  pro Trigger neu zu vergeben), sodass jeder weitere Druck deterministisch die
+  Phase umschaltet (forward → frozen-last → reverse → frozen-first → forward).
+  Verifiziert mit 22+ schnellen Drücken (Dashboard + /output): keine
+  Verschwinde-Effekte, keine No-Ops. Loop-/Outside-Animationen bleiben unverändert.
+
+---
+
+## Release-Rollup 1.1.4 → 1.2.24 (Kurzfassung für Release-Notes)
+
+**Per-Animation Playback-Modi (Phase 58).** Jede Raum-Animation kann
+jetzt konfiguriert werden mit: `Loop`, `Play once (disappear)`,
+`Play then freeze`, `Boomerang` sowie Re-Trigger-Verhalten
+(`reverse, then freeze first` / `reverse, then disappear`) und
+Initial-Richtung (vorwärts/rückwärts). Gilt für **mp4 UND gif**,
+Einzelräume UND Cluster, Dashboard UND Beamer-Output. Ein erneuter
+Trigger dreht die Abspielrichtung — auch mitten im Abspielen — nahtlos
+und ohne Aufblitzen; Cluster-Trigger drehen jeden Raum individuell von
+seiner eigenen Phase aus.
+
+- mp4-Reverse wird server-seitig einmalig vorberechnet und gecacht
+  (`/api/animation-reverse`); gif-Reverse läuft ohne Transcoding über
+  Timeline-Spiegelung.
+- **Adaptive Video-Qualität:** Bei anhaltenden Framedrops mit vielen
+  parallelen Videos schalten Raum-Videos automatisch und
+  positionserhaltend auf eine 480p-Variante um (`/api/animation-proxy`,
+  gecacht) und später wieder zurück. Abschaltbar unter
+  Einstellungen → System. Macht 10+ parallele Räume praktikabel.
+- **Stream-/SSR-Stabilität:** Strobo- und Flacker-Fixes auf Dashboard
+  und `/output/` (u.a. Pressure-Frameskip malt nie mehr transparent),
+  gefrorene Animationen erzeugen null Render-Last, Firefox-spezifische
+  Frame-Callback-Aushungerung kompensiert, Vulkan-Backend für
+  SSR-Video-Playback.
+- **Robuste Live-Sync:** Laufende/gefrorene Animationen können nicht
+  mehr durch Snapshot-Races verschwinden (Absence-Grace-Modell:
+  Entfernung nur durch explizites Stop/Clear, Board-Wechsel oder
+  anhaltende Abwesenheit).
+- **Align-Modus:** Ecken-Skalierungs-Handles bleiben bei extremem Zoom
+  im sichtbaren Bereich (wie der Rotations-Handle) — das Board ist
+  immer skalierbar.
+- **Editor:** Überarbeitete Playback-Dropdowns, Live-Vorschau
+  respektiert Modus + Richtung; Loop-Animationen in mehreren Räumen
+  gefixt; Auswahl einer frisch erstellten Animation greift sofort.
+- **Diagnose:** Permanente `[58]`-Konsolen-Logs erklären jeden
+  Playback-Lebenszyklus (Phasenwechsel, Entfernungen mit Grund,
+  Qualitätswechsel) — Fehlerberichte sind direkt aus der Console
+  belegbar.
+
+---
+
+## [1.2.39] — 2026-06-08
+
+**Inside-Animationen bekommen Transform 1:1 wie Raum-Animationen (Phase 58-w3.8n).**
+Operator: "Ich will das 'transform' auch 1:1 wie bei den room animations, d.h. hier exakt die selbe Logik: Der default ist bei der Animation im Animationseditor anpassbar und während der Animation editierbar und per Knopfdruck auch für die Animation abspeicherbar." Mp4/gif-Inside-Animationen unterstützen jetzt Rotation / Stretch / Scale / Offset über denselben Mechanismus wie Räume.
+
+### Added
+- **Per-Definition-Transform im Inside-Normalizer** (`runtime-fx-normalizers.js`): `rotationDeg / stretchToPolygon / widthScale / heightScale / offsetXScale / offsetYScale`, identische Clamps wie beim Raum-Normalizer. Defaults erhalten das bisherige Verhalten (Stretch an, keine Transformation).
+- **Transform-Karte im Animations-Editor für Inside** (`animation-editor-edit-pane.js`): `buildTransformCard` greift jetzt auch für Scope `inside` (mp4/gif) — der Default ist dort einklappbar einstellbar (persistiert via `patchAnimation`). Die Editor-Vorschau spiegelt die Transformation bereits (scope-agnostischer CSS-Transform).
+- **Transform im Live-Editor für Inside**: Das Transform-Fieldset erscheint für laufende Inside-mp4/gif-Animationen (Gate liest die Instanz-`roomAssetType`, mit Fallback auf die Inside-Definition); Slider editieren die laufende Instanz live, "Save as default" schreibt die Werte in die Definition.
+
+### Changed
+- **Render wendet die Inside-Transformation an** (`runtime-draw-loop.js`): neue `resolveInsideAssetDrawRect` (volle Projektions-Canvas als Bezug — Stretch=true ⇒ pixelidentisch zum bisherigen Vollbild) + alle Inside-gif/mp4-Paints laufen jetzt über `drawRoomAssetImage` (Rotation/Scale/Offset). Bevorzugt Instanz-Werte (Live-Edits sofort sichtbar), Fallback auf die Definition.
+- **Trigger seedet die Inside-Instanz mit Transform + `roomAssetType`** (`runtime-runtime-controls.js`, nur Inside, nicht Outside) und der Server trägt diese Felder durch den `trigger-global`-Roundtrip (`server.mjs`) — sonst würden Render und Live-Editor die Instanz-Werte nicht sehen.
+
+### Fixed
+- **"Save as default"-Button war global tot.** `liveEditorSaveDefault` war nie in den Orchestration-Ctx destrukturiert/durchgereicht, daher hängte `init` nie einen Click-Handler an — der Button tat für JEDEN Scope (auch Raum) nichts. Jetzt verdrahtet (`runtime-orchestration.js`).
+- **`saveLiveEditorAsDefault` mappte Global-Scope nicht.** Inside/Outside laufen als Scope `global`; die Save-Zweige prüften aber `"inside"`/`"outside"`, sodass nichts gespeichert wurde. Global wird jetzt via `isOutsideAnimationType` auf inside/outside abgebildet (`runtime-lifecycle-live-editor.js`); der Inside-Zweig persistiert zusätzlich die Transform-Felder.
+
+### Notes
+- Verifiziert auf isoliertem Server (Frostpunk, Inside "Snow" mp4): Editor-`patchAnimation` persistiert Transform (rot/w/ox, übersteht Settle); Trigger-Instanz trägt Transform durch den Server-Roundtrip; SSR-Projektor-Render unterscheidet skaliert (17 KB) vs. Vollbild (41 KB); Live-Editor-Transform sichtbar, Slider editieren die Instanz (rot=35), "Save as default" schreibt rot=35/ox=0.15 in die Definition (persistent). `npm test` 383 pass / 14 fail (unveränderte vorbestehende SSR-Encoder-Config-Failures).
+
+---
+
+## [1.2.38] — 2026-06-08
+
+**Dashboard-Switch "Loop until stopped" komplett entfernt (Phase 58-w3.8m).**
+Operator: "entferne aber ganz den 'Loop until stopped' switch im Dashboard". Der separate Per-Trigger-Toggle über den Inside-Trigger-Buttons ist weg — Loop-Verhalten wird jetzt ausschließlich aus dem `playbackMode` der Animation selbst abgeleitet (wie bei Raum-Animationen). Eine Loop-Animation läuft bis zum Abschalten weiter; Non-Loop-Modi (play-once-disappear / play-then-freeze / boomerang) steuern ihren eigenen Lifecycle. Der "Play sound"-Toggle bleibt.
+
+### Changed
+- **`upsertGlobalAnimation` leitet das Loop-Verhalten aus dem `playbackMode` ab** statt aus dem entfernten Switch (`runtime-runtime-controls.js`): `effectiveLoopUntilStopped = isOutside || playbackMode === "loop"`. Damit entfällt die alte 4s-`GLOBAL_ONE_SHOT_DURATION_SEC`-Auto-Entfernung für Inside-Globals — die griff vorher nur, wenn eine Loop-Animation mit ausgeschaltetem Switch getriggert wurde, und entfernte die Loop-Animation nach 4s wieder (das Gegenteil von "wie eingestellt").
+- **Switch-Markup + Verdrahtung entfernt:** `#dashboard-global-loop-until-stop` aus `index.html`; Trigger-Click-Binder liest den Switch nicht mehr (`runtime-wire-overlay-window-binders.js`); Change-Listener + DOM-Ref + Orchestration-Ctx-Durchreichungen bereinigt (`runtime-wire-room-audio-binders.js`, `runtime-dom-refs.js`, `runtime-orchestration.js`). Server akzeptiert das `loopUntilStopped`-Payload-Feld weiterhin (Back-Compat für Live-Sync-Clients).
+
+### Notes
+- Verifiziert auf isoliertem Server (Frostpunk): Switch im DOM + ausgeliefertem HTML weg, "Play sound" bleibt. Loop-Animation (Snow, mp4 loop) läuft jetzt dauerhaft (`hold=true`, `durMs=null`, > 7s aktiv) statt nach 4s zu verschwinden; Toggle-Off entfernt sie sauber. Inside-"Freeze" (play-then-freeze + reverse-then-freeze-first): erster Trigger → forward, Re-Trigger → reverse → forward (Reverse-Zyklus unverändert). Keine Runtime-Fehler durch die Entfernung; `npm test` 383 pass / 14 fail (unveränderte vorbestehende SSR-Encoder-Config-Failures).
+
+---
+
+## [1.2.37] — 2026-06-08
+
+**Inside-Animationen übernehmen das Playback-Modus-System (Phase 58-w3.8l).**
+Operator: "Gleiche die Inside-Animationen an die neue Logik an: entferne den 'Loop until stopped' switch und gehe damit so um wie es in der Animation selber eingestellt ist, so soll auch hier z.B. 'reverse on-retrigger' funktionieren — nur dass Trigger hier ausschließlich der entsprechende Button ist." Inside-Animationen nutzen jetzt dasselbe per-Definition-Schema (`playbackMode` / `onRetrigger` / `playbackDirection`) wie Raum-Animationen — der alte `loopUntilStopped`-Switch ist im Editor weg (das ganze Legacy-Inside-Sidebar-Panel war bereits entfernt; der ganzseitige Animations-Editor zeigt die Playback-Dropdowns für gif/mp4 in allen drei Scopes). Re-Trigger geschieht ausschließlich über den jeweiligen Inside-Button.
+
+### Fixed
+- **Inside reverse-on-retrigger funktioniert jetzt (war komplett kaputt).** Drei Lücken gegenüber dem Raum-Pfad geschlossen:
+  - **Server stripte das Playback-Schema bei `trigger-global`.** Das server-autoritative Global-Animations-Objekt wurde Feld für Feld neu aufgebaut (anders als `trigger-room`, das den vollen Snapshot trägt) und ließ `playbackMode` / `onRetrigger` / `playbackPhase` weg. Die laufende Inside-Instanz kam ohne diese Felder zurück, weshalb die Re-Trigger-Phasen-Prüfung (`existing.playbackMode !== "play-then-freeze"`) durchfiel und die Animation bei erneutem Druck VERSCHWAND statt rückwärts zu laufen. Die Felder werden jetzt aus dem eingehenden Snapshot übernommen (`server.mjs`).
+  - **Der `ctx.getGifPlaybackFrame`-Wrapper verwarf 2 Argumente.** Er reichte nur `(path, elapsed, playbackMode)` durch und ließ `playbackDirection` + `playbackPhase` fallen — der Inside- (und Outside-)Gif-Pfad ruft diesen Wrapper direkt auf, sodass Reverse/Phase nie wirkte. Der Raum-Gif-Pfad war zufällig immun, weil er über `resolveRoomGifRenderConfig` (lokale Funktion, volle 5 Argumente) läuft. Wrapper reicht jetzt alle 5 Argumente durch (`runtime-orchestration.js`).
+  - **Der Inside-Gif-Render-Pfad fuhr die Phasen-Statemaschine nicht.** Er rief `maybeTransitionGifPlaybackPhase` nicht auf und übergab nur die statische Initial-Richtung statt der `playbackPhase`. Jetzt identisch zum Raum-Gif-Pfad: `forward → frozen-last → reverse → frozen-first` (`runtime-draw-loop.js`).
+- **Mid-Playback-Flip für Inside (Raum-Parität, w3.7m).** `advanceReversibleFreezePhaseIfPossible` akzeptiert jetzt JEDE Phase statt nur `frozen-*`: ein Tap MITTEN im Abspielen dreht die Richtung vom aktuellen Frame, statt die Instanz zu stoppen (`runtime-runtime-controls.js`).
+
+### Notes
+- **Migration / Back-Compat:** `loopUntilStopped:true` → `playbackMode "loop"`, `loopUntilStopped:false` → `play-once-disappear` (in `normalizePlaybackMode`); Legacy-`loopUntilStopped` wird weiterhin als Fallback gelesen, sodass alte Boards/Configs nicht brechen.
+- **Coded Inside-Effekte** (hull-flicker etc.) unberührt: die Playback-Dropdowns erscheinen nur für gif/mp4 (`isMedia`-Gate im Editor), coded behält seine eigene Lifecycle-Semantik.
+- **Snapshots/Live-Sync:** Inside-Phasen reiten über dieselbe scope-agnostische `RENDER_PLAYBACK_FIELDS`-Preservation + Re-Stamp-Acceptance wie Räume (deckt Global-Scope bereits ab).
+- Verifiziert auf isoliertem Server (PORT 4575, Frostpunk-Board): Inside-"Freeze"-Gif (play-then-freeze + reverse-then-freeze-first) — Button → vorwärts → `frozen-last` (ct=10.01, dur=10s), Button → `reverse` → `frozen-first`, Button → wieder vorwärts; Instanz verschwindet nie (Live-State + `[58] phase`-Logs). Mid-Playback-Flip beidseitig bestätigt. Projektor-Pfad: SSR-Render-Tab zeichnet das Inside-Gif (Pixel-Diff Baseline↔aktiv, bbox 559,207–1304,865). Dashboard-Screenshot-Serie: forward-Frames byte-identisch, frozen-last/reverse/frozen-first unterschiedlich.
+
+---
+
+## [1.2.36] — 2026-06-07
+
+**Kein Stream-Hänger mehr beim allerersten GIF-Trigger nach Server-Neustart (Phase 58-w3.8k).**
+Operator: "Wenn ich zum allerersten Mal nach dem Server-Neustart die 'freeze gif' Animation gestartet habe, hat der Stream kurz komplett gehangen — danach nicht mehr." Reproduziert und vermessen: Der erste Trigger eines Board-definierten GIFs (freeze.gif, 18 MB / 280 Frames) blockierte den Main-Thread des SSR-Render-Tabs für **3555 ms am Stück** (rAF-Gap-Messung) — der Encoder sendete solange dasselbe eingefrorene Bild. Der Fetch war unschuldig (18 MB in 85 ms vom Disk-Cache); der synchrone Parser-Decode war der Blocker. Zwei Ursachen, zwei Fixes:
+
+- **Prewarm war seit 26-h9 komplett tot:** `getBoards: () => getBoards()` in der GIF-Playback-Modul-Initialisierung referenzierte eine nicht existierende Binding (jede andere Ctx-Stelle nutzt `() => BOARDS`) — der Aufruf warf ReferenceError, den das bare `catch {}` in `warmRoomGifAssets` verschluckte. Folge: Board-definierte GIFs wurden auf KEINEM Client je vorgewärmt, nur die 3 statischen Legacy-GIFs. Gefixt; zusätzlich wärmt jetzt jeder Snapshot-Apply (Live-Hello / Board-Aktivierung) die GIF-Definitionen des aktiven Boards — auch auf dem Projektor, wo der CONTROL-gegatete `switchBoard`-Pfad nie läuft. Projektor wärmt alle Boards (Board-Wechsel darf nie kalt decodieren), Dashboards nur das aktive Board (ImageDecoder-Fast-Path speichert Frames in voller Auflösung — alle Boards wären hunderte MB). Nicht-Final-Clients decodieren gestaffelt einen Asset pro Idle-Slot statt als Herde; doppelte Warm-Aufrufe sind über Cache-Status + Queue-Flag No-Ops.
+- **Auch ein kalter Decode darf den Stream nicht mehr anhalten:** Der Parser yieldet auf Nicht-Pi-Umgebungen jetzt nach je ~12 ms akkumulierter synchroner Arbeit einen Macrotask (`setTimeout(0)` — bewusst NICHT rAF, damit der h11-Xvfb-rAF-Throttling-Hänger nicht zurückkommen kann; Pi behält seinen dedizierten rAF-Yield für den GL-Watchdog). Messung: kalter Trigger-Decode von snow.gif (10,9 MB / 190 Frames, 1080p-Frames) → max. rAF-Gap 60 ms statt Sekunden; der Stream läuft während des ~11 s gestückelten Decodes sichtbar weiter.
+
+Verifiziert auf isoliertem Server (Kalt-Start): Vorher 3555 ms Gap beim ersten Trigger; nachher sind alle Board-GIFs vor jedem Trigger fertig decodiert (280 Frames ready, 0 Gaps > 50 ms während des Idle-Prewarms) und der erste Trigger erzeugt 0 Gaps > 50 ms. Play-then-freeze → frozen-last, Reverse-Zyklus → frozen-first, Loop-GIFs, Editor-Vorschau und mp4-Pfad unverändert (Screenshot-Serie + Phasen-Probe). Speicher: Parser-Pfad (Projektor) ~41 MB ImageData + ~41 MB Bitmaps für freeze.gif (256-px-Cap), Frostpunk hat 2 Board-GIFs (fire + freeze) — unkritisch auf Server-Klasse, Pi baked keine Bitmaps.
+
+---
+
+## [1.2.35] — 2026-06-07
+
+**City Workers: sanfte Präsenz-Hüllkurve — kein abruptes Erscheinen/Verschwinden mehr (Phase 58-w3.8h).**
+Operator (Top-Immersionskiller): "Die laufenden Worker verschwinden manchmal plötzlich und tauchen wieder auf — manchmal derselbe Worker." Alpha-Trace über 3+ volle Zyklen × 4 Räume bewies: die reine Zyklus-Mathematik ist sprungfrei (0 Alpha-Sprünge > 0.1/Frame in ~78k Frames); jeder Pop kam von diskontinuierlichen EINGÄNGEN — (a) der adaptive `nonCriticalDensityScale` kippt mit dem Frame-Druck 1↔0.74↔0.54 und ließ die gerundete Figurenzahl um ±1 springen (die Figur mit dem höchsten Index poppte bei VOLLEM Alpha rein/raus — daher "derselbe Worker"), (b) Age-Resets durch Snapshot-/Live-Sync-Restarts. Fixes: Figurenzahl liest den adaptiven Density-Scale nicht mehr (≤12 Mini-Ellipsen sind vernachlässigbar, deterministische Zahl = wieder Client-übergreifend pixelidentisch unter Last) UND eine Präsenz-Hüllkurve klammert das GERENDERTE Alpha jeder Figur als letzte Stufe: ein voller Fade dauert nie unter 1,75 s Wandzeit, egal was Zyklus, Count oder Age tun; verschwindet das Ziel hart, faded die Figur als Geist an ihrer letzten Position aus. Natürliche Zyklus-Fades (≤ ~0.31 Alpha/s) passieren ungebremst — Determinismus im Steady-State bleibt.
+
+**City Workers: EIN konfigurierbarer Effekt statt zwei Varianten (Phase 58-w3.8i).**
+"city-workers" und "city-workers-lit" sind wieder EIN Effekt ("City Workers" im Effect-Picker); der lit-Schlüssel bleibt als Rückwärts-Kompatibilitäts-Alias erhalten (bestehende Definitionen/Snapshots rendern unverändert beleuchtet). Neue Optionen pro Definition (Editor, Coded-Effect-Karte):
+- **"Darstellung"**: Silhouette (Dashboard) | Beleuchtet (Beamer) — die beiden bisherigen Render-Styles.
+- **"Anzahl Bewohner"** (1-12): explizite Basis-Population, von der Intensität ENTKOPPELT (Alt-Definitionen migrieren auf ihren historischen intensitätsabgeleiteten Wert; der für diesen Effekt damit tote Intensity-Slider ist ausgeblendet). Die Pro-Raum-Varianz (×0.75-1.3) bleibt.
+- **"Gruppen"**: aus | selten | normal | häufig (Gruppen-Wahrscheinlichkeit + Pausenlänge; "normal" = exakt die bisherigen Konstanten).
+- **"Laternen-Anteil"** (0-100 %, Standard 30 = historisches Band).
+- **"Spuren im Schnee"** (Standard AN).
+Defaults rendern die bisherige dunkle Variante byte-identisch (Szenen-Vergleich über alle 32 Frostpunk-Räume); Felder reiten wie die heat-Optionen per Definition → Normalizer → draftPayload → alle 6 createAnimation-Call-Sites → Instanz → Snapshot-Spread.
+
+**City Workers: dunkle Variante übersteht das Stream-Encoding besser — /output deutlich weniger abgehackt (Phase 58-w3.8j).**
+A/B-Beweis mit identisch wiederabgespielten Figuren-Trajektorien (gleiche Räume, gleiches Age-Fenster): der SSR-Canvas animiert in beiden Styles kontinuierlich, aber die historische Fast-Schwarz-Palette (Kanäle 7-36) erzeugte nur ~2-10 Luma Frame-Delta — unter der Encoder-Dead-Zone, der Encoder ließ die Bewegung aus, bis das akkumulierte Delta als Sprung durchbrach (Consumer-Stall-Anteil bis 0.56 dunkel vs. 0.09-0.34 beleuchtet im selben Fenster). Fix inhaltsseitig: alle Farb-Konstanten des dunklen Styles werden beim Laden ×3.0 geliftet (2.0 wurde zuerst gemessen und registrierte nur canvas-seitig; jenseits von 3.0 verlieren die Figuren den Silhouetten-Charakter bei kaum weiterem Gewinn). Gemessen sinkt der Consumer-Stall-Anteil in jedem Raum (Laternen-Räume 0.22 → 0.08; reine Silhouetten-Räume verbessern sich weniger — die Subpixel-Bewegung einer 3-px-Figur bleibt für jeden Encoder hart). Auf dem Dashboard weiterhin klar dunkle Silhouetten; **"Beleuchtet (Beamer)" ist und bleibt die für den Projektor empfohlene Darstellung** (die Style-Labels benennen das Zielgerät genau deshalb).
+
+---
+
+## [1.2.34] — 2026-06-07
+
+**Heat: Schimmer-Streifen entfernt (Phase 58-w3.8f).**
+Die von oben nach unten laufenden Hitze-Schimmer-Streifen des heat-Effekts sind komplett entfernt (Operator: "Entferne diese Streifen die von oben nach unten gehen, die mag ich nicht — sonst ist top"). Der atmende Radial-Glow bleibt exakt unverändert; die zugehörige Streak-Seed-Tabelle und Konstanten sind mit ausgebaut (der seeded Hash bleibt für city-workers erhalten).
+
+**Heat: Hitzequellen-Sichtbarkeit + Puls-Synchronisation mit der nächsten Quelle (Phase 58-w3.8g).**
+Zwei neue Optionen pro heat-Animationsdefinition (Editor, Coded-Effect-Karte neben dem Heat-tint):
+- **"Hitzequelle anzeigen"** (Standard AN): AN = bisheriger Look mit hellem atmendem Kern. AUS = der Raum zeigt nur noch ein flächiges, deutlich rot pulsierendes Glühen ohne sichtbaren Hotspot (flaches Ambient-Feld, Alpha atmet mit derselben Puls-Kurve; malt in jedem Frame — SSR-Strobe-Falle).
+- **"Mit nächster Hitzequelle synchronisieren"** (Standard AUS, nur ohne sichtbare Quelle wirksam — bei sichtbarer Quelle ausgegraut): Räume ohne sichtbare Quelle übernehmen die Puls-PHASE der nächstgelegenen (Raum-Polygon-Zentroid-Distanz in normalisierten Board-Koordinaten, gleiche Auswahl auf allen Clients) LAUFENDEN heat-Animation mit sichtbarer Quelle auf demselben Board. Als Takt dient die epoch-hydrierte Startzeit + Speed der QUELLE, daher atmen Dashboard, /output und SSR identisch (gemessene Puls-Korrelation Dashboard↔SSR: 0.995; Luma-Zeitreihen: Quelle + 2 Sync-Räume peak-gleich, ein nicht-synchronisierter Raum driftet sichtbar).
+- Auflösung der nächsten Quelle ist memoisiert (Quellen-Scan max. 1× pro Frame pro Board, Nearest-Wahl gecacht per Quellen-Set-Signatur) — kein O(N)-Scan pro Raum pro Frame. Fällt die Quelle weg, wird auf die nächstnähere Quelle bzw. auf die eigene Uhr zurückgefallen (Phasen-SNAP, kein Blend — bewusst einfach gehalten).
+- Felder reiten wie playbackMode per Definition → draftPayload → createAnimation auf jede Instanz (Phase-50-Factory-Default-Falle an allen 6 Dispatch-Call-Sites explizit bedient) und via Snapshot-Spread über Live-Sync. Der Legacy-Alias `generator-heat` rendert weiter und zählt als Quelle.
+
+---
+
+## [1.2.33] — 2026-06-06
+
+**Neuer Coded-Effekt "City Workers (Beamer)" — projektions-lesbare A/B-Variante (Phase 58-w3.8e).**
+Der Beamer bildet reines Schwarz als "kein Licht" ab und dunkle Töne nur schwach — die fast schwarzen Silhouetten des normalen city-workers-Effekts sind auf dem physischen Brett daher praktisch unsichtbar (nur die Laternen tragen). Statt den Effekt zu ersetzen gibt es jetzt eine ZWEITE Registry-Variante `city-workers-lit` (Editor-Label "City Workers (Beamer)", gleiche users-Ikone) zum direkten A/B-Vergleich am Beamer: identische Verhaltens-Engine (Seeding, Anker, Gruppen, Gangart inkl. w3.8d-Tempo/Sway-Tuning, Trail-Geometrie, Varianz-Traits) — nur die Bemalung wird über ein Render-Style-Objekt umgeschaltet. Lit-Style: Mäntel in mittel-dunklen, entsättigten Grau-/Blaugrau-/Brauntönen (7-Tint-Varianz erhalten, ~6× Luminanz), interne Kontraste (kaltes Top-Light auf den Schultern, Unterseiten-Schattierung statt des auf Schwarz wirkungslosen reinschwarzen Schattens, Kopf einen Hauch heller als der Mantel), Schlitten/Bündel in angehobenen Tönen, Laternen unverändert; Schneespuren INVERTIERT zu schwach LEUCHTEND gestampften Pfaden (deutlich dunkler als die Snow-Flocken). Der normale city-workers-Effekt rendert byte-identisch weiter (Canvas-Command-Stream über 840 Vergleichsframes unverändert).
+
+## [1.2.32] — 2026-06-06
+
+**city-workers: Obergrenze fürs Schritttempo + fast gerades Stapfen (Phase 58-w3.8d).**
+Die schnellsten Figuren laufen jetzt max. ≈ 4,5 px/s auf dem 133-px-Hex (vorher bis ≈ 7,9; Gruppenmitglieder liefen auf gestreckten Streurouten bis ~2× Leader-Tempo), beladene Figuren bleiben die langsamsten; das seitliche Hin-und-her-Schwenken ist auf einen Hauch Drift reduziert (max. Abweichung von der Geraden 10,4 % → 2,8 %), Heading-Wackeln erneut halbiert.
+
+## [1.2.31] — 2026-06-06
+
+**city-workers: Per-Figur-Varianz (Phase 58-w3.8c).** Die Bewohner der
+Frostpunk-Kraterstadt sind jetzt individuell — jede Figur bekommt
+deterministisch (Raum × Figur-Index gesät, auf allen Clients identisch)
+ein festes Erscheinungsbild für ihr ganzes Leben:
+
+- **Getragene Feuerlaternen:** Ein gesäter Anteil der Figuren (~25-35 %,
+  pro Raum unterschiedlich dicht — Teil der Raum-Identität) trägt eine
+  alte Feuerlaterne: warmer Lichtpunkt auf der gesäten Hand-Seite, der
+  im Schrittrhythmus mitpendelt, mit weichem warmem Glühhalo (2,2-2,8×
+  Figurgröße, additiv) und langsam atmendem organischem Flackern (Zwei-
+  Sinus-Mix, ~2-3 s Perioden — nie stroboskopisch). In Gruppen trägt
+  höchstens der Anführer.
+- **Kleidung & Statur:** Gedeckte dunkle Mantel-Palette (kalte Grau-,
+  Braungrau-, Blaugrau-Töne, entsättigtes Dunkelrot/-grün — die Menge
+  bleibt düster), Statur-Varianz (Länge ±20 %, Schulterbreite ±25 % —
+  stämmig bis schmal), Kapuze (größerer mantelfarbener Kopf-Blob) vs.
+  Mütze (kleinerer dunkler Punkt), teils gesäte gebeugte Haltung.
+- **Lasten:** Einzelne Figuren ziehen einen kleinen Schlitten (dunkle
+  Kufenkiste an kurzer Zugleine, etwas breitere Schneespur, langsamstes
+  Watt-Tempo) oder tragen ein Schulterbündel. Größen-Gate: unter
+  ~3,2 px Figurlänge wird die Last nicht gezeichnet (würde bei der
+  Größe vermatschen) — die Figur bleibt dort ein einfacher Geher.
+- Spuren übernehmen Statur-Breite und Schlitten-Verbreiterung
+  automatisch; Knob-Semantik unverändert.
+
+## [1.2.30] — 2026-06-06
+
+Phase 58 Wave 3.8b — Operator-Feedback (2026-06-06): "Viel zu schnell
+und unnatürliche Bewegung - eher vergleichbar mit einer Fliege! Oder
+als wäre es in doppelter Geschwindigkeit. Versuche die Bewegung
+menschlicher zu machen - bedenke sie stapfen durch SCHNEE, das dauert
+und ist anstrengend."
+
+### Fixed
+- **City Workers: doppelte Speed-Anwendung entfernt** — der Draw-Loop
+  skalierte das Alter bereits mit dem Speed-Regler UND multiplizierte
+  für codierte Raum-Effekte ein zweites Mal (Speed²; dieselbe
+  Bug-Klasse wie früher bei outside-space). Für city-workers geht der
+  Regler jetzt exakt EINMAL ein: speed=2 ⇒ exakt doppeltes Tempo
+  (linear, gemessen: Leg-Dauern halbieren sich exakt), und die
+  Editor-Live-Vorschau stimmt mit dem Board überein.
+
+### Changed
+- **City Workers: stapfen jetzt durch tiefen Schnee** — komplette
+  Gang-Neuabstimmung auf "erschöpfte Überlebende":
+  - Gehtempo aus der WEGLÄNGE abgeleitet (konstante, langsame
+    Wat-Geschwindigkeit statt gleicher Zeit pro Leg): Peak ≈ 4,9-5,9
+    px/s auf einem 133-px-Hex (vorher ~26-30 px/s), Anker-zu-Anker
+    ~15-30 s, skaliert proportional mit der Polygon-Größe.
+  - Schwerer Schritt-Takt ~1,2-1,6 Schritte/s mit kleinem Körper-Bob
+    pro Schritt; Lurch-Amplituden reduziert.
+  - Fliegen-Jitter entfernt: laterales Mäandern auf höchstens EINE
+    träge Schwankung pro Leg reduziert, Heading-Wobble halbiert.
+  - Anstrengung: Mid-Leg-Verlangsamungen (Tiefschnee-Stellen),
+    häufigere und breitere Atempausen-Stopps, längere Arbeits- und
+    Off-Stage-Phasen (Zyklen jetzt ~110-220 s), Werkzeug-Rhythmus
+    auf ~1 langsamen Schlag alle 1,5-2,5 s entschleunigt.
+  - Trampelpfade (1.2.29) folgen automatisch der neuen Pose-Funktion;
+    Sampling auf 1 s gestreckt (räumlich weiterhin ~3 px Abstand),
+    75-s-Verblassen unverändert.
+
+---
+
+## [1.2.29] — 2026-06-06
+
+Phase 58 Wave 3.8a — Operator-Idee (2026-06-06): "Die Arbeiter könnten
+im Schnee Wege/Pfade hinterlassen (die dann nach einer Zeit wieder
+verblassen), damit es so aussieht als ob sie im Schnee gestampft sind."
+
+### Added
+- **City Workers: festgestampfte Schnee-Pfade** — Figuren hinterlassen
+  beim Gehen Spuren im Schnee, die über ~75 s wieder verblassen
+  (Smoothstep-Ausblendung). Kühle, dunkle, niedrig-transparente
+  Striche in Schulterbreite der jeweiligen Figur, UNTER den Figuren
+  gerendert; mehrfaches Begehen derselben Route verdichtet die Spur
+  natürlich zu einem "etablierten" Trampelpfad, Gruppen hinterlassen
+  ein locker geflochtenes Spurenband (jedes Mitglied seine eigene,
+  leicht versetzte Spur). Spuren folgen exakt dem gewundenen Gang
+  (Meander/Pace/Hesitation) und entstehen nur, solange die Figur
+  sichtbar ist (Fade-Rampen respektiert).
+- **Kein Akkumulations-Canvas** — vergangene Positionen werden pro
+  Frame deterministisch aus dem Alter re-evaluiert (Position ist eine
+  reine Funktion der Zykluszeit); Dashboard, /output und SSR rendern
+  mathematisch identische Spuren (hash-verifiziert), Spuren überleben
+  Reloads automatisch. Pfad-Samples sind pro Figur memoisiert (der
+  Zykluspfad wiederholt sich exakt), Segmente werden alpha-quantisiert
+  zu wenigen stroke()-Aufrufen gebündelt: Mehrkosten ≈ 0,11 ms pro
+  Raum-Frame (133-px-Tile, gemessen), 0 wenn der Effekt nicht läuft.
+
+---
+
+## [1.2.28] — 2026-06-06
+
+Phase 58 Wave 3.7z — "City Workers"-Iteration nach Operator-Feedback
+(2026-06-06): Per-Raum-Zufälligkeit, Gruppen, menschlicher Gang.
+
+### Changed
+- **City Workers: jeder Raum sieht anders aus** — die Figurentabellen
+  werden nicht mehr nur über den Figuren-Index geseedet (Cluster-Start
+  zeigte in jedem Raum dieselbe Szene), sondern pro Raum aus einem
+  FNV-1a-Hash der Raum-ID × Figuren-Index: eigenes Anker-Layout,
+  eigene Zyklus-Offsets, eigene Bevölkerungsdichte (countScale
+  ×0,75-1,3) pro Raum. Gleiche Raum-ID ⇒ weiterhin deterministisch
+  identische Szene auf Dashboard, /output und SSR
+  (pixel-hash-verifiziert); Szenen sind pro Raum memoisiert
+  (gedeckelter Cache).
+- **Gruppen-Events** — etwa die Hälfte der Räume (raum-geseedet)
+  bekommt eine Gruppe von 2-4 Figuren mit gemeinsamer Route:
+  Leader-Anker + kleiner Streuversatz pro Mitglied und Anker (sie
+  laufen locker parallel und streuen an den Arbeitspunkten
+  auseinander), gemeinsame Zyklusdauer/Versteck-Phase mit minimalem
+  Phasen-Lag pro Mitglied — die Gruppe erscheint als gelegentliches
+  Event zusammen, "atmet" aber durch individuelle Gang-Seeds. Figur 0
+  bleibt immer Einzelgänger; Laternen tragen nur Nicht-Gruppen-Figuren.
+- **Menschlicher Gang statt "Fahrzeug"** — Punkt-zu-Punkt-Bewegung
+  humanisiert: (a) mäandernde Pfade (zwei inkommensurable Sinuswellen
+  als seitlicher Drift um die Gerade, an beiden Ankern festgepinnt),
+  Blickrichtung folgt der Kurven-Tangente statt starr aufs Ziel;
+  (b) variables Schritttempo — Smoothstep-Easing in und aus jedem
+  Stopp, subtiler Beschleunigungs-/Verzögerungszyklus, bei einigen
+  Figuren ein kurzes Zögern auf halbem Weg; (c) Körper-Bob quer zur
+  Laufachse + leichtes Heading-Wackeln im Schritt-Rhythmus, Amplitude
+  skaliert mit dem aktuellen Tempo (Figur "setzt sich" beim Einlaufen
+  in einen Stopp). Alles weiterhin rein deterministisch aus `age` +
+  Seeds (kein per-Frame Math.random); Always-Paint-Vignette und
+  Knob-Semantik (Intensity = Anzahl, Speed = Tempo) unverändert.
+  Trajektorien-Messung am echten Render: Tempo-Rampe 1→26 px/s rein,
+  30→2 px/s raus, max. seitliche Abweichung ~17 % der Sehne —
+  "gehen, nicht fahren".
+
+---
+
+## [1.2.27] — 2026-06-06
+
+Phase 58 Wave 3.7x+y — "Heat"-Feinschliff + neue Coded-Raum-Animation
+"City Workers" für das Frostpunk-Board (Operator-Spec 2026-06-06).
+
+### Changed
+- **„Generator Heat" → „Heat", Glut-Partikel entfernt** — die
+  aufsteigenden Glut-„Bläschen" brachen die Immersion und sind komplett
+  raus; der atmende radiale Glow und die Heat-Shimmer-Streifen bleiben
+  unverändert. Kanonischer Effekt-Key ist jetzt `heat` (Editor-Label
+  „Heat"); der alte Key `generator-heat` funktioniert weiter als
+  Rückwärts-Kompatibilitäts-Alias — bestehende Animationen rendern
+  unverändert und werden beim nächsten Speichern transparent auf
+  `heat` normalisiert.
+
+### Added
+- **Neuer Coded-Effekt „City Workers"** — winzige Top-Down-Bewohner
+  beleben die Kraterstadt: dunkle Silhouetten (Schulter-Ellipse +
+  Kopfpunkt in Laufrichtung + weicher Schatten, kalt-blaugrau getönt),
+  die zwischen 2-4 geseedeten Ankerpunkten um das Zentrum stapfen, an
+  den Ankern stehenbleiben und mit rhythmischem Werkzeug-Ruckeln
+  „arbeiten", dann weich aus-/einblenden. Bewusst spärlich („hin und
+  wieder"): lange Off-Stage-Phasen pro Figur, meist nur 0-2 Figuren in
+  Bewegung, ruhige Perioden inklusive. Figurengröße relativ zum
+  Raum-Polygon mit absoluten Grenzen (≈2,5 % der Polygonbreite,
+  2-7 px) — Bewohner bleiben klein gegenüber den Gebäuden. Wenige
+  Figuren tragen eine gedämpfte warme Laterne (Tint-Farbe einstellbar,
+  Standard `#c98a4b`). Regler: Intensity = Bewohnerzahl (Standard ~4
+  bei 0,8), Speed = Geh-/Arbeitstempo, Opacity gesamt. Komplett
+  deterministisch (kein Per-Frame-Zufall — Dashboard, /output und SSR
+  identisch); eine ultraschwache kalte Vignette malt in jedem Frame
+  (SSR-Strobo-Schutz). Im Animation-Editor als „City Workers" unter
+  Effect (coded) wählbar, inkl. Live-Preview und neuem
+  Zwei-Figuren-Icon.
+
+---
+
+## [1.2.26] — 2026-06-06
+
+Phase 58 Wave 3.7w — Neue Coded-Raum-Animation "Generator Heat" für das
+Frostpunk-Board (Operator-Spec 2026-06-06).
+
+### Added
+- **Neuer Coded-Effekt „Generator Heat"** — simuliert die vom zentralen
+  Generator abgestrahlte Hitze/Wärme: atmender radialer Glow vom
+  Raumzentrum (~0,24 Hz × Speed, Radius ±15 %), subtile aufsteigende
+  Heat-Shimmer-Streifen (additiv) und spärliche Glut-Partikel, die mit
+  seitlichem Pendeln nach oben treiben und dabei schrumpfen/verblassen.
+  Komplett deterministisch aus dem Animations-Alter (keine
+  Per-Frame-Zufallswerte) — Dashboard, /output und SSR rendern
+  identische Frames. Regler: Opacity (gesamt), Intensity (Glow-Stärke +
+  Glut-Dichte), Speed (Puls + Partikel), Heat-Tint-Farbe (Standard
+  Glut-Orange `#ff7a1a`; wird beim Auswählen des Effekts im Editor
+  automatisch gesetzt). Im Animation-Editor als „Generator Heat" unter
+  Effect (coded) wählbar, inkl. Live-Preview und Flammen-Icon.
+
+---
+
+## [1.2.25] — 2026-06-06
+
+Phase 58 Wave 3.7v — Animation-Editor: Bibliotheksliste zeigt Typ-Wechsel
+sofort. Operator-Meldung 2026-06-06.
+
+### Fixed
+- **Die Typ-Zeile unter dem Animationsnamen in der linken
+  Bibliotheksliste aktualisiert sich jetzt sofort, wenn der Typ im
+  Edit-Pane per Dropdown geändert wird** — vorher zeigte die Liste den
+  alten Typ bis zum Schließen und erneuten Öffnen des Editors, auch nach
+  bestätigtem Apply. Ursache: der `assetType`-Change-Handler baute nur
+  das Edit-Pane neu, rief aber nie `renderList()` auf (der Apply-Pfad
+  synchronisiert nur die Dirty-Bar). Fix: `renderList()` beim
+  Typ-Wechsel — Auswahl und Scroll-Position bleiben erhalten
+  (gap-closure-21), das Zeilen-Icon zieht mit. Der Name war nicht
+  betroffen (Name-Input patcht die Listenzeile bereits direkt).
+
+## [1.2.24] — 2026-06-06
+
+Phase 58 Wave 3.7u — align-mode corner scale handles stay reachable at
+extreme zoom. Operator spec 2026-06-06.
+
+### Fixed
+- **Corner scale handles (⤢) on /output/ align mode now clamp into the
+  visible viewport when the board is scaled so large that their natural
+  outward placement (corner ±62 px) lands off-screen** — previously the
+  handles became unreachable at extreme zoom, making scale-down impossible.
+  Mirrors the rotate handle's Phase-36 stay-visible behavior: the outward
+  offset flips inward when it would leave the viewport ("zapp"), plus a
+  hard viewport clamp (14 px margin) as a safety net. Drag math is
+  unaffected — scaling measures the pointer's distance from the grid
+  centroid, not the handle's rendered position, so dragging a clamped
+  handle applies the exact same transform as dragging from the true corner.
+  Clamped handles carry `data-clamped="1"` for diagnostics/E2E. Rotate
+  handle behavior, the align transform model, and align-grid-snapshot /
+  align-corner-drag payloads are unchanged.
+
+## [1.2.23] — 2026-06-06
+
+Phase 58 Wave 3.7t — mp4 boomerang playback. Operator UAT 2026-06-06.
+
+### Fixed
+- **playbackMode="boomerang" now actually ping-pongs for MP4 room/inside/
+  outside animations** (was visually identical to "loop" on dashboard AND
+  /output/). Root cause: boomerang manages no `playbackPhase`, so the draw
+  loop's `expectedSrcUrl` (Wave 3.6 in-place phase swap) was ALWAYS the
+  forward URL — one rAF after the EOS handler's forward→reverse src swap,
+  `ensureRoomMp4Playback`/`ensureOutsideMp4Playback` classified the reverse
+  src as a direction mismatch and yanked it straight back to forward,
+  killing the reverse leg instantly. The expectedSrcUrl swap is now skipped
+  for boomerang — the EOS ping-pong handler owns the src.
+- Boomerang EOS handler now detects the current leg's direction by ROUTE
+  (`/api/animation-reverse`) instead of exact URL equality, so adaptive
+  quality-tier (v1.2.19) changes mid-leg no longer break the ping-pong.
+  Tier changes apply at the next EOS swap (both directions move to the
+  proxy variants together); never mid-leg — no src fight.
+- The per-rAF ensure no longer races the EOS handler with `play()` on an
+  ended boomerang video (which would have restarted the forward leg at 0
+  before the reverse swap).
+
+### Added
+- Permanent `[58] boomerang-degraded` console warn (once per element) when
+  no reverse variant is resolvable for a boomerang mp4 (asset outside
+  `/resources/animations/`), making the silent loop-fallback diagnosable.
+
+## [1.2.22] — 2026-06-06
+
+Phase 58 Wave 3.7r+s — cluster gif re-trigger desync on /output/ +
+re-trigger flash. Operator UAT 2026-06-06.
+
+### Fixed
+- **Cluster re-trigger now flips ALL member rooms on /output/ — no more
+  partially-flipped clusters.** A cluster re-trigger emits one
+  edit-room mutation per member (12 + parent); on the projector role
+  the HTTP snapshot poll (scheduled by every WS broadcast) could
+  resolve BEFORE the remaining edit-room WS frames arrived. The poll
+  apply preserved the projector's local `playbackPhase` (the v1.2.16/17
+  anti-revert guard) while accepting the re-stamped timestamp, and the
+  late WS frames were then version-rejected as stale — the flip for
+  those members was permanently lost ("einige Räume unberührt",
+  compounding into opposite-direction desync on repeat). Measured on an
+  isolated server with a CPU-throttled + latency-emulated FINAL client:
+  4/10 cluster cycles desynced pre-fix. Fix: re-trigger re-stamp
+  detection in the snapshot preservation block, symmetric on ALL roles
+  — an incoming `startedAtEpochMs` more than 250 ms NEWER than the
+  previously known epoch for the same animation id marks a re-trigger;
+  the incoming phase + render bookkeeping is then authoritative
+  (preservation skipped, permanent `[58] re-stamp-accepted` log).
+  Identical/older epochs keep the existing preservation, so
+  client-derived transitions (forward→frozen-last, mid-reverse) are
+  still protected from stale snapshots. Post-fix: 10/10 gif cluster
+  cycles and 10/10 mp4 cluster cycles flip all 12 members on the
+  dashboard, the /ssr FINAL client, and the SSR render tab
+  (.planning/debug/phase-58-gif-final-desync.md).
+- **Re-triggering a frozen gif no longer flashes ("Blitz") — the frozen
+  image holds through the phase transition, frame-perfect.** The
+  dispatch-side flip re-stamps `startedAt = performance.now()` from an
+  input/WS task inside the current frame; the next draw tick's rAF
+  timestamp is the frame's vsync BEGIN time, which can predate the
+  re-stamp (measured: +3.7 ms). The draw loop's `now < startedAt`
+  stagger guard then skipped the paint for that tick on a canvas that
+  clears every rAF → 1-frame transparent hole = the flash (mp4 had the
+  same 1-frame hole). Fix: play-then-freeze instances with a playback
+  phase set (re-stamps always set one; fresh staggered dispatches never
+  do) are exempt from the not-yet-started skip and render with age
+  clamped to 0 — which IS the frozen boundary frame (reverse at age 0 =
+  last frame = frozen-last image; forward at age 0 = first frame =
+  frozen-first image). Genuine staggered future starts keep the skip.
+  Verified with a per-rAF paint probe on dashboard AND /ssr: zero
+  unpainted ticks across re-trigger transitions; flip ticks paint
+  frame 279 → 278 → … (and 0 → 1 → … for frozen-first→forward) with no
+  frame-0 jump.
+
+---
+
+## [1.2.21] — 2026-06-06
+
+Phase 58 Wave 3.7p+q — gif reverse-on-retrigger + first-selection sync
+after editor return. Operator UAT 2026-06-06.
+
+### Fixed
+- **GIF room animations now honor the playback phases on re-trigger
+  (reverse / frozen-last / frozen-first).** Re-triggering a gif with
+  play-then-freeze + reverse-onRetrigger played it FORWARD from frame 0
+  again — the dispatch-side phase flip already routed for any asset
+  type, but the timeline-based gif renderer ignored
+  `animation.playbackPhase`. The gif timeline now mirrors instead of
+  server-transcoding: phase `reverse` walks the frame cursor backwards
+  from the last frame (identical speed multipliers), `frozen-last` /
+  `frozen-first` clamp to a constant frame with zero per-frame timeline
+  work. A new `maybeTransitionGifPlaybackPhase` (gif equivalent of the
+  mp4 `maybeTransitionPlaybackPhase`, same idempotent style and `[58]
+  phase` log) advances forward→frozen-last at EOS and
+  reverse→frozen-first (or reverse→disappear via a single idempotent
+  stop for reverse-then-disappear). Mid-play taps flip the direction in
+  ANY phase (v1.2.18 parity) and cluster re-triggers flip gif member
+  phases (v1.2.20 parity) — both fall out of the existing dispatch
+  machinery. Inside/outside gif usages and loop / boomerang /
+  play-once-disappear room gifs are unchanged. Also fixed: the
+  orchestration ctx wrapper dropped the `playbackState` third param of
+  the mp4 `maybeTransitionPlaybackPhase` (Wave 3.7i freeze-frame
+  pinning), now forwarded.
+- **First library selection after returning from the animation editor
+  no longer triggers the FIRST animation.** Creating an animation in
+  the editor and returning to the dashboard left the room-animation
+  dropdown's options stale (the editor never re-synced the dashboard
+  panels on close). Selecting the new animation via the Tap-Action
+  pill then assigned `select.value` an id with no matching option —
+  which yields `""` per HTML spec — and the dropdown's change handler
+  "validated" `""` back to `animations[0]`, silently overwriting the
+  pill's just-set draft id; the next room tap fired the first
+  animation in the list. Fixed at the root: the editor's `close()` now
+  re-syncs the dashboard FX panels (room/inside/outside), and the
+  change handler falls back to the current draft id when the select
+  value is empty (defense-in-depth for any other stale-options
+  source). A permanent `[58] select` log (user-action frequency) makes
+  raw→resolved selection mapping visible in the console.
+
+## [1.2.20] — 2026-06-06
+
+Phase 58 Wave 3.7o — reverse-on-retrigger now works at CLUSTER level.
+Operator spec 2026-06-06: "wenn Animationen in einem Cluster getriggert
+wurden und dann der Cluster-Room erneut getriggert wird, VERSCHWINDEN
+alle Animationen im Cluster. Gewollt: in allen Räumen des Clusters
+beginnt das Reverse."
+
+### Fixed
+- **Cluster re-trigger flips every member's playback direction instead
+  of stopping the cluster.** The cluster-level equivalent of the
+  v1.2.16 quick-tap bug lived in `dispatchClusterToggle`
+  (runtime-lifecycle-cluster-pads.js): a pad re-tap on a cluster with a
+  running same-type entry took the toggle-OFF branch, and
+  `collectAnimationStopIds` cascades a cluster stop to ALL member
+  instances — every animation in the cluster vanished. When the
+  matching cluster entry runs play-then-freeze with a reverse
+  `onRetrigger` (ANY phase, v1.2.18 semantics), the tap now diverts to
+  the start path, where a new cluster phase-advance candidate block in
+  `startRoomAnimationFromDraft` (the single-room block was explicitly
+  gated `targetType === "room"` — "cluster phase transitions deferred")
+  flips EACH member by ITS OWN phase (forward/unset/frozen-last →
+  reverse; reverse/frozen-first → forward). Mixed phases — e.g. one
+  room individually re-triggered between cluster taps — stay
+  independent per member. The cluster-scope parent entry mirrors the
+  flip on its own phase field for pad-UI/snapshot consistency. Members
+  in other playback modes fall through to the existing toggle-stop, and
+  Clear mode / the running list still stop reverse-retriggerable
+  clusters. Staggered clusters flip all members SIMULTANEOUSLY
+  (per-member staggered reversal intentionally not implemented).
+  Reverse/proxy src swaps (incl. adaptive 480p tier) ride the existing
+  per-instance machinery.
+
+### Added
+- **`[58] cluster-toggle` / `[58] cluster-retrigger` diagnostics** —
+  permanent console.warn on every cluster pad toggle decision
+  (retrigger vs stop) and every cluster dispatch's phase-advance check
+  ({clusterId, candidateMatched, memberCount, per-member
+  {id, roomId, phaseBefore, phaseAfter}}). User-action frequency only.
+
+---
+
+## [1.2.19] — 2026-06-05
+
+Phase 58 Wave 3.7n — adaptive video quality (operator feature request
+2026-06-05): "Einen (optionalen) Modus, in dem die Videos automatisch
+runterskalieren und z.B. eine 480p-Variante nutzen, sobald erkannt
+wird, dass es massive Framedrops gibt." Per-instance playback
+(play-then-freeze) means N rooms = N×1080p decoders; 2-3 rooms already
+dropped fps badly, and the operator wants 10+ rooms via clusters.
+Permanent quality reduction was explicitly rejected — the tier adapts.
+
+### Added
+- **Adaptive video quality (default ON).** A global quality tier for
+  non-loop room mp4 instances. Under sustained distress (rAF fps EMA
+  < 20 OR runtime pressure level ≥ 2 continuously for ≥ 2.5 s, with
+  ≥ 2 actively playing room-mp4 instances) the runtime downswitches
+  every playing instance to a server-encoded 480p proxy variant.
+  Mid-play swaps preserve playback position (currentTime is captured,
+  re-applied on `loadedmetadata`, clamped to duration; the fallback
+  canvas bridges the load window). FROZEN instances never swap
+  mid-freeze — they adopt the current tier on their next phase change.
+  Upswitch back to full resolution requires sustained health (fps > 28
+  AND pressure 0 for ≥ 10 s) AND ≤ 1 playing instance — the anti-
+  oscillation hysteresis: while a heavy multi-video scene is still
+  playing, returning to full would immediately re-create the distress;
+  in practice recovery lands once the burst is frozen/over, and new
+  instances then start at full quality. Loop-mode room mp4s are exempt
+  by design (they share ONE decoder per asset across rooms — no
+  N×decoder pressure — and their src is owned by the Phase 28
+  hash-bust).
+- **`GET /api/animation-proxy?asset=…&height=480`** — ffmpeg-downscaled
+  proxy variant (`-vf scale=-2:<h>`, fps preserved, h264, audio
+  dropped) of a `/resources/animations/*.mp4` asset. Height whitelist
+  360/480/720 (default 480; anything else → 400). Cached at
+  `resources/.proxy-cache/<basename>-<mtimeMs>-h<height>.mp4` with the
+  same validation, in-flight dedup, and atomic temp-file rename as the
+  Phase 58 reverse cache. Encode start/done logged server-side
+  (`[58] proxy encode …`).
+- **`/api/animation-reverse` optional `height` param** — encodes
+  reverse + downscale in one pass (`-vf reverse,scale=-2:<h>`), cached
+  under a height-suffixed key, so the reverse-on-retrigger cycle stays
+  seamless at the proxy tier. Without the param the endpoint is
+  byte-identical to before (backward compatible).
+- **Settings → System toggle "Adaptive Video-Qualität (auto 480p bei
+  Framedrops)"** — per-client persisted flag (localStorage
+  `tt-beamer.adaptive-video-quality.v1`). Note: the flag is per
+  rendering client (dashboard, /output/, SSR tab each have their own
+  localStorage); default is ON everywhere.
+- **`[58] quality` / `[58] quality-swap` diagnostics** — permanent
+  console.warn on every tier change ({from, to, reason, fps, pressure,
+  activeMp4Count}) and on every position-preserving src swap.
+
+---
+
+## [1.2.18] — 2026-06-05
+
+Phase 58 Wave 3.7m — direction flip works mid-playback, not only when
+frozen. Operator UAT after v1.2.17: "Loop-Modus funktioniert, ABER nur
+wenn das video schon am Ende angelangt ist (freezed frame), wenn man
+mitten während dem abspielen drückt, möchte ich dass es trotzdem …
+in der anderen Richtung das video abspielt".
+
+### Changed
+- **Re-trigger of a play-then-freeze instance now flips direction in
+  ANY phase.** Previously the phase-advance candidate (and the v1.2.16
+  quick-tap diversion) only matched frozen-last/frozen-first; a tap
+  mid-playback fell through to tap-to-stop. Now: forward (or unset) /
+  frozen-last → reverse-from-last-frame; reverse / frozen-first →
+  forward-from-first-frame — the src swap enters the other file at its
+  first frame, exactly the requested behavior. Stopping these instances
+  remains available via quick-mode Deactivate/Clear modes and the
+  running list (tap no longer stops them in toggle mode).
+
+---
+
+## [1.2.17] — 2026-06-05
+
+Phase 58 Wave 3.7k/3.7l — the /output/ playback flicker root-caused and
+fixed (resolves the v1.2.16 "Known issues" item), plus the multi-room
+same-asset loop-mode side-bug found during the investigation.
+
+### Fixed
+- **Pressure-skipped rooms paint the fallback frame instead of
+  transparent — SSR /output/ flicker during multi-video playback.**
+  Under sustained runtime pressure level 2 (the SSR tab reaches and
+  HOLDS it for the whole playback window with 8 concurrent 1080p room
+  mp4s: decode + canvas + GL warp + tab capture + software encode),
+  `shouldSkipRoomMp4Frame` bare-returned from `drawRoomComposition` for
+  every PLAYING room on alternating frames. The canvas clears each rAF,
+  so the skipped room's polygon was TRANSPARENT that frame → black in
+  the GL-warped output and the encoded stream; the two seed-parity
+  groups swapped each frame at ~3.5 Hz — the operator's /output/
+  flicker (third occurrence of the "bare return on a clearing canvas"
+  class). The skip is now folded into the live-paint gate: a pressure-
+  skipped frame takes the existing fallback-blit branch (one cheap
+  canvas blit, same cost profile as a frozen paint) instead of leaving
+  the region unpainted. Pressure relief preserved — live full-res
+  paints are still halved at level 2. Measured before/after on an
+  isolated SSR host (per-frame in-tab sampler, 8 videos, p=2
+  sustained): 173 blank room-frames → 0; visible-surface coverage
+  alternation eliminated (mean per-frame delta 2.49 → 0.40 cells, no
+  jumps ≥ 20); frozen-state soak stays byte-stable (v1.2.15 behavior);
+  dashboard at pressure 0 unchanged (loop mp4 paints live at 30/s).
+- **Multi-room same-asset loop mode never played.** Loop-mode rooms
+  share ONE per-path video element, but the Wave 3.1 instance-change
+  rewind in `ensureRoomMp4Playback` reset `currentTime = 0` whenever
+  the ensure call's instanceId differed from the element's stamp — with
+  N>1 rooms on the same asset that rewound the shared video EVERY
+  frame, pinning it at readyState 1 / t=0 forever (rooms showed only
+  fallback stills/black). The rewind is now skipped for loop mode (it
+  exists to restart per-INSTANCE videos when a new animation instance
+  adopts a cached element; the shared loop element must keep its
+  position). Verified: two rooms + same mp4 + loop → both advance in
+  lockstep at 30 live paints/s.
+
+---
+
+## [1.2.16] — 2026-06-05
+
+Phase 58 Wave 3.7j — Bug A actual root cause: quick-tap toggle, not
+live-sync. Found via the operator's v1.2.15 `[58]` console logs.
+
+### Fixed
+- **Bug A — re-trigger removed the frozen animation instead of playing
+  reverse.** The operator's `[58]` logs showed the smoking gun: every
+  removal was `reason:"explicit-remove", mutationType:"stop-animation"`,
+  and the `[58] re-trigger` candidate log only ever fired for EMPTY
+  rooms (`sameRoomCount:0`). Tapping a room with a running/frozen
+  instance never reached `startRoomAnimationFromDraft` (where the
+  Wave 3.4 phase-advance lives) — `toggleRoomAnimationByQuickTap`
+  intercepted the tap and STOPPED the instance (tap-to-toggle
+  semantics). That's why 9 live-sync/render fixes (v1.2.6–1.2.15)
+  changed nothing and why every debugger repro (which called the
+  dispatch function directly) passed. Fix: when the tapped room holds a
+  frozen (`frozen-last`/`frozen-first`) play-then-freeze instance with a
+  reverse `onRetrigger`, the tap now routes to the activate path →
+  phase-advance → reverse playback. Actively playing instances keep
+  tap-to-stop. New `[58] quick-toggle` log shows the decision
+  (retrigger vs stop) for every tap on an occupied room.
+
+### Known issues
+- /output/ (SSR) still shows flicker WHILE videos play (dashboard clean
+  since v1.2.15; frozen state clean on both). Under investigation —
+  likely SSR-capture-side, distinct from the fixed dashboard mechanisms.
+
+---
+
+## [1.2.15] — 2026-06-05
+
+Phase 58 Wave 3.7i — frozen instances stop doing video work, and the
+runtime gets PERMANENT `[58]` diagnostics. Operator UAT on v1.2.14: all
+8 frozen rooms started flickering SECONDS after freezing ("ein einziges
+Bild zu zeigen sollte keine Last erzeugen" — correct, and that was the
+defect), and re-trigger of a frozen animation still occasionally removed
+it (Firefox "Ungültige URI").
+
+### Fixed
+- **Frozen instances paint exclusively from the frozen fallback frame —
+  zero per-frame video work.** For a video paused at EOS, rVFC stops
+  firing, so the v1.2.14 freshness gate degraded every frozen room to
+  time-gated LIVE `drawImage(video)` + per-paint fallback capture —
+  continuous full-res video work per frozen room. Room, inside, and
+  outside mp4 paths now branch on `playbackPhase` frozen-last /
+  frozen-first and paint only the fallback canvas (one cheap blit per
+  rAF, keeping the Win32 capture budget); the freeze frame is pinned at
+  the phase transition.
+- **Ended-video blank-frame capture guard.** On Firefox, `drawImage` of
+  an ENDED video can intermittently yield a BLANK frame under load
+  (decoder reclaims the buffer); a blank capture clobbered the good
+  fallback and the blank then replayed → flicker. `captureRoomMp4-`/
+  `captureOutsideMp4FallbackFrame` now skip the capture when
+  `video.ended` unless no usable fallback exists yet (first capture).
+- **Frozen rooms are exempt from the pressure frame-skip.** Under
+  runtime pressure level 2, `shouldSkipRoomMp4Frame` bare-returned
+  every 2nd frame — on a canvas that clears each rAF that strobed the
+  whole room region. With v1.2.14's frozen rooms still doing full video
+  work, pressure climbed seconds after the last freeze and ALL frozen
+  rooms blinked at once (stopped when animations were removed =
+  pressure dropped). Frozen paint is now cheap AND never skipped.
+- **Outside-mp4 rVFC chain accumulation (v1.2.14 regression).**
+  `ensureOutsideMp4Playback` recreated its playback-state object every
+  rAF; with Wave 3.7h's per-(state, video) rVFC binding this registered
+  one NEW perpetual capture chain per tick (~60/s), each doing a
+  full-res fallback capture per decoded frame. The state object is now
+  reused (mirrors the room path).
+- **Loop-mode room mp4s with a manifest hash never played (pre-existing
+  since Wave 3.6, verified broken on v1.2.14).** The expectedSrcUrl
+  phase swap compared the hash-suffixed src against the plain forward
+  URL and fought the Phase 28 hash-bust — `video.src` round-tripped
+  every rAF, `readyState` pinned at 0. The swap is now gated to
+  non-loop modes and compares srcs ignoring the `?v=<hash>` suffix.
+
+### Added
+- **Permanent `[58]` console diagnostics (operator request)** — one
+  compact line per event, event-driven only (no per-frame logs):
+  `[58] re-trigger` (every room-trigger's phase-advance check incl.
+  per-instance phase/mode/onRetrigger), `[58] anim-removed` (every
+  snapshot removal with reason: explicit-remove / board-mismatch /
+  sustained-absence + absentMs), `[58] anim-absent-start` /
+  `anim-absent-recovered` (absence-grace tracking), `[58] release-video`
+  (immediately precedes any Firefox "Ungültige URI" line, names the
+  instance), `[58] phase` (playback phase transitions), `[58] src-swap`
+  (forward↔reverse swaps), `[58] prune-release` (release-debounce
+  decisions). Future failures are now explainable from console output.
+
+### Verification
+- Playwright Firefox (isolated server): 5 rooms frozen, 45s soak with
+  2s pixel sampling — all samples non-blank and byte-stable; frozen
+  instance shows 0 decodes/captures over the soak; full re-trigger
+  cycle forward→frozen-last→reverse→frozen-first→forward passes with
+  the same instance id and no release/media errors; `[58]` logs fire on
+  transitions and are absent during steady state. Playwright Chromium:
+  loop-mode room mp4 decodes ~30fps with live pixels (fixed vs the
+  broken v1.2.14 baseline). `npm test`: 383 pass / 14 fail — identical
+  to the pre-change baseline. The re-trigger removal itself could NOT
+  be reproduced locally; the permanent `[58]` logs exist to identify it
+  in the operator environment if it recurs
+  (.planning/debug/_verify_v1215.py).
+
+## [1.2.14] — 2026-06-05
+
+Phase 58 Wave 3.7h — root-defect fixes for Bug A (re-trigger disappear)
+and Bug B (Firefox multi-video flicker). The 8 prior patches
+(v1.2.6–1.2.13) were narrow; the completed debug investigations
+(.planning/debug/phase-58-bugA-firefox.md, phase-58-bugB-flicker.md)
+converged on three root defects, all fixed here. Operator environment is
+FIREFOX — both bugs were invisible in Chromium-only repros.
+
+### Fixed
+- **Bug A root: snapshot omission == removal (live-sync).** Snapshot
+  apply wholesale-replaces `state.runningAnimations`, so a TRANSIENT
+  snapshot omission removed running instances. Prior patches protected
+  only <500ms-old instances + frozen/reverse phases — phase `forward`
+  instances older than 500ms had no protection (evidence: operator's
+  10× Firefox "Ungültige URI" = 10 per-instance videos released after a
+  wholesale wipe). New model in `applyLiveRuntimeSnapshot`: an animation
+  is removed only by explicit remove mutation (stop-animation /
+  clear-all), board mismatch, or SUSTAINED absence (>2s) from snapshots
+  (`absentSinceMsById` grace tracking). Frozen/reverse phases never
+  expire by absence (client-derived); explicit removes clear the
+  bookkeeping and still remove immediately.
+- **Bug B root 1: Firefox rVFC starvation (render layer).** Firefox
+  delivers `requestVideoFrameCallback` for multiple concurrent off-DOM
+  videos only sporadically (3-13 fires/s for a 25fps source at ~5+
+  videos) — the draw-loop gate trusted `videoFrameCallbackBound` and
+  replayed a frozen fallback between fires, then jumped forward on each
+  fire = the operator's flicker/blinking (vanishes with devtools open =
+  scheduling change). New `isRvfcFresh()` (fired within 150ms): the gate
+  is now `newFrame || (!fresh && time-gate)` on room/inside/outside mp4
+  paths, with per-paint fallback capture while rVFC is not fresh.
+  Healthy rVFC (Chromium, SSR) keeps the exact previous behavior.
+- **Bug B root 2: stale playback-state inheritance.** rVFC binding is
+  now tracked per (state, video-element) pair (`_rvfcBoundVideo`) so a
+  new video element under a preserved state always re-binds, and
+  `releaseMp4VideoElementsForInstance` now also purges the per-instance
+  `roomMp4PlaybackStateByKey` entries (previously leaked forever).
+- **Animation id collision across page loads.** Ids were
+  `anim-${counter}` with the counter resetting per page load — a reload
+  or second client reused ids of still-running instances, which then
+  inherited stale video/playback caches (rVFC never bound, previous
+  animation's frozen frame painted forever). Ids now carry a per-load
+  session suffix: `anim-<session>-<counter>`. Ids are opaque strings
+  everywhere; `global-*` ids unchanged.
+
+### Verification
+- Playwright Firefox 148 (isolated server): full re-trigger cycle
+  (forward → frozen-last → reverse → frozen-first → forward →
+  frozen-last) with the instance surviving throughout; 5-room omitting-
+  snapshot survival (<2s) + sustained-absence removal (>2s) + immediate
+  explicit-stop removal; reload-mid-running with fresh rVFC bindings and
+  collision-free ids. 17/17 checks pass.
+
+---
+
+## [1.2.13] — 2026-06-05
+
+Phase 58 Wave 3.7g — frozen animations must survive snapshot omission.
+
+### Fixed
+- **Bug A, actual gap found via operator console evidence.** Firefox
+  logged "Ungültige URI. Laden der Medienressource fehlgeschlagen" ×5 at
+  re-trigger — that message only comes from
+  `releaseMp4VideoElementsForInstance` setting `video.src = ""`, proving
+  the frozen instances really were dropped from `state.runningAnimations`
+  for >500ms. The v1.2.11 in-flight merge only protects animations whose
+  `startedAtEpochMs` is <500ms old — but a FROZEN play-then-freeze
+  instance is minutes old by the time the operator re-triggers. Any
+  snapshot that transiently omits it (reconnect live-hello, interleaved
+  mutation, align-profile apply) removed it instantly → release debounce
+  killed its video element → frozen image vanished. Fix: instances in a
+  client-derived playback phase (`frozen-last`, `frozen-first`,
+  `reverse`) are now preserved across snapshot omission unconditionally
+  (board-bound via `filterRunningAnimationsForBoard`); explicit
+  `stop-animation` / `clear-all` still remove them.
+
+---
+
+## [1.2.12] — 2026-06-05
+
+Phase 58 Wave 3.7f — FPS: drop redundant per-frame fallback capture.
+
+### Changed
+- **Room mp4 FPS under many concurrent videos.** The room draw path
+  captured the fallback canvas (a full-resolution `drawImage` of the
+  `<video>`) on EVERY painted frame, on top of `_bindRoomMp4FrameCallback`
+  already capturing on every decoded frame via rVFC. With N concurrent
+  room videos that was N redundant full-res blits per rAF — the dominant
+  cost behind the operator's "spürbarer FPS-Einbruch bei vielen
+  gleichzeitigen Videos". Now the per-live-paint capture only runs when
+  rVFC is NOT bound (browsers lacking `requestVideoFrameCallback`);
+  otherwise the fallback stays fresh from rVFC alone. No change to
+  fallback freshness on Chromium/the SSR tab.
+
+---
+
+## [1.2.11] — 2026-06-05
+
+Phase 58 Wave 3.7e — Bug A finally fixed (6th iteration), found by
+spawning a dedicated debugger after 5 fixes (v1.2.6–1.2.10) failed.
+
+### Fixed
+- **Bug A — re-trigger of a frozen play-then-freeze room animation
+  makes the image DISAPPEAR on the beamer instead of playing reverse.**
+  Real root cause (all 5 prior fixes targeted the wrong layer): the
+  disappear happens on the PROJECTED output (`/ssr` + `/output`, the
+  `final-output` role), not on the dashboard (`control`). On re-trigger,
+  CONTROL sets `playbackPhase=reverse`, re-stamps `startedAtEpochMs`, and
+  broadcasts an `edit-room` mutation. The server bumps the session
+  version and, during interleaved mutation processing, briefly serves a
+  snapshot whose board-filtered `runningAnimations` transiently OMITS the
+  just-re-triggered instance. `applyLiveRuntimeSnapshot` wholesale-
+  replaces `state.runningAnimations` with that array. The v1.2.10
+  in-flight merge that re-inserts a <500ms-old locally-mutated animation
+  (which masked this on the dashboard) was **gated to
+  `OUTPUT_ROLE_CONTROL`**, so the projector got zero protection and
+  dropped the animation → vanish. Opening devtools (`TT_DEBUG_58`) only
+  slowed timing so the omitting snapshot and the re-add snapshot no
+  longer collided in the sub-frame window — the race-vanishes-with-
+  devtools signature. Fix: dropped the `OUTPUT_ROLE_CONTROL` gate on the
+  in-flight merge in `runtime-live-sync-core.js` so it runs on the
+  projector too (the 500ms `startedAtEpochMs` grace + `snapshotIds`
+  de-dup keep it safe; `!isExplicitRemoveMutation` still lets clear-all /
+  stop-animation through). Verified by the debugger via direct
+  snapshot-apply repro: a `final-output` tab dropped a 164ms-old
+  animation (inside the grace window that protects CONTROL) until the
+  gate was removed.
+- **Bug B — flicker on rapid concurrent triggers persists in `/output`
+  though fixed in the dashboard.** Same defect, same fix: the in-flight
+  merge was CONTROL-gated, so `/output` (FINAL role) never got it. The
+  single gate change above resolves both A and B.
+
+### Changed
+- `playbackPhase` / `_endedDispatched` / `_phaseChangedAt` preservation
+  across non-edit-room snapshots now applies on the projector role too
+  (the projector locally derives its playback phase via the draw loop).
+  Live-editor fields (opacity/speed/scale/...) stay CONTROL-only —
+  they're server-authoritative on the projector, so preserving stale
+  copies there would mask legitimate server updates.
+
+---
+
+## [1.2.10] — 2026-06-05
+
+Phase 58 Wave 3.7d — fixes BOTH remaining bugs via the same root cause:
+snapshot-apply races against locally-pushed / locally-mutated state.
+
+### Fixed
+- **Bug A — re-trigger of play-then-freeze still disappears (4th
+  iteration, this one actually works).** Root cause: the phase-advance
+  dispatcher mutates `candidate.playbackPhase = "reverse"` locally and
+  broadcasts via `edit-room` asynchronously. The CONTROL snapshot-apply
+  pipeline preserves a hardcoded list of `LOCAL_EDIT_FIELDS` across
+  non-edit-room snapshots — and `playbackPhase` was NOT in that list.
+  Any periodic / non-edit-room snapshot arriving during the round-trip
+  window REVERTED the local mutation back to the server's pre-edit
+  value ("frozen-last"). The next rAF saw phase="frozen-last", swapped
+  video.src back to the forward URL, then the edit-room round-trip
+  arrived and swapped it back to reverse, on alternating rAFs → video
+  stuck in `load()` loop → polygon never renders → operator UAT
+  "verschwindet". Fix: added `playbackPhase`, `_endedDispatched`, and
+  `_phaseChangedAt` to the preservation list in
+  `runtime-live-sync-core.js`. v1.2.9's `currentTime >= duration - 0.5`
+  guard in `maybeTransitionPlaybackPhase` is still correct defense in
+  depth (prevents the stale-`ended` race in the render layer too).
+- **Bug B — wild flicker when 4+ animations triggered concurrently
+  (vanishes when devtools is open — classic timing race signature).**
+  Root cause: same family as Bug A — snapshot-apply replaces
+  `state.runningAnimations` wholesale. Operator rapid-clicks N rooms;
+  the client pushes anim1..N to local state and emits N trigger-room
+  mutations. The server processes mutations one at a time and
+  broadcasts a snapshot after each, so snapshot#1 has [anim1],
+  snapshot#2 has [anim1, anim2], etc. Each intermediate snapshot
+  REMOVES the locally-pushed-but-not-yet-broadcast-back animations
+  from state.runningAnimations → polygons render empty → next
+  snapshot brings them back → flicker. Devtools opens slows JS just
+  enough that snapshots arrive after the operator's hand stopped
+  clicking, eliminating the race. Fix: on CONTROL, the snapshot-apply
+  pipeline now MERGES recently-started animations (startedAtEpochMs
+  within the last 500ms) from the previous local state back into the
+  incoming snapshot when not present, treating them as "in-flight."
+  500ms is tight enough that genuine auto-expire (hold:false +
+  durationSec >= 1s) isn't masked.
+- Render-side belt-and-braces: `releaseMp4VideoElementsForInstance`
+  now waits for 500ms of SUSTAINED absence before destroying a
+  per-instance video element. Defensively guards against any
+  remaining transient-snapshot scenario by preventing video element
+  destruction on a single missed frame.
+
+## [1.2.9] — 2026-06-05
+
+Phase 58 Wave 3.7c — actual fix for "reverse-on-retrigger disappears."
+
+### Fixed
+- **Bug A revisited (third time's the charm).** After v1.2.7 and
+  v1.2.8 each addressed *symptoms* of the stale `video.ended` race,
+  the actual mechanism is in `maybeTransitionPlaybackPhase`. The
+  draw loop calls it right after `ensureRoomMp4Playback` swaps src
+  and `load()`s the reverse mp4. HTML spec: load() resets resource
+  selection asynchronously, so `video.ended` is observably `true`
+  for the rest of the current rAF. The transition handler gated
+  only on `video.ended` and `phase === "reverse"` → fired
+  immediately → animation jumped to `frozen-first` BEFORE reverse
+  playback ever started → operator UAT "trotz reverse on
+  re-trigger verschwindet das Bild". Fix: require
+  `currentTime >= duration - 0.5s` for the transition to fire.
+  After load() currentTime is 0, so the stale-ended state cannot
+  trigger a spurious transition. When reverse actually completes,
+  currentTime is at the end → transition fires normally.
+
+### Diagnostic
+- Added `window.TT_DEBUG_58` gated console.warn instrumentation in
+  three places to help diagnose Bug B (4+ concurrent flicker —
+  cause still unidentified): `ensureRoomMp4Playback` logs video
+  state on every swap or once per second; phase-advance check logs
+  whether the candidate matched and what same-room animations
+  exist; draw-loop room mp4 logs paint outcomes accumulated per
+  instance per 1000ms window. Enable in browser console with
+  `window.TT_DEBUG_58 = true` before reproducing.
+
+## [1.2.8] — 2026-06-05
+
+Phase 58 Wave 3.7b — two defensive fixes after v1.2.7 UAT.
+
+### Fixed
+- **Re-trigger of a "Freeze, reverse on re-trigger" mp4 still
+  disappeared instead of reversing.** Root cause: after the in-place
+  `video.src` swap to the reverse URL, `video.ended` stayed `true`
+  for a microtask window (HTML spec — load() resets resource
+  selection via a queued task, not synchronously). The
+  `isFrozenAtEnd` gate in `ensureRoomMp4Playback` /
+  `ensureOutsideMp4Playback` skipped `play()` on the exact tick we
+  swapped → reverse src loaded but never started. Fix: track a
+  `srcWasSwapped` flag and force-bypass the `isFrozenAtEnd` gate
+  when the swap fired this tick.
+- **Wild flicker across all room polygons with 4+ concurrent
+  animations of the same mp4, until all froze.** Root cause:
+  concurrent `video.load()` + rVFC race. During the first 100–300ms
+  after 4 fresh per-instance video elements load(), `readyState`
+  flips transiently below 2 AND rVFC hasn't fired its first frame
+  yet → `haveLiveFrame=false` AND `fallbackCanvas` empty →
+  `getRoomMp4FallbackSource` returns null → polygon went
+  transparent for that rAF → next rAF readyState recovered → flicker
+  cycle. Fix: extend the v1.1.7 "last-resort live-paint" pattern
+  from the `haveLiveFrame` branch to the `!haveLiveFrame` branch.
+  When fallback canvas is null AND `videoWidth > 0` AND
+  `readyState >= 1` (HAVE_METADATA) AND not seeking, paint the live
+  `<video>` directly. Browser-defined as safe — draws the poster
+  frame or no-ops; strictly better than transparent. Applied to all
+  three mp4 paths (room/inside/outside).
+
+## [1.2.7] — 2026-06-05
+
+Phase 58 Wave 3.7 — hotfix for the v1.2.6 regression. Re-trigger of a
+play-then-freeze animation no longer "disappears"; first trigger plays
+forward instead of jumping straight to the frozen frame.
+
+### Fixed
+- **mp4 room/outside trigger only showed the frozen-last frame; no
+  playback ever happened.** Root cause: the v1.2.6 `expectedSrcUrl`
+  in-place src swap added to `ensureRoomMp4Playback` /
+  `ensureOutsideMp4Playback` fought the pre-existing Phase 28 B5
+  hash-bust swap in `getMediaVideoElement`. Every rAF the two
+  mechanisms swapped `video.src` between the hashed URL
+  (`…/generator_boost.mp4?v=2437bdc3c310`) and the bare phase URL,
+  each calling `video.load()` → readyState never reached 2 → no live
+  frame → fallback canvas showed whatever was last captured (the
+  frozen frame for re-triggers, black for fresh instances). Fix:
+  gate the Phase 28 hash-bust swap on `_tt58PlaybackMode === "loop"`
+  (or undefined). Non-loop modes own `video.src` via the phase swap
+  and the hash-bust is unnecessary for per-instance video elements
+  anyway (re-uploads can't happen mid-playback).
+- **Outside-fx layer was reading `animation.*` from an undefined
+  variable — the surrounding `drawOutsideFxLayer` scope only has
+  `runningInstance`.** Optional-chain masked the ReferenceError but
+  silently fell back to definition defaults, so outside-scope mp4
+  and gif never honored per-instance `playbackMode`,
+  `playbackDirection`, or `playbackPhase`. Replaced `animation?.*`
+  with `runningInstance?.*` in the outside-gif and outside-mp4
+  branches.
+
+## [1.2.6] — 2026-06-05
+
+Phase 58 Wave 3.6 — per-instance playback state + in-place src swap.
+Superseded by v1.2.7 the same day after operator UAT exposed the
+two-sided src swap regression (see v1.2.7 Fixed).
+
+### Fixed (later regressed; see v1.2.7)
+- Multi-room sync of shared frozen frame: `_roomMp4Key` now uses a
+  composite per-instance key (`${assetRef}#${instanceId}`) for
+  non-loop modes so each instance owns its own playback state +
+  fallback canvas + rVFC binding.
+- Phase transition forward↔reverse: introduced `expectedSrcUrl` for
+  in-place `video.src` swap to keep the same playback state across
+  the transition. (This change introduced the swap-fight regression
+  fixed in v1.2.7.)
+
+## [1.2.5] — 2026-06-04
+
+Phase 58 Wave 3.5 — fix the reverse-on-retrigger broadcast so /output/
+actually picks up the phase change.
+
+### Fixed
+- **Re-trigger of a "Freeze, reverse on re-trigger" animation
+  disappeared the instance instead of reversing it.** Root cause:
+  Wave 3.4 emitted a custom `trigger-room-phase` / `trigger-global`
+  with action="phase-advance" mutation, but the server's
+  `LIVE_MUTATION_TYPES` guard silently dropped these unknown action
+  names → the broadcast never reached /output/. Local CONTROL state
+  showed the phase advance but the server-snapshot pipeline
+  overwrote it back. Fix: reuse the existing `edit-room` mutation
+  type with the mutated animation snapshot. The server already
+  knows how to propagate `edit-room`; the snapshot includes
+  `playbackPhase` automatically (spread of all instance fields).
+- Phase-advance now also re-stamps `startedAt` / `startedAtEpochMs`
+  on the existing instance so the render layer treats the phase
+  transition as a new playback lifecycle (and the per-instance
+  cache lookup for the alternate URL gets a clean video element).
+
+## [1.2.4] — 2026-06-04
+
+Phase 58 Wave 3.4 — implement the reverse-on-retrigger phase
+state machine. Closes the operator-blocking issue from Wave 3.3 UAT
+where re-triggering a "Freeze, reverse on re-trigger" animation
+disappeared the instance instead of reversing it.
+
+### Added
+- **Phase-aware re-trigger** for `play-then-freeze` with
+  `reverse-then-freeze-first` / `reverse-then-disappear`:
+  - First trigger → plays forward → freezes (phase = `frozen-last`)
+  - Re-trigger → transitions phase to `reverse` → plays reverse
+    (using the ffmpeg-cached reverse URL)
+  - When reverse ends:
+    - `reverse-then-freeze-first` → phase = `frozen-first`; further
+      re-trigger transitions to `forward` again (manual ping-pong)
+    - `reverse-then-disappear` → emits `stopAnimation`, removes
+      instance
+- Implemented in two trigger surfaces:
+  - `upsertGlobalAnimation` (inside / outside global triggers) via
+    new `advanceReversibleFreezePhaseIfPossible()` helper called
+    BEFORE the existing stop-on-re-trigger path.
+  - `startRoomAnimationFromDraft` (room scope, single-room target)
+    via inline phase-advance check before the new-instance creation.
+    Cluster mode falls through to existing behavior (cluster phase
+    transitions deferred).
+- New `maybeTransitionPlaybackPhase(animation, video)` helper in
+  `runtime-outside-mp4.js`, called from all three mp4 paint paths
+  after each render tick. Observes `video.ended` and advances the
+  instance's `playbackPhase` based on the configured `onRetrigger`.
+- Render layer now picks the asset URL based on
+  `animation.playbackPhase`:
+  - `forward` / `frozen-last` → forward URL
+  - `reverse` / `frozen-first` → ffmpeg reverse URL
+  Phase transitions automatically swap to the appropriate cached
+  per-instance video element.
+
+### Notes
+- Live-sync emits a `trigger-global` / `trigger-room-phase`
+  mutation with the updated `playbackPhase` so `/output/` clients
+  receive the new phase via the standard snapshot pipeline. Server
+  treats unknown actions as a snapshot-only broadcast, so no server
+  code change required.
+- Per-instance video cache (Wave 3.2) means each phase transition
+  creates a new video element keyed by the new src URL +
+  `instanceId`. Brief load delay (~50-300ms typical) at the
+  transition is bridged by the canvas painting the underlying
+  board image during the gap. Phase 57 fallback canvas does not
+  apply to per-instance elements (would require additional
+  plumbing).
+
+## [1.2.3] — 2026-06-04
+
+Phase 58 Wave 3.3 — direction bug + per-room independent lifecycle +
+editor UX restructure. Closes the operator-blocking issues from
+Wave 3.1's first round of UAT.
+
+### Fixed
+- **mp4 always played reverse in the dashboard** regardless of the
+  Direction dropdown setting. Root cause: the boomerang src-swap
+  marker (`_tt58ReverseSrc`) persisted across mode changes; the
+  cache-reset skip kept the video pointing at the reverse URL even
+  after the operator switched away from boomerang. Fix is two-sided:
+  the skip-reset condition now also requires `_tt58PlaybackMode ===
+  "boomerang"`, and `attachMp4LifecycleHandlers` clears the boomerang
+  markers whenever the new mode is not boomerang.
+- **Multiple rooms running the same play-then-freeze animation
+  showed only the frozen frame on the 2nd+ rooms.** Root cause: mp4
+  video elements were cached per asset path and shared across all
+  active instances → Room A's at-EOS-frozen video was inherited by
+  Room B's just-triggered instance. Fix: per-instance video element
+  for any non-loop mode (cache key becomes `${path}#${instanceId}`).
+  Each room now has independent lifecycle. Loop mode keeps the
+  shared-per-path behavior (no benefit from desync).
+  Cleanup hook in `pruneFinishedAnimations` releases instance-keyed
+  video elements when the instance leaves the running list, so
+  long-running sessions don't leak `<video>` elements.
+
+### Changed
+- **Animation editor playback dropdown restructured** for clarity.
+  Replaced the confusing 4-mode + 3-sub-option layout with 5
+  self-describing top-level entries under "When ended":
+  - Loop forever
+  - Disappear
+  - Freeze (re-trigger removes)
+  - Freeze, reverse on re-trigger
+  - Boomerang (auto forward & reverse)
+  The "After reverse on re-trigger" sub-dropdown only appears when
+  the reversible-freeze mode is selected (Freeze at first frame /
+  Disappear). Schema (`playbackMode` + `onRetrigger`) is unchanged —
+  the UI just translates to/from a clearer `_uiPlaybackMode` token.
+- **"Direction" dropdown renamed to "Initial direction"** with
+  clearer option labels ("Forward (start to end)" / "Reverse (end to
+  start)") so the operator understands it sets the FIRST direction,
+  not the only one.
+- **Editor preview now restarts on every change** for non-loop modes
+  (slider nudges, sub-option flips, etc.) so the operator always
+  sees a fresh playthrough of the currently-tuned animation. Loop
+  mode keeps the fast-path so the in-flight loop doesn't stutter on
+  numeric changes.
+- **Preview "disappear" outcome is now visualised**: when mode is
+  play-once-disappear, the video / gif canvas hides itself via
+  `style.visibility = hidden` at EOS so the operator sees the
+  disappear semantics literally. Slider nudges restart and re-show.
+- **GIF preview honors mode + direction** in the canvas-driven
+  preview tick (`startGifPreview`). Boomerang ping-pongs the cursor
+  through `_resolveFrameIndex`; reverse direction walks frames
+  backward; play-once-disappear hides the canvas at EOS. Previously
+  the gif preview only ever played forward at native rate.
+
+## [1.2.2] — 2026-06-04
+
+Phase 58 Wave 3.1 — fix mp4 playback modes and editor preview parity.
+
+### Fixed
+- **mp4 play-once-disappear / play-then-freeze actually freeze /
+  disappear** instead of looping. Three converging root causes:
+  - `ensureRoomMp4Playback` / `ensureOutsideMp4Playback`
+    unconditionally called `video.play()` whenever the video was
+    paused — restarting the playback the lifecycle handler had just
+    paused at EOS. Added `isFrozenAtEnd` guard that skips auto-play
+    when `video.ended === true` and mode ∈ {play-once-disappear,
+    play-then-freeze}.
+  - `maybeWrapRoomMp4Loop` / `maybeWrapOutsideMp4Loop` skipped only
+    play-once and play-then-freeze, NOT boomerang — but for
+    boomerang the wrap also preempted the natural EOS so the
+    ended-listener src-swap never fired. Gate tightened to: only
+    plain `loop` keeps the seam-preventing wrap.
+  - `getMediaVideoElement` cache-hit logic detected a `video.src`
+    mismatch (after boomerang src-swap) and reset back to the
+    canonical forward URL → boomerang cycled forever as forward-only
+    loop with rapid ABORTs (operator-observed `[ssr-tab:reqfailed]
+    net::ERR_ABORTED` for both forward and reverse URLs). Cache
+    reset now skipped when the current src matches the stamped
+    boomerang reverse URL.
+- **Re-trigger after play-once-disappear plays from the beginning**
+  instead of inheriting the previous instance's `video.ended=true`
+  state (which would make the new instance freeze immediately). Both
+  ensure functions now stamp `_tt58InstanceId` on the video element;
+  a different id resets `currentTime = 0` so the new playthrough
+  starts fresh.
+- **Editor preview respects per-animation playback mode + direction**
+  (`animation-editor-live-preview.js`). Previously the preview
+  hardcoded `video.loop = true`. Now: `loop` only when mode is
+  `loop`; reverse direction loads the
+  `/api/animation-reverse?asset=...` URL; play-once modes freeze at
+  EOS; boomerang src-swaps. The edit-pane forces a full preview
+  rebuild when `playbackMode` or `playbackDirection` change in the
+  patch so the new flags actually apply (numeric-patch fast path was
+  silently skipping the rebuild for these fields).
+
+## [1.2.1] — 2026-06-04
+
+Phase 58 follow-up: Wave 2.5 (cleanup-dispatch + bug fix) + Wave 3
+(gif reverse / boomerang + mp4 ffmpeg-reverse infrastructure +
+direction field).
+
+### Fixed
+- **play-once-disappear correctly disappears** instead of freezing
+  at the last frame. The render layer now detects video.ended (mp4)
+  or cursor-past-total (gif) and dispatches `stopAnimation(id)`
+  exactly once per instance (idempotent via
+  `animation._endedDispatched`). The animation cleanly removes from
+  the running list. Wired in all three render paths (room-mp4,
+  inside-mp4, outside-mp4) and all three gif paths.
+
+### Added
+- **Per-animation Direction control** (Forward / Reverse) in the
+  editor, separate from playback mode. Reverse plays the animation
+  from end to start. Combined with a mode:
+  - Loop + Reverse = reverse-loop (plays backwards forever)
+  - Play-once-disappear + Reverse = plays once backward then
+    disappears
+  - Play-then-freeze + Reverse = plays once backward, freezes at the
+    first frame
+  - Boomerang + Reverse = starts reverse, then ping-pongs
+- **gif reverse playback** via cursor math in
+  `_resolveFrameIndex` (`runtime-gif-playback.js`). Boomerang
+  ping-pongs the cursor across `[0, 2 * totalDurationMs)`; the
+  second half mirrors back so the same frame-walk produces a
+  reverse playthrough. No frame buffering needed.
+- **mp4 reverse playback** via server-side ffmpeg pre-compute. New
+  `/api/animation-reverse?asset=<path>` endpoint
+  (`server.mjs::getOrEncodeReverseMp4`) spawns `ffmpeg -vf reverse`
+  on first request, caches the output under
+  `resources/.reverse-cache/<basename>-<mtime>.mp4`. Subsequent
+  requests serve from disk (typical: 1.8s first encode, 5ms cache
+  hit). Path-traversal guarded; in-flight encodes deduped via a
+  shared promise.
+- **mp4 boomerang** via src-swap on `ended`. The lifecycle handler
+  alternates between the forward asset URL and the
+  `/api/animation-reverse?...` URL so the same `<video>` element
+  alternates direction. Brief load-and-play stall (50-300ms) at
+  each swap is bridged by the Phase 57 fallback canvas.
+- New schema field `playbackDirection` on every gif/mp4 animation
+  definition (default `"forward"`). Persisted to disk; carried
+  through `createAnimation` → instance → render.
+
+### Notes
+- Phase 8 boomerang lesson (`P8-T47-REVERSE-ROOT-CAUSE.md`) honored:
+  zero `video.currentTime` seeks per rAF. mp4 reverse uses
+  pre-encoded files via ffmpeg; mp4 boomerang src-swaps between
+  forward and reverse files at EOS.
+- Still deferred to Phase 59: reverse-then-X sub-options of
+  play-then-freeze (the on-retrigger reverse-playback). These need
+  per-instance phase tracking (frozen-last → reverse → frozen-first /
+  disappeared) plus the dashboard per-trigger mode override.
+
+## [1.2.0] — 2026-06-04
+
+Phase 58 — Per-animation playback modes. Operator can now configure
+each gif / mp4 animation in the editor with one of four playback
+modes: **Loop** (default, legacy behavior), **Play once and
+disappear**, **Play once and freeze** (with three On-retrigger sub-
+options: Disappear / Reverse-to-first-freeze / Reverse-to-first-
+disappear), and **Boomerang**. Applies to all three animation
+scopes (room + inside + outside).
+
+### Added
+- **Per-animation `playbackMode` + `onRetrigger` schema fields**
+  on every gif/mp4 animation definition (`src/app/runtime/state/
+  runtime-fx-normalizers.js`). Backwards-compat: definitions without
+  the new fields default to `playbackMode = "loop"`. Legacy
+  `loopUntilStopped = false` infers `play-once-disappear` on read.
+- **Stufenweise picker in the animation editor**: Mode dropdown
+  (Loop / Play-once-disappear / Play-then-freeze / Boomerang) plus
+  a conditional On-retrigger sub-dropdown that appears only when
+  Mode = Play-then-freeze. Lives in the Defaults card alongside the
+  existing sliders (`animation-editor-edit-pane.js`). Replaces the
+  legacy inside-only Loop toggle with a unified picker available in
+  all three scopes for gif/mp4.
+
+### Changed
+- **Runtime state machine for non-reverse modes** carries
+  `playbackMode` + `onRetrigger` through `createAnimation`,
+  `upsertGlobalAnimation`, and the room-dispatch path onto every
+  running animation instance. Render layer reads `animation.playbackMode`
+  to decide loop semantics:
+  - `loop` — `video.loop = true` (mp4) / gif modulo-wrap (legacy).
+  - `play-once-disappear` — mp4: `video.loop = false`, native EOS
+    pause; gif: cursor clamps to final frame.
+  - `play-then-freeze + instant-disappear` — same as play-once-
+    disappear visually (video frozen at last frame); re-trigger uses
+    existing upsert→stop flow for instant cleanup.
+  - `attachMp4LifecycleHandlers` installs an idempotent `ended`
+    listener that pauses the video for non-loop modes; the per-mode
+    flag lives on the video element so mid-playback mode changes
+    take effect at the next EOS.
+  - `maybeWrapRoomMp4Loop` / `maybeWrapOutsideMp4Loop` skip the
+    near-EOS seek-back for non-loop modes so the freeze-at-end
+    actually persists.
+
+### Deferred (selectable in UI but not yet fully implemented; will
+ship in Phase 59)
+- **`boomerang` mode** — falls back to loop behavior at runtime.
+  Requires reverse-playback infrastructure (mp4: server-side ffmpeg
+  pre-compute + cache + WS progress event; gif: frame-walk-backward
+  via the existing `_resolveFrameIndex` cursor math).
+- **`reverse-then-freeze-first` + `reverse-then-disappear` sub-
+  options** of `play-then-freeze` — currently behave the same as
+  `instant-disappear` because the reverse-playback infrastructure
+  above isn't wired yet. The On-retrigger dropdown still saves the
+  operator's choice; once Phase 59 lands the selected behavior takes
+  effect automatically without an editor re-save.
+- **Dashboard per-trigger mode override** — operator-confirmed scope
+  but not yet wired. Today's `loopUntilStopped` per-trigger toggle
+  stays as-is. Phase 59 will replace it with the same stufenweise
+  picker plus a `Use animation default` first option.
+
+### Notes
+- Phase 8 Boomerang lesson (`P8-T47-REVERSE-ROOT-CAUSE.md`) is
+  honored: the Wave 2 implementation does NOT use `video.currentTime`
+  seeks per rAF for reverse playback. The Phase 59 reverse pipeline
+  will use ffmpeg pre-computed reverse mp4 files (cached on disk) +
+  the existing Phase 57 mp4 playback pipeline pointed at the reversed
+  source. gif reverse will use ImageDecoder frame-index walking via
+  `runtime-gif-decoder.js`.
+- Per-board JSON files now persist the new schema fields. Operators
+  can configure modes today; Loop / Play-once-disappear / Play-then-
+  freeze + Instant-disappear are visible at runtime. Selecting
+  Boomerang or a reverse-on-retrigger sub-option saves correctly and
+  becomes active when Phase 59 lands.
+
+## [1.1.7] — 2026-06-02
+
+Phase 57 Sammelphase continuation: closes two operator-reported
+follow-up bugs surfaced when overlaying mp4 animations on the same
+board after v1.1.6 shipped.
+
+### Fixed
+- **Bug A — Strobo / black-flicker on overlaid mp4** (`src/app/
+  runtime/render/runtime-outside-mp4.js` + `runtime-draw-loop.js`).
+  The v1.1.5 rVFC paint gate's fallback branch returned `null` from
+  `getRoomMp4FallbackSource` / `drawOutsideMp4FallbackFrame` when the
+  fallback canvas was older than 1500 ms OR when the fallback hadn't
+  been captured yet. The paint sites in turn left the region
+  UNPAINTED → the main rAF's `clearRect` bled black through →
+  operator-visible random black flashes when two mp4s overlay with
+  desynced decode cadences (operator UAT 2026-06-02: snow.mp4 inside-
+  animation + generator_boost.mp4 room animation). Three-part fix:
+  (1) drop the 1500 ms age guard on both fallback helpers (returning a
+  stale fallback is strictly better than returning null);
+  (2) eagerly capture the fallback canvas inside the rVFC frame
+  callback so the fallback is always populated after the first
+  decoded frame regardless of the paint site's `haveLiveFrame` check;
+  (3) add a "paint live `<video>` directly" last-resort branch in all
+  three mp4 paint sites for the initial-state case where no fallback
+  has been captured yet. Linux Playwright verification with both
+  mp4s overlay: post-startup `no-frame` paint count is **0/0** across
+  21+ one-second samples (down from ~2 % pre-fix); snow-only regression
+  baseline preserved (0 stale, 0 no-frame).
+- **Bug B — Inside animation overwrites room animations** (`src/app/
+  runtime/render/runtime-draw-loop.js`). Phase 12 room-room
+  concurrency lifts `globalCompositeOperation` to `"lighter"` via
+  `roomConcurrencyByKey` but that map only counts `scope === "room"`
+  entries — inside (`scope === "global"`) animations were never
+  counted, so a room+inside combination drew the inside animation
+  opaquely on top of the room region (operator quote: "Wenn erst
+  raum animationen gestartet werden und dann die inside animation —
+  dann sieht man die room animationen nicht mehr"). Fix: build
+  parallel `insideAnimationCountByBoard` and
+  `roomAnimationCountByBoard` maps each rAF; both room-scope draw
+  branches (cluster member + single room) and the inside-animation
+  draw branch now lift to additive composite when the other side is
+  concurrently active, mirroring the Phase 12 pattern. Layering is
+  order-independent regardless of trigger order.
+
+### Notes
+- Linux Playwright verification with the snow.mp4 (inside) +
+  generator_boost.mp4 (room) overlay scenario; visual frames captured
+  on /output/ show both animations visible continuously with no black
+  flashes.
+
+---
+
+## [1.1.6] — 2026-06-02
+
+Phase 57 Sammelphase continuation: closes the residual SSR-tab
+dropped-frame gap left after v1.1.5.
+
+v1.1.5 fixed the paint gate (rVFC-driven, no more stale paints) but
+the operator's Linux UAT still showed `vpq.droppedFps≈4-7/s` in the
+SSR Chromium tab — Chromium's video pipeline was dropping decoded
+frames UPSTREAM of any paint logic, even after `--disable-renderer-
+backgrounding` / `--disable-background-timer-throttling` /
+`--disable-backgrounding-occluded-windows` etc. Root cause: the
+ANGLE backend was defaulting to Mesa llvmpipe (software GL), which
+made the Chromium compositor too slow to keep up with 24fps content,
+so the compositor scheduler dropped frames between decode and
+display.
+
+### Changed
+- **`--use-angle=default` → `--use-angle=vulkan` on Linux SSR
+  Chromium** (`src/server/ssr-render-host.mjs#buildChromiumLaunchArgs`).
+  ANGLE now selects a Vulkan ICD (Intel / RADV / nouveau on real
+  hardware; Mesa lavapipe as software fallback) instead of GL over
+  llvmpipe. Measured impact on Linux dev box driving the Phase 57
+  Playwright SSR-tab harness against snow.mp4 (23.976fps source,
+  loop-until-stopped, 26+ one-second samples per run):
+
+  | Metric (SSR-tab, post-settle) | v1.1.5 baseline | v1.1.6 (Vulkan) |
+  |---|---|---|
+  | `vpq.droppedFps` mean | 4.27 / s | **0.39 / s** |
+  | `vpq.droppedFps` median | 4 | **0** |
+  | `vpq.droppedFps` max | 6 | **1** |
+  | Decoded frames / s | 19.77 | **24.0** (matches source) |
+  | Live mp4 paints / s | 19.77 | **24.0** |
+  | Gated-out paints / s | 32.1 | **0.97** |
+  | Stream HUD drops (60s) | non-zero | **0/67** |
+
+  88% reduction in `droppedFps`; the median sample now has zero
+  drops. Decoded frame rate fully matches source. ANGLE's automatic
+  fallback to GL (and then SwiftShader) is preserved — if a Linux
+  host has no Vulkan ICD at all the worst case is the v1.1.5
+  baseline; no new failure mode is introduced. On Win32 the
+  `--use-gl=`/`--use-angle=` pair is still dropped under the
+  headless-new default (`dropOnHeadlessNew` gate from Phase 47
+  Wave 2) — Win32 behavior unchanged. The SSR_WIN_HEADLESS=0
+  escape-hatch path on Win32 picks up the new Vulkan backend, which
+  on Windows means ANGLE→D3D11 (Vulkan absent on most Win Chrome
+  builds) — same fallback chain as today, just a different default
+  preference order.
+
+### Notes — investigation
+- Tried and reverted (no measurable impact on `droppedFps`):
+  `--disable-features=VideoBackgroundedFrameDropping`,
+  `--disable-features=BackgroundVideoTrackOptimization`,
+  `--disable-features=MediaSessionService`,
+  `--disable-features=UseSurfaceLayerForVideo`,
+  `--disable-background-media-suspend`. The Phase 57 prior debugger
+  had flagged these as the "standard suspects" for backgrounded-tab
+  video dropping. Empirically none changed the measured droppedFps
+  more than noise — confirming the drops were NOT a tab-
+  backgrounding optimization but a compositor-throughput limit.
+- `--ignore-gpu-blocklist --enable-gpu-rasterization` (ungated)
+  also tried and reverted: same regression as documented in Phase 34
+  h2 (snow.mp4 fetch aborts with ERR_ABORTED, JS thread blocks).
+  The Vulkan ANGLE backend is the only path that gives the
+  compositor a real GPU without re-triggering Phase 34's hot-loop.
+
+---
+
+## [1.1.5] — 2026-06-02
+
+Phase 57 Sammelphase: follow-up to v1.1.4 after operator UAT
+(2026-06-01) reported residual mp4 stutter: "Immer noch die selben
+kleine hänger wie zuvor, es ist nicht das es komplett freezed,
+sondern eher immer wieder eine frame drop auftaucht — aber nur bei
+dem mp4 video während die SSR und Stream fps stabil bleiben."
+
+### Changed
+- **mp4 paint gate now consumes the rVFC `hasVisibleFrame` signal
+  instead of a pure time throttle.** The Phase 57 v1.1.4 fix tier-
+  gated paints to 22 ms (45 fps in balanced tier) but ignored
+  the `requestVideoFrameCallback` signal that
+  `bindOutsideMp4FrameCallback` was already producing. Linux
+  Playwright diagnostic (this version's new instrumentation, see
+  below) showed the SSR-tab inside-mp4 path painting ~30
+  `drawImage(video)` per second of which ~12 (40%) re-drew the
+  prior decoded frame (no new rVFC tick) — perfectly identical
+  bytes, but a wasted pipeline op and a misleading paint cadence.
+  New `hasNewDecodedFrame(state)` helper consumes the rVFC
+  `_decodedFrameCount` counter; paint sites in
+  `runtime-draw-loop.js` (inside / room / outside-final) now only
+  paint the live `<video>` when a new decoded frame is available
+  since the previous paint, and `markMp4FramePainted(state)`
+  stamps the counter after each successful live paint. On rAF
+  ticks without a new frame, the fallback canvas (the most recent
+  decoded frame) is replayed — same pixels as the prior
+  duplicate-paint would have produced, so the Win32 canvas-damage
+  budget is preserved at one `drawImage` per rAF
+  (`project_win32_ssr_canvas_damage.md`). On browsers without
+  `requestVideoFrameCallback` (none modern), the v1.1.4 time gate
+  remains as a fallback.
+
+### Added
+- **`SSR_PUBLISHER_DEBUG=1` now also forwards `[mp4-diag]`
+  console lines from the SSR Chromium tab to the server log**
+  (`src/server/ssr-render-host.mjs`) and appends `?mp4diag=1` to
+  the SSR navigation URL so the in-page diagnostic activates
+  automatically. The diagnostic emits one JSON line per
+  playback-state per second with `decoded` (rVFC ticks),
+  `decodeFps`, `paints` (broken down into `live` / `stale` /
+  `gated-out` / `fallback` / `no-frame`), `rafTicks`, and
+  `vpq` (Chromium's `getVideoPlaybackQuality()` snapshot:
+  `totalFps`, `droppedFps`, `currentTime`, `readyState`). This
+  is the operator-facing toolkit for capturing the Win11 RTX 4090
+  symptom in detail: `droppedFps > 0` indicates Chromium's
+  video presentation pipeline is dropping decoded frames upstream
+  of our paint code; `stale > 0` (should be ≈ 0 after the rVFC
+  gate above) indicates the paint gate logic regressed. In-page
+  flag also accepts `?mp4diag=1` or `window.TT_MP4_DIAG = true`.
+
+### Notes — root-cause investigation summary
+- Linux Playwright (headless Chromium + Xvfb SSR tab): snow.mp4
+  is a 23.976 fps source (`r_frame_rate=24000/1001`, 198 frames
+  in 8.26 s). Dashboard `getVideoPlaybackQuality` reports
+  `totalFps=24, droppedFps=0` (no drops). **SSR tab** reports
+  `totalFps=24, droppedFps=6` — Chromium's video presentation
+  pipeline drops ~6 frames/s in the SSR tab, so only ~18 unique
+  decoded frames per second reach the canvas even though the
+  source delivered all 24. `rVFC` fires only for the non-dropped
+  frames, so the paint code is already painting every available
+  frame; the visible "frame drop" residue likely reflects that
+  upstream-drop pattern. Win11 testing with the new
+  `SSR_PUBLISHER_DEBUG=1` build will tell us whether Win11 has the
+  same upstream-drop pattern; if `droppedFps=0` on Win11 and
+  stutter is still reported, the symptom is encoder-side and needs
+  its own phase. If `droppedFps>0` on Win11, the next plan is to
+  suppress Chromium's hidden-tab video throttling.
+
+---
+
+## [1.1.4] — 2026-06-01
+
+Post-v1.1.3 hotfix. Resolves the operator-reported "konstantes
+leichtes Stockeln" on snow.mp4 in the SSR `/output/` stream.
+
+### Fixed
+- **SSR mp4 stream stutter ("constant low-FPS feel") on the
+  `/output/` WebRTC consumer.** Universal root cause: the three
+  internal mp4 render paths (inside-mp4, room-mp4, outside-mp4
+  final-output) were painting `<video>` to the canvas on every rAF
+  tick (~60 Hz on a modern PC) without rate-gating to the source
+  cadence. snow.mp4 is 30 fps source, so every other rAF tick was
+  sampling the same decoded frame → the SSR encoder picked this up
+  as visible duplicate frames and the consumer saw 23–26 fps
+  stuttery video while the dashboard rendered the same mp4 smoothly
+  at full 30 fps. Fix is symmetric: all three paths now route
+  through the same defense pattern that outside-mp4 (non-final-
+  output) has used since Phase 30 — `shouldDrawOutsideMp4Now()`
+  tier-gates the live paint to 33/22/16 ms (= 30/45/60 fps per
+  perf tier), and a fallback canvas bridges the gated-out ticks so
+  the SSR capture pipeline still sees a canvas op every frame
+  (Win32 capture budget preserved per
+  `project_win32_ssr_canvas_damage.md`). Inside-mp4 also gained
+  the manual loop-wrap + fallback machinery it never had —
+  previously a bare `video.loop=true` with no `readyState` check
+  and no fallback canvas, making it the worst-case path. The
+  Phase 30 T4 "always paint on `/output/`" optimization was
+  removed: it was correct on Pi (~16 fps rAF, gate never fired)
+  but wrong on modern Win11 / RTX 4090 (~60 Hz rAF, gate fires
+  often) — that asymmetry is what produced the operator's reported
+  stutter. No platform branches added; the fix is universal. Phase
+  50's outside-mp4 loop-seam machinery is reused, not modified.
+
 ---
 
 ## [1.1.3] — 2026-05-25

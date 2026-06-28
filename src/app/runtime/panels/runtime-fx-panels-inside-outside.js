@@ -640,6 +640,10 @@
         intensity: 1,
         hold: true,
         durationSec: 0,
+        // Phase 58-w3.9h: carry the definition's fade config onto the
+        // mirrored outside instance so the render fade reads it.
+        fadeEnabled: selectedDefinition?.fadeEnabled === true,
+        fadeDurationMs: selectedDefinition?.fadeDurationMs ?? 800,
       });
       state.runningAnimations.push(outsideAnimation);
       ctx.playSoundForAnimation(outsideAnimation);
@@ -654,6 +658,10 @@
         intensity: 1,
         hold: true,
         durationSec: 0,
+        // Phase 58-w3.9h: carry the definition's fade config onto the
+        // mirrored outside instance so the render fade reads it.
+        fadeEnabled: selectedDefinition?.fadeEnabled === true,
+        fadeDurationMs: selectedDefinition?.fadeDurationMs ?? 800,
       });
       state.runningAnimations.push(outsideAnimation);
       ctx.playSoundForAnimation(outsideAnimation);

@@ -22,6 +22,18 @@
   // h31 diagnostic counter for align-grid-snapshot receive logs.
   let _gridSnapApplyLogCount = 0;
 
+  // Phase 58 Wave 3.7h (2026-06-05): absence tracking for the snapshot
+  // in-flight merge. Snapshot apply wholesale-replaces
+  // state.runningAnimations, which made TRANSIENT snapshot omission
+  // indistinguishable from removal — the root design flaw behind 8
+  // narrow patches (v1.2.6-1.2.13). The model is now: a running
+  // animation is removed only by (1) an explicit remove mutation
+  // (stop-animation / clear-all), (2) board mismatch, or (3) SUSTAINED
+  // absence from snapshots (> ABSENCE_REMOVAL_GRACE_MS). Map keyed by
+  // animation id → epoch ms of the FIRST snapshot that omitted it.
+  const absentSinceMsById = new Map();
+  const ABSENCE_REMOVAL_GRACE_MS = 2000;
+
   // Phase-31 h29 (2026-05-06): after applying align-corner-drag, the
   // grid changes via gridState.setPoint — but neither projection
   // mapping's applyTransform (intentionally a no-op since Phase 30) nor
@@ -421,6 +433,12 @@
         }, "")
         : "") ||
       state.boardId;
+    // Phase 58 Wave 3.7h (2026-06-05): board switch invalidates the
+    // absence-grace bookkeeping — previous-board animations are removed
+    // by the board-bound filter below, not by sustained absence.
+    if (selectedBoard !== state.boardId) {
+      absentSinceMsById.clear();
+    }
     state.boardId = selectedBoard;
     state.selectedBoard = selectedBoard;
     state.selectedLayout =
@@ -521,7 +539,170 @@
         .map((animation) => [animation.id, animation]),
     );
     const boardBoundRunningAnimations = ctx.filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
-    const primedRunningAnimations = ctx.primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
+    // Phase 58 Wave 3.8v (2026-06-08): capture the RAW incoming
+    // startedAtEpochMs per id BEFORE primeGlobalTriggerRuntimeTimestamps
+    // runs. prime (runtime-global-trigger-tracker.js:261,270) OVERWRITES
+    // a scope="global" animation's incoming epoch with the PREVIOUS local
+    // epoch to keep the one-shot timeline stable across snapshots. That
+    // clobber also hides a genuine inside re-trigger's re-stamped epoch
+    // (Date.now()) from the re-stamp-acceptance check below (line ~809) —
+    // so on the FINAL/projector role the epoch delta collapsed to ~0,
+    // isReTriggerReStamp never fired, and the v1.2.45 RENDER_PLAYBACK_FIELDS
+    // preservation kept FINAL's client-derived frozen-last phase: FINAL
+    // never adopted playbackPhase="reverse" and stayed frozen until
+    // CONTROL's reverse-complete stop removed it (operator bug 2026-06-08:
+    // "inside reverse leg never plays on /output"). The raw map lets the
+    // re-stamp check see the TRUE broadcast epoch while prime still owns
+    // the render timeline base. Rooms (non-global) are unaffected: prime
+    // returns them unchanged so raw == current.
+    const incomingEpochByIdRaw = new Map();
+    for (const incomingAnimation of boardBoundRunningAnimations) {
+      if (incomingAnimation && typeof incomingAnimation.id === "string") {
+        const rawEpoch = Number(incomingAnimation.startedAtEpochMs);
+        if (Number.isFinite(rawEpoch)) {
+          incomingEpochByIdRaw.set(incomingAnimation.id, rawEpoch);
+        }
+      }
+    }
+    // Phase 58 Wave 3.7h (2026-06-05): absence-grace in-flight merge.
+    // Snapshot apply wholesale-replaces state.runningAnimations, so a
+    // TRANSIENT snapshot omission (interleaved mutation broadcast,
+    // reconnect live-hello, server processing rapid triggers one at a
+    // time) used to equal removal. The previous patches (v1.2.10-13)
+    // protected only <500ms-old instances + frozen/reverse phases —
+    // phase "forward" instances older than 500ms (initial trigger AND
+    // frozen-first→forward re-trigger, 11s+ of playback) had NO
+    // protection. Evidence: operator's 10× Firefox "Ungültige URI"
+    // console lines = 10 per-instance <video> elements released via
+    // src="" after exactly such a wholesale wipe (debug file
+    // phase-58-bugA-firefox.md, 12:30Z + 14:05Z entries).
+    //
+    // The model now: an animation is removed only by
+    //   (1) explicit remove mutation (stop-animation / clear-all),
+    //   (2) board mismatch (board-bound filter), or
+    //   (3) SUSTAINED absence (> ABSENCE_REMOVAL_GRACE_MS = 2s) from
+    //       snapshots — covers genuine server-side expiry without
+    //       letting one omitted snapshot kill a playing instance.
+    // Frozen/reverse playback phases (frozen-last / frozen-first /
+    // reverse) are CLIENT-derived (maybeTransitionPlaybackPhase sets
+    // them in the render layer; the server never originates them) and
+    // never expire by absence — only an explicit remove mutation or a
+    // board switch clears them.
+    //
+    // Runs on EVERY role (CONTROL and FINAL/projector — v1.2.11 lesson:
+    // a CONTROL-only gate made the beamer drop animations the dashboard
+    // kept).
+    const isExplicitRemoveMutation =
+      mutationType === "clear-all"
+      || mutationType === "stop-animation";
+    let preMergeAnimations = boardBoundRunningAnimations;
+    if (isExplicitRemoveMutation) {
+      // Explicit stop-animation / clear-all must remove immediately;
+      // reset the absence bookkeeping so a later re-trigger of the same
+      // id starts with a clean slate.
+      // Phase 58 Wave 3.7i: PERMANENT diagnostic (operator request) —
+      // log every removal of a previously-present animation with its
+      // reason, so a disappearing instance is explainable from console
+      // output. Fires only on anomalies/user actions, never per frame.
+      const explicitSnapshotIds = new Set(
+        boardBoundRunningAnimations.map((a) => a?.id).filter((id) => typeof id === "string"),
+      );
+      for (const [id, prev] of previousAnimationsById) {
+        if (!explicitSnapshotIds.has(id)) {
+          console.warn("[58] anim-removed", JSON.stringify({
+            id,
+            phase: prev?.playbackPhase ?? null,
+            reason: "explicit-remove",
+            mutationType,
+          }));
+        }
+      }
+      absentSinceMsById.clear();
+    } else {
+      const snapshotIds = new Set(
+        boardBoundRunningAnimations
+          .map((a) => a?.id)
+          .filter((id) => typeof id === "string"),
+      );
+      const nowEpochMs = Date.now();
+      const inFlight = [];
+      for (const [id, prev] of previousAnimationsById) {
+        if (snapshotIds.has(id)) {
+          // Present in the snapshot again → no longer absent.
+          if (absentSinceMsById.has(id)) {
+            // Phase 58 Wave 3.7i: permanent diagnostic — transient
+            // omission recovered (this is the case the grace window
+            // exists for).
+            console.warn("[58] anim-absent-recovered", JSON.stringify({
+              id,
+              absentMs: Math.round(nowEpochMs - Number(absentSinceMsById.get(id))),
+            }));
+          }
+          absentSinceMsById.delete(id);
+          continue;
+        }
+        // Only preserve animations bound to the currently selected
+        // board; cross-board leftovers are dropped immediately.
+        const isBoardBound = ctx.filterRunningAnimationsForBoard([prev], selectedBoard).length > 0;
+        if (!isBoardBound) {
+          console.warn("[58] anim-removed", JSON.stringify({
+            id,
+            phase: prev?.playbackPhase ?? null,
+            reason: "board-mismatch",
+            mutationType,
+          }));
+          absentSinceMsById.delete(id);
+          continue;
+        }
+        // Client-held playback phases are preserved unconditionally
+        // (never expire by absence — see model comment above).
+        const prevPhase = prev?.playbackPhase;
+        const isClientHeldPlaybackPhase =
+          prevPhase === "frozen-last" || prevPhase === "frozen-first" || prevPhase === "reverse";
+        if (isClientHeldPlaybackPhase) {
+          inFlight.push(prev);
+          continue;
+        }
+        const firstAbsentAtMs = Number(absentSinceMsById.get(id));
+        if (!Number.isFinite(firstAbsentAtMs)) {
+          // First snapshot that omits this id → stamp and preserve.
+          // Phase 58 Wave 3.7i: permanent diagnostic — first omission.
+          console.warn("[58] anim-absent-start", JSON.stringify({
+            id,
+            phase: prevPhase ?? null,
+            mutationType,
+          }));
+          absentSinceMsById.set(id, nowEpochMs);
+          inFlight.push(prev);
+          continue;
+        }
+        if (nowEpochMs - firstAbsentAtMs < ABSENCE_REMOVAL_GRACE_MS) {
+          // Still within the grace window → preserve.
+          inFlight.push(prev);
+          continue;
+        }
+        // Sustained absence → genuinely gone; drop it.
+        console.warn("[58] anim-removed", JSON.stringify({
+          id,
+          phase: prevPhase ?? null,
+          reason: "sustained-absence",
+          absentMs: Math.round(nowEpochMs - firstAbsentAtMs),
+          mutationType,
+        }));
+        absentSinceMsById.delete(id);
+      }
+      // Hygiene: forget absence stamps for ids that are no longer
+      // tracked locally at all (e.g. removed by pruneFinishedAnimations).
+      for (const id of Array.from(absentSinceMsById.keys())) {
+        if (!previousAnimationsById.has(id) && !snapshotIds.has(id)) {
+          absentSinceMsById.delete(id);
+        }
+      }
+      if (inFlight.length > 0) {
+        preMergeAnimations = [...boardBoundRunningAnimations, ...inFlight];
+      }
+    }
+    const primedRunningAnimations = ctx.primeGlobalTriggerRuntimeTimestamps(preMergeAnimations, previousAnimationsById);
     const reconciledRunningAnimations = ctx.reconcileHydratedAnimations(primedRunningAnimations);
     const retainedRunningAnimations = ctx.retainActiveSeenOneShotRuns(reconciledRunningAnimations);
     state.runningAnimations = ctx.hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
@@ -551,17 +732,152 @@
         }
       }
     }
+    // Phase 58-w3.8k (2026-06-07): prewarm the active board's GIF
+    // DEFINITIONS (not just running animations) on every snapshot
+    // apply. On the projector role syncRuntimePanelsFromState →
+    // switchBoard → warmRoomGifAssets is CONTROL-gated and never runs,
+    // so live-hello / board activation previously left board-defined
+    // GIFs cold — the first trigger then fetch+decoded ~18 MB on the
+    // SSR tab's main thread and froze the projected stream for ~3.5 s
+    // (operator UAT 2026-06-07). warmGifAssetPath dedupes decoded /
+    // queued paths, so steady-state applies are no-ops; cold paths
+    // decode staggered (serialized queue on final-output, idle queue
+    // elsewhere) instead of at trigger time.
+    if (typeof ctx.warmBoardGifDefinitions === "function") {
+      ctx.warmBoardGifDefinitions(state.boardId, { reason: "board-activate" });
+    }
     // Preserve local-only edits (live editor) for animations that already
-    // existed before this snapshot — but only on the control client and
-    // only when the snapshot is NOT from an edit-room mutation (which
-    // carries the authoritative edited values for all clients).
-    if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL && mutationType !== "edit-room") {
-      const LOCAL_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
-        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+    // existed before this snapshot.
+    //
+    // Phase 58 Wave 3.7d (2026-06-05): playbackPhase added to the
+    // preservation list. The phase-advance dispatcher mutates phase
+    // locally and broadcasts via edit-room async. A periodic /
+    // non-edit-room snapshot arriving DURING the round-trip window
+    // would otherwise revert the local mutation to the server's
+    // pre-edit value (e.g. "frozen-last" instead of "reverse"),
+    // making the draw loop swap video.src forward<->reverse on
+    // alternating rAFs -> video stuck in load() loop -> operator UAT
+    // "trotz reverse on re-trigger verschwindet das Bild".
+    // _endedDispatched and _phaseChangedAt are render-layer
+    // bookkeeping never set by the server; preserve them too.
+    //
+    // Phase 58 Wave 3.7e (2026-06-05): split by role. The projector
+    // (FINAL) runs its own draw loop and locally DERIVES the playback
+    // phase (forward -> frozen-last -> reverse -> frozen-first) via
+    // maybeTransitionPlaybackPhase, so it needs the same phase/render
+    // bookkeeping preserved across non-edit-room snapshots — otherwise
+    // a stale-phase snapshot mid-reverse can thrash the src on the
+    // beamer. But the live-editor fields (opacity/speed/scale/...) are
+    // only ever locally edited on CONTROL; on the projector they are
+    // server-authoritative, so preserving the projector's stale copies
+    // would mask legitimate server updates. Hence: phase/render fields
+    // on BOTH roles, live-editor fields on CONTROL only.
+    //
+    // Phase 58 Wave 3.8u (2026-06-08): SPLIT the mutationType gate.
+    // RENDER_PLAYBACK_FIELDS are CLIENT-derived render bookkeeping the
+    // server never originates (frozen-last/frozen-first/reverse +
+    // gif leg-clock markers — see runtime-draw-loop.js leg-local
+    // timeline, runtime-outside-mp4.js maybeTransition* setters). They
+    // MUST be preserved for non-re-triggered animations regardless of
+    // mutationType. Previously the whole preservation block was gated
+    // behind `mutationType !== "edit-room"`, so an edit-room snapshot
+    // for an UNRELATED animation stripped EVERY other animation's
+    // client-held playbackPhase + leg markers, reverting them to the
+    // server's stale "forward"/undefined. For a frozen inside
+    // play-then-freeze instance that meant: phase -> "forward", leg
+    // markers dropped -> the leg clock re-initialized to 0 on the next
+    // frame -> the frozen animation REPLAYED forward (operator bug,
+    // 2026-06-08: "editing a room animation restarts a frozen inside
+    // one"). The re-stamp guard still distinguishes a genuine
+    // re-trigger (epoch jump >250ms) from an unrelated mutation
+    // (identical epoch), so legitimate forward→freeze→reverse→freeze
+    // re-triggers are unaffected. Only LIVE_EDIT_FIELDS remain
+    // server-authoritative on edit-room (they carry the edit for all
+    // clients), so their preservation stays gated on non-edit-room +
+    // CONTROL.
+    const RENDER_PLAYBACK_FIELDS = ["playbackPhase", "_endedDispatched", "_phaseChangedAt",
+      "_gifLegPhase", "_gifLegStartPerfMs"];
+    const LIVE_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
+      "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+    const liveEditFieldsToPreserve =
+      mutationType !== "edit-room" && ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL
+        ? LIVE_EDIT_FIELDS
+        : [];
+    {
       for (const animation of state.runningAnimations) {
         const previous = previousAnimationsById.get(animation.id);
         if (!previous) continue;
-        for (const field of LOCAL_EDIT_FIELDS) {
+        // Phase 58 Wave 3.7r (2026-06-06): re-trigger re-stamp detection
+        // — symmetric on ALL roles. The dispatch-side phase flip
+        // (runtime-room-dispatch.js) re-stamps startedAtEpochMs together
+        // with the new playbackPhase and emits edit-room. When that flip
+        // reaches a client through a NON-edit-room snapshot (e.g. the
+        // HTTP poll a WS broadcast scheduled — measured on FINAL: the
+        // poll response, carrying versions v70/v71, applied BEFORE the
+        // edit-room WS frames arrived; the broadcasts were then
+        // version-rejected as stale), the unconditional preservation
+        // below used to revert the incoming phase to the local stale
+        // value while the hydrated timeline base accepted the NEW epoch
+        // — gif members stuck mid-cluster-flip ("some rooms untouched",
+        // compounding into opposite-direction desync; debug file
+        // phase-58-gif-final-desync.md). Rule: an incoming
+        // startedAtEpochMs MEANINGFULLY newer (>250 ms) than the
+        // previously known epoch for the same id is a re-trigger — the
+        // incoming phase/render bookkeeping is authoritative; skip the
+        // preservation. Identical/older epoch keeps the preservation
+        // (the original anti-revert purpose: client-derived transitions
+        // like forward→frozen-last and mid-reverse states must not be
+        // clobbered by stale snapshots). A bare phase-difference is NOT
+        // used as the trigger because the frozen-* phases are
+        // client-derived and legitimately differ from the server's
+        // stale copy.
+        // Phase 58 Wave 3.8v (2026-06-08): use the RAW incoming epoch
+        // (captured before prime's global clobber) for the re-stamp
+        // delta, falling back to the post-prime value when the id was not
+        // in this snapshot (in-flight grace preservation, where adopting
+        // nothing is correct). Without this, a genuine inside re-trigger's
+        // re-stamped epoch was clobbered to the previous local value for
+        // scope="global" instances, so the delta never exceeded 250 and
+        // FINAL never adopted the reverse phase.
+        const incomingEpochMs = incomingEpochByIdRaw.has(animation.id)
+          ? incomingEpochByIdRaw.get(animation.id)
+          : Number(animation.startedAtEpochMs);
+        const previousEpochMs = ctx.getAnimationStartedAtEpochMs(previous);
+        const isReTriggerReStamp =
+          Number.isFinite(incomingEpochMs)
+          && Number.isFinite(previousEpochMs)
+          && incomingEpochMs - previousEpochMs > 250;
+        if (isReTriggerReStamp) {
+          // Phase 58 Wave 3.7r: PERMANENT diagnostic (mirrors the [58]
+          // family) — fires once per re-trigger per animation.
+          console.warn("[58] re-stamp-accepted", JSON.stringify({
+            id: animation.id,
+            prevPhase: previous.playbackPhase ?? null,
+            nextPhase: animation.playbackPhase ?? null,
+            epochDeltaMs: Math.round(incomingEpochMs - previousEpochMs),
+            mutationType,
+          }));
+          // Phase 58 Wave 3.8v: PERSIST the adopted re-stamp epoch onto
+          // the animation (prime clobbered it back to the previous local
+          // value). Otherwise every later snapshot would still carry the
+          // server's stored reverse+T2 while the local epoch stayed at the
+          // previous value, so the delta would keep exceeding 250 and the
+          // re-stamp would re-fire on EVERY poll — re-replaying reverse
+          // over a client-derived frozen-first terminal state
+          // (reverse-then-freeze-first). Persisting T2 makes subsequent
+          // deltas 0 -> later snapshots correctly preserve the terminal
+          // phase. The gif reverse leg is leg-local (v1.2.42) and mp4 uses
+          // video.currentTime, so neither depends on this epoch for
+          // playback timing.
+          animation.startedAtEpochMs = incomingEpochMs;
+        } else {
+          for (const field of RENDER_PLAYBACK_FIELDS) {
+            if (previous[field] !== undefined) {
+              animation[field] = previous[field];
+            }
+          }
+        }
+        for (const field of liveEditFieldsToPreserve) {
           if (previous[field] !== undefined) {
             animation[field] = previous[field];
           }

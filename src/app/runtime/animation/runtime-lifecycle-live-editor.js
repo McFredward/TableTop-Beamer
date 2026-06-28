@@ -140,7 +140,19 @@
       direction: animation.direction,
       // Coded-specific (solid-color) per-instance color.
       colorHex: animation.colorHex,
+      // Phase 58-w3.9h: fade config so Discard restores it.
+      fadeEnabled: animation.fadeEnabled,
+      fadeDurationMs: animation.fadeDurationMs,
     };
+    // Phase 58-w3.9g: snapshot the FULL coded option set (heat /
+    // city-workers / break-solid-color) so Discard restores every
+    // coded field the live editor can now change, not just colorHex.
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (codedOptions?.CODED_OPTION_KEYS) {
+      for (const key of codedOptions.CODED_OPTION_KEYS) {
+        liveEditorSnapshot[key] = animation[key];
+      }
+    }
     // W3.4-C1 bridge: mirror writes to the lifecycle-state module
     // so applyLiveEditorValue (now there) sees the same animationId
     // when slider listeners fire.
@@ -201,7 +213,17 @@
     ctx.liveEditorSoundVolumeValue.textContent = `${soundVolume}%`;
 
     // Transform fields — only visible for mp4/gif asset types.
-    const assetType = String(animation.roomAssetType ?? "").toLowerCase();
+    // Phase 58 Wave 3.8n: inside animations also expose transform (1:1
+    // with rooms). Their instance carries roomAssetType (seeded at
+    // trigger time), but fall back to the inside definition's assetType
+    // for robustness against legacy snapshots that predate the seed.
+    // Outside stays excluded: its type isn't in the inside profile, so
+    // the fallback finds nothing and transform stays hidden.
+    let assetType = String(animation.roomAssetType ?? "").toLowerCase();
+    if (!assetType && animation.scope === "global" && typeof ctx.getInsideFxProfile === "function") {
+      const insideDef = ctx.getInsideFxProfile(animation.boardId)?.animations?.find((d) => d.id === animation.type);
+      if (insideDef) assetType = String(insideDef.assetType ?? "").toLowerCase();
+    }
     const showTransform = assetType === "mp4" || assetType === "gif";
     ctx.liveEditorTransform.hidden = !showTransform;
 
@@ -315,6 +337,160 @@
     }
   }
 
+  // Phase 58-w3.9g: throttled live broadcast of the running instance's
+  // current field values to all clients (dashboard's own canvas already
+  // reflects animation[field] each rAF, but /output is a separate client
+  // and only sees these via an edit-room mutation). Coalesced to one
+  // emit per animation frame so a coded slider drag doesn't flood the
+  // wire. Mirrors closeLiveEditor's edit-room emission (incl. cluster
+  // children) so /output updates in REAL TIME, not only on Done.
+  let _liveBroadcastScheduled = false;
+  function _broadcastLiveEditorEdit() {
+    if (liveEditorAnimationId === null) return;
+    const animation = ctx.state.runningAnimations.find(
+      (item) => item?.id === liveEditorAnimationId,
+    );
+    if (!animation) return;
+    void ctx.emitLiveMutation("edit-room", {
+      animationId: animation.id,
+      animation: ctx.buildAnimationSnapshotForLiveSync(animation),
+    }).catch(() => {});
+    if (animation.scope === "cluster") {
+      for (const child of ctx.state.runningAnimations) {
+        if (child?.parentClusterRunId === animation.id && child?.scope === "room") {
+          void ctx.emitLiveMutation("edit-room", {
+            animationId: child.id,
+            animation: ctx.buildAnimationSnapshotForLiveSync(child),
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+  function _scheduleLiveEditorBroadcast() {
+    if (_liveBroadcastScheduled) return;
+    _liveBroadcastScheduled = true;
+    const flush = () => {
+      _liveBroadcastScheduled = false;
+      _broadcastLiveEditorEdit();
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(flush);
+    else setTimeout(flush, 16);
+  }
+
+  // Phase 58-w3.9g: resolve the coded-effect type + profile scope + the
+  // backing definition for a running animation, across all three scopes.
+  // Returns { codedType: null } for non-coded instances.
+  function _resolveRunningCoded(animation) {
+    if (animation.scope === "room" || animation.scope === "cluster") {
+      const assetType = typeof ctx.normalizeRoomAssetType === "function"
+        ? ctx.normalizeRoomAssetType(animation.roomAssetType)
+        : animation.roomAssetType;
+      if (assetType !== "coded") return { codedType: null, scope: "room", def: null };
+      const codedType = typeof ctx.resolveRoomCodedEffectType === "function"
+        ? ctx.resolveRoomCodedEffectType(animation.roomAssetRef || animation.type)
+        : null;
+      const def = typeof ctx.getRoomAnimationDefinitionById === "function"
+        ? ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId)
+        : null;
+      return { codedType, scope: "room", def };
+    }
+    if (animation.scope === "global") {
+      const isOutside = typeof ctx.isOutsideAnimationType === "function"
+        && ctx.isOutsideAnimationType(animation.type, animation.boardId);
+      const profile = isOutside
+        ? (typeof ctx.getOutsideFxProfile === "function" ? ctx.getOutsideFxProfile(animation.boardId) : null)
+        : (typeof ctx.getInsideFxProfile === "function" ? ctx.getInsideFxProfile(animation.boardId) : null);
+      const def = profile?.animations?.find((d) => d?.id === animation.type) ?? null;
+      const profileScope = isOutside ? "outside" : "inside";
+      if (!def || String(def.assetType || "").toLowerCase() !== "coded") {
+        return { codedType: null, scope: profileScope, def };
+      }
+      const resolver = isOutside ? ctx.resolveOutsideCodedEffectType : ctx.resolveInsideCodedEffectType;
+      const codedType = typeof resolver === "function" ? resolver(def.assetRef || animation.type) : null;
+      return { codedType, scope: profileScope, def };
+    }
+    return { codedType: null, scope: animation.scope, def: null };
+  }
+
+  // Phase 58-w3.9g: build the full coded option set (heat / city-workers
+  // / break-solid-color) for a running coded animation into the live
+  // editor's coded container. Phase 58-w3.9i: each control now edits the
+  // running instance for a DASHBOARD-LOCAL preview only — applyLiveEditorValue
+  // mutates the running instance (the dashboard's own canvas reflects it
+  // next rAF) but DOES NOT broadcast to /output during dragging. The
+  // change reaches /output + other clients only on Done (closeLiveEditor)
+  // or Save-as-default, exactly like the non-coded sliders (opacity /
+  // intensity / speed / transform), which have always been dashboard-local
+  // until commit. solid-color color stays in the static #live-editor-color
+  // picker (handled by _populateLiveEditorAdvancedFields). The rows live
+  // inside the collapsible "Coded Settings" <details>; the whole section
+  // is hidden when the instance exposes no coded options.
+  function _populateLiveEditorCoded(animation) {
+    const container = ctx.liveEditorCoded;
+    const section = ctx.liveEditorCodedSection;
+    if (!container) return;
+    container.replaceChildren();
+    container.hidden = true;
+    if (section) section.hidden = true;
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions) return;
+    const { codedType, scope, def } = _resolveRunningCoded(animation);
+    // solid-color exposes only a colour swatch, already served by the
+    // static live-editor color picker — skip to avoid a duplicate row.
+    if (!codedType || codedType === "solid-color") return;
+    if (!codedOptions.hasCodedOptions(codedType, scope)) return;
+    const rows = codedOptions.buildCodedOptionRows({
+      scope,
+      codedType,
+      // Read the running instance first (seeded at trigger time); fall
+      // back to the definition for legacy snapshots that predate a field.
+      get: (key) => (animation[key] !== undefined ? animation[key] : def?.[key]),
+      // Phase 58-w3.9i: dashboard-local preview — apply to the running
+      // instance ONLY (no _scheduleLiveEditorBroadcast). /output adopts
+      // the value on Done / Save-as-default, not during the drag.
+      set: (key, value) => {
+        applyLiveEditorValue(key, value);
+      },
+    });
+    for (const row of rows) container.append(row);
+    const hasRows = rows.length > 0;
+    container.hidden = !hasRows;
+    if (section) section.hidden = !hasRows;
+  }
+
+  // Phase 58-w3.9h: build the fade (Ein-/Ausblenden) toggle + conditional
+  // duration slider for the running instance, for ANY animation type.
+  // Phase 58-w3.9k: each control now edits the running instance for a
+  // DASHBOARD-LOCAL preview only — applyLiveEditorValue mutates the running
+  // instance (the dashboard's own canvas reflects it next rAF) but DOES NOT
+  // broadcast to /output during dragging. The change reaches /output + other
+  // clients only on Done (closeLiveEditor) or Save-as-default, exactly like
+  // the non-coded sliders (opacity / intensity / speed / transform) and the
+  // coded controls (w3.9i). On the next start the saved default (if
+  // Save-as-default was used) drives the fade. The "Fade-Dauer" slider stays
+  // hidden until the "Ein-/Ausblenden" toggle is ON (builder gating).
+  function _populateLiveEditorFade(animation) {
+    const container = ctx.liveEditorFade;
+    if (!container) return;
+    container.replaceChildren();
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions?.buildFadeOptionRows) {
+      container.hidden = true;
+      return;
+    }
+    const rows = codedOptions.buildFadeOptionRows({
+      get: (key) => (animation[key] !== undefined ? animation[key] : undefined),
+      // Phase 58-w3.9k: dashboard-local preview — apply to the running
+      // instance ONLY (no _scheduleLiveEditorBroadcast). /output adopts
+      // the value on Done / Save-as-default, not during the drag.
+      set: (key, value) => {
+        applyLiveEditorValue(key, value);
+      },
+    });
+    for (const row of rows) container.append(row);
+    container.hidden = rows.length === 0;
+  }
+
   function _finalizeLiveEditorOpen(animation) {
     const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
     const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
@@ -331,6 +507,8 @@
     _buildLiveEditorSnapshot(animation, animationId);
     _populateLiveEditorPanel(animation);
     _populateLiveEditorAdvancedFields(animation);
+    _populateLiveEditorCoded(animation);
+    _populateLiveEditorFade(animation);
     _finalizeLiveEditorOpen(animation);
   }
 
@@ -341,6 +519,15 @@
       );
       if (animation) {
         Object.assign(animation, liveEditorSnapshot);
+        // Phase 58-w3.9k: every live-editor control (non-coded sliders,
+        // coded controls w3.9i, and now the fade controls) is dashboard-
+        // local — none broadcast to /output before commit — so Discard is
+        // a pure local revert and /output never saw the abandoned tweaks.
+        // Re-broadcasting the restored original snapshot is a harmless
+        // no-op for /output (it already holds those values); kept for
+        // belt-and-suspenders parity with the commit path. Broadcast
+        // BEFORE clearing the animation id.
+        _broadcastLiveEditorEdit();
       }
     }
     liveEditorAnimationId = null;
@@ -353,7 +540,21 @@
     ctx.liveEditorPanel.hidden = true;
   }
 
-  function closeLiveEditor() {
+  // Phase 58 follow-up (2026-06-28): the Auto-start checkbox is a
+  // PERSISTENT choice, unlike the transform tweaks (which Done leaves
+  // run-local by design — see the Phase 50 note inside). Before this fix
+  // Done mutated defaultAnimationsByBoard in memory only and never POSTed,
+  // so checking "Auto-start" + Done (or Save-as-default) was lost on the
+  // next server restart — the board JSON kept defaultAnimations: [] and
+  // frostpunk never auto-started. We now persist whenever the autostart
+  // membership actually changes. saveLiveEditorAsDefault passes
+  // { persist: false } and runs its own single save afterward, so the
+  // combined path POSTs exactly once (no clobbering race). Wired as a
+  // click handler too — there opts is the MouseEvent, whose `.persist` is
+  // undefined, so the default-true branch is taken.
+  function closeLiveEditor(opts) {
+    const persistDefaults = opts?.persist !== false;
+    let defaultsChanged = false;
     if (liveEditorAnimationId !== null) {
       const animation = ctx.state.runningAnimations.find(
         (item) => item?.id === liveEditorAnimationId,
@@ -366,6 +567,12 @@
         const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId];
         // Remove any existing default for same type+roomId+scope
         const filtered = defaults.filter(d => !(d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope));
+        // The autostart set changed if we just removed an existing default
+        // (filtered shorter than defaults) or are about to add one
+        // (makeDefault) — covers add, remove, and the re-add/update case.
+        // When neither, the user only tweaked a non-default animation and
+        // clicked Done; we skip the POST to preserve the run-local behavior.
+        defaultsChanged = makeDefault || filtered.length !== defaults.length;
         if (makeDefault) {
           filtered.push({
             type: animation.type,
@@ -433,6 +640,14 @@
     // W3.4-C1 bridge: mirror to the lifecycle-state module.
     lifecycleState.setLiveEditorAnimationId(null);
     ctx.liveEditorPanel.hidden = true;
+    // Persist the autostart change to the board JSON so it survives a
+    // server restart: buildBoardProfilesFromState serializes
+    // defaultAnimationsByBoard → POST /api/global-defaults →
+    // persistBoardProfileToBoardFile writes defaultAnimations. Fire-and-
+    // forget like every other live-editor save.
+    if (persistDefaults && defaultsChanged && typeof ctx.saveAndCaptureCleanBaseline === "function") {
+      void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+    }
   }
 
   // Phase 50 (2026-05-22): commit the running animation's current
@@ -442,7 +657,21 @@
   // to continue tweaking. Silent direct save (no apply/discard bar)
   // because clicking the button IS the explicit commit. Field set
   // per scope: room = opacity/intensity/speed/volume/transform/color,
-  // inside = intensity/speed, outside = intensity/speed/mode/direction.
+  // inside = intensity/speed/transform, outside = intensity/speed/mode/direction.
+  // Phase 58-w3.9g: collect the running instance's coded option values
+  // (heat / city-workers / break-solid-color / colorHex) so Save-as-
+  // default writes the FULL coded field set into the definition, not
+  // only transform/opacity. Only includes keys the instance actually
+  // carries (undefined keys are left to the definition's existing value).
+  function _collectCodedFieldsForSave(animation) {
+    const out = {};
+    const keys = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS?.CODED_OPTION_KEYS || [];
+    for (const key of keys) {
+      if (animation[key] !== undefined) out[key] = animation[key];
+    }
+    return out;
+  }
+
   function saveLiveEditorAsDefault() {
     if (liveEditorAnimationId === null) return;
     const animation = ctx.state.runningAnimations.find(
@@ -450,7 +679,21 @@
     );
     if (!animation) return;
 
-    const scopeForProfile = animation.scope === "cluster" ? "room" : animation.scope;
+    // Phase 58 Wave 3.8n: map the runtime scope to the profile scope.
+    // Inside AND outside animations both run as scope "global"; the
+    // branches below key on "inside" / "outside", so a bare
+    // animation.scope ("global") matched NONE of them and the save
+    // silently no-op'd ("no matching definition to save (scope=global)")
+    // — the inside/outside save-as-default was dead code. Resolve global
+    // → inside/outside via the board's outside profile (isOutside-
+    // AnimationType), mirroring upsertGlobalAnimation's own routing.
+    let scopeForProfile = animation.scope === "cluster" ? "room" : animation.scope;
+    if (scopeForProfile === "global") {
+      scopeForProfile = (typeof ctx.isOutsideAnimationType === "function"
+        && ctx.isOutsideAnimationType(animation.type, animation.boardId))
+        ? "outside"
+        : "inside";
+    }
     let updated = false;
 
     if (scopeForProfile === "room") {
@@ -473,6 +716,13 @@
               offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
               offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
               colorHex: animation.colorHex ?? entry.colorHex,
+              // Phase 58-w3.9g: persist the full coded option set (heat /
+              // city-workers / break-solid-color) edited live, so future
+              // triggers of this animation apply the saved coded values.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });
@@ -490,6 +740,22 @@
               ...entry,
               intensity: animation.intensity ?? entry.intensity,
               speed: animation.speed ?? entry.speed,
+              // Phase 58 Wave 3.8n: persist inside transform to the
+              // definition (1:1 with the room branch above) so future
+              // triggers of this inside animation apply the saved
+              // rotation / stretch / scale / offset.
+              rotationDeg: animation.rotationDeg ?? entry.rotationDeg,
+              stretchToPolygon: animation.stretchToPolygon ?? entry.stretchToPolygon,
+              widthScale: animation.widthScale ?? entry.widthScale,
+              heightScale: animation.heightScale ?? entry.heightScale,
+              offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
+              offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
+              // Phase 58-w3.9g: inside coded effects (unified catalog)
+              // persist their coded option set too.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });
@@ -509,6 +775,12 @@
               speed: animation.speed ?? entry.speed,
               mode: animation.mode ?? entry.mode,
               direction: animation.direction ?? entry.direction,
+              // Phase 58-w3.9g: outside coded effects (unified catalog)
+              // persist their coded option set too.
+              // Phase 58-w3.9h: persist the fade config to the definition.
+              ...(animation.fadeEnabled !== undefined ? { fadeEnabled: animation.fadeEnabled } : {}),
+              ...(animation.fadeDurationMs !== undefined ? { fadeDurationMs: animation.fadeDurationMs } : {}),
+              ..._collectCodedFieldsForSave(animation),
             },
           ),
         });
@@ -527,24 +799,32 @@
       if (scopeForProfile === "room" && ctx.state?.roomDraft) {
         ctx.state.roomDraft.lastSyncedAnimationId = null;
       }
-      // Silent direct save + clean baseline — clicking Save IS the
-      // explicit commit, no need to also force the user through the
-      // apply/discard bar.
-      if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
-        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
-      }
       if (ctx.triggerFeedback) {
         const name = animation.animationName || animation.type;
         ctx.triggerFeedback.textContent = `Status: saved "${name}" defaults — future starts apply these values`;
       }
       // Phase 50 (2026-05-25): operator UAT — "Das 'Save as default for
       // this animation' soll TROTZDEM auch zusätzlich den selben effect
-      // wie 'Done' haben, wenn man es anklickt". After persisting the
-      // values, close the editor like Done does (broadcasts edit-room
-      // + persists the auto-start checkbox + hides the panel). The
-      // status message set above survives closeLiveEditor since that
-      // function does not touch triggerFeedback.
-      closeLiveEditor();
+      // wie 'Done' haben, wenn man es anklickt". After updating the
+      // definition, close the editor like Done does (broadcasts edit-room
+      // + folds the auto-start checkbox into defaultAnimationsByBoard +
+      // hides the panel). The status message set above survives
+      // closeLiveEditor since that function does not touch triggerFeedback.
+      //
+      // Phase 58 follow-up (2026-06-28): persist AFTER closeLiveEditor has
+      // folded in the autostart entry, not before — otherwise the POST
+      // captured the stale defaults and the auto-start flag was lost on
+      // restart. closeLiveEditor mutates defaultAnimationsByBoard
+      // synchronously, so the single save below carries both the updated
+      // definition AND the new default. Suppress closeLiveEditor's own
+      // POST ({ persist: false }) so the combined path saves exactly once.
+      closeLiveEditor({ persist: false });
+      // Silent direct save + clean baseline — clicking Save IS the
+      // explicit commit, no need to also force the user through the
+      // apply/discard bar.
+      if (typeof ctx.saveAndCaptureCleanBaseline === "function") {
+        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+      }
     } else if (ctx.triggerFeedback) {
       ctx.triggerFeedback.textContent = `Status: no matching definition to save (scope=${animation.scope})`;
     }

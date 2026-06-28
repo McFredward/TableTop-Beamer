@@ -423,6 +423,8 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     // bottleneck -- content / rate-control is.
     let __prevBytes = 0;
     let __prevAt = performance.now();
+    let __prevFramesEncoded = 0;
+    let __prevQpSum = 0;
     async function __pollEncoderStats(label) {
       try {
         const stats = await videoProducer.getStats();
@@ -439,9 +441,22 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
           const sendBps = dt > 0 ? (dBytes * 8 * 1000) / dt : 0;
           __prevBytes = o.bytesSent || 0;
           __prevAt = now;
+          // Interval-average QP: the decisive number for the snow stutter.
+          // The offline A/B showed small (high-spatial-frequency) flakes get
+          // quantized away once realized QP climbs past ~32; large flakes
+          // survive. So if this avgQp is high (>~30) while snow is running,
+          // the encoder is quality/CPU/bandwidth-limited and that is the
+          // snow-only /output stutter; if it stays low (<~26) the cause is
+          // elsewhere. qpSum is cumulative → diff over the interval.
+          const dFrames = (o.framesEncoded || 0) - __prevFramesEncoded;
+          const dQp = (o.qpSum || 0) - __prevQpSum;
+          const avgQp = dFrames > 0 ? (dQp / dFrames).toFixed(1) : "n/a";
+          __prevFramesEncoded = o.framesEncoded || 0;
+          __prevQpSum = o.qpSum || 0;
           console.log(
             "[ssr-publisher] enc-stats [" + label + "]: " +
-            "targetBitrate=" + (o.targetBitrate ?? "n/a") +
+            "avgQp=" + avgQp +
+            " targetBitrate=" + (o.targetBitrate ?? "n/a") +
             " framesEncoded=" + (o.framesEncoded ?? "n/a") +
             " framesPerSecond=" + (o.framesPerSecond ?? "n/a") +
             " sendBps=" + Math.round(sendBps) +
@@ -476,6 +491,20 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     setTimeout(() => __pollEncoderStats("t+8s"), 8000);
     setTimeout(() => __pollEncoderStats("t+12s"), 12000);
     setTimeout(() => __pollEncoderStats("t+18s"), 18000);
+    // Phase 58-w3.9z: under SSR_PUBLISHER_DEBUG, keep polling every 4s so the
+    // encoder's QP / qualityLimitationReason are visible UNDER LOAD (e.g.
+    // while snow runs), not just at boot — the data for diagnosing the
+    // snow /output stutter. Off by default (the t+8/12/18s one-shots above
+    // already carry avgQp); cleared on producer close so it doesn't leak.
+    if (${publisherDebug ? "true" : "false"}) {
+      const __encStatsInterval = setInterval(() => __pollEncoderStats("periodic"), 4000);
+      try {
+        videoProducer.observer?.on?.("close", () => clearInterval(__encStatsInterval));
+        videoProducer.on?.("transportclose", () => clearInterval(__encStatsInterval));
+      } catch (e) {
+        console.warn("[ssr-publisher] enc-stats interval cleanup wiring failed:", e?.message);
+      }
+    }
 
     // h17: SSR-side stats reporter. Replaces h8's single-fps message
     // with a richer { type: "ssr-stats", stats: {...} } envelope so

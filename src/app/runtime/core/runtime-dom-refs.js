@@ -99,6 +99,18 @@
       liveEditorSoundVolumeValue: document.querySelector("#live-editor-sound-volume-value"),
       liveEditorColor: document.querySelector("#live-editor-color"),
       liveEditorColorLabel: document.querySelector("#live-editor-color-label"),
+      // Phase 58-w3.9g: container for the full coded-effect option set
+      // (heat / city-workers / break-solid-color) on a running coded
+      // animation, built from the shared coded-options builder.
+      liveEditorCoded: document.querySelector("#live-editor-coded"),
+      // Phase 58-w3.9i: collapsible "Coded Settings" subsection wrapping
+      // the coded option controls (mirrors the Transform <details>).
+      // Hidden as a whole when the running instance exposes no coded
+      // options, so non-coded animations don't show an empty summary.
+      liveEditorCodedSection: document.querySelector("#live-editor-coded-section"),
+      // Phase 58-w3.9h: fade (Ein-/Ausblenden) controls for any running
+      // instance, built from the shared fade-options builder.
+      liveEditorFade: document.querySelector("#live-editor-fade"),
       liveEditorOutsideFx: document.querySelector("#live-editor-outside-fx"),
       liveEditorOutsideMode: document.querySelector("#live-editor-outside-mode"),
       liveEditorOutsideDirection: document.querySelector("#live-editor-outside-direction"),
@@ -206,6 +218,8 @@
       ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
       // Phase 50 (2026-05-24): codec + content-hint operator levers.
       ssrCodecSelect: document.querySelector("#ssr-codec-select"),
+      // Phase 58 hotfix (2026-06-28): per-board video codec select (Board Setup).
+      boardCodecSelect: document.querySelector("#board-codec-select"),
       ssrContentHintSelect: document.querySelector("#ssr-content-hint-select"),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),
@@ -285,7 +299,6 @@
       insideGlobalButtons: document.querySelector("#inside-global-buttons"),
       outsideGlobalButtons: document.querySelector("#outside-global-buttons"),
       outsideAnimationDeleteButton: document.querySelector("#outside-animation-delete"),
-      dashboardGlobalLoopUntilStopInput: document.querySelector("#dashboard-global-loop-until-stop"),
       dashboardGlobalPlaySoundInput: document.querySelector("#dashboard-global-play-sound"),
       dashboardTransformOptions: document.querySelector("#dashboard-transform-options"),
       dashboardRotationDegInput: document.querySelector("#dashboard-rotation-deg"),

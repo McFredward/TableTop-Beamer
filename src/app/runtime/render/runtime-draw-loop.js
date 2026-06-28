@@ -59,33 +59,133 @@
     c.restore();
   }
 
-  function drawRoomComposition(animation, age, room, roomMetrics) {
+  // Phase 58 Wave 3.8n: inside-animation transform draw rect (1:1 with
+  // resolveRoomAssetDrawRect, but metered against the FULL projection
+  // canvas instead of a room polygon bbox — inside animations span the
+  // whole inside Play Area). With stretch=true (default) + rotation 0
+  // this yields exactly the legacy fullscreen draw (centerX/Y = W/2,H/2;
+  // w/h = W,H → drawImage at 0,0,W,H), so existing inside animations are
+  // pixel-identical. Prefers the running INSTANCE's transform (so live-
+  // editor edits show immediately) and falls back to the definition.
+  function resolveInsideAssetDrawRect(animation, definition) {
+    const W = ctx.canvas.width;
+    const H = ctx.canvas.height;
+    const stretch = (animation?.stretchToPolygon !== undefined
+      ? animation.stretchToPolygon
+      : definition?.stretchToPolygon) !== false;
+    const widthScale = stretch ? 1 : (Number(animation?.widthScale ?? definition?.widthScale) || 1);
+    const heightScale = stretch ? 1 : (Number(animation?.heightScale ?? definition?.heightScale) || 1);
+    const offsetXScale = stretch ? 0 : (Number(animation?.offsetXScale ?? definition?.offsetXScale) || 0);
+    const offsetYScale = stretch ? 0 : (Number(animation?.offsetYScale ?? definition?.offsetYScale) || 0);
+    const rotationDeg = Number(animation?.rotationDeg ?? definition?.rotationDeg) || 0;
+    return {
+      centerX: W / 2 + offsetXScale * W,
+      centerY: H / 2 + offsetYScale * H,
+      w: W * widthScale,
+      h: H * heightScale,
+      rotationRad: rotationDeg * Math.PI / 180,
+    };
+  }
+
+  function drawRoomComposition(animation, age, room, roomMetrics, fadeMul = 1) {
     const c = ctx.canvasCtx;
     const qualityScale = ctx.getRuntimeQualityScale();
     const assetType = ctx.normalizeRoomAssetType(animation.roomAssetType);
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, animation.roomAssetRef, "");
     if (assetType === "gif") {
+      const roomGifSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
+      // Phase 58 Wave 3.7p: room-gif playback phases. play-then-freeze
+      // gifs run the same phase state machine as room mp4s — the
+      // dispatch-side re-trigger flip (runtime-room-dispatch.js /
+      // runtime-quick-mode.js) only touches the animation object, so it
+      // already routes for gifs; the timeline below mirrors instead of
+      // server-transcoding: reverse plays the frame cursor backwards
+      // from the last frame, frozen-* clamp to a constant frame.
+      const roomGifIsPlayThenFreeze = (animation.playbackMode || "loop") === "play-then-freeze";
+      if (roomGifIsPlayThenFreeze) {
+        ctx.maybeTransitionGifPlaybackPhase?.(animation, {
+          totalDurationSec: ctx.getGifPlaybackTotalDurationSec?.(assetRef) || 0,
+          elapsedScaledSec: age * roomGifSpeed,
+        });
+      }
       const gifRenderConfig = ctx.resolveRoomGifRenderConfig(animation.type, age, animation.intensity, {
         gifAssetPath: assetRef,
         gifTimelineAgeSec: age,
-        gifPlaybackSpeed: ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1),
+        gifPlaybackSpeed: roomGifSpeed,
         opacity: ctx.clampRoomOpacity(animation.opacity),
+        // Phase 58: room-gif honors per-animation playback mode + direction.
+        playbackMode: animation.playbackMode || "loop",
+        playbackDirection: animation.playbackDirection || "forward",
+        // Phase 58 Wave 3.7p: phase overrides direction (mp4 parity);
+        // empty for non-phase modes so loop/boomerang gifs keep the
+        // pure direction-driven timeline.
+        playbackPhase: roomGifIsPlayThenFreeze ? (animation.playbackPhase || "forward") : "",
       });
+      // Phase 58 Wave 2.5: dispatch cleanup for room-gif when
+      // play-once-disappear's cursor has passed the total duration.
+      if (animation.playbackMode === "play-once-disappear") {
+        const totalSec = ctx.getGifPlaybackTotalDurationSec?.(assetRef) || 0;
+        const elapsedScaledSec = age * roomGifSpeed;
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && elapsedScaledSec >= totalSec });
+      }
       if (gifRenderConfig.frame) {
         const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
         c.save();
-        c.globalAlpha = gifRenderConfig.opacity;
+        // Phase 58-w3.9h: global fade multiplier on top of the gif opacity.
+        c.globalAlpha = gifRenderConfig.opacity * fadeMul;
         drawRoomAssetImage(c, gifRenderConfig.frame, rect);
         c.restore();
       }
       return;
     }
     if (assetType === "mp4") {
-      if (ctx.shouldSkipRoomMp4Frame(animation)) {
-        return;
-      }
-      const videoEntry = ctx.getRoomVideoElement(assetRef);
+      // Phase 58 Wave 3.6: cache video element by BASE assetRef (forward
+      // URL) + instanceId. Phase transitions swap video.src in-place
+      // via expectedSrcUrl so the fallback canvas + rVFC binding
+      // survive (operator UAT 2026-06-05: disappear-on-retrigger fix).
+      const roomMp4Phase = animation.playbackPhase || "forward";
+      // Phase 58 Wave 3.7i (2026-06-05): frozen instances paint
+      // EXCLUSIVELY from the fallback canvas — zero per-frame video
+      // work. See the paint branch below for full rationale.
+      const roomMp4IsFrozen = roomMp4Phase === "frozen-last" || roomMp4Phase === "frozen-first";
+      // Phase 58 Wave 3.7k (2026-06-05): the pressure frame-skip no
+      // longer bare-returns here. The canvas clears every rAF, so a
+      // bare return leaves the room region TRANSPARENT for that frame
+      // — under sustained pressure (level 2, stride 2) every PLAYING
+      // room strobed at half the rAF rate on the SSR tab (operator's
+      // /output/ flicker during multi-video playback; third occurrence
+      // of the "bare return on a clearing canvas" class after the
+      // strobo bug and the v1.2.15 frozen-room strobing, which only
+      // exempted FROZEN rooms from this skip). The skip is now folded
+      // into the drawNow gate below (`pressureSkipR`): a pressure-
+      // skipped frame takes the existing fallback-blit branch — one
+      // cheap canvas blit instead of full-res drawImage(video) +
+      // capture — so the pressure relief is preserved but the region
+      // always paints. Side effect (intentional): ensureRoomMp4Playback
+      // / maybeWrapRoomMp4Loop / maybeTransitionPlaybackPhase now also
+      // run on pressure-skipped frames — phase transitions and EOS
+      // handling are cheap and must not be skipped under pressure.
+      const roomMp4UseReverseUrl = roomMp4Phase === "reverse" || roomMp4Phase === "frozen-first";
+      const roomMp4Direction = roomMp4UseReverseUrl ? "reverse" : "forward";
+      const videoEntry = ctx.getRoomVideoElement(assetRef, {
+        instanceId: animation.id,
+        playbackMode: animation.playbackMode || "loop",
+      });
       const video = videoEntry?.video;
+      // Phase 58 Wave 3.7n: adaptive video quality. The desired src is
+      // a single function of (direction, quality tier). Playing
+      // instances follow the GLOBAL adaptive tier (downswitch to the
+      // 480p proxy under sustained framedrops; ensureRoomMp4Playback
+      // performs the position-preserving quality swap). FROZEN
+      // instances are pinned to the tier already applied to their
+      // element — swapping a frozen video would discard its decoded
+      // freeze state for zero benefit; they adopt the current tier on
+      // the next phase change.
+      const roomMp4IsFrozenForTier = roomMp4IsFrozen && video;
+      const roomMp4QualityTier = roomMp4IsFrozenForTier
+        ? (ctx.getAppliedVideoQualityTier?.(video) || "full")
+        : (ctx.getAdaptiveVideoQualityTier?.() || "full");
+      const roomMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(assetRef, roomMp4Direction, roomMp4QualityTier) || assetRef;
       if (video) {
         // Phase 50 (2026-05-25): manual-wrap loop machinery (mirrors
         // outside MP4) to eliminate the SSR-visible seam at video EOS.
@@ -98,35 +198,213 @@
         // canvas bridges the brief `seeking` window so SSR sees a
         // continuous frame stream.
         const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
+        // Phase 58 Wave 3: for boomerang, pre-compute both forward
+        // and reverse URLs so the ended handler can src-swap.
+        const roomMp4IsBoomerang = (animation.playbackMode || "loop") === "boomerang";
+        // Phase 58 Wave 3.7n: boomerang fwd/rev URLs carry the current
+        // quality tier too, so the EOS ping-pong stays on-tier.
+        const roomMp4Forward = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "forward", roomMp4QualityTier) || assetRef : null;
+        const roomMp4Reverse = roomMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(assetRef, "reverse", roomMp4QualityTier) : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
           assetRef,
+          expectedSrcUrl: roomMp4ExpectedSrcUrl,
           targetRate: playbackRate,
+          // Phase 58: per-instance playback mode from the running
+          // animation; controls whether maybeWrapRoomMp4Loop seeks back
+          // at EOS (loop/boomerang) or lets the video freeze
+          // (play-then-freeze, play-once-disappear).
+          playbackMode: animation.playbackMode || "loop",
+          boomerangForwardSrc: roomMp4Forward,
+          boomerangReverseSrc: roomMp4Reverse,
+          instanceId: animation?.id || '',
+          playbackPhase: roomMp4Phase,
         });
         if (playbackState) {
           ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
+        // Phase 58 Wave 2.5: cleanup-dispatch for play-once-disappear.
+        // Checks video.ended each frame; on transition emits stop
+        // exactly once (idempotent via animation._endedDispatched).
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+        // Phase 58 Wave 3.7i: pass playbackState so the frozen
+        // transition can pin the freeze frame onto the fallback canvas
+        // at the exact moment the last decoded frame is still good.
+        ctx.maybeTransitionPlaybackPhase?.(animation, video, playbackState);
         try {
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
-          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity);
+          // Phase 58-w3.9h: global fade multiplier on top of the mp4 opacity.
+          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity) * fadeMul;
           const isSeeking = video.seeking === true;
           const haveLiveFrame =
             !isSeeking
             && video.readyState >= 2
             && Number(video.videoWidth) > 0
             && Number(video.videoHeight) > 0;
-          if (haveLiveFrame) {
+          // Phase 57 (2026-06-01): tier-gate live paint to the mp4
+          // source cadence (33/22/16 ms per tier) so we don't oversample
+          // a 30fps mp4 at 60Hz rAF. Without the gate the decoder
+          // sometimes hands back the same frame twice → operator-
+          // reported "konstantes leichtes Stockeln" on snow.mp4 (the
+          // universal stutter; mirrors the inside/outside fix). When
+          // gated out, fall through to the existing fallback-source
+          // replay so SSR capture still sees a fresh canvas op every
+          // frame (Win32 capture budget preserved).
+          // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
+          // (see inside-mp4 path comment for full rationale).
+          // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while it
+          // is DEMONSTRABLY delivering (fired within RVFC_FRESH_MS).
+          // Firefox throttles rVFC for N concurrent off-DOM videos to
+          // an irregular 3-13 fires/s → with the old bound-flag gate
+          // the room replayed a frozen fallback between fires and
+          // jumped forward on each fire = operator's flicker/blinking
+          // (phase-58-bugB-flicker.md). When rVFC goes silent >150ms,
+          // degrade to the proven tier time-gate; healthy rVFC
+          // (Chromium/SSR) keeps the newFrame-only gate unchanged.
+          const rvfcFreshR = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+          const newFrameR = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+          // Phase 58 Wave 3.7k: pressure skip (see comment at the top
+          // of the mp4 branch). When the skip strides this frame out,
+          // suppress the LIVE paint only — the room then falls into the
+          // fallback-blit branch below and still paints last good frame.
+          const pressureSkipR = !roomMp4IsFrozen && ctx.shouldSkipRoomMp4Frame(animation);
+          const drawNow = playbackState
+            ? (!pressureSkipR && (newFrameR || (!rvfcFreshR && ctx.shouldDrawOutsideMp4Now(playbackState))))
+            : true;
+          let _diag58Outcome = null;
+          if (roomMp4IsFrozen && playbackState && ctx.getRoomMp4FallbackSource) {
+            // Phase 58 Wave 3.7i (2026-06-05): FROZEN paint mode. For a
+            // video paused at EOS, rVFC stops firing → isRvfcFresh()
+            // stays false forever → the Wave 3.7h gate painted the LIVE
+            // <video> at time-gate cadence AND captured the fallback on
+            // every such paint. That meant continuous full-res drawImage
+            // work per frozen room (operator UAT 2026-06-05: "ein
+            // einziges Bild zu zeigen sollte keine Last erzeugen"), and
+            // on Firefox drawImage of an ENDED video can intermittently
+            // yield a BLANK frame under load — which overwrote the good
+            // fallback → the frozen-room flicker that spread across all
+            // frozen rooms. Frozen instances now paint EXCLUSIVELY from
+            // the fallback canvas: no drawImage(video), no per-frame
+            // capture. The freeze frame was pinned at the phase
+            // transition (maybeTransitionPlaybackPhase) / by the last
+            // rVFC capture; the one-time capture below only covers a
+            // fallback-less edge (fresh hydration mid-frozen).
+            let frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+            if (!frozenSrc && haveLiveFrame) {
+              ctx.captureRoomMp4FallbackFrame?.(playbackState, video);
+              frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+            }
+            if (frozenSrc) {
+              // Phase 58 Wave 3.9f (2026-06-08, FROZEN FPS): blit a
+              // pre-scaled ImageBitmap of the freeze frame (1:1, no
+              // resample) instead of downscaling the full-res fallback
+              // canvas every rAF. Firefox 2D-canvas downscale is ~100x
+              // slower than Chromium's — the persistent ~5fps cost of a
+              // FROZEN freeze-vid on the operator's dashboard. Falls back
+              // to the full-res canvas for the 1-2 frames the bitmap is
+              // building (no strobe). See getFrozenScaledBitmap.
+              const frozenScaled = ctx.getFrozenScaledBitmap?.(playbackState, rect.w, rect.h);
+              drawRoomAssetImage(c, frozenScaled || frozenSrc, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "fallback");
+              _diag58Outcome = "frozen-fallback";
+            } else if (haveLiveFrame) {
+              // No fallback available at all — painting the live video
+              // is strictly better than leaving the region unpainted.
+              drawRoomAssetImage(c, video, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "frozen-live-last-resort";
+            } else {
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+              _diag58Outcome = "no-frame";
+            }
+          } else if (haveLiveFrame && drawNow) {
             drawRoomAssetImage(c, video, rect);
-            // Refresh fallback frame so the next seek window has a
-            // visually-near substitute. Capture cadence is every rAF
-            // tick — cheap because the fallback canvas sizes to the
-            // video's natural dimensions (typically 1920×1080 or less).
-            if (playbackState && ctx.captureRoomMp4FallbackFrame) {
+            // Phase 58 Wave 3.7f (2026-06-05, FPS): only capture the
+            // fallback frame here when rVFC is NOT driving captures.
+            // _bindRoomMp4FrameCallback already captures the fallback
+            // on every decoded frame (rVFC fire), so this per-live-paint
+            // capture was a redundant full-frame drawImage to the
+            // fallback canvas on every painted frame — with N concurrent
+            // room videos that is N extra full-res blits per rAF, the
+            // dominant cost behind the operator's "spürbarer FPS-Einbruch
+            // bei vielen gleichzeitigen Videos". When rVFC is FRESH the
+            // fallback stays fresh without this; when it isn't (browser
+            // lacks requestVideoFrameCallback OR Firefox starves the
+            // delivery — Phase 58 Wave 3.7h) the paint site must keep
+            // the fallback current itself.
+            if (playbackState && !rvfcFreshR && ctx.captureRoomMp4FallbackFrame) {
               ctx.captureRoomMp4FallbackFrame(playbackState, video);
             }
+            if (playbackState) ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+            _diag58Outcome = "live";
           } else if (playbackState && ctx.getRoomMp4FallbackSource) {
             const src = ctx.getRoomMp4FallbackSource(playbackState);
-            if (src) drawRoomAssetImage(c, src, rect);
+            if (src) {
+              drawRoomAssetImage(c, src, rect);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", haveLiveFrame ? "gated-out" : "fallback");
+              _diag58Outcome = haveLiveFrame ? "gated-out" : "fallback";
+            } else if (haveLiveFrame) {
+              // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+              // canvas not yet captured (first paint after lifecycle
+              // change OR fallback init race). Use live <video> directly
+              // — strictly better than leaving the region UNPAINTED
+              // (main rAF's clearRect would bleed black through).
+              drawRoomAssetImage(c, video, rect);
+              if (ctx.captureRoomMp4FallbackFrame) {
+                ctx.captureRoomMp4FallbackFrame(playbackState, video);
+              }
+              ctx.markMp4FramePainted(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "v117-last-resort";
+            } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+              // Phase 58 Wave 3.7 (2026-06-05): extended last-resort for
+              // concurrent-load race. With 4+ rooms triggering the same
+              // mp4 simultaneously, readyState briefly drops below 2
+              // before rVFC fires its first frame. During that window
+              // both haveLiveFrame and fallback are false/null →
+              // polygon was painting transparent → operator UAT
+              // "wildes Flackern bei 4+ Animationen". Painting the live
+              // <video> with readyState >= 1 is browser-defined as
+              // safe (draws poster frame or no-ops); strictly better
+              // than transparent.
+              drawRoomAssetImage(c, video, rect);
+              if (ctx.captureRoomMp4FallbackFrame) {
+                ctx.captureRoomMp4FallbackFrame(playbackState, video);
+              }
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "live");
+              _diag58Outcome = "v127-last-resort";
+            } else {
+              ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+              _diag58Outcome = "no-frame";
+            }
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "room-mp4", "no-frame");
+            _diag58Outcome = "no-frame";
+          }
+          // Phase 58 diag: accumulate paint outcomes per instance per
+          // 1000ms window. Logs a single summary line so the operator
+          // can see if any rAF ticks resulted in "no-frame" during
+          // the flicker window.
+          if (window.TT_DEBUG_58 && playbackState) {
+            const d = playbackState._tt58Diag || (playbackState._tt58Diag = {
+              windowStartMs: performance.now(),
+              counts: {},
+            });
+            d.counts[_diag58Outcome] = (d.counts[_diag58Outcome] || 0) + 1;
+            const elapsedMs = performance.now() - d.windowStartMs;
+            if (elapsedMs >= 1000) {
+              console.warn("[58-diag] paint outcomes (1s)", {
+                instanceId: animation.id,
+                phase: animation.playbackPhase,
+                ...d.counts,
+                videoReady: video.readyState,
+                ended: video.ended,
+                paused: video.paused,
+              });
+              d.windowStartMs = performance.now();
+              d.counts = {};
+            }
           }
           c.restore();
         } catch {
@@ -138,7 +416,19 @@
 
     const effectType = ctx.resolveRoomCodedEffectType(assetRef || animation.type);
     const playbackSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
-    const playbackAge = age * ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
+    // Phase 58-w3.8b: `age` is ALREADY speed-scaled by the caller
+    // (drawAnimation: elapsed × state.animationSpeed × runtimeSpeed,
+    // lines ~743/777) — multiplying by the per-animation speed AGAIN
+    // here squared the knob for coded room effects (same bug class as
+    // the old outside-space quadratic speed). city-workers now takes
+    // the singly-scaled age so its speed knob is linear and matches
+    // the animation-editor live preview (which scales once). The other
+    // coded effects keep the historical double application for now:
+    // their gate parity (findActiveBreakingGate × computeHullFlicker-
+    // Gate) is tuned around it and retuning them is out of scope here.
+    const playbackAge = effectType === "city-workers" || effectType === "city-workers-lit"
+      ? age
+      : age * playbackSpeed;
     // Opt-in coded-effect ⇒ solid-color coupling. When any running
     // animation in this exact room resolves to a "breaking" coded
     // effect (hull-flicker or power-outage) AND its definition has
@@ -169,22 +459,175 @@
         return;
       }
     }
+    // Phase 58-w3.8g: hidden-source heat rooms can phase-lock their
+    // pulse to the nearest visible heat source. The synced room's age
+    // is REPLACED by the source instance's age (computed from the
+    // source's epoch-hydrated startedAt + the source's own speed knob,
+    // including heat's historical double speed application) so both
+    // rooms evaluate the identical pulse curve f(age) — peaks align on
+    // dashboard, /output and SSR alike.
+    const heatSyncedAge = effectType === "heat"
+      && animation.heatShowSource === false
+      && animation.heatSyncNearestSource === true
+      ? resolveHeatSyncPlaybackAge(animation, playbackAge)
+      : playbackAge;
     ctx.drawEffectVisual(
       effectType,
-      playbackAge,
+      heatSyncedAge,
       animation.intensity,
       room,
       roomMetrics,
       {
         densityFactor: qualityScale,
-        opacity: ctx.clampRoomOpacity(animation.opacity),
+        // Phase 58-w3.9h: global fade multiplier folded into the coded
+        // effect's opacity (city-workers composes via its overall knob).
+        opacity: ctx.clampRoomOpacity(animation.opacity) * fadeMul,
         gifAssetPath: assetRef || ctx.ROOM_GIF_ANIMATION_ASSETS[animation.type],
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: playbackSpeed,
         roomAnimationType: animation.type,
         colorHex: animation.colorHex,
+        // Phase 58-w3.8g: heat source-visibility option (default ON
+        // when the instance predates the field).
+        heatShowSource: animation.heatShowSource !== false,
+        // Phase 58-w3.8i: merged city-workers options. workerStyle
+        // falls back to the RAW asset ref for pre-merge snapshot
+        // instances saved under the "city-workers-lit" key (the alias
+        // resolves effectType to "city-workers", so the lit look must
+        // be recovered from the un-normalized ref). workerCount stays
+        // null for those instances → legacy intensity-derived count.
+        workerStyle: animation.workerStyle === "lit" || animation.workerStyle === "dark"
+          ? animation.workerStyle
+          : (String(assetRef || animation.type || "").toLowerCase() === "city-workers-lit"
+            ? "lit"
+            : "dark"),
+        workerCount: animation.workerCount ?? null,
+        workerGroups: animation.workerGroups,
+        workerLanternShare: animation.workerLanternShare,
+        workerTrails: animation.workerTrails !== false,
+        // Phase 58-w3.8s: figure-size multiplier (default 1.0 for
+        // instances predating the field).
+        workerSize: animation.workerSize ?? 1,
+        // Phase 58-w3.9l: walk-sway (default 55 for instances predating it).
+        workerSwayAmount: animation.workerSwayAmount ?? 55,
+        workerClothingBrightness: animation.workerClothingBrightness ?? 1,
+        workerTrailIntensity: animation.workerTrailIntensity ?? 100,
+        workerCenterExclusion: animation.workerCenterExclusion === true,
+        workerCenterExclusionRadius: animation.workerCenterExclusionRadius ?? 25,
+        workerExclusionOffsetX: animation.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: animation.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: animation.workerExclusionRingVisible !== false,
+        heatIrregularPulse: animation.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options.
+        snowDensity: animation.snowDensity ?? 55,
+        snowSpeed: animation.snowSpeed ?? 50,
+        snowStorm: animation.snowStorm === true,
+        snowFlakeSize: animation.snowFlakeSize ?? 50,
       },
     );
+  }
+
+  // ---- Phase 58-w3.8g: nearest-heat-source pulse sync ----------------
+  // A heat room with heatShowSource=false + heatSyncNearestSource=true
+  // breathes in phase with the NEAREST (room-polygon centroid distance,
+  // normalized board space — deterministic across clients regardless of
+  // canvas size) RUNNING heat animation that has a visible source on
+  // the same board.
+  //
+  // Memoization (no O(N) running-list scan per room per frame):
+  //   - heatSourceScanCache: the per-board visible-source list is built
+  //     at most ONCE per draw frame (keyed on runtimePerf.frameIndex)
+  //     and only when a synced heat room actually asks for it.
+  //   - heatNearestSourceCache: the chosen source per (board, room) is
+  //     keyed by the source-set signature (joined instance ids) and
+  //     re-resolved only when that set changes (source started/stopped).
+  // Fallbacks: no visible source running → own clock; the source
+  // stopping mid-run → re-resolve to the next nearest (or own clock).
+  // The transition is a phase SNAP, not a blend — operator-accepted
+  // tradeoff (spec: "if trivial, snap is acceptable"); the glow alpha
+  // floor keeps the room painting through the snap (SSR trap).
+  let heatSourceScanCache = { frameIndex: -1, byBoard: new Map() };
+  const heatNearestSourceCache = new Map(); // `${boardId}::${roomId}` → { sig, sourceId }
+
+  function getRunningHeatSources(boardId) {
+    const state = ctx.state;
+    const frameIndex = Number(state.runtimePerf?.frameIndex) || 0;
+    if (heatSourceScanCache.frameIndex !== frameIndex) {
+      heatSourceScanCache = { frameIndex, byBoard: new Map() };
+    }
+    let cached = heatSourceScanCache.byBoard.get(boardId);
+    if (cached) {
+      return cached;
+    }
+    const now = performance.now();
+    const sources = [];
+    for (const entry of state.runningAnimations) {
+      if (!entry || entry.scope !== "room" || entry.boardId !== boardId) continue;
+      if (!entry.roomId || entry.heatShowSource === false) continue;
+      if (!Number.isFinite(entry.startedAt) || now < entry.startedAt) continue;
+      // resolveRoomCodedEffectType maps the legacy "generator-heat"
+      // alias to "heat" — alias instances count as sources too.
+      if (ctx.resolveRoomCodedEffectType(entry.roomAssetRef || entry.type) !== "heat") continue;
+      sources.push(entry);
+    }
+    cached = { sources, sig: sources.map((entry) => entry.id).join("|") };
+    heatSourceScanCache.byBoard.set(boardId, cached);
+    return cached;
+  }
+
+  function resolveHeatSyncPlaybackAge(animation, ownPlaybackAge) {
+    const { sources, sig } = getRunningHeatSources(animation.boardId);
+    if (sources.length === 0) {
+      return ownPlaybackAge; // no visible source running → own clock
+    }
+    const cacheKey = `${animation.boardId ?? ""}::${animation.roomId ?? ""}`;
+    const cachedChoice = heatNearestSourceCache.get(cacheKey);
+    let source = cachedChoice && cachedChoice.sig === sig
+      ? sources.find((entry) => entry.id === cachedChoice.sourceId) ?? null
+      : null;
+    if (!source) {
+      const board = ctx.getBoard(animation.boardId);
+      const ownRoom = board?.rooms?.find((entry) => entry.id === animation.roomId);
+      if (!ownRoom) {
+        return ownPlaybackAge;
+      }
+      const ownCenter = ctx.getRoomLabelPosition(ownRoom, animation.boardId);
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (const candidate of sources) {
+        const candidateRoom = board.rooms.find((entry) => entry.id === candidate.roomId);
+        if (!candidateRoom) continue;
+        const center = ctx.getRoomLabelPosition(candidateRoom, animation.boardId);
+        const dist = Math.hypot(center.x - ownCenter.x, center.y - ownCenter.y);
+        // Deterministic tie-break on instance id so every client picks
+        // the same source when two are equidistant.
+        if (dist < bestDist || (dist === bestDist && source && String(candidate.id) < String(source.id))) {
+          bestDist = dist;
+          source = candidate;
+        }
+      }
+      if (!source) {
+        return ownPlaybackAge;
+      }
+      if (heatNearestSourceCache.size > 256) {
+        heatNearestSourceCache.clear(); // bounded — rooms are few, this never hits in practice
+      }
+      heatNearestSourceCache.set(cacheKey, { sig, sourceId: source.id });
+    }
+    // Source clock: elapsed since the source's (epoch-hydrated, see
+    // live-sync snapshot apply) startedAt × global animationSpeed ×
+    // source speed — then × source speed AGAIN to mirror the heat
+    // branch's historical double speed application (playbackAge above).
+    // Using the SOURCE's speed for both factors means the synced room
+    // evaluates the source's exact pulse curve — in phase by
+    // construction, whatever the synced room's own speed knob says.
+    const sourceSpeed = ctx.clampRoomSpeed(source.speed ?? source.playbackSpeed ?? 1);
+    const sourceAge = Math.max(
+      0,
+      ((performance.now() - Number(source.startedAt)) / 1000)
+        * (Number(ctx.state.animationSpeed) || 1)
+        * sourceSpeed,
+    );
+    return sourceAge * sourceSpeed;
   }
 
   // Scan running animations for a room-scoped (or cluster-member)
@@ -268,7 +711,61 @@
     return false;
   }
 
-  function drawInsideGlobalVisual(animation, age) {
+  // Phase 58-w3.8p — coded-effect options contract shared by the
+  // inside + outside scopes, mirroring the per-instance options the
+  // room path (drawRoomComposition) hands drawEffectVisual.
+  //
+  // Phase 58-w3.9n — read INSTANCE-FIRST with definition fallback (was
+  // definition-only). The room path always read the running instance, and
+  // the live editor (w3.9i) mutates the running instance for its dashboard-
+  // local coded preview — but inside/outside rendered from the definition,
+  // so live-edit coded changes (and trigger-time option overrides like
+  // "Sturm") were INERT on the inside/outside board (operator UAT
+  // 2026-06-27: storm snow never rendered; standing intent: room/inside/
+  // outside identical except trigger area). Reading the instance first
+  // fixes that. The fallback keeps the w3.8p "full editor drives the live
+  // board" behaviour intact: a fresh trigger that did NOT carry a given
+  // coded field leaves instance[key] === undefined, so `pick` falls through
+  // to the definition exactly as before; only fields the instance actually
+  // carries (live-edit set them, or trigger-global now plumbs them) win.
+  // Defaults reproduce each effect's standalone look, so the full-screen
+  // overlay effects (hull-flicker / intruder-alert / power-outage) are
+  // unaffected — they ignore these fields.
+  function buildScopedCodedEffectOptions(definition, instance, { densityFactor = 1, fadeMul = 1 } = {}) {
+    const pick = (key) => (instance?.[key] !== undefined && instance?.[key] !== null
+      ? instance[key]
+      : definition?.[key]);
+    return {
+      densityFactor,
+      // Phase 58-w3.9h: fold the global fade multiplier into the coded
+      // effect's opacity so inside/outside coded effects ramp too.
+      opacity: (Number.isFinite(Number(pick("opacity"))) ? Number(pick("opacity")) : 1) * fadeMul,
+      colorHex: pick("colorHex"),
+      heatShowSource: pick("heatShowSource") !== false,
+      workerStyle: pick("workerStyle") === "lit" ? "lit" : "dark",
+      workerCount: pick("workerCount") ?? null,
+      workerGroups: pick("workerGroups"),
+      workerLanternShare: pick("workerLanternShare"),
+      workerTrails: pick("workerTrails") !== false,
+      workerSize: pick("workerSize") ?? 1,
+      workerSwayAmount: pick("workerSwayAmount") ?? 55,
+      workerClothingBrightness: pick("workerClothingBrightness") ?? 1,
+      workerTrailIntensity: pick("workerTrailIntensity") ?? 100,
+      workerCenterExclusion: pick("workerCenterExclusion") === true,
+      workerCenterExclusionRadius: pick("workerCenterExclusionRadius") ?? 25,
+      workerExclusionOffsetX: pick("workerExclusionOffsetX") ?? 0,
+      workerExclusionOffsetY: pick("workerExclusionOffsetY") ?? 0,
+      workerExclusionRingVisible: pick("workerExclusionRingVisible") !== false,
+      heatIrregularPulse: pick("heatIrregularPulse") === true,
+      // Phase 58-w3.9m: coded snow options (Dichte / Geschwindigkeit / Sturm).
+      snowDensity: pick("snowDensity") ?? 55,
+      snowSpeed: pick("snowSpeed") ?? 50,
+      snowStorm: pick("snowStorm") === true,
+      snowFlakeSize: pick("snowFlakeSize") ?? 50,
+    };
+  }
+
+  function drawInsideGlobalVisual(animation, age, fadeMul = 1) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
     const boardId = animation.boardId ?? state.boardId;
@@ -277,42 +774,296 @@
     const intensity = ctx.clampOutsideIntensity(definition?.intensity ?? animation.intensity ?? 1);
     const speed = ctx.clampOutsideSpeed(definition?.speed ?? 1);
     const timeline = age * speed;
+    // Phase 58 Wave 3.8n: inside transform draw rect (mp4/gif). With the
+    // defaults (stretch=true, rotation 0) this is the full canvas, so the
+    // paint is identical to the legacy fullscreen draw. Coded inside
+    // effects below ignore it (drawEffectVisual paints its own region).
+    const insideRect = resolveInsideAssetDrawRect(animation, definition);
 
     if (definition?.assetType === "gif") {
-      const frame = ctx.getGifPlaybackFrame(definition.assetRef, timeline);
+      // Phase 58: inside-gif reads per-animation playback mode from
+      // the running instance (falls back to definition for preview).
+      const insideGifMode = animation?.playbackMode || definition?.playbackMode || "loop";
+      const insideGifDir = animation?.playbackDirection || definition?.playbackDirection || "forward";
+      // Phase 58 Wave 3.8l: inside-gif play-then-freeze runs the SAME
+      // phase state machine as the room/outside gif paths (forward →
+      // frozen-last → reverse → frozen-first). maybeTransitionGifPlayback-
+      // Phase is scope-agnostic (operates on the animation object), and
+      // the dispatch-side re-trigger flip
+      // (advanceReversibleFreezePhaseIfPossible) only mutates that object
+      // — so the inside Freeze gif now honors its reverse-on-retrigger
+      // config. Before this the inside path passed only the static
+      // initial direction AND the ctx.getGifPlaybackFrame wrapper dropped
+      // even that, so reverse never took effect (operator spec 2026-06-08:
+      // "reverse on-retrigger soll auch hier funktionieren").
+      const insideGifIsPlayThenFreeze = insideGifMode === "play-then-freeze";
+      // Phase 58 Wave 3.8q (2026-06-08): LEG-LOCAL playback timeline for
+      // inside play-then-freeze gifs. The cross-client `timeline` (= age,
+      // derived from the snapshot-hydrated startedAt epoch) is UNRELIABLE
+      // on the projector (/ssr, FINAL role): the re-trigger re-stamp
+      // (advanceReversibleFreezePhaseIfPossible re-stamps startedAtEpochMs)
+      // does not always propagate through the live-sync poll/edit-room
+      // version race (runtime-live-sync-core.js Wave 3.7r). When it doesn't,
+      // the reverse leg inherits the FORWARD leg's epoch, so `age` is
+      // already >> the gif's total duration at the first reverse frame:
+      // the reverse cursor instantly clamps to the first frame (no visible
+      // reverse) AND maybeTransitionGifPlaybackPhase's completion check
+      // (elapsedScaledSec >= total) fires the moment the gif decodes →
+      // reverse-then-disappear dispatches stopAnimation almost immediately.
+      // Operator UAT 2026-06-08: first re-trigger VANISHES (BUG 1) and the
+      // configured end fires before the media has played (BUG 2).
+      //
+      // Fix: for play-then-freeze, measure the timeline from when THIS
+      // client first OBSERVED the current phase (forward / reverse), not
+      // from the cross-client epoch. The leg clock is deferred until the
+      // gif is actually decoded (total > 0) so a cold decode never eats
+      // into the leg's visible playback. The same leg-local value drives
+      // BOTH the EOS/transition check and the frame cursor, so the full
+      // leg ALWAYS plays to true completion before the end transition,
+      // for forward AND reverse, regardless of epoch propagation. The mp4
+      // inside path is already leg-local (video.currentTime) and unchanged;
+      // the room gif path (drawRoomComposition) is intentionally left as-is
+      // (regression-protected; its reverse-then-freeze-first end has no
+      // stopAnimation dispatch, so the stale-age cursor clamp is masked).
+      let insideGifTimeline = timeline;
+      if (insideGifIsPlayThenFreeze) {
+        const insideGifTotalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;
+        const insideGifLegPhase = animation?.playbackPhase || "forward";
+        if (animation._gifLegPhase !== insideGifLegPhase) {
+          animation._gifLegPhase = insideGifLegPhase;
+          animation._gifLegStartPerfMs = performance.now();
+        }
+        // Defer the leg clock until the gif is decoded — keeps the cold-
+        // decode window out of the leg's visible time on both legs.
+        if (!(insideGifTotalSec > 0) || !Number.isFinite(animation._gifLegStartPerfMs)) {
+          animation._gifLegStartPerfMs = performance.now();
+        }
+        insideGifTimeline = Math.max(0, (performance.now() - animation._gifLegStartPerfMs) / 1000) * speed;
+        ctx.maybeTransitionGifPlaybackPhase?.(animation, {
+          totalDurationSec: insideGifTotalSec,
+          elapsedScaledSec: insideGifTimeline,
+        });
+      }
+      // Phase 58 Wave 3.7p parity: phase overrides the static direction
+      // for play-then-freeze; empty string for the other modes so
+      // loop / boomerang gifs keep the pure direction-driven timeline.
+      const insideGifPhase = insideGifIsPlayThenFreeze ? (animation?.playbackPhase || "forward") : "";
+      const frame = ctx.getGifPlaybackFrame(definition.assetRef, insideGifTimeline, insideGifMode, insideGifDir, insideGifPhase);
+      // Phase 58 Wave 2.5: cleanup for inside-gif play-once-disappear.
+      if (insideGifMode === "play-once-disappear" && animation) {
+        const totalSec = ctx.getGifPlaybackTotalDurationSec?.(definition.assetRef) || 0;
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: totalSec > 0 && timeline >= totalSec });
+      }
       if (frame) {
-        c.globalAlpha = intensity;
-        c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        // Phase 58-w3.9h: global fade multiplier on top of inside gif alpha.
+        c.globalAlpha = intensity * fadeMul;
+        drawRoomAssetImage(c, frame, insideRect);
       }
       return;
     }
 
     if (definition?.assetType === "mp4") {
-      const videoEntry = ctx.getOutsideVideoElement(definition.assetRef);
+      // Phase 58 Wave 3.6: cache by BASE assetRef + instanceId; swap
+      // video.src in-place on phase transitions via expectedSrcUrl.
+      const insideMp4Phase = animation?.playbackPhase || "forward";
+      // Phase 58 Wave 3.7i: frozen instances paint exclusively from the
+      // fallback canvas (see room-mp4 path comment).
+      const insideMp4IsFrozen = insideMp4Phase === "frozen-last" || insideMp4Phase === "frozen-first";
+      const insideMp4UseReverseUrl = insideMp4Phase === "reverse" || insideMp4Phase === "frozen-first";
+      const insideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4UseReverseUrl ? "reverse" : "forward") || definition.assetRef;
+      const insideMp4Mode2 = animation?.playbackMode || definition?.playbackMode || "loop";
+      const videoEntry = ctx.getOutsideVideoElement(definition.assetRef, {
+        instanceId: animation?.id,
+        playbackMode: insideMp4Mode2,
+      });
       if (videoEntry?.video) {
         const video = videoEntry.video;
-        const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
-        video.loop = true;
-        if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
-          video.playbackRate = playbackRate;
+        const targetRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
+        // Phase 57 (2026-06-01): backport room/outside-mp4 defense
+        // level to inside-mp4. Previously bare `video.loop=true` +
+        // unconditional drawImage(video) every rAF — no live-frame
+        // check, no tier-fps gate, no fallback canvas. On modern PCs
+        // /output/ rAF runs ~60Hz and snow.mp4 source is 30fps, so
+        // every rAF oversampled the decoder → operator-reported
+        // "konstantes leichtes Stockeln" (57-CONTEXT D-01/D-02).
+        //
+        // Uses the room-mp4 playback machinery (keyed by assetRef)
+        // rather than outside-mp4 (keyed by boardId) so inside +
+        // outside mp4 active on the same board cannot clobber each
+        // other's playback state. Deviation from 57-01-PLAN.md
+        // Change 1 text — equivalent defense level; documented in
+        // 57-01-SUMMARY.md.
+        const insideMp4Mode = animation?.playbackMode || definition.playbackMode || "loop";
+        const insideMp4IsBoomerang = insideMp4Mode === "boomerang";
+        const insideMp4Forward = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "forward") || definition.assetRef : null;
+        const insideMp4Reverse = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "reverse") : null;
+        const playbackState = ctx.ensureRoomMp4Playback?.(video, {
+          assetRef: definition.assetRef,
+          expectedSrcUrl: insideMp4ExpectedSrcUrl,
+          targetRate,
+          // Phase 58: inside-mp4 reads playbackMode from the running
+          // animation; falls back to definition for control-side
+          // preview paths that don't carry an instance.
+          playbackMode: insideMp4Mode,
+          boomerangForwardSrc: insideMp4Forward,
+          boomerangReverseSrc: insideMp4Reverse,
+          instanceId: animation?.id || '',
+          playbackPhase: insideMp4Phase,
+        });
+        // Phase 58 Wave 2.5: cleanup-dispatch for inside-mp4.
+        ctx.maybeDispatchPlaybackCleanup?.(animation, { hasReachedEnd: Boolean(video.ended) });
+        // Phase 58 Wave 3.7i: pass playbackState (freeze-frame pinning).
+        ctx.maybeTransitionPlaybackPhase?.(animation, video, playbackState);
+        if (playbackState) {
+          ctx.maybeWrapRoomMp4Loop?.(video, playbackState);
         }
-        if (video.paused) {
-          void video.play().catch(() => undefined);
+        // Phase 58-w3.9h: global fade multiplier on top of inside mp4 alpha.
+        c.globalAlpha = intensity * fadeMul;
+        const isSeeking = video.seeking === true;
+        const haveLiveFrame =
+          !isSeeking
+          && video.readyState >= 2
+          && Number(video.videoWidth) > 0
+          && Number(video.videoHeight) > 0;
+        // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate. The
+        // bare time-throttle in shouldDrawOutsideMp4Now opens at
+        // 22ms (45fps balanced tier) but snow.mp4 decodes at ~17-24fps
+        // under SSR load → ~40% of live paints redrew the SAME decoded
+        // frame, producing duplicate pixels in the encoder stream
+        // (operator-visible "frame drop" / "kleine hänger" 57-CONTEXT
+        // 2026-06-01). hasNewDecodedFrame consumes the rVFC signal
+        // (bindOutsideMp4FrameCallback / _bindRoomMp4FrameCallback)
+        // and only authorizes a live paint when a NEW decoded frame
+        // has arrived since the previous one. Fallback canvas replay
+        // covers the "no new frame" rAF cycles so the canvas always
+        // has content (Win32 capture budget preserved: 1 drawImage per
+        // rAF, project_win32_ssr_canvas_damage.md). When rVFC is
+        // unsupported, hasNewDecodedFrame returns false and the path
+        // falls back to the v1.1.4 time-gate.
+        // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while fresh
+        // (see room-mp4 path comment — Firefox starvation degrades to
+        // the tier time-gate). Inside path already captures the
+        // fallback on every live paint, so no capture change needed.
+        const rvfcFresh = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+        const newFrame = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+        const gateAllows = playbackState
+          ? (newFrame || (!rvfcFresh && ctx.shouldDrawOutsideMp4Now(playbackState)))
+          : true;
+        if (insideMp4IsFrozen && playbackState && ctx.getRoomMp4FallbackSource) {
+          // Phase 58 Wave 3.7i: FROZEN paint mode — fallback canvas
+          // only, zero per-frame video work (see room-mp4 comment).
+          let frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+          if (!frozenSrc && haveLiveFrame) {
+            ctx.captureRoomMp4FallbackFrame?.(playbackState, video);
+            frozenSrc = ctx.getRoomMp4FallbackSource(playbackState);
+          }
+          if (frozenSrc) {
+            // Phase 58 Wave 3.9f: pre-scaled 1:1 bitmap blit (see room-mp4
+            // frozen branch / getFrozenScaledBitmap) — eliminates the
+            // per-frame Firefox resample cost of the frozen inside frame.
+            const frozenScaled = ctx.getFrozenScaledBitmap?.(playbackState, insideRect.w, insideRect.h);
+            drawRoomAssetImage(c, frozenScaled || frozenSrc, insideRect);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "fallback");
+          } else if (haveLiveFrame) {
+            drawRoomAssetImage(c, video, insideRect);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
+          }
+        } else if (playbackState && haveLiveFrame && gateAllows) {
+          drawRoomAssetImage(c, video, insideRect);
+          if (ctx.captureRoomMp4FallbackFrame) {
+            ctx.captureRoomMp4FallbackFrame(playbackState, video);
+          }
+          ctx.markMp4FramePainted(playbackState);
+          ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+        } else if (playbackState && ctx.getRoomMp4FallbackSource) {
+          const src = ctx.getRoomMp4FallbackSource(playbackState);
+          if (src) {
+            drawRoomAssetImage(c, src, insideRect);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", haveLiveFrame ? "gated-out" : "fallback");
+          } else if (haveLiveFrame) {
+            // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+            // canvas not yet captured (first paint after lifecycle
+            // change OR fallback init race). Use live <video> directly
+            // — strictly better than leaving the region UNPAINTED
+            // (main rAF's clearRect would bleed black through, producing
+            // the operator-reported strobe on overlaid mp4s).
+            drawRoomAssetImage(c, video, insideRect);
+            if (ctx.captureRoomMp4FallbackFrame) {
+              ctx.captureRoomMp4FallbackFrame(playbackState, video);
+            }
+            ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+          } else if (!isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+            // Phase 58 Wave 3.7: extended last-resort for concurrent-load
+            // race (see room-mp4 path comment).
+            drawRoomAssetImage(c, video, insideRect);
+            if (ctx.captureRoomMp4FallbackFrame) {
+              ctx.captureRoomMp4FallbackFrame(playbackState, video);
+            }
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "live");
+          } else {
+            ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
+          }
+        } else {
+          ctx.recordMp4PaintDiag?.(playbackState, "inside-mp4", "no-frame");
         }
-        c.globalAlpha = intensity;
-        c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
         return;
       }
     }
 
     const codedEffectType = ctx.resolveInsideCodedEffectType(definition?.assetRef ?? animation.type);
-    ctx.drawEffectVisual(codedEffectType, timeline, intensity, null);
+    // Phase 58-w3.8p — pass the inside-ship region metrics + the full
+    // coded-options contract so region-anchored effects (heat,
+    // city-workers, special-slime, special-scanning, solid-color)
+    // render against the ship interior, not the canvas centre. The
+    // canvas is already clipped to the ship region by the caller
+    // (clipToInsideShip); full-screen overlays ignore the metrics.
+    const insideRegionMetrics = ctx.getInsideRegionMetrics(boardId);
+    ctx.drawEffectVisual(
+      codedEffectType,
+      timeline,
+      intensity,
+      null,
+      insideRegionMetrics,
+      buildScopedCodedEffectOptions(definition, animation, { fadeMul }),
+    );
+  }
+
+  // Phase 58 Wave 3.7s (2026-06-06): not-started-yet paint gate. The
+  // original bare `now < startedAt` skip exists for staggered cluster
+  // starts (startedAt stamped into the FUTURE by startDelayMs) — but it
+  // also fired for ONE rAF right after a re-trigger phase flip: the
+  // dispatch re-stamps startedAt = performance.now() from an input/WS
+  // task INSIDE the current frame, while the next draw(now) receives the
+  // rAF timestamp which is the frame's vsync BEGIN time — measured
+  // dStart = +3.7 ms on the flip tick (debug file
+  // phase-58-gif-final-desync.md). The canvas clears every rAF, so the
+  // skipped paint left the room region TRANSPARENT for that frame — the
+  // operator's re-trigger "Blitz" (fourth occurrence of the "bare return
+  // on a clearing canvas" class). For play-then-freeze instances mid
+  // phase-machine (playbackPhase set — re-stamps always set it; fresh
+  // staggered dispatches never do) we therefore DON'T skip: the age is
+  // clamped to 0, which renders exactly the frozen boundary frame
+  // (reverse at age 0 = last frame = frozen-last image; forward at age 0
+  // = first frame = frozen-first image) — frame-perfect continuity, no
+  // gap. Genuine future starts (stagger) keep the skip.
+  function shouldSkipNotYetStartedAnimation(animation, now) {
+    if (!Number.isFinite(animation?.startedAt) || now >= Number(animation.startedAt)) {
+      return false;
+    }
+    const isPhaseMachineInstance =
+      (animation.playbackMode || "loop") === "play-then-freeze"
+      && typeof animation.playbackPhase === "string"
+      && animation.playbackPhase.length > 0;
+    return !isPhaseMachineInstance;
   }
 
   function drawAnimation(animation, now) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
-    if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
+    if (shouldSkipNotYetStartedAnimation(animation, now)) {
       return;
     }
     if (animation.scope === "cluster") {
@@ -327,11 +1078,15 @@
           continue;
         }
         const memberAnimation = memberView.animation;
-        if (Number.isFinite(memberAnimation?.startedAt) && now < Number(memberAnimation.startedAt)) {
+        if (shouldSkipNotYetStartedAnimation(memberAnimation, now)) {
           continue;
         }
         const runtimeSpeed = ctx.clampRoomSpeed(memberAnimation.speed ?? animation.speed ?? 1);
-        const age = ((now - Number(memberAnimation.startedAt)) / 1000) * state.animationSpeed * runtimeSpeed;
+        // Phase 58 Wave 3.7s: clamp — a re-stamped startedAt can sit up
+        // to one frame in the future of the rAF timestamp (see
+        // shouldSkipNotYetStartedAnimation); a negative age must render
+        // as age 0 (the frozen boundary frame), not skip or extrapolate.
+        const age = Math.max(0, ((now - Number(memberAnimation.startedAt)) / 1000) * state.animationSpeed * runtimeSpeed);
         const roomMetrics = ctx.getRoomRenderMetrics(room, animation.boardId);
         c.save();
         try {
@@ -341,10 +1096,15 @@
           }
           const memberConcurrencyKey = `${animation.boardId ?? ""}::${room.id ?? ""}`;
           const memberConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(memberConcurrencyKey) ?? 0;
-          if (memberConcurrency >= 2) {
+          // Phase 57 v1.1.7 (2026-06-02): also lift when an inside-
+          // animation is concurrently active on this board (Bug B).
+          const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? "") ?? 0) > 0;
+          if (memberConcurrency >= 2 || insideConcurrent) {
             c.globalCompositeOperation = "lighter";
           }
-          drawRoomComposition(memberAnimation, age, room, roomMetrics);
+          const memberFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+            .computeFadeMultiplier(memberAnimation, now);
+          drawRoomComposition(memberAnimation, age, room, roomMetrics, memberFadeMul);
         } finally {
           c.restore();
         }
@@ -360,7 +1120,9 @@
       }
     }
     const runtimeSpeed = animation.scope === "room" ? ctx.clampRoomSpeed(animation.speed ?? 1) : 1;
-    const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
+    // Phase 58 Wave 3.7s: same negative-age clamp as the cluster-member
+    // branch above (re-stamped startedAt up to one frame in the future).
+    const age = Math.max(0, ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed);
     if (animation.scope === "room") {
       if (animation.boardId !== state.boardId) {
         return;
@@ -382,10 +1144,15 @@
         // coded, mp4, and gif all route through drawRoomComposition.
         const concurrencyKey = `${animation.boardId ?? ""}::${animation.roomId ?? ""}`;
         const roomConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(concurrencyKey) ?? 0;
-        if (roomConcurrency >= 2) {
+        // Phase 57 v1.1.7 (2026-06-02): also lift when an inside-
+        // animation is concurrently active on this board (Bug B).
+        const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? "") ?? 0) > 0;
+        if (roomConcurrency >= 2 || insideConcurrent) {
           c.globalCompositeOperation = "lighter";
         }
-        drawRoomComposition(animation, age, room, roomMetrics);
+        const roomFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+          .computeFadeMultiplier(animation, now);
+        drawRoomComposition(animation, age, room, roomMetrics, roomFadeMul);
       } finally {
         c.restore();
       }
@@ -405,7 +1172,33 @@
       if (!clipped) {
         return;
       }
-      drawInsideGlobalVisual(animation, age);
+      // Phase 57 v1.1.7 (2026-06-02): Bug B — when any room animation
+      // is concurrently active on this board, draw the inside-
+      // animation with additive composite so it cannot opaquely cover
+      // the room animation regardless of trigger order. Mirrors the
+      // Phase 12 room-room layering pattern.
+      const roomConcurrent = (state.runtimePerf.roomAnimationCountByBoard?.get(animation.boardId ?? state.boardId ?? "") ?? 0) > 0;
+      // Phase 58 Wave 3.8r (2026-06-08): order-independent INSIDE↔INSIDE
+      // layering. Two concurrent inside animations (operator spec: heat
+      // coded + snow mp4/gif) used to draw with the default source-over
+      // composite, so whichever ran LATER painted opaquely over the
+      // earlier one — heat→snow hid snow, only snow→heat worked. Count
+      // inside animations on this board (insideAnimationCountByBoard) and,
+      // when ≥ 2 run concurrently, lift to additive composite exactly like
+      // the room-room ≥2 lift (drawAnimation room branch) and the
+      // room↔inside lift above. Under "lighter" each inside layer ADDS, so
+      // no layer can occlude another regardless of trigger order. The heat
+      // ambient base and city-workers always-paint vignette read this
+      // composite (they never force source-over), so their SSR no-strobe
+      // bases brighten by a negligible amount instead of clearing what is
+      // beneath — single-inside-animation looks (count < 2) are unchanged.
+      const insideConcurrent = (state.runtimePerf.insideAnimationCountByBoard?.get(animation.boardId ?? state.boardId ?? "") ?? 0) >= 2;
+      if (roomConcurrent || insideConcurrent) {
+        c.globalCompositeOperation = "lighter";
+      }
+      const insideFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+        .computeFadeMultiplier(animation, now);
+      drawInsideGlobalVisual(animation, age, insideFadeMul);
     } finally {
       c.restore();
     }
@@ -469,6 +1262,10 @@
     }) * state.animationSpeed;
     const timeline = ctx.resolveOutsideTimeline(elapsedSeconds, effectiveSpeed);
     const effectiveDirection = effectiveDirectionRaw === "reverse" ? "reverse" : "forward";
+    // Phase 58-w3.9h: global fade multiplier for the outside layer (null
+    // running instance ⇒ 1, i.e. no fade).
+    const outsideFadeMul = window.TT_BEAMER_RUNTIME_ANIMATION_FADE
+      .computeFadeMultiplier(runningInstance, now);
 
     c.save();
     try {
@@ -481,88 +1278,139 @@
       }
       if (selectedDefinition.assetType === "gif") {
         ctx.clearOutsideMp4PlaybackState(state.boardId);
-        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline);
+        // Phase 58: outside-gif honors per-instance playback mode.
+        const outsideGifMode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
+        const outsideGifDir = runningInstance?.playbackDirection || selectedDefinition.playbackDirection || "forward";
+        const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline, outsideGifMode, outsideGifDir);
+        // Phase 58 Wave 2.5: cleanup for outside-gif play-once-disappear.
+        if (outsideGifMode === "play-once-disappear" && runningInstance) {
+          const totalSec = ctx.getGifPlaybackTotalDurationSec?.(selectedDefinition.assetRef) || 0;
+          ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: totalSec > 0 && timeline.timeline >= totalSec });
+        }
         if (frame) {
-          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
           c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
         }
         return;
       }
       if (selectedDefinition.assetType === "mp4") {
-        const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef);
+        // Phase 58 Wave 3.6: cache by BASE assetRef; swap src in-place
+        // on phase transitions via expectedSrcUrl.
+        const outsideMp4Phase = runningInstance?.playbackPhase || "forward";
+        // Phase 58 Wave 3.7i: frozen instances paint exclusively from
+        // the fallback canvas (see room-mp4 path comment).
+        const outsideMp4IsFrozen = outsideMp4Phase === "frozen-last" || outsideMp4Phase === "frozen-first";
+        const outsideMp4UseReverseUrl = outsideMp4Phase === "reverse" || outsideMp4Phase === "frozen-first";
+        const outsideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4UseReverseUrl ? "reverse" : "forward") || selectedDefinition.assetRef;
+        const outsideMp4Mode2 = runningInstance?.playbackMode || selectedDefinition?.playbackMode || "loop";
+        const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef, {
+          instanceId: runningInstance?.id,
+          playbackMode: outsideMp4Mode2,
+        });
         if (videoEntry?.video) {
           const video = videoEntry.video;
           const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
+          const outsideMp4Mode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
+          const outsideMp4IsBoomerang = outsideMp4Mode === "boomerang";
+          const outsideMp4Forward = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "forward") || selectedDefinition.assetRef : null;
+          const outsideMp4Reverse = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "reverse") : null;
           const playbackState = ctx.ensureOutsideMp4Playback(video, {
             boardId: state.boardId,
             lifecycleKey: outsideLifecycleKey,
             assetRef: selectedDefinition.assetRef,
+            expectedSrcUrl: outsideMp4ExpectedSrcUrl,
             targetRate,
+            // Phase 58: outside mp4 reads playbackMode from the running
+            // animation when available; falls back to definition for
+            // preview paths.
+            playbackMode: outsideMp4Mode,
+            boomerangForwardSrc: outsideMp4Forward,
+            boomerangReverseSrc: outsideMp4Reverse,
+            instanceId: runningInstance?.id || '',
+            playbackPhase: outsideMp4Phase,
           });
+          // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
+          if (runningInstance) {
+            ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: Boolean(video.ended) });
+            // Phase 58 Wave 3.7i: pass playbackState (freeze-frame pin).
+            ctx.maybeTransitionPlaybackPhase?.(runningInstance, video, playbackState);
+          }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
-          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
-          // Phase 30 Plan 30-04 T4 (Option B): on /output/ (final-output
-          // role) the rAF rate is below any tier-target gate, so
-          // shouldDrawOutsideMp4Now never returns false → the fallback
-          // canvas is dead weight. Always paint the live frame, never
-          // capture, never replay. This avoids the second 1920×1080
-          // drawImage(video, …) inside captureOutsideMp4FallbackFrame
-          // every frame. Per Pi UAT (T2) the entire outside-fx layer
-          // costs ~4.5 fps; this T4 fix recovers most of that cleanly.
-          // Boot transition is already covered by h8 tickLoadingOverlay
-          // (waits for video.readyState ≥ 2); the inner readyState
-          // check below is defense-in-depth and keeps the existing
-          // semantics (no bare/uninitialised frame paint).
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
+          // Phase 57 (2026-06-01): removed the Phase 30 T4 final-output
+          // bypass. T4 assumed "/output/ rAF rate is below any tier-
+          // target gate so shouldDrawOutsideMp4Now never returns false"
+          // — true on Pi at ~16 fps rAF, but FALSE on the operator's
+          // modern Win11 RTX 4090 box where /output/ rAF runs ~60Hz and
+          // tier targets are 33/22/16 ms (= 30/45/60 fps). With T4 in
+          // place, snow.mp4 (30 fps source) was oversampled every rAF →
+          // operator-reported "konstantes leichtes Stockeln" on
+          // /output/. Collapse final-output and non-final-output into a
+          // single tier-gated branch; live-paint + capture when gated
+          // through, fallback replay when gated out or during the loop-
+          // wrap seek window. Win32 canvas-damage budget preserved:
+          // still 1 drawImage(video) + 1 capture op per painted frame
+          // (project_win32_ssr_canvas_damage.md).
           //
-          // Non-/output/ contexts (dashboard preview etc.) keep the
-          // original tier-gated + fallback path so dashboard UX where
-          // the gate legitimately fires is unaffected.
-          const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
-          if (isFinalOutput) {
-            // Phase 30 Plan 30-04 T10/T13: live-paint primary,
-            // capture every 5th rAF (~300 ms staleness at 16 fps),
-            // fallback when readyState dips OR video is seeking.
-            // T10's every-30-frames was too sparse — at the loop-
-            // wrap boundary the captured bridge frame could be
-            // ~1.8 s old and the user saw a perceptible jump.
-            // Every 5th frame keeps the bridge fresh while still
-            // saving most of the per-frame drawImage(video) cost.
-            //
-            // Critical: also check `video.seeking`.
-            // maybeWrapOutsideMp4Loop sets video.currentTime back to
-            // a small value before natural EOS. During the seek the
-            // video is in `seeking` state for 1-3 rAF cycles, and
-            // readyState typically does NOT drop below 2 (Chromium
-            // keeps the prior buffer alive). Without the
-            // video.seeking guard, drawImage(video) during seeking
-            // paints stale or partial pixels → the visible hiccup.
-            const isSeeking = video.seeking === true;
-            const haveLiveFrame =
-              !isSeeking
-              && video.readyState >= 2
-              && Number(video.videoWidth) > 0
-              && Number(video.videoHeight) > 0;
-            if (haveLiveFrame) {
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              const frameIdx = ctx.state?.runtimePerf?.frameIndex ?? 0;
-              if ((frameIdx % 5) === 0) {
-                ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-              }
-            } else {
-              // readyState dipped — typically the loop-wrap seek
-              // window. Replay the most-recent captured frame to
-              // bridge the gap seamlessly.
-              ctx.drawOutsideMp4FallbackFrame(playbackState);
+          // Critical: also check `video.seeking`.
+          // maybeWrapOutsideMp4Loop sets video.currentTime back to
+          // a small value before natural EOS. During the seek the
+          // video is in `seeking` state for 1-3 rAF cycles, and
+          // readyState typically does NOT drop below 2 (Chromium
+          // keeps the prior buffer alive). Without the
+          // video.seeking guard, drawImage(video) during seeking
+          // paints stale or partial pixels → the visible hiccup.
+          const isSeeking = video.seeking === true;
+          const haveLiveFrame =
+            !isSeeking
+            && video.readyState >= 2
+            && Number(video.videoWidth) > 0
+            && Number(video.videoHeight) > 0;
+          // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
+          // (see inside-mp4 path comment for full rationale).
+          // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while
+          // fresh (see room-mp4 path comment). Outside path already
+          // captures the fallback on every live paint.
+          const rvfcFreshO = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
+          const newFrameO = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
+          const drawNowO = newFrameO || (!rvfcFreshO && ctx.shouldDrawOutsideMp4Now(playbackState));
+          if (outsideMp4IsFrozen && playbackState) {
+            // Phase 58 Wave 3.7i: FROZEN paint mode — fallback canvas
+            // only, zero per-frame video work (see room-mp4 comment).
+            let paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
+            if (!paintedFrozen && haveLiveFrame) {
+              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
             }
-          } else if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
-            if (ctx.shouldDrawOutsideMp4Now(playbackState)) {
+            if (!paintedFrozen && haveLiveFrame) {
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              paintedFrozen = true;
+            }
+            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", paintedFrozen ? "fallback" : "no-frame");
+          } else if (haveLiveFrame && drawNowO) {
+            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+            ctx.markMp4FramePainted(playbackState);
+            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
+          } else {
+            const painted = ctx.drawOutsideMp4FallbackFrame(playbackState);
+            if (!painted && haveLiveFrame) {
+              // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
+              // canvas not yet captured. Paint live <video> directly so
+              // the region is never left UNPAINTED (would bleed black).
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
               ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              ctx.markMp4FramePainted(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
+            } else if (!painted && !isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
+              // Phase 58 Wave 3.7: extended last-resort for concurrent-
+              // load race (see room-mp4 path comment).
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
             } else {
-              ctx.drawOutsideMp4FallbackFrame(playbackState);
+              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");
             }
-          } else {
-            ctx.drawOutsideMp4FallbackFrame(playbackState);
           }
         } else {
           ctx.clearOutsideMp4PlaybackState(state.boardId);
@@ -571,7 +1419,17 @@
       }
       ctx.clearOutsideMp4PlaybackState(state.boardId);
       const codedEffectType = ctx.resolveOutsideCodedEffectType(selectedDefinition.assetRef);
-      ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, null, {
+      // Phase 58-w3.8p — outside can now render any coded effect, not
+      // just outside-space. Region-anchored effects (heat, city-workers,
+      // …) radiate from / span the full canvas (the outside region has
+      // no single closed polygon; the clipToOutsideShip clip restricts
+      // the paint to the area around the ship). outside-space ignores
+      // the metrics (it paints the whole frame). The outside
+      // mode/speed/direction options stay so the star-field keeps its
+      // parallax controls.
+      const outsideRegionMetrics = ctx.getOutsideRegionMetrics(state.boardId);
+      ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, outsideRegionMetrics, {
+        ...buildScopedCodedEffectOptions(selectedDefinition, runningInstance, { fadeMul: outsideFadeMul }),
         outsideMode: effectiveMode,
         outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,
@@ -580,6 +1438,22 @@
       c.restore();
     }
   }
+
+  // Phase 58 Wave 3.2: track instance ids that were alive last frame so
+  // we can release their per-instance video cache entries when they
+  // disappear (stopAnimation, board switch, clear-all, room-not-found).
+  let _previousInstanceIdsSeen = new Set();
+  // Phase 58 Wave 3.7d (2026-06-05): track last-seen timestamp per
+  // instance id. With 4+ rapid concurrent triggers the server processes
+  // trigger-room mutations one at a time, each broadcasting a snapshot
+  // that wholesale-replaces state.runningAnimations. Locally-just-
+  // pushed animations momentarily vanish from the snapshot until the
+  // server catches up → release fired → video element destroyed →
+  // next snapshot brings the id back → fresh element + load() →
+  // operator UAT "wild flicker bei 4+ Animationen". Defer release
+  // until an id is absent for a sustained grace window.
+  const _instanceLastSeenAtMs = new Map();
+  const INSTANCE_RELEASE_GRACE_MS = 500;
 
   function pruneFinishedAnimations(now) {
     const state = ctx.state;
@@ -627,6 +1501,33 @@
       ctx.renderRunningAnimationsList();
       ctx.refreshGlobalButtons();
     }
+    // Phase 58 Wave 3.7d (2026-06-05): release per-instance mp4 video
+    // elements WITH GRACE PERIOD. Wholesale snapshot replacement on
+    // multi-trigger races can transiently omit valid instances; immediate
+    // release destroys their video elements and the next snapshot
+    // re-creates them, causing the operator-reported flicker. Only
+    // release after 500ms of sustained absence.
+    const currentIds = new Set(state.runningAnimations.map((anim) => anim.id));
+    const nowReleaseMs = performance.now();
+    for (const id of currentIds) {
+      _instanceLastSeenAtMs.set(id, nowReleaseMs);
+    }
+    for (const [id, lastSeenMs] of Array.from(_instanceLastSeenAtMs.entries())) {
+      if (currentIds.has(id)) continue;
+      if (nowReleaseMs - lastSeenMs > INSTANCE_RELEASE_GRACE_MS) {
+        // Phase 58 Wave 3.7i: permanent diagnostic (operator request) —
+        // logs the release decision so any subsequent [58] release-video
+        // / Firefox "Ungültige URI" line is attributable. Fires once per
+        // disappeared instance.
+        console.warn("[58] prune-release", JSON.stringify({
+          id,
+          msSinceSeen: Math.round(nowReleaseMs - lastSeenMs),
+        }));
+        ctx.releaseMp4VideoElementsForInstance?.(id);
+        _instanceLastSeenAtMs.delete(id);
+      }
+    }
+    _previousInstanceIdsSeen = currentIds;
     if (
       state.roomDraft.editTargetId &&
       !state.runningAnimations.some((anim) => anim.id === state.roomDraft.editTargetId)
@@ -684,15 +1585,41 @@
       // to additive composite ('lighter') so draw order cannot occlude.
       // Single-animation rooms keep the default source-over blend.
       const roomConcurrencyByKey = new Map();
+      // Phase 57 v1.1.7 (2026-06-02): Bug B — parallel count for
+      // inside-animation presence per board so room+inside concurrent
+      // can also lift to "lighter" (operator-confirmed regression: an
+      // inside animation drawn AFTER a room animation opaquely covers
+      // the room region). Inside animations have scope === "global"
+      // AND are NOT in the board's outside-fx profile.
+      const insideAnimationCountByBoard = new Map();
+      const roomAnimationCountByBoard = new Map();
       for (const entry of state.runningAnimations) {
-        if (entry?.scope !== "room") continue;
-        const boardId = typeof entry.boardId === "string" ? entry.boardId : "";
-        const roomId = typeof entry.roomId === "string" ? entry.roomId : "";
-        if (!roomId) continue;
-        const key = `${boardId}::${roomId}`;
-        roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
+        const boardId = typeof entry?.boardId === "string" ? entry.boardId : "";
+        if (entry?.scope === "room") {
+          const roomId = typeof entry.roomId === "string" ? entry.roomId : "";
+          if (!roomId) continue;
+          const key = `${boardId}::${roomId}`;
+          roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
+          roomAnimationCountByBoard.set(boardId, (roomAnimationCountByBoard.get(boardId) || 0) + 1);
+        } else if (entry?.scope === "cluster") {
+          // Cluster animations expand to multiple room draws; count as room presence
+          roomAnimationCountByBoard.set(boardId, (roomAnimationCountByBoard.get(boardId) || 0) + 1);
+        } else if (entry?.scope === "global") {
+          // global covers both inside and outside; only count inside here
+          if (!ctx.isOutsideAnimationType?.(entry.type, boardId || ctx.state.boardId)
+              && entry.type !== "outside-space") {
+            insideAnimationCountByBoard.set(boardId, (insideAnimationCountByBoard.get(boardId) || 0) + 1);
+          }
+        }
       }
       state.runtimePerf.roomConcurrencyByKey = roomConcurrencyByKey;
+      state.runtimePerf.insideAnimationCountByBoard = insideAnimationCountByBoard;
+      state.runtimePerf.roomAnimationCountByBoard = roomAnimationCountByBoard;
+
+      // Phase 58 Wave 3.9j: prune fade-in render anchors to the live running
+      // set so the fade module's per-id anchor Map stays bounded and a
+      // removed/finished instance can never re-fade from a stale anchor.
+      window.TT_BEAMER_RUNTIME_ANIMATION_FADE.pruneFadeInAnchors(state.runningAnimations);
 
       const failedAnimationIds = [];
       let renderedCount = 0;

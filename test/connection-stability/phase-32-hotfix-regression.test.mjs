@@ -50,7 +50,12 @@ test("h8 regression: encodings array is single-layer when useSimulcast=false", a
   assert.ok(match, "could not isolate single-layer literal");
 });
 
-// ─── h9: --use-gl=angle + --use-angle=default ──────────────────────────
+// ─── h9: --use-gl=angle + --use-angle=vulkan ──────────────────────────
+// Phase 57 v1.1.6 (2026-06-02): --use-angle changed from `default` to
+// `vulkan` to give the Linux SSR-tab compositor a real GPU path (ANGLE
+// over Vulkan ICDs — Intel/RADV/lavapipe) instead of llvmpipe. Measured
+// SSR-tab vpq.droppedFps dropped from ~4.3/s baseline to ~0.5/s. The
+// gating logic (dropOnHeadlessNew) is unchanged; only the backend name.
 
 test("h9 regression: ssr-render-host.mjs passes --use-gl=angle", async () => {
   const url = new URL("../../src/server/ssr-render-host.mjs", import.meta.url);
@@ -59,11 +64,11 @@ test("h9 regression: ssr-render-host.mjs passes --use-gl=angle", async () => {
     "Chrome 131 needs --use-gl=angle (h9). egl crashes the GPU process.");
 });
 
-test("h9 regression: ssr-render-host.mjs passes --use-angle=default", async () => {
+test("h9 regression: ssr-render-host.mjs passes --use-angle=vulkan", async () => {
   const url = new URL("../../src/server/ssr-render-host.mjs", import.meta.url);
   const src = await readFile(url, "utf8");
-  assert.match(src, /"--use-angle=default"/,
-    "Chrome 131 needs --use-angle=default to pick the GL backend on llvmpipe.");
+  assert.match(src, /"--use-angle=vulkan"/,
+    "Phase 57 v1.1.6: ANGLE backend pinned to Vulkan on Linux to give the SSR-tab compositor a real GPU path (was `default` → llvmpipe → ~4.3 dropped video frames/sec).");
 });
 
 test("h9 regression: ssr-render-host.mjs does NOT pass --use-gl=egl", async () => {

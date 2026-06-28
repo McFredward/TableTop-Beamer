@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20RPi-orange.svg)](#requirements)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-1.1.3-7c3aed.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-1.3.1-7c3aed.svg)](#project-status)
 
 <br>
 
@@ -38,6 +38,11 @@ and trigger everything from your phone during play.
 <p align="center">
   <img
     src="readme-assets/example_board.gif"
+    width="250"
+    alt="TableTop Beamer overview"
+  />
+  <img
+    src="readme-assets/example_board_frostpunk.gif"
     width="250"
     alt="TableTop Beamer overview"
   />
@@ -66,20 +71,39 @@ at once.
 ## Highlights
 
 - 📦 **Pre-shipped boards.** `Nemesis` (both base-game boards) and `Nemesis
-  Lockdown` (both boards) are included with hand-crafted polygons and a starter
+  Lockdown` (both boards) & `Frostpunk the board game` are included with hand-crafted polygons and a starter
   animation library.
 - 🎯 **In-browser projection mapping.** A WebGL-accelerated mesh-warp grid you
   drag, rotate, and scale until the projection sits perfectly on the physical
-  board. Profiles are saved per-board on the server.
+  board. Profiles are saved per-board on the server. Corner scale handles stay
+  reachable even at extreme zoom (they clamp into the viewport rather than
+  disappearing off-screen).
   <div align="center">
   <img src="./readme-assets/align_mode.gif" width="75%" />
   </div>
 - 📱 **Mobile-first control UI.** Designed for one-thumb operation during a game.
 - 🪐 **Animation editor.** Built-in coded effects, plus your own GIF / MP4 /
   audio uploads. Per-scope library (Room / Inside / Outside) with drag-and-drop reorder.
+  The same coded-effect catalog is offered in every scope.
   <div align="center">
   <img src="./readme-assets/edit_animations.gif" width="75%" />
   </div>
+- ❄️ **Rich coded effects.** Decode-free, resolution-independent effects that
+  never hitch like a video: **Snow** — with a menacing, gusting **Snowstorm**
+  blizzard mode and density / speed / mean-flake-size controls — plus
+  **City Workers** (lantern-carrying figures, configurable count, size, and
+  stronger-lighting mode), **Heat**, scanners, alarms, hull-flicker, solid
+  colour, and parallax space.
+- 🎚️ **Fade & live editing.** Fade-in / fade-out for any animation, and live
+  editing of a running coded effect's settings straight from the Active
+  Animations list — tweak it on the fly, then keep it as the new default.
+- 🎬 **Per-animation playback modes.** Each GIF or MP4 can be set to loop,
+  play-once-disappear, play-then-freeze, or boomerang. Freeze mode supports
+  re-trigger to reverse: tap again and the animation plays backward, freezing
+  at the first frame or disappearing. An initial direction control lets you
+  start any animation in reverse. Works on room, inside, and outside scopes,
+  for single rooms and clusters, on dashboard and `/output/` alike. Re-triggering
+  flips direction mid-play — no need to wait for the freeze.
 - 🧩 **Rooms, play areas, clusters.** Paint any polygonal region. Group rooms
   so one tap fires across many at once.
   <div align="center">
@@ -88,7 +112,7 @@ at once.
 - 🔊 **Per-animation sounds** with global master volume.
 - 💾 **Self-contained board packages.** Export everything as a single `.zip`;
   re-import on another machine, nothing else required.
-- 🥧 **Server-Side-Rendering.** The output path is build and optimized for a "weak" thin client like a Raspberry-Pi.
+- 🥧 **Server-Side-Rendering.** The output path is built and optimised for a "weak" thin client like a Raspberry Pi. Adaptive video quality (default on) automatically downswitches playing MP4 instances to a 480p proxy under sustained frame-drop pressure, with position-preserving mid-play swaps, and recovers to full resolution once load drops.
 
 ---
 
@@ -147,10 +171,20 @@ Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/
   mode on the projector display avoids this entirely.
 - **Default stream settings** (H.264, 1080p, 30 fps source / 60 fps stream
   cap, 16 Mbit/s) are tuned for a Pi 5 + a 1080p projector on a quiet LAN.
-  In Settings → System (Server Side Rendering) you can switch the codec
-  (H.264 / VP9), pick a content-hint (detail / motion / auto), and step
-  the bitrate up to Maximum (30 Mbit) or down to Low (3 Mbit) if you see
-  jitter.
+  In Settings → System (Server Side Rendering) you can set the **codec mode**
+  (Board-specific / Force H.264 / Force VP9), pick a content-hint (detail /
+  motion / auto), and step the bitrate up to Maximum (30 Mbit) or down to Low
+  (3 Mbit) if you see jitter. The codec is **per board** in Board-specific
+  mode (Settings → Board) — Nemesis boards default to VP9, Frostpunk to H.264.
+  **Keep boards on H.264 unless your server has a hardware VP9 encoder** —
+  software VP9 only sustains ~15 fps at 1080p and makes fast effects (e.g. the
+  Snow blizzard) stutter on `/output/`; H.264 reaches the full ~30 fps. Use
+  **Force H.264** to override every board at once.
+- **Adaptive video quality** — when multiple play-then-freeze MP4 rooms are
+  active simultaneously, the runtime automatically downswitches to 480p proxy
+  variants under frame-drop pressure. The toggle is in Settings → System
+  ("Adaptive Video-Qualität (auto 480p bei Framedrops)") and is on by default. You can disable it if you
+  prefer consistent full resolution regardless of load.
 
 ---
 

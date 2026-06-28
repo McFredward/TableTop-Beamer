@@ -1306,6 +1306,171 @@ Plans: 2 plans
 
 ## Phase 50 - Aspect-ratio-aware board import (CLOSED — 2026-05-21, Released as v1.0.1)
 
+## Phase 58 - Per-animation playback modes (CLOSED PARTIAL — 2026-06-04, Released as v1.2.0)
+
+**Closure summary:** Wave 1 (schema + editor UI) + Wave 2 (runtime
+state machine for non-reverse modes) shipped. Loop, Play-once-
+disappear, and Play-then-freeze + Instant-disappear deliver the
+operator's vision for 3 of 6 modes. Boomerang and reverse-on-
+retrigger sub-options remain selectable in UI but fall back to loop
+or instant-disappear at runtime — full reverse playback (ffmpeg
+server pre-compute for mp4, frame-walk for gif) is scoped to Phase 59.
+Operator can configure all six modes today; Phase 59 lights up the
+remaining three at runtime without requiring a re-save.
+
+**Wave 1 delivered (no behavior change yet):**
+- `playbackMode` + `onRetrigger` fields added to inside/outside/room
+  animation definition normalizers (`runtime-fx-normalizers.js`) with
+  backwards-compat (`loopUntilStopped=false` → infers
+  `play-once-disappear`).
+- Animation editor renders stufenweise picker for gif/mp4 in all
+  three scopes: Mode dropdown (Loop / Play-once-disappear /
+  Play-then-freeze / Boomerang) + conditional On-retrigger sub-
+  dropdown when mode = play-then-freeze.
+- Playwright UAT confirmed: dropdown appears, conditional subfield
+  hide/show works, persistence round-trips correctly via save+reload,
+  values appear on disk in `config/boards/<id>.json`.
+
+**Wave 2 pending — non-reverse modes runtime:**
+- `play-once-disappear`: mp4/gif plays once, then animation
+  auto-removes from running list.
+- `play-then-freeze` + `instant-disappear`: mp4/gif plays once, then
+  freezes at last frame; re-trigger = disappear.
+- Requires touching `runtime-animation-factory.js` (carry
+  playbackMode/onRetrigger), `runtime-runtime-controls.js`
+  (upsertGlobalAnimation reads mode from definition),
+  `runtime-outside-mp4.js` + room/inside mp4 render paths
+  (video.loop=false + pause-on-ended), and `runtime-gif-decoder.js` /
+  `runtime-gif-playback.js` (stop frame-pump at last index).
+
+**Wave 3 pending — reverse modes (boomerang + reverse-on-retrigger):**
+- gif: frame-walk backward via existing decoder (trivial).
+- mp4: server-side ffmpeg pre-compute on save (D-03), cached on
+  disk under `./resources/.reverse-cache/`, WebSocket progress event,
+  editor UI loading indicator. Reverse playback then switches
+  `video.src` to the `.reverse.mp4` file.
+- Modes: `reverse-then-freeze-first`, `reverse-then-disappear`,
+  `boomerang` (forward → reverse → forward).
+- HIGHEST RISK wave per `P8-T47-REVERSE-ROOT-CAUSE.md` lesson.
+
+**Wave 4 pending — dashboard per-trigger override:**
+- Replace per-trigger `loopUntilStopped` toggle with same stufenweise
+  picker; first option "Use animation default".
+
+## Phase 59 - Reverse playback (boomerang + reverse-on-retrigger) + dashboard per-trigger override (PLANNING)
+
+Goal: complete Phase 58's vision by lighting up Boomerang and
+reverse-on-retrigger sub-options at runtime, plus add per-trigger
+mode override in the dashboard.
+
+Scope carry-forward from Phase 58 deferred work:
+- **gif reverse**: extend `_resolveFrameIndex` (`runtime-gif-
+  playback.js`) to walk backward — boomerang does
+  `cursorMs = position in 0..2*duration; if >duration, mirror`;
+  reverse-then-X is per-instance state (need playbackPhase tracking).
+- **mp4 reverse**: new server module `src/server/reverse-encode.mjs`
+  spawning ffmpeg `-vf reverse` into `./resources/.reverse-cache/`
+  keyed by `mtime+size+path` hash; WebSocket progress event so the
+  editor can show a Lade-Indikator; runtime swaps `video.src` to the
+  cached `*.reverse.mp4` when entering reverse phase.
+- **Lifecycle state machine for reverse-on-retrigger**: render layer
+  needs to track `playbackPhase` per animation instance (forward /
+  reverse / frozen-last / frozen-first / disappeared) and emit
+  cleanup intents when an instance reaches its terminal state.
+- **Dashboard per-trigger picker**: replace per-trigger
+  `loopUntilStopped` toggle in `runtime-wire-overlay-window-binders.js`
+  with the same stufenweise picker the editor uses; first option
+  "Use animation default" preserves the per-definition mode unless
+  the operator explicitly overrides.
+
+Note: Phase 58 Wave 1 + Wave 2 plumbed `playbackMode` + `onRetrigger`
+through definition → instance → render layer end-to-end, so Phase 59
+only needs to add the reverse-playback machinery and per-trigger
+override binding. The schema + UI + non-reverse runtime are already
+in place.
+
+
+
+Operator vision (2026-06-02): jede gif/mp4-Animation soll im
+Animationsmenu einen Playback-Mode bekommen. Aktuell loopen alle
+gif/mp4 automatisch. Neue Modi:
+
+- **loop** (Default — heutiges Verhalten)
+- **play-once with freeze** — spielt bis zum letzten Frame, dann
+  freeze. On re-trigger: konfigurierbar (sofort weg / rückwärts bis
+  ersten Frame freeze / rückwärts dann weg).
+- **play-once and disappear** — spielt einmal, dann weg.
+- **boomerang** — forward → reverse → forward → reverse, infinite.
+
+Geltungsbereich: room + inside + outside (alle drei
+Animationsklassen). Anwendbar nur für `assetType` = gif | mp4
+(coded-Effekte loopen weiterhin nach ihrer eigenen Lifecycle-Logik).
+
+Wichtige Vorgeschichte (Phase 8, Mar 2026): Boomerang wurde
+bereits einmal eingebaut, vier Hotfix-Wellen lang nicht stabilisiert,
+und in 8-HF7 komplett entfernt. Root-cause damals: rückwärts-Seeks
+via `video.currentTime` auf h264-mp4 erzeugten Decoder-Thrash und
+sichtbares Flackern. Diesmal MUSS die Architektur Runtime-Reverse-
+Seeks vermeiden (siehe Decisions).
+
+Mp4-Reverse-Strategie (operator-locked 2026-06-02):
+- Bevorzugt: in-Code-Lösung ohne Server-Roundtrip (WebCodecs
+  `VideoDecoder` + Frame-Buffer), falls technisch und speicher-
+  technisch tragfähig.
+- Fallback: server-seitige ffmpeg-Pre-computation, AUTOMATISCH
+  ausgelöst beim Speichern der Option (kein manueller Schritt), mit
+  Lade-Indikator in der UI. Cache auf disk, idempotent.
+- gif-Reverse ist trivial via existierender ImageDecoder-basierter
+  Frame-Pump in `runtime-gif-decoder.js`.
+
+Out of Scope (deferred):
+- Neue Animationsklassen (keine "outside-objects" o.ä.).
+- Audio-Sync für reverse-Playback (mp4-audio bleibt unverändert/aus).
+- Migration des existierenden `loopUntilStopped`-Felds: bleibt
+  legacy-kompatibel readable; neue Animationen nutzen das neue
+  Schema-Feld (Migration on save, no behavior change).
+
+## Phase 57 - SSR mp4 playback quality / smoothness (CLOSED PASS — 2026-06-02)
+
+Operator UAT (Frostpunk board, post-v1.1.3): 720p `snow.mp4` inside-
+animation stuttered on `/output/`. Root cause turned out to be
+THREE separate issues unmasked sequentially during the fix loop.
+
+Four iterations shipped:
+- **v1.1.4** (`b227703`) — universal tier-gating across all three mp4
+  paths (inside / room / outside-final). Addressed asymmetric defect
+  but didn't fix stutter.
+- **v1.1.5** (`2251f57`) — rVFC-driven paint gate + diagnostic
+  instrumentation (`SSR_PUBLISHER_DEBUG=1` forwards `[mp4-diag]`
+  logs). Eliminated stale paints. Stutter persisted because upstream
+  Chromium decoder was dropping frames.
+- **v1.1.6** (`4af2e48`) — ANGLE backend `--use-angle=default` →
+  `--use-angle=vulkan`. The "default" backend resolved to Mesa
+  llvmpipe (software GL) which starved the SSR Chromium tab's video
+  compositor at 24fps → 6 dropped decoded frames/sec. Vulkan backend
+  gives ANGLE access to the host GPU. Result: dropped fps 4.27 → 0.52,
+  decoded fps 19.77 → 23.86 (matches source). Visually smooth.
+- **v1.1.7** (`0f56eac`) — overlay regressions from v1.1.5 + Phase 12
+  carry-forward. (a) rVFC paint-skip on no-new-frame caused
+  black-flicker strobo when two mp4s overlay (canvas clears each rAF,
+  skipped path goes transparent → black). Fix: paint fallback canvas
+  on no-new-frame, eager fallback capture in rVFC callback. (b) Inside
+  animation overwrote room animations (no `globalCompositeOperation`
+  guard, only Phase 12 room-room was guarded). Fix: per-rAF counts
+  trigger composite-lift to `"lighter"` for inside-vs-room overlap
+  in both branches.
+
+Operator confirmed 2026-06-02: smooth playback, no flicker, room+inside
+order-independent layering. No further issues at close.
+
+Out of Scope (deferred):
+- New animation types or import features.
+- Audio playback timing.
+- Win32-specific tuning (default Win32 headless-new path drops
+  `--use-angle=*` per the existing `dropOnHeadlessNew` gate, so the
+  v1.1.6 ANGLE backend swap is Linux-effective only; Win32 SSR path
+  was not regressed but also not specifically targeted).
+
 ## Phase 56 - SSR restart trigger on bitrate change (CLOSED — 2026-05-24, Released as v1.0.7)
 
 Operator UAT 2026-05-24: Apply persisted streamBitrateMbps to

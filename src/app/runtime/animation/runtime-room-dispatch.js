@@ -100,6 +100,49 @@
         soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
         hold: true,
         durationMs: null,
+        // Phase 58: carry per-definition playback mode + on-retrigger
+        // onto every dispatched instance (room / cluster / member).
+        // Default to "loop" preserves legacy behavior for animations
+        // not yet configured with a mode.
+        playbackMode: selectedDefinition.playbackMode ?? "loop",
+        onRetrigger: selectedDefinition.onRetrigger ?? "instant-disappear",
+        playbackDirection: selectedDefinition.playbackDirection ?? "forward",
+        // Phase 58-w3.8g: heat coded-effect options. Per-definition
+        // (like playbackMode) — carried onto every dispatched instance.
+        // Same Phase 50 factory-default-mask trap as the transform
+        // fields: every createAnimation call site below must forward
+        // these explicitly.
+        heatShowSource: selectedDefinition.heatShowSource !== false,
+        heatSyncNearestSource: selectedDefinition.heatSyncNearestSource === true,
+        // Phase 58-w3.8i: merged city-workers options — per-definition,
+        // carried onto every dispatched instance (same Phase 50
+        // factory-default-mask trap: all createAnimation call sites
+        // below forward these explicitly).
+        workerStyle: selectedDefinition.workerStyle === "lit" ? "lit" : "dark",
+        workerCount: selectedDefinition.workerCount ?? null,
+        workerGroups: selectedDefinition.workerGroups ?? "normal",
+        workerLanternShare: selectedDefinition.workerLanternShare ?? 30,
+        workerTrails: selectedDefinition.workerTrails !== false,
+        workerSize: selectedDefinition.workerSize ?? 1,
+        workerSwayAmount: selectedDefinition.workerSwayAmount ?? 55,
+        workerClothingBrightness: selectedDefinition.workerClothingBrightness ?? 1,
+        workerTrailIntensity: selectedDefinition.workerTrailIntensity ?? 100,
+        workerCenterExclusion: selectedDefinition.workerCenterExclusion === true,
+        workerCenterExclusionRadius: selectedDefinition.workerCenterExclusionRadius ?? 25,
+        workerExclusionOffsetX: selectedDefinition.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: selectedDefinition.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: selectedDefinition.workerExclusionRingVisible !== false,
+        heatIrregularPulse: selectedDefinition.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options carried onto the instance.
+        snowDensity: selectedDefinition.snowDensity ?? 55,
+        snowSpeed: selectedDefinition.snowSpeed ?? 50,
+        snowStorm: selectedDefinition.snowStorm === true,
+        snowFlakeSize: selectedDefinition.snowFlakeSize ?? 50,
+        // Phase 58-w3.9h: optional fade-in/fade-out — per-definition, carried
+        // onto every dispatched instance (same factory-default-mask trap as
+        // the fields above: every createAnimation call site forwards these).
+        fadeEnabled: selectedDefinition.fadeEnabled === true,
+        fadeDurationMs: selectedDefinition.fadeDurationMs ?? 800,
       };
 
       if (selectedAssetType === "gif") {
@@ -118,6 +161,228 @@
           triggerFeedback.textContent = "Status: select a room on the board first";
           return;
         }
+      }
+
+      // Phase 58 Wave 3.4: phase-advance for reversible-freeze room
+      // animations. If the operator re-triggers the same animation in
+      // the same room while a frozen instance exists, transition its
+      // phase instead of creating a new instance. Skips edit mode
+      // (existing edit path replaces the instance entirely) and
+      // cluster mode (cluster phase transitions deferred).
+      if (
+        !state.roomDraft.editTargetId
+        && state.roomDraft.targetType === "room"
+        && targetRoomIds.length === 1
+      ) {
+        const targetRoomId = targetRoomIds[0];
+        // Phase 58 Wave 3.7m (2026-06-05): accept ANY phase, not just
+        // frozen-*. Operator UAT: "wenn man mitten während dem
+        // abspielen drückt, möchte ich dass es trotzdem vom letzten
+        // frame bzw. ersten frame an in der anderen Richtung abspielt"
+        // — a tap mid-playback flips the direction (forward →
+        // reverse-from-last-frame; reverse → forward-from-first-frame),
+        // same as if the playthrough had already frozen. The src swap
+        // in ensureRoomMp4Playback resets currentTime to 0 of the
+        // OTHER file, which is exactly the requested entry point.
+        const candidate = state.runningAnimations.find((item) => (
+          item
+          && item.scope === "room"
+          && item.boardId === state.boardId
+          && item.roomId === targetRoomId
+          && item.type === draftPayload.type
+          && item.playbackMode === "play-then-freeze"
+          && (
+            item.onRetrigger === "reverse-then-freeze-first"
+            || item.onRetrigger === "reverse-then-disappear"
+          )
+        ));
+        // forward/frozen-last (incl. unset = forward default) → reverse;
+        // reverse/frozen-first → forward.
+        const nextPhaseForCandidate = candidate
+          ? (
+            (candidate.playbackPhase || "forward") === "forward"
+            || candidate.playbackPhase === "frozen-last"
+              ? "reverse"
+              : "forward"
+          )
+          : null;
+        // Phase 58 Wave 3.7i (2026-06-05): PERMANENT diagnostic
+        // (operator request — always on). Logs every room-trigger's
+        // re-trigger check so a frozen animation that disappears
+        // instead of reversing is explainable from console output:
+        // candidateMatched=false + a frozen same-room instance in
+        // `sameRoom` means the phase-advance was bypassed. User-action
+        // frequency only.
+        const samesScope = state.runningAnimations.filter((a) => (
+          a && a.scope === "room"
+          && a.boardId === state.boardId
+          && a.roomId === targetRoomId
+          && a.type === draftPayload.type
+        ));
+        console.warn("[58] re-trigger", JSON.stringify({
+          roomId: targetRoomId,
+          type: draftPayload.type,
+          candidateMatched: !!candidate,
+          candidateId: candidate?.id ?? null,
+          phaseBefore: candidate?.playbackPhase ?? null,
+          phaseAfter: nextPhaseForCandidate,
+          sameRoomCount: samesScope.length,
+          sameRoom: samesScope.map((a) => ({
+            id: a.id,
+            phase: a.playbackPhase ?? null,
+            mode: a.playbackMode ?? null,
+            onRetrigger: a.onRetrigger ?? null,
+          })),
+        }));
+        if (candidate) {
+          // Phase 58 Wave 3.5: advance phase, do NOT use a custom
+          // mutation type (server's LIVE_MUTATION_TYPES would reject
+          // unknown actions and silently drop the broadcast). Reuse
+          // edit-room with the mutated snapshot so /output/ clients
+          // pick up the new phase via the standard pipeline.
+          candidate.playbackPhase = nextPhaseForCandidate;
+          candidate._endedDispatched = false;
+          candidate._phaseChangedAt = performance.now();
+          // Re-stamp startedAt so the per-instance video element seeks
+          // back to 0 (instanceId tracking in ensure*Mp4Playback uses
+          // the unchanged id, but the next ensure call detects the
+          // phase change because the cached src URL differs).
+          candidate.startedAt = performance.now();
+          candidate.startedAtEpochMs = Date.now();
+          try {
+            void emitLiveMutation("edit-room", {
+              animationId: candidate.id,
+              animation: buildAnimationSnapshotForLiveSync(candidate),
+            }).catch(() => undefined);
+          } catch { /* defensive */ }
+          triggerFeedback.textContent = `Status: ${draftPayload.animationName} ${candidate.playbackPhase === "reverse" ? "reversing" : "playing"}`;
+          deferRenderRunningList();
+          return;
+        }
+      }
+
+      // Phase 58 Wave 3.7o (2026-06-06): CLUSTER-level phase-advance —
+      // the cluster counterpart of the single-room block above (which
+      // was explicitly gated `targetType === "room" && length === 1`,
+      // deferring cluster phase transitions). Operator spec: re-trigger
+      // of a cluster whose members run a play-then-freeze +
+      // reverse-onRetrigger animation must flip the playback direction
+      // of ALL member instances instead of stopping them ("aktuell …
+      // VERSCHWINDEN alle Animationen im Cluster"). Each member is
+      // flipped by ITS OWN phase (per-member mapping, v1.2.18 rules:
+      // forward/unset/frozen-last → reverse; reverse/frozen-first →
+      // forward) so mixed phases — e.g. one room individually
+      // re-triggered between cluster taps — stay independent.
+      // Stagger note: all members flip SIMULTANEOUSLY even when the
+      // cluster instance was started in staggered mode — per-member
+      // staggered reversal is intentionally not implemented (spec
+      // 2026-06-06 allows the simultaneous flip as the simplest
+      // consistent behavior). Per-instance video src swaps (incl.
+      // reverse URLs + adaptive 480p tier) are handled downstream by
+      // the existing expectedSrcUrl machinery — nothing duplicated
+      // here.
+      if (
+        !state.roomDraft.editTargetId
+        && state.roomDraft.targetType === "cluster"
+      ) {
+        const targetClusterId = String(state.roomDraft.targetId || "").trim();
+        const isReverseRetriggerable = (item) => (
+          item
+          && item.playbackMode === "play-then-freeze"
+          && (
+            item.onRetrigger === "reverse-then-freeze-first"
+            || item.onRetrigger === "reverse-then-disappear"
+          )
+        );
+        // v1.2.18 flip mapping (same as the single-room candidate).
+        const flipPhaseOf = (item) => (
+          (item.playbackPhase || "forward") === "forward"
+          || item.playbackPhase === "frozen-last"
+            ? "reverse"
+            : "forward"
+        );
+        const clusterEntry = state.runningAnimations.find((item) => (
+          item
+          && item.scope === "cluster"
+          && item.boardId === state.boardId
+          && String(item.clusterId || "").trim() === targetClusterId
+          && item.type === draftPayload.type
+        )) ?? null;
+        // Member candidates: room-scope instances of the same type that
+        // belong to the running cluster instance (parentClusterRunId)
+        // OR — defensive, e.g. after membership drift — simply sit in
+        // one of the cluster's member rooms. Members in other playback
+        // modes / without a reverse onRetrigger are left untouched.
+        const memberCandidates = state.runningAnimations.filter((item) => (
+          item
+          && item.scope === "room"
+          && item.boardId === state.boardId
+          && item.type === draftPayload.type
+          && isReverseRetriggerable(item)
+          && (
+            (clusterEntry && item.parentClusterRunId === clusterEntry.id)
+            || targetRoomIds.includes(item.roomId)
+          )
+        ));
+        const memberFlips = memberCandidates.map((member) => ({
+          id: member.id,
+          roomId: member.roomId,
+          phaseBefore: member.playbackPhase ?? "forward",
+          phaseAfter: flipPhaseOf(member),
+        }));
+        // PERMANENT diagnostic (mirrors [58] re-trigger for rooms):
+        // user-action frequency only.
+        console.warn("[58] cluster-retrigger", JSON.stringify({
+          clusterId: targetClusterId,
+          type: draftPayload.type,
+          candidateMatched: memberCandidates.length > 0,
+          clusterEntryId: clusterEntry?.id ?? null,
+          memberCount: memberCandidates.length,
+          members: memberFlips,
+        }));
+        if (memberCandidates.length > 0) {
+          for (const member of memberCandidates) {
+            member.playbackPhase = flipPhaseOf(member);
+            member._endedDispatched = false;
+            member._phaseChangedAt = performance.now();
+            // Re-stamp startedAt — same rationale as the single-room
+            // block: the per-instance video element keeps its id, the
+            // next ensure call detects the phase via the changed
+            // expected src URL.
+            member.startedAt = performance.now();
+            member.startedAtEpochMs = Date.now();
+            try {
+              void emitLiveMutation("edit-room", {
+                animationId: member.id,
+                animation: buildAnimationSnapshotForLiveSync(member),
+              }).catch(() => undefined);
+            } catch { /* defensive */ }
+          }
+          // Keep the cluster-scope parent consistent for pad UI /
+          // snapshots: it mirrors the flip mapping applied to its OWN
+          // phase field (it starts unset = forward and alternates with
+          // every cluster re-trigger — intentionally independent of
+          // the members' potentially mixed phases).
+          if (clusterEntry && isReverseRetriggerable(clusterEntry)) {
+            clusterEntry.playbackPhase = flipPhaseOf(clusterEntry);
+            clusterEntry._endedDispatched = false;
+            clusterEntry._phaseChangedAt = performance.now();
+            clusterEntry.startedAt = performance.now();
+            clusterEntry.startedAtEpochMs = Date.now();
+            try {
+              void emitLiveMutation("edit-room", {
+                animationId: clusterEntry.id,
+                animation: buildAnimationSnapshotForLiveSync(clusterEntry),
+              }).catch(() => undefined);
+            } catch { /* defensive */ }
+          }
+          const anyReversing = memberFlips.some((entry) => entry.phaseAfter === "reverse");
+          triggerFeedback.textContent = `Status: ${draftPayload.animationName} ${anyReversing ? "reversing" : "playing"} (cluster, ${memberFlips.length} rooms)`;
+          deferRenderRunningList();
+          return;
+        }
+        // No retriggerable member → fall through to the existing
+        // behavior (fresh cluster dispatch / replace).
       }
 
       if (getOutputRole() === OUTPUT_ROLE_CONTROL) {
@@ -202,6 +467,38 @@
                     heightScale: draftPayload.heightScale,
                     offsetXScale: draftPayload.offsetXScale,
                     offsetYScale: draftPayload.offsetYScale,
+                    playbackMode: draftPayload.playbackMode,
+                    onRetrigger: draftPayload.onRetrigger,
+                    playbackDirection: draftPayload.playbackDirection,
+                    // Phase 58-w3.8g: heat options — explicit pass-through
+                    // (factory-default-mask trap, see draftPayload comment).
+                    heatShowSource: draftPayload.heatShowSource,
+                    heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+                    // Phase 58-w3.8i: city-workers options — explicit pass-through
+                    // (factory-default-mask trap, see draftPayload comment).
+                    workerStyle: draftPayload.workerStyle,
+                    workerCount: draftPayload.workerCount,
+                    workerGroups: draftPayload.workerGroups,
+                    workerLanternShare: draftPayload.workerLanternShare,
+                    workerTrails: draftPayload.workerTrails,
+                    workerSize: draftPayload.workerSize,
+                    workerSwayAmount: draftPayload.workerSwayAmount,
+                    workerClothingBrightness: draftPayload.workerClothingBrightness,
+                    workerTrailIntensity: draftPayload.workerTrailIntensity,
+                    workerCenterExclusion: draftPayload.workerCenterExclusion,
+                    workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+                    workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+                    workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+                    workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+                    heatIrregularPulse: draftPayload.heatIrregularPulse,
+                    // Phase 58-w3.9m: coded snow options — explicit pass-through.
+                    snowDensity: draftPayload.snowDensity,
+                    snowSpeed: draftPayload.snowSpeed,
+                    snowStorm: draftPayload.snowStorm,
+                    snowFlakeSize: draftPayload.snowFlakeSize,
+                    // Phase 58-w3.9h: fade config — explicit pass-through.
+                    fadeEnabled: draftPayload.fadeEnabled,
+                    fadeDurationMs: draftPayload.fadeDurationMs,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -317,6 +614,38 @@
           heightScale: draftPayload.heightScale,
           offsetXScale: draftPayload.offsetXScale,
           offsetYScale: draftPayload.offsetYScale,
+          playbackMode: draftPayload.playbackMode,
+          onRetrigger: draftPayload.onRetrigger,
+          playbackDirection: draftPayload.playbackDirection,
+          // Phase 58-w3.8g: heat options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          heatShowSource: draftPayload.heatShowSource,
+          heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+          // Phase 58-w3.8i: city-workers options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          workerStyle: draftPayload.workerStyle,
+          workerCount: draftPayload.workerCount,
+          workerGroups: draftPayload.workerGroups,
+          workerLanternShare: draftPayload.workerLanternShare,
+          workerTrails: draftPayload.workerTrails,
+          workerSize: draftPayload.workerSize,
+          workerSwayAmount: draftPayload.workerSwayAmount,
+          workerClothingBrightness: draftPayload.workerClothingBrightness,
+          workerTrailIntensity: draftPayload.workerTrailIntensity,
+          workerCenterExclusion: draftPayload.workerCenterExclusion,
+          workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+          workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+          workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+          workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+          heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9m: coded snow options — explicit pass-through.
+          snowDensity: draftPayload.snowDensity,
+          snowSpeed: draftPayload.snowSpeed,
+          snowStorm: draftPayload.snowStorm,
+          snowFlakeSize: draftPayload.snowFlakeSize,
+          // Phase 58-w3.9h: fade config — explicit pass-through.
+          fadeEnabled: draftPayload.fadeEnabled,
+          fadeDurationMs: draftPayload.fadeDurationMs,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -344,6 +673,38 @@
             heightScale: draftPayload.heightScale,
             offsetXScale: draftPayload.offsetXScale,
             offsetYScale: draftPayload.offsetYScale,
+            playbackMode: draftPayload.playbackMode,
+            onRetrigger: draftPayload.onRetrigger,
+            playbackDirection: draftPayload.playbackDirection,
+            // Phase 58-w3.8g: heat options — explicit pass-through
+            // (factory-default-mask trap, see draftPayload comment).
+            heatShowSource: draftPayload.heatShowSource,
+            heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+            // Phase 58-w3.8i: city-workers options — explicit pass-through
+            // (factory-default-mask trap, see draftPayload comment).
+            workerStyle: draftPayload.workerStyle,
+            workerCount: draftPayload.workerCount,
+            workerGroups: draftPayload.workerGroups,
+            workerLanternShare: draftPayload.workerLanternShare,
+            workerTrails: draftPayload.workerTrails,
+            workerSize: draftPayload.workerSize,
+            workerSwayAmount: draftPayload.workerSwayAmount,
+            workerClothingBrightness: draftPayload.workerClothingBrightness,
+            workerTrailIntensity: draftPayload.workerTrailIntensity,
+            workerCenterExclusion: draftPayload.workerCenterExclusion,
+            workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+            workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+            workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+            workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+            heatIrregularPulse: draftPayload.heatIrregularPulse,
+            // Phase 58-w3.9m: coded snow options — explicit pass-through.
+            snowDensity: draftPayload.snowDensity,
+            snowSpeed: draftPayload.snowSpeed,
+            snowStorm: draftPayload.snowStorm,
+            snowFlakeSize: draftPayload.snowFlakeSize,
+            // Phase 58-w3.9h: fade config — explicit pass-through.
+            fadeEnabled: draftPayload.fadeEnabled,
+            fadeDurationMs: draftPayload.fadeDurationMs,
             hold: true,
             durationSec: 0,
           });
@@ -462,6 +823,38 @@
                   heightScale: draftPayload.heightScale,
                   offsetXScale: draftPayload.offsetXScale,
                   offsetYScale: draftPayload.offsetYScale,
+                  playbackMode: draftPayload.playbackMode,
+                  onRetrigger: draftPayload.onRetrigger,
+                  playbackDirection: draftPayload.playbackDirection,
+                  // Phase 58-w3.8g: heat options — explicit pass-through
+                  // (factory-default-mask trap, see draftPayload comment).
+                  heatShowSource: draftPayload.heatShowSource,
+                  heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+                  // Phase 58-w3.8i: city-workers options — explicit pass-through
+                  // (factory-default-mask trap, see draftPayload comment).
+                  workerStyle: draftPayload.workerStyle,
+                  workerCount: draftPayload.workerCount,
+                  workerGroups: draftPayload.workerGroups,
+                  workerLanternShare: draftPayload.workerLanternShare,
+                  workerTrails: draftPayload.workerTrails,
+                  workerSize: draftPayload.workerSize,
+                  workerSwayAmount: draftPayload.workerSwayAmount,
+                  workerClothingBrightness: draftPayload.workerClothingBrightness,
+                  workerTrailIntensity: draftPayload.workerTrailIntensity,
+                  workerCenterExclusion: draftPayload.workerCenterExclusion,
+                  workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+                  workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+                  workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+                  workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+                  heatIrregularPulse: draftPayload.heatIrregularPulse,
+                  // Phase 58-w3.9m: coded snow options — explicit pass-through.
+                  snowDensity: draftPayload.snowDensity,
+                  snowSpeed: draftPayload.snowSpeed,
+                  snowStorm: draftPayload.snowStorm,
+                  snowFlakeSize: draftPayload.snowFlakeSize,
+                  // Phase 58-w3.9h: fade config — explicit pass-through.
+                  fadeEnabled: draftPayload.fadeEnabled,
+                  fadeDurationMs: draftPayload.fadeDurationMs,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -583,6 +976,38 @@
         heightScale: draftPayload.heightScale,
         offsetXScale: draftPayload.offsetXScale,
         offsetYScale: draftPayload.offsetYScale,
+        playbackMode: draftPayload.playbackMode,
+        onRetrigger: draftPayload.onRetrigger,
+        playbackDirection: draftPayload.playbackDirection,
+        // Phase 58-w3.8g: heat options — explicit pass-through
+        // (factory-default-mask trap, see draftPayload comment).
+        heatShowSource: draftPayload.heatShowSource,
+        heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+        // Phase 58-w3.8i: city-workers options — explicit pass-through
+        // (factory-default-mask trap, see draftPayload comment).
+        workerStyle: draftPayload.workerStyle,
+        workerCount: draftPayload.workerCount,
+        workerGroups: draftPayload.workerGroups,
+        workerLanternShare: draftPayload.workerLanternShare,
+        workerTrails: draftPayload.workerTrails,
+        workerSize: draftPayload.workerSize,
+        workerSwayAmount: draftPayload.workerSwayAmount,
+        workerClothingBrightness: draftPayload.workerClothingBrightness,
+        workerTrailIntensity: draftPayload.workerTrailIntensity,
+        workerCenterExclusion: draftPayload.workerCenterExclusion,
+        workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+        workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+        heatIrregularPulse: draftPayload.heatIrregularPulse,
+        // Phase 58-w3.9m: coded snow options — explicit pass-through.
+        snowDensity: draftPayload.snowDensity,
+        snowSpeed: draftPayload.snowSpeed,
+        snowStorm: draftPayload.snowStorm,
+        snowFlakeSize: draftPayload.snowFlakeSize,
+        // Phase 58-w3.9h: fade config — explicit pass-through.
+        fadeEnabled: draftPayload.fadeEnabled,
+        fadeDurationMs: draftPayload.fadeDurationMs,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -612,6 +1037,38 @@
           heightScale: draftPayload.heightScale,
           offsetXScale: draftPayload.offsetXScale,
           offsetYScale: draftPayload.offsetYScale,
+          playbackMode: draftPayload.playbackMode,
+          onRetrigger: draftPayload.onRetrigger,
+          playbackDirection: draftPayload.playbackDirection,
+          // Phase 58-w3.8g: heat options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          heatShowSource: draftPayload.heatShowSource,
+          heatSyncNearestSource: draftPayload.heatSyncNearestSource,
+          // Phase 58-w3.8i: city-workers options — explicit pass-through
+          // (factory-default-mask trap, see draftPayload comment).
+          workerStyle: draftPayload.workerStyle,
+          workerCount: draftPayload.workerCount,
+          workerGroups: draftPayload.workerGroups,
+          workerLanternShare: draftPayload.workerLanternShare,
+          workerTrails: draftPayload.workerTrails,
+          workerSize: draftPayload.workerSize,
+          workerSwayAmount: draftPayload.workerSwayAmount,
+          workerClothingBrightness: draftPayload.workerClothingBrightness,
+          workerTrailIntensity: draftPayload.workerTrailIntensity,
+          workerCenterExclusion: draftPayload.workerCenterExclusion,
+          workerCenterExclusionRadius: draftPayload.workerCenterExclusionRadius,
+          workerExclusionOffsetX: draftPayload.workerExclusionOffsetX ?? 0,
+          workerExclusionOffsetY: draftPayload.workerExclusionOffsetY ?? 0,
+          workerExclusionRingVisible: draftPayload.workerExclusionRingVisible !== false,
+          heatIrregularPulse: draftPayload.heatIrregularPulse,
+          // Phase 58-w3.9m: coded snow options — explicit pass-through.
+          snowDensity: draftPayload.snowDensity,
+          snowSpeed: draftPayload.snowSpeed,
+          snowStorm: draftPayload.snowStorm,
+          snowFlakeSize: draftPayload.snowFlakeSize,
+          // Phase 58-w3.9h: fade config — explicit pass-through.
+          fadeEnabled: draftPayload.fadeEnabled,
+          fadeDurationMs: draftPayload.fadeDurationMs,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,

@@ -41,6 +41,7 @@
           roomFx: ctx.normalizeRoomFxProfile({ animations: ctx.createDefaultRoomAnimationDefinitions() }),
           insideFx: ctx.normalizeInsideFxProfile({ animations: ctx.createDefaultInsideAnimationDefinitions() }),
           outsideFx: ctx.normalizeOutsideFxProfile(ctx.OUTSIDE_FX_DEFAULT),
+          videoCodec: window.TT_BEAMER_CONFIG?.defaultVideoCodecForBoard?.(board.id) ?? "vp9",
         },
       ]),
     );
@@ -68,6 +69,9 @@
           outsideFx: ctx.normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
           defaultAnimations: state.defaultAnimationsByBoard[board.id] || [],
           frozenRooms: state.frozenRoomsByBoard[board.id] || {},
+          // Phase 58 hotfix (2026-06-28): per-board video codec.
+          videoCodec: state.videoCodecByBoard?.[board.id]
+            || (window.TT_BEAMER_CONFIG?.defaultVideoCodecForBoard?.(board.id) ?? "vp9"),
           // Phase 28 B1 (D-02): emit explicit null when invalid OR absent so
           // the round-trip is bit-exact for boards that have never had a
           // profile loaded. The server's BOARD_PROFILE_FIELDS iterator
@@ -198,6 +202,18 @@
         board.id,
         validateProfileName(profiles?.[board.id]?.lastUsedProfileName),
       ]),
+    );
+    // Phase 58 hotfix (2026-06-28): per-board video codec. Hydrate to the
+    // saved value when valid, else the per-board default (Frostpunk → h264,
+    // everything else → vp9) so the Board-settings select always shows a
+    // concrete codec.
+    const defaultCodecFor = window.TT_BEAMER_CONFIG?.defaultVideoCodecForBoard
+      || ((id) => (id === "frostpunk" ? "h264" : "vp9"));
+    state.videoCodecByBoard = Object.fromEntries(
+      BOARDS.map((board) => {
+        const vc = profiles?.[board.id]?.videoCodec;
+        return [board.id, (vc === "h264" || vc === "vp9") ? vc : defaultCodecFor(board.id)];
+      }),
     );
   }
 

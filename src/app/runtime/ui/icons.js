@@ -93,6 +93,9 @@
     siren_alt:    "M12 3a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7zM5 10v4h14v-4M12 16v4M8 20h8",
     moon_stars:   "M20 13A8 8 0 1 1 11 4 6 6 0 0 0 20 13zM17 4l.6 1.4L19 6l-1.4.6L17 8l-.6-1.4L15 6l1.4-.6z",
     radio:        "M5 16a8 8 0 0 1 14 0M7.5 13a5 5 0 0 1 9 0M10 10a2 2 0 0 1 4 0M12 16a1 1 0 1 1 0 2 1 1 0 0 1 0-2z",
+    // Phase 58-w3.7y: two-figure "inhabitants" glyph for the
+    // city-workers coded room effect.
+    users:        "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3.5a4 4 0 1 1 0 8 4 4 0 0 1 0-8M22 21v-2a4 4 0 0 0-3-3.85M15.5 3.65a4 4 0 0 1 0 7.7",
   };
 
   // Curated list exposed to the icon picker.
@@ -115,7 +118,7 @@
     "moon", "moon_stars", "sun", "cloud", "snowflake", "smoke",
     "heart", "layers", "clock",
     "frame", "power",
-    "play", "picker", "lock", "map", "room",
+    "play", "picker", "lock", "map", "room", "users",
   ];
 
   function createIcon(name, options) {
@@ -191,6 +194,15 @@
       "scanning":        "scan",
       "burst":           "sparkles",
       "fire":            "flame",
+      "heat":            "flame",
+      // Backward-compat alias — pre-v1.2.27 definitions may still
+      // carry the old "generator-heat" key (renamed to "heat").
+      "generator-heat":  "flame",
+      "city-workers":    "users",
+      // Phase 58-w3.8e: projection-readable variant — same icon family.
+      "city-workers-lit": "users",
+      // Phase 58-w3.9m: coded snow effect (decode-free snow.mp4 replacement).
+      "snow":            "snowflake",
       "slime":           "drop",
       "power-out":       "power",
       "power":           "power",
@@ -201,6 +213,7 @@
     const KEYWORDS = [
       ["fire",      "flame"],
       ["flame",     "flame"],
+      ["heat",      "flame"],
       ["intruder",  "bell"],
       ["alarm",     "bell"],
       ["alert",     "bell"],
@@ -212,6 +225,9 @@
       ["burst",     "sparkles"],
       ["spark",     "sparkles"],
       ["explosion", "sparkles"],
+      ["worker",    "users"],
+      ["inhabitant","users"],
+      ["snow",      "snowflake"],
       ["slime",     "drop"],
       ["ooze",      "drop"],
       ["water",     "drop"],

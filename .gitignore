@@ -30,6 +30,11 @@ start.log
 # demand by src/server/ssr-stream-publisher.mjs:ensureMediasoupClientBundle.
 public/vendor/
 
+# Phase 58 — server-side ffmpeg caches (reverse + adaptive-quality
+# proxy variants). Regenerated on demand; keyed by source mtime.
+resources/.reverse-cache/
+resources/.proxy-cache/
+
 # Local environment
 .env
 .env.*
@@ -42,6 +47,7 @@ config/projection-profiles.json
 config/runtime-active-animations.json
 config/runtime-active-grid.json
 config/runtime-active-system.json
+config/active-board.json
 
 # Phase 46 iter9 (2026-05-17): top-level `debug/` was moved into
 # `.planning/debug-legacy/` so the project root stays tidy. New debug

@@ -94,15 +94,19 @@ test("gap-closure-10: dumpio is opt-in via SSR_DEBUG_CHROME=1 on both platforms"
   );
 });
 
-test("gap-closure: --use-gl=angle + --use-angle=default dropped on Win32 headless-new", async () => {
+test("gap-closure: --use-gl=angle + --use-angle=vulkan dropped on Win32 headless-new", async () => {
   const src = await readFile(HOST_PATH, "utf8");
   // buildChromiumLaunchArgs must spread these flags conditional on
   // !dropOnHeadlessNew (i.e. they DROP when Win32 is in headless-new).
-  // On Linux + Xvfb (gold rail) they remain.
+  // On Linux + Xvfb (gold rail) they remain. Phase 57 v1.1.6 (2026-06-02):
+  // angle backend changed from `default` to `vulkan` on Linux to lift the
+  // SSR-tab vpq.droppedFps from ~4.3/s to ~0.5/s by giving the compositor
+  // a hardware GPU path (ANGLE/Mesa/llvmpipe → ANGLE/Vulkan/Intel iGPU
+  // observed on dev box). Backend name string updated, gate logic unchanged.
   assert.match(
     src,
-    /dropOnHeadlessNew\s*\?\s*\[\]\s*:\s*\[\s*"--use-gl=angle"\s*,\s*"--use-angle=default"\s*\]/,
-    "expect Win32-headless-new gate dropping --use-gl=angle + --use-angle=default",
+    /dropOnHeadlessNew\s*\?\s*\[\]\s*:\s*\[\s*"--use-gl=angle"\s*,\s*"--use-angle=vulkan"\s*\]/,
+    "expect Win32-headless-new gate dropping --use-gl=angle + --use-angle=vulkan",
   );
 });
 

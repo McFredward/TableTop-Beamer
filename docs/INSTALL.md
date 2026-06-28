@@ -212,6 +212,21 @@ The server is still running — open the URL manually:
 Check `start.log` in the project folder. The last 30 lines are also
 printed to the console when this happens.
 
+### ffmpeg cache directories growing large
+
+TT-Beamer uses ffmpeg at runtime to build two server-side caches inside
+the `resources/` folder:
+
+- `resources/.reverse-cache/` — reversed mp4 variants (for reverse
+  playback mode). One file per animation asset, re-encoded on first use.
+- `resources/.proxy-cache/` — downscaled 480p variants (for adaptive
+  video quality). One file per animation asset, re-encoded on first use.
+
+Both directories are **safe to delete at any time** while the server is
+stopped. They will be re-created and re-populated automatically on the
+next run. Typical total size is a few hundred MB depending on how many
+mp4 animations are loaded.
+
 ---
 ---
 

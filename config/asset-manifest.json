@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.asset-manifest.v1",
-  "generatedAt": "2026-05-25T13:08:36.146Z",
+  "generatedAt": "2026-06-28T14:20:43.724Z",
   "hashByPath": {
     "/resources/animations/burst.gif": {
       "hash": "ea0b0774b013",
@@ -11,6 +11,16 @@
       "hash": "07c43c1ec097",
       "size": 2226598,
       "mtime": "2026-04-12T08:27:47.250Z"
+    },
+    "/resources/animations/freeze.gif": {
+      "hash": "fa70a9d27468",
+      "size": 18248958,
+      "mtime": "2026-06-05T23:06:55.761Z"
+    },
+    "/resources/animations/freeze.mp4": {
+      "hash": "5b030490d77c",
+      "size": 4838665,
+      "mtime": "2026-06-05T22:54:38.461Z"
     },
     "/resources/animations/generator_boost.mp4": {
       "hash": "2437bdc3c310",
@@ -36,6 +46,26 @@
       "hash": "7c8c380d6064",
       "size": 22274941,
       "mtime": "2026-05-04T08:01:56.744Z"
+    },
+    "/resources/animations/snow.gif": {
+      "hash": "4e8f8bac5c4a",
+      "size": 10957080,
+      "mtime": "2026-05-31T20:08:27.000Z"
+    },
+    "/resources/animations/snow.mp4": {
+      "hash": "290e3369e6e9",
+      "size": 6249412,
+      "mtime": "2026-05-31T20:21:53.000Z"
+    },
+    "/resources/animations/snow_1080.mp4": {
+      "hash": "3cb6b2b3afd7",
+      "size": 64412007,
+      "mtime": "2026-05-31T20:05:20.000Z"
+    },
+    "/resources/animations/snowstorm.mp4": {
+      "hash": "67e73d500f63",
+      "size": 5386710,
+      "mtime": "2026-06-06T10:31:21.655Z"
     },
     "/resources/animations/topdown_burst.gif": {
       "hash": "19fe79192087",

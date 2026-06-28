@@ -428,6 +428,15 @@
       ctx.animEditorPage.hidden = true;
     }
     document.body.removeAttribute("data-animation-editor-open");
+    // Phase 58 Wave 3.7q: re-sync the dashboard FX panels on the way
+    // out — this editor session may have created/renamed/deleted
+    // animation definitions, and the dashboard selects are only
+    // rebuilt by their sync functions. A stale room dropdown made the
+    // first post-editor selection resolve to animations[0] (see
+    // runtime-orchestration.js syncDashboardFxPanels wiring).
+    if (typeof ctx.syncDashboardFxPanels === "function") {
+      try { ctx.syncDashboardFxPanels(); } catch { /* defensive */ }
+    }
     // Return to Settings → Board subtab so the user lands somewhere
     // meaningful (Animations subtab would just re-open the editor).
     if (typeof ctx.setSettingsSubtab === "function") {
@@ -503,9 +512,20 @@
       const isTextEntry = tag === "TEXTAREA"
         || (tag === "INPUT"
             && /^(text|search|email|tel|url|password|number)$/i.test(focused.type || "text"));
+      // Phase 58-w3.8t: a range slider mid-drag must NOT be blurred. The
+      // FIRST input on a slider flips localConfigDirty false→true, which
+      // lands here; blurring the focused <input type=range> under an
+      // active pointer aborts the native thumb drag, so the operator
+      // could only nudge ONE tick on the first move and had to press
+      // again to continue (operator UAT: "kann man zu Beginn immer nur
+      // einen Tick verschieben"). Range inputs never summon a soft
+      // keyboard, so excluding them is safe w.r.t. the original
+      // keyboard-dismiss-before-Apply intent of this blur.
+      const isRange = tag === "INPUT" && /^range$/i.test(focused.type || "");
       if (focused
           && focused !== document.body
           && !isTextEntry
+          && !isRange
           && (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")
           && typeof focused.blur === "function") {
         try { focused.blur(); } catch {}

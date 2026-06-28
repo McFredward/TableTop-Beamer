@@ -392,6 +392,20 @@
             Delete
           </button>
         </div>
+        <!-- Phase 58 hotfix (2026-06-28): per-board video codec. Only takes
+             effect when Settings → System → Video codec is "Board-specific".
+             Switching the active board to one with a different codec briefly
+             restarts the render server (/output reconnect). -->
+        <label for="board-codec-select">
+          Video codec (this board)
+          <span class="ssr-info-icon" tabindex="0" role="img"
+                aria-label="Info"
+                title="The codec used for THIS board when Settings → System → Video codec is set to 'Board-specific'. H.264 is software-encoder friendly (smooth on a Pi/CPU-only server); VP9 is sharper at the same bitrate but needs a capable/hardware encoder. Changing it restarts the render server when this is the active board (brief /output reconnect).">ⓘ</span>
+          <select id="board-codec-select">
+            <option value="h264">H.264 (broad compatibility)</option>
+            <option value="vp9">VP9 (sharper, needs a capable encoder)</option>
+          </select>
+        </label>
         <!-- Phase 49 gap-closure-31 (2026-05-18): visibility toggles grouped
              at the top of Board Setup per operator UAT. Moved from
              "Room Editor" + "Play Area" panels. IDs preserved so existing
@@ -623,10 +637,6 @@
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Global animations - inside Play Area</h2>
         <label class="inline-checkbox">
-          <input id="dashboard-global-loop-until-stop" type="checkbox" />
-          Loop until stopped
-        </label>
-        <label class="inline-checkbox">
           <input id="dashboard-global-play-sound" type="checkbox" checked />
           Play sound
         </label>
@@ -646,6 +656,15 @@
           <input id="animation-speed" type="range" min="0.5" max="2.5" step="0.05" value="1" />
         </label>
         <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
+        <!-- Phase 58 Wave 3.7n: adaptive video quality. Per-client
+             persisted flag (localStorage); the runtime downswitches
+             room mp4 playback to a server-encoded 480p proxy under
+             sustained framedrops and recovers automatically. -->
+        <label class="inline-checkbox">
+          <input id="adaptive-video-quality-toggle" type="checkbox" checked />
+          Adaptive Video-Qualität (auto 480p bei Framedrops)
+        </label>
+        <p id="adaptive-video-quality-status" class="status-line" aria-live="polite">Adaptive Video-Qualität: an</p>
       </section>
 
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
@@ -709,6 +728,40 @@
               </select>
             </label>
           </fieldset>
+          <!-- Phase 58-w3.9g: coded-effect option controls for a running
+               coded animation (heat / city-workers / break-solid-color).
+               Populated live from the SHARED coded-options builder; each
+               control edits the running instance in real time on the
+               DASHBOARD only. Phase 58-w3.9i: dashboard-local preview —
+               edits no longer broadcast to /output during dragging; the
+               change reaches /output + other clients only on Done or
+               Save-as-default (matching the non-coded live-editor model).
+               Empty + hidden for non-coded or solid-color animations
+               (solid-color color stays in the static
+               #live-editor-color-label above). Phase 58-w3.9i: grouped
+               under a collapsible "Coded Settings" subsection mirroring
+               the "Transform" details below (collapsed by default). The
+               whole <details> is hidden when the instance has no coded
+               options so non-coded animations show no empty summary. -->
+          <details id="live-editor-coded-section" class="live-editor-coded-section" hidden>
+            <summary>Coded Settings</summary>
+            <div id="live-editor-coded" class="live-editor-coded"></div>
+          </details>
+          <!-- Phase 58-w3.9h: optional fade-in/fade-out controls for the
+               running instance. Applies to ANY animation type, so (unlike
+               #live-editor-coded) it is populated for every instance. The
+               "Fade-Dauer" slider stays hidden until the toggle is ON.
+               Phase 58-w3.9k: wired into the live editor (the dom ref was
+               previously absent from the orchestration ctx, so the section
+               never rendered) and grouped under a labeled "Fade" subsection
+               mirroring the "Coded Settings"/"Transform" details. Open by
+               default — fade is universal, so unlike Coded Settings it is
+               never hidden as a whole. Edits preview on the dashboard only
+               and reach /output on Done / Save-as-default. -->
+          <details open class="live-editor-fade-section">
+            <summary>Fade</summary>
+            <div id="live-editor-fade" class="live-editor-coded"></div>
+          </details>
           <details>
             <summary>Transform</summary>
             <fieldset id="live-editor-transform" class="room-transform-options">
@@ -822,10 +875,11 @@
           Video codec
           <span class="ssr-info-icon" tabindex="0" role="img"
                 aria-label="Info"
-                title="H.264 is the safest default (Chromium-bundled OpenH264 encoder). VP9 produces visibly cleaner text/edges at the same bitrate (libvpx is ~30-50% more efficient than OpenH264) but uses more CPU on software-only setups: bench shows libvpx ~24 fps vs OpenH264 ~30 fps. A hardware encoder removes the gap.">ⓘ</span>
+                title="Board-specific (default): each board uses its own codec, set under Settings → Board. Force H.264 / Force VP9: override every board with one codec. H.264 is the safest (Chromium-bundled OpenH264); VP9 is sharper at the same bitrate (~30-50% more efficient) but costs more CPU on software-only setups (~24 fps vs ~30 fps) — a hardware encoder removes the gap. Changing this restarts the render server (brief /output reconnect).">ⓘ</span>
           <select id="ssr-codec-select">
-            <option value="h264">H.264 (broad compatibility)</option>
-            <option value="vp9">VP9 (sharper at same bitrate, modern decoders)</option>
+            <option value="board">Board-specific (default)</option>
+            <option value="h264">Force H.264 (all boards)</option>
+            <option value="vp9">Force VP9 (all boards)</option>
           </select>
         </label>
 
@@ -980,6 +1034,10 @@
   <script src="/src/app/runtime/ui/runtime-modal.js" defer></script>
   <!-- Phase 22 Wave 3a: reusable icon-picker (TT_BEAMER_UI_ICON_PICKER). -->
   <script src="/src/app/runtime/ui/icon-picker.js" defer></script>
+  <!-- Phase 58-w3.9g: shared coded-effect option controls. Loaded BEFORE
+       both the full editor edit-pane and the live editor so each can
+       build identical coded controls from the one source. -->
+  <script src="/src/app/runtime/ui/animation-coded-options.js" defer></script>
   <!-- Phase 22 W3b: full-page animation editor controller. -->
   <!-- Phase 24 W3.3: progressive sub-module split. Sub-modules load BEFORE the shim. -->
   <script src="/src/app/runtime/ui/animation-editor-shell.js" defer></script>
@@ -1116,6 +1174,9 @@
   <script type="module" src="/src/app/runtime/render/runtime-effect-dither.js"></script>
   <script src="/src/app/runtime/render/runtime-effect-visuals.js" defer></script>
   <script src="/src/app/runtime/panels/runtime-regression-tests.js" defer></script>
+  <!-- Phase 58-w3.9h: shared fade math (computeFadeMultiplier) consumed by
+       the draw loop (render ramp) + the stop pipeline (deferred fade-out). -->
+  <script src="/src/app/runtime/core/runtime-animation-fade.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-state.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-stop-pipeline.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-live-editor.js" defer></script>

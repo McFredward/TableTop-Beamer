@@ -129,6 +129,160 @@
     };
   }
 
+  // ── Phase 58 Wave 3.7n: adaptive video quality controller ────────
+  //
+  // Operator feature (2026-06-05): "Einen (optionalen) Modus, in dem
+  // die Videos automatisch runterskalieren und z.B. eine 480p-Variante
+  // nutzen, sobald erkannt wird, dass es massive Framedrops gibt."
+  // Per-instance playback (play-then-freeze) means N rooms = N×1080p
+  // decoders; 2-3 rooms already drop fps badly. Permanent quality
+  // reduction was explicitly rejected — the tier must adapt.
+  //
+  // Tier is GLOBAL (all non-loop room-mp4 instances share it):
+  //   "full"     → original asset / full-res reverse cache
+  //   "proxy480" → /api/animation-proxy (forward) and
+  //                /api/animation-reverse&height=480 (reverse)
+  // Loop-mode room mp4s are exempt by design: they share ONE video
+  // element (= one decoder) per asset across all rooms, so they don't
+  // produce the N×decoder pressure this controller exists for — and
+  // their src is owned by the Phase 28 hash-bust, which the swap
+  // machinery must not fight (Wave 3.7i lesson).
+  //
+  // DOWNSWITCH: sustained distress (fps EMA < 20 OR pressureLevel >= 2
+  // for >= 2.5s continuously) AND >= 2 active PLAYING (non-frozen)
+  // room-mp4 instances.
+  // UPSWITCH (hysteresis): sustained health (fps EMA > 28 AND
+  // pressure == 0 for >= 10s) AND <= 1 active playing instance.
+  // The <=1 guard is the anti-oscillation choice: while the heavy
+  // multi-video scene is still playing, returning to full would
+  // immediately re-create the distress that caused the downswitch
+  // (2.5s down / 10s up would otherwise cycle every ~12.5s). In
+  // practice the upswitch lands when the burst is over (instances
+  // frozen or removed) and NEW instances then start at full quality.
+  // Frozen instances never swap mid-freeze (draw loop pins them to
+  // their applied tier); they pick up the current tier on the next
+  // phase change.
+  const ADAPTIVE_QUALITY_LS_KEY = "tt-beamer.adaptive-video-quality.v1";
+  const ADAPTIVE_DOWN_FPS = 20;
+  const ADAPTIVE_DOWN_SUSTAIN_MS = 2500;
+  const ADAPTIVE_DOWN_MIN_PLAYING_MP4 = 2;
+  const ADAPTIVE_UP_FPS = 28;
+  const ADAPTIVE_UP_SUSTAIN_MS = 10000;
+  const ADAPTIVE_UP_MAX_PLAYING_MP4 = 1;
+  const ADAPTIVE_FPS_EMA_ALPHA = 0.1;
+
+  let _adaptiveTier = "full";
+  let _adaptiveEnabledCache = null;
+  let _frameIntervalEmaMs = 0;
+  let _lastAdaptiveTickAtMs = 0;
+  let _distressSinceMs = 0;
+  let _healthySinceMs = 0;
+
+  function isAdaptiveVideoQualityEnabled() {
+    if (_adaptiveEnabledCache === null) {
+      try {
+        _adaptiveEnabledCache = window.localStorage?.getItem(ADAPTIVE_QUALITY_LS_KEY) !== "0";
+      } catch {
+        _adaptiveEnabledCache = true;
+      }
+    }
+    return _adaptiveEnabledCache;
+  }
+
+  function setAdaptiveVideoQualityEnabled(enabled) {
+    const value = enabled !== false;
+    _adaptiveEnabledCache = value;
+    try {
+      window.localStorage?.setItem(ADAPTIVE_QUALITY_LS_KEY, value ? "1" : "0");
+    } catch { /* private mode etc. */ }
+    if (!value && _adaptiveTier !== "full") {
+      _logQualityChange(_adaptiveTier, "full", "toggle-off");
+      _adaptiveTier = "full";
+    }
+    _distressSinceMs = 0;
+    _healthySinceMs = 0;
+  }
+
+  function getAdaptiveVideoQualityTier() {
+    return _adaptiveTier;
+  }
+
+  function _adaptiveFpsEstimate() {
+    return _frameIntervalEmaMs > 0 ? 1000 / _frameIntervalEmaMs : 60;
+  }
+
+  function _logQualityChange(from, to, reason, playingMp4Count = 0) {
+    // Phase 58 Wave 3.7n: permanent diagnostic (established [58]
+    // console.warn pattern) — fires only on tier changes.
+    console.warn("[58] quality", JSON.stringify({
+      from,
+      to,
+      reason,
+      fps: Number(_adaptiveFpsEstimate().toFixed(1)),
+      pressure: Math.max(0, Math.min(2, Number(ctx?.state?.runtimePerf?.pressureLevel) || 0)),
+      activeMp4Count: playingMp4Count,
+    }));
+  }
+
+  // Called once per draw frame (from recordRuntimeFrameCost). The
+  // interval between calls approximates the rAF frame interval, which
+  // an EMA smooths into the controller's fps estimate.
+  function _updateAdaptiveVideoQuality(playingMp4Count) {
+    const nowMs = performance.now();
+    if (_lastAdaptiveTickAtMs > 0) {
+      const intervalMs = nowMs - _lastAdaptiveTickAtMs;
+      // Skip absurd intervals (tab hidden / debugger pause) so a single
+      // multi-second gap doesn't poison the EMA.
+      if (intervalMs > 0 && intervalMs < 1000) {
+        _frameIntervalEmaMs = _frameIntervalEmaMs > 0
+          ? _frameIntervalEmaMs + ADAPTIVE_FPS_EMA_ALPHA * (intervalMs - _frameIntervalEmaMs)
+          : intervalMs;
+      }
+    }
+    _lastAdaptiveTickAtMs = nowMs;
+
+    if (!isAdaptiveVideoQualityEnabled()) {
+      if (_adaptiveTier !== "full") {
+        _logQualityChange(_adaptiveTier, "full", "toggle-off", playingMp4Count);
+        _adaptiveTier = "full";
+      }
+      _distressSinceMs = 0;
+      _healthySinceMs = 0;
+      return;
+    }
+
+    const fps = _adaptiveFpsEstimate();
+    const pressureLevel = Math.max(0, Math.min(2, Number(ctx.state.runtimePerf.pressureLevel) || 0));
+
+    const distress = (fps < ADAPTIVE_DOWN_FPS || pressureLevel >= 2)
+      && playingMp4Count >= ADAPTIVE_DOWN_MIN_PLAYING_MP4;
+    if (distress) {
+      if (_distressSinceMs === 0) _distressSinceMs = nowMs;
+      if (_adaptiveTier === "full" && nowMs - _distressSinceMs >= ADAPTIVE_DOWN_SUSTAIN_MS) {
+        const reason = fps < ADAPTIVE_DOWN_FPS ? `fps<${ADAPTIVE_DOWN_FPS}` : "pressure>=2";
+        _logQualityChange("full", "proxy480", reason, playingMp4Count);
+        _adaptiveTier = "proxy480";
+        _healthySinceMs = 0;
+      }
+    } else {
+      _distressSinceMs = 0;
+    }
+
+    const healthy = fps > ADAPTIVE_UP_FPS
+      && pressureLevel === 0
+      && playingMp4Count <= ADAPTIVE_UP_MAX_PLAYING_MP4;
+    if (healthy) {
+      if (_healthySinceMs === 0) _healthySinceMs = nowMs;
+      if (_adaptiveTier === "proxy480" && nowMs - _healthySinceMs >= ADAPTIVE_UP_SUSTAIN_MS) {
+        _logQualityChange("proxy480", "full", "recovered", playingMp4Count);
+        _adaptiveTier = "full";
+        _distressSinceMs = 0;
+      }
+    } else {
+      _healthySinceMs = 0;
+    }
+  }
+
   function recordRuntimeFrameCost(frameCostMs) {
     const state = ctx.state;
     if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
@@ -141,12 +295,25 @@
     }
     const p90 = percentile(samples, 0.9);
     const targetMs = Number(state.runtimePerf.frameBudgetMs) || 16.7;
+    // Phase 58 Wave 3.7n: count playing (non-frozen) instances
+    // alongside the total — the adaptive quality controller keys on
+    // decode pressure, and frozen instances paint fallback-only
+    // (v1.2.15) so they cost ~nothing.
+    let playingMp4Count = 0;
     const mp4LoadCount = state.runningAnimations.filter((animation) => {
       if (!animation || animation.scope !== "room" || animation.boardId !== state.boardId) {
         return false;
       }
-      return ctx.normalizeRoomAssetType(animation.roomAssetType) === "mp4";
+      const isMp4 = ctx.normalizeRoomAssetType(animation.roomAssetType) === "mp4";
+      if (isMp4) {
+        const phase = animation.playbackPhase || "forward";
+        if (phase !== "frozen-last" && phase !== "frozen-first") {
+          playingMp4Count += 1;
+        }
+      }
+      return isMp4;
     }).length;
+    _updateAdaptiveVideoQuality(playingMp4Count);
     const loadPenalty = mp4LoadCount >= 12 ? 0.18 : mp4LoadCount >= 8 ? 0.1 : mp4LoadCount >= 4 ? 0.04 : 0;
     const degradeThreshold = Math.max(1.05, BALANCED_CONTROLS.degradeThreshold - loadPenalty);
     const recoverThreshold = Math.max(0.55, Math.min(degradeThreshold - 0.05, BALANCED_CONTROLS.recoverThreshold));
@@ -188,5 +355,9 @@
     shouldSkipRoomMp4Frame,
     getRuntimeVisualCaps,
     recordRuntimeFrameCost,
+    // Phase 58 Wave 3.7n — adaptive video quality controller
+    getAdaptiveVideoQualityTier,
+    isAdaptiveVideoQualityEnabled,
+    setAdaptiveVideoQualityEnabled,
   };
 })();

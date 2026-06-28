@@ -64,6 +64,8 @@
       roomGeometryByBoard: {},
       defaultAnimationsByBoard: {},
       frozenRoomsByBoard: {},
+      // Phase 58 hotfix (2026-06-28): per-board video codec ("h264"|"vp9").
+      videoCodecByBoard: {},
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},

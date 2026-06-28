@@ -3,6 +3,7 @@ import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "n
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -29,6 +30,8 @@ import {
   readFullConfig as readServerRenderingFullConfig,
   scheduleServerRenderingWrite,
   SERVER_RENDERING_DEFAULTS,
+  resolveEffectiveCodec,
+  defaultCodecForBoard,
 } from "./src/server/ssr-server-rendering-config.mjs";
 // Phase-31 h15: hardware-agnostic resource header helper (Connection: close
 // for /resources/animations/* etc.) — see module header for rationale.
@@ -47,6 +50,26 @@ const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profi
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
+// Phase 58 Wave 3: server-side cache for ffmpeg-reversed mp4 files.
+// Keyed by source filename + mtime; cache miss spawns ffmpeg -vf
+// reverse synchronously and writes the result here. Subsequent
+// requests serve from disk. See Phase 8 P8-T47-REVERSE-ROOT-CAUSE.md
+// for why runtime video.currentTime seeking does NOT work for mp4
+// reverse — pre-computed reverse mp4 is the right architecture.
+const REVERSE_CACHE_DIR = path.join(RESOURCES_DIR, ".reverse-cache");
+// Track in-flight encodes so concurrent requests for the same asset
+// don't spawn duplicate ffmpeg processes.
+const REVERSE_ENCODE_INFLIGHT = new Map();
+// Phase 58 Wave 3.7n (2026-06-05): server-side cache for ffmpeg
+// downscaled "proxy" mp4 variants (adaptive video quality). Keyed by
+// source filename + mtime + target height; cache miss spawns
+// ffmpeg -vf scale=-2:<height> synchronously. Mirrors the
+// REVERSE_CACHE_DIR pattern above 1:1.
+const PROXY_CACHE_DIR = path.join(RESOURCES_DIR, ".proxy-cache");
+const PROXY_ENCODE_INFLIGHT = new Map();
+// Allowed proxy heights. 480 is the adaptive controller's default
+// downswitch target; 360/720 are available for manual tuning.
+const PROXY_ALLOWED_HEIGHTS = new Set([360, 480, 720]);
 // Phase 28 B5 — central asset manifest with sha256[:12] cache-busting tokens.
 const ASSET_MANIFEST_PATH = path.join(ROOT_DIR, "config", "asset-manifest.json");
 const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
@@ -82,7 +105,71 @@ const BOARD_PROFILE_FIELDS = Object.freeze([
   // projection profile. Read+written via the existing extract/persist
   // iterators below — no other server.mjs change is required.
   "lastUsedProfileName",
+  // Phase 58 hotfix (2026-06-28): per-board video codec ("h264" | "vp9").
+  // The effective codec used by the SSR encoder is this value when the
+  // global codec MODE is "board" (see resolveEffectiveCodec).
+  "videoCodec",
 ]);
+
+// ── Per-board video codec (Phase 58 hotfix, 2026-06-28) ──
+// The SSR encoder's codec is baked into the in-page WebRTC publisher at
+// stream start — there is no live codec swap — so changing it requires a
+// full SSR host restart. The effective codec depends on the global codec
+// MODE and (in "board" mode) the active board's per-board codec. We persist
+// the active board to config/active-board.json (which resolveEffectiveCodec
+// reads, and which doubles as board-selection persistence across restarts),
+// then re-evaluate the effective codec and restart the host ONLY when it
+// actually changed — so a board switch with the same codec causes no
+// /output reconnect.
+const ACTIVE_BOARD_JSON_PATH = path.join(ROOT_DIR, "config", "active-board.json");
+
+async function persistActiveBoardId(boardId) {
+  if (!boardId || typeof boardId !== "string") return;
+  try {
+    await writeFile(ACTIVE_BOARD_JSON_PATH, `${JSON.stringify({ boardId }, null, 2)}\n`, "utf8");
+  } catch (err) {
+    console.warn("[active-board] persist failed:", err?.message || err);
+  }
+}
+
+function bootSsrHostWithStandardWiring() {
+  // Mirrors the boot options used at server start + serverRendering-update.
+  return bootSsrRenderHost({
+    port: PORT,
+    autoStart: true,
+    onHostDown: () => {
+      try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
+        console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
+      }
+    },
+    getPublisherWsAgeMs: () => {
+      try { return signalingState?.getPublisherWsAgeMs?.() ?? -1; }
+      catch { return -1; }
+    },
+  });
+}
+
+async function maybeRestartSsrForCodec(reason) {
+  try {
+    const next = await resolveEffectiveCodec({ rootDir: ROOT_DIR });
+    const host = getActiveSsrRenderHost?.();
+    const current = host?.getStatus?.()?.encoderConfig?.codecPreference ?? null;
+    // Skip when the host hasn't resolved a codec yet (cold boot already used
+    // the right codec) or when nothing changed — no spurious reconnects.
+    if (!next || !current || current === next) return;
+    console.log(`[codec] effective codec ${current} → ${next} (${reason}); restarting SSR render host…`);
+    try { await shutdownSsrRenderHost(); } catch (err) {
+      console.warn("[codec] shutdown error:", err?.message || err);
+    }
+    const ssrHost = bootSsrHostWithStandardWiring();
+    setActiveSsrRenderHost(ssrHost);
+    try { await globalThis.__ttbRefreshServerInfo?.(ssrHost); } catch (err) {
+      console.warn("[codec] serverInfo refresh failed:", err?.message || err);
+    }
+  } catch (err) {
+    console.warn(`[codec] restart check failed (${reason}):`, err?.message || err);
+  }
+}
 
 function extractProfileFromUnifiedBoard(board) {
   if (!board || typeof board !== "object") return {};
@@ -524,6 +611,8 @@ function applyRoomMutationPatch(mutationType, payload) {
   const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
   const stopTargetType = normalizeNonEmptyString(payload?.targetType);
   const stopTargetBoardId = normalizeNonEmptyString(payload?.boardId);
+  // Phase 58 Wave 3.9d: room hint for the robust fallback match (see stop branch).
+  const stopTargetRoomId = normalizeNonEmptyString(payload?.roomId);
   const payloadBoardId =
     normalizeNonEmptyString(payload?.boardId)
     ?? normalizeNonEmptyString(payload?.animation?.boardId)
@@ -582,6 +671,32 @@ function applyRoomMutationPatch(mutationType, payload) {
       }
     }
     const stoppedEntry = runningAnimations.find((entry) => entry?.id === stopAnimationId);
+    // Phase 58 Wave 3.9d: robust fallback. If the id misses (client/server id
+    // drift, or a retried stop after the original instance object was
+    // replaced) match the authoritative running ROOM instance(s) by
+    // scope+type+room+board so the stop still lands instead of being a silent
+    // server no-op (which wedged the client on "Stopping" forever). Only
+    // engaged when the id resolves nothing AND room hints are present.
+    const fallbackRoomEntries =
+      (!stoppedEntry && stopTargetScope === "room" && stopTargetType)
+        ? runningAnimations.filter((entry) => (
+          entry?.scope === "room"
+          && normalizeNonEmptyString(entry?.type) === stopTargetType
+          && (!stopTargetRoomId || normalizeNonEmptyString(entry?.roomId) === stopTargetRoomId)
+          && (!stopTargetBoardId || normalizeNonEmptyString(entry?.boardId) === stopTargetBoardId)
+        ))
+        : [];
+    const resolvedStopEntry = stoppedEntry ?? fallbackRoomEntries[0] ?? null;
+    if (typeof console?.warn === "function") {
+      console.warn("[58] server-stop", JSON.stringify({
+        animationId: stopAnimationId ?? null,
+        idMatched: Boolean(stoppedEntry),
+        fallbackMatched: fallbackRoomEntries.length,
+        targetScope: stopTargetScope ?? null,
+        targetType: stopTargetType ?? null,
+        roomId: stopTargetRoomId ?? null,
+      }));
+    }
     const resolvedGlobalStopScope = stoppedEntry?.scope ?? stopTargetScope;
     const resolvedGlobalStopType = normalizeNonEmptyString(stoppedEntry?.type) ?? stopTargetType;
     const resolvedGlobalStopBoardId = normalizeNonEmptyString(stoppedEntry?.boardId) ?? stopTargetBoardId;
@@ -590,20 +705,29 @@ function applyRoomMutationPatch(mutationType, payload) {
       const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
       globalStopRevisions[triggerKey] = stopRevision + 1;
     }
-    const stopIds = new Set([stopAnimationId]);
-    if (stoppedEntry?.scope === "cluster") {
-      const linkedMemberIds = Array.isArray(stoppedEntry.memberAnimationIds)
-        ? stoppedEntry.memberAnimationIds.map((entry) => normalizeNonEmptyString(entry)).filter(Boolean)
+    const stopIds = new Set();
+    if (stopAnimationId) {
+      stopIds.add(stopAnimationId);
+    }
+    for (const fallbackEntry of fallbackRoomEntries) {
+      const fallbackId = normalizeNonEmptyString(fallbackEntry?.id);
+      if (fallbackId) {
+        stopIds.add(fallbackId);
+      }
+    }
+    if (resolvedStopEntry?.scope === "cluster") {
+      const linkedMemberIds = Array.isArray(resolvedStopEntry.memberAnimationIds)
+        ? resolvedStopEntry.memberAnimationIds.map((entry) => normalizeNonEmptyString(entry)).filter(Boolean)
         : [];
       for (const memberId of linkedMemberIds) {
         stopIds.add(memberId);
       }
     }
-    if (stoppedEntry?.scope === "room" && stoppedEntry?.parentClusterRunId) {
-      const parentClusterId = normalizeNonEmptyString(stoppedEntry.parentClusterRunId);
+    if (resolvedStopEntry?.scope === "room" && resolvedStopEntry?.parentClusterRunId) {
+      const parentClusterId = normalizeNonEmptyString(resolvedStopEntry.parentClusterRunId);
       if (parentClusterId) {
         const hasOtherMembers = runningAnimations.some((entry) => (
-          entry?.id !== stopAnimationId
+          !stopIds.has(normalizeNonEmptyString(entry?.id))
           && entry?.scope === "room"
           && normalizeNonEmptyString(entry?.parentClusterRunId) === parentClusterId
         ));
@@ -784,6 +908,92 @@ function applyGlobalMutationPatch(payload) {
     const incomingSoundAssetRef = typeof incomingAnimation?.soundAssetRef === "string"
       ? incomingAnimation.soundAssetRef
       : null;
+    // Phase 58 Wave 3.8z (2026-06-08): preserve the definition NAME onto the
+    // server-authoritative global record. The authoritative object is rebuilt
+    // field-by-field (unlike trigger-room, which carries the full snapshot),
+    // so without this the trigger-global → snapshot roundtrip strips
+    // animationName and the Active Animations list falls back to the bare
+    // type id ("inside-xxxx-y") instead of the animation's name.
+    const incomingAnimationName = typeof incomingAnimation?.animationName === "string"
+      ? incomingAnimation.animationName
+      : null;
+    // Phase 58 Wave 3.8l (2026-06-08): preserve the per-animation playback
+    // schema (playbackMode / onRetrigger / playbackPhase) onto the
+    // server-authoritative global record. Without this, the trigger-global
+    // → snapshot roundtrip stripped these fields (the authoritative object
+    // is reconstructed field-by-field, unlike trigger-room which carries
+    // the full incoming snapshot). The stripped instance then failed the
+    // re-trigger flip check in advanceReversibleFreezePhaseIfPossible
+    // (`existing.playbackMode !== "play-then-freeze"` → fell through to the
+    // stop path), so an inside Freeze gif DISAPPEARED on re-trigger instead
+    // of reversing — even though the RENDER path masked the gap by falling
+    // back to the definition's mode. Carrying the fields makes inside/
+    // outside global animations behave exactly like rooms.
+    const incomingPlaybackMode = typeof incomingAnimation?.playbackMode === "string"
+      ? incomingAnimation.playbackMode
+      : null;
+    const incomingOnRetrigger = typeof incomingAnimation?.onRetrigger === "string"
+      ? incomingAnimation.onRetrigger
+      : null;
+    const incomingPlaybackPhase = typeof incomingAnimation?.playbackPhase === "string"
+      ? incomingAnimation.playbackPhase
+      : null;
+    // Phase 58 Wave 3.8o (2026-06-08): the inside reversible-freeze family
+    // (play-then-freeze + reverse-*) carries a STABLE client-assigned id so
+    // the re-trigger phase flip is deterministic (see upsertGlobalAnimation).
+    // Preserve that id and skip the per-trigger revision bump — mirroring
+    // trigger-room, which never rewrites the client id. These instances are
+    // hold=true, hence exempt from the finite one-shot replay subsystem, so
+    // a stable revision-less id is safe.
+    const incomingStableId = normalizeNonEmptyString(incomingAnimation?.id);
+    const isReversibleFreezeIncoming =
+      incomingPlaybackMode === "play-then-freeze"
+      && (incomingOnRetrigger === "reverse-then-freeze-first"
+        || incomingOnRetrigger === "reverse-then-disappear");
+    // Phase 58 Wave 3.8n (2026-06-08): preserve the inside-animation
+    // transform schema (+ roomAssetType/Ref) onto the authoritative
+    // global record — same rationale as the playback schema above. The
+    // render path reads instance transform (falling back to definition),
+    // and the live-editor Transform fieldset is gated on the instance's
+    // roomAssetType, so both need these to survive the trigger-global
+    // → snapshot roundtrip. Only carried when present (outside triggers
+    // don't send them).
+    const incomingRoomAssetType = typeof incomingAnimation?.roomAssetType === "string"
+      ? incomingAnimation.roomAssetType
+      : null;
+    const incomingRoomAssetRef = typeof incomingAnimation?.roomAssetRef === "string"
+      ? incomingAnimation.roomAssetRef
+      : null;
+    const transformKeys = ["rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale"];
+    const incomingTransform = {};
+    for (const key of transformKeys) {
+      const v = incomingAnimation?.[key];
+      if (v !== undefined && v !== null) incomingTransform[key] = v;
+    }
+    // Phase 58 Wave 3.9n: carry ALL coded-effect options through the
+    // trigger-global field-by-field rebuild. Without this, a FRESH inside/
+    // outside coded trigger (snow / heat / city-workers) lands on the SSR
+    // and /output (beamer) snapshot with these stripped, so the renderer
+    // falls back to factory defaults — e.g. a "Sturm" snow trigger renders
+    // as CALM snow on the beamer until a later edit-room spread-merge
+    // happens to re-supply them. trigger-room already preserves the full
+    // payload via spread-merge; this brings the global (inside/outside)
+    // path to parity. Only present values are copied (booleans included),
+    // so any omitted field keeps the renderer's own default. Keys mirror
+    // the coded-option set read in runtime-draw-loop.js (drawEffectVisual).
+    const codedOptionKeys = [
+      "colorHex", "heatShowSource", "heatIrregularPulse",
+      "workerStyle", "workerCount", "workerGroups", "workerLanternShare",
+      "workerTrails", "workerSize", "workerSwayAmount", "workerClothingBrightness",
+      "workerTrailIntensity", "workerCenterExclusion", "workerCenterExclusionRadius",
+      "workerExclusionOffsetX", "workerExclusionOffsetY", "workerExclusionRingVisible",
+      "snowDensity", "snowSpeed", "snowStorm", "snowFlakeSize",
+    ];
+    const incomingCodedOptions = {};
+    for (const key of codedOptionKeys) {
+      const v = incomingAnimation?.[key];
+      if (v !== undefined && v !== null) incomingCodedOptions[key] = v;
+    }
     const authoritativeAnimation = {
       id: "",
       scope: "global",
@@ -803,9 +1013,42 @@ function applyGlobalMutationPatch(payload) {
       soundVolume: soundEnabled ? 1 : 0,
       // Phase 49 gap-closure-10: preserve sound mapping in the snapshot.
       soundAssetRef: incomingSoundAssetRef ?? "none",
+      // Phase 58 Wave 3.8z: preserve definition name (Active Animations list).
+      ...(incomingAnimationName ? { animationName: incomingAnimationName } : {}),
+      // Phase 58 Wave 3.8l: per-animation playback schema (see above).
+      playbackMode: incomingPlaybackMode ?? "loop",
+      onRetrigger: incomingOnRetrigger ?? "instant-disappear",
+      playbackPhase: incomingPlaybackPhase ?? "forward",
+      // Phase 58 Wave 3.8n: inside transform + asset type (see above).
+      ...(incomingRoomAssetType ? { roomAssetType: incomingRoomAssetType } : {}),
+      ...(incomingRoomAssetRef ? { roomAssetRef: incomingRoomAssetRef } : {}),
+      ...incomingTransform,
+      // Phase 58 Wave 3.9n: coded-effect options (snow/heat/workers) — see
+      // codedOptionKeys above. Brings inside/outside triggers to parity
+      // with trigger-room so storm snow etc. reach the beamer on first fire.
+      ...incomingCodedOptions,
+      // Phase 58 Wave 3.9h: preserve the per-animation fade config onto the
+      // server-authoritative global record (rebuilt field-by-field, unlike
+      // trigger-room). Without this the trigger-global → snapshot roundtrip
+      // strips fadeEnabled/fadeDurationMs and /output never fades. (fadeOut*
+      // timestamps ride the later edit-room spread-merge, not the trigger.)
+      fadeEnabled: incomingAnimation?.fadeEnabled === true,
+      ...(Number.isFinite(Number(incomingAnimation?.fadeDurationMs))
+        ? { fadeDurationMs: Number(incomingAnimation.fadeDurationMs) }
+        : {}),
       startedAtEpochMs: serverNowEpochMs,
     };
-    if (triggerKey) {
+    if (isReversibleFreezeIncoming && incomingStableId) {
+      // Phase 58 Wave 3.8o: preserve the client's stable id; no revision
+      // bump (revision-less id avoids the client revision-drop logic in
+      // primeGlobalTriggerRuntimeTimestamps and lets the snapshot merge in
+      // place). The `retained` filter below still evicts any stale
+      // same-key instance before this one is pushed.
+      authoritativeAnimation.id = incomingStableId;
+      if (triggerKey) {
+        authoritativeAnimation.triggerKey = triggerKey;
+      }
+    } else if (triggerKey) {
       const currentTriggerRevision = Number(globalTriggerRevisions[triggerKey]) || 0;
       const nextTriggerRevision = currentTriggerRevision + 1;
       globalTriggerRevisions[triggerKey] = nextTriggerRevision;
@@ -1109,7 +1352,19 @@ function applyLiveMutation({
   const normalizedSequence = Number.isFinite(Number(clientSequence)) ? Math.trunc(Number(clientSequence)) : null;
   if (Number.isInteger(normalizedSequence) && normalizedSequence > 0) {
     const lastSequence = lastClientSequenceById.get(clientId) ?? 0;
-    if (normalizedSequence <= lastSequence) {
+    // Phase 58 Wave 3.9d: control-critical mutations (stop-animation,
+    // clear-all) must NEVER be dropped by the per-client sequence-stale gate.
+    // The fair scheduler (FAIR_SEQUENCE rotating cursor) can dequeue+apply a
+    // higher-sequence STATE mutation (a rapid toggle-on trigger-room /
+    // edit-room) BEFORE an already-queued lower-sequence high-priority STOP;
+    // the stop then tripped `seq <= last` and was silently dropped, leaving
+    // the animation in runningAnimations forever and the client wedged on
+    // "Stopping" until a server restart reset this map. A stop is idempotent
+    // and already deduped by mutationId, so honoring an out-of-order one is
+    // safe. The sequence watermark still advances (max) so later state
+    // mutations behave normally.
+    const isControlCritical = CONTROL_CRITICAL_MUTATIONS.has(mutationType);
+    if (!isControlCritical && normalizedSequence <= lastSequence) {
       return {
         applied: false,
         duplicate: false,
@@ -1121,7 +1376,7 @@ function applyLiveMutation({
         version: liveSessionState.version,
       };
     }
-    lastClientSequenceById.set(clientId, normalizedSequence);
+    lastClientSequenceById.set(clientId, Math.max(lastSequence, normalizedSequence));
   }
 
   // Phase 31 Plan 04 (D-D1): V5 ASVS validation for align-corner-drag.
@@ -1202,7 +1457,18 @@ function applyLiveMutation({
   } else if (mutationType === "trigger-global") {
     nextSnapshotPatch = applyGlobalMutationPatch(payload);
   } else if (mutationType === "context-update") {
+    const prevBoardForCodec = liveSessionState.snapshot?.selectedBoard ?? null;
     nextSnapshotPatch = applyContextUpdatePatch(payload);
+    const nextBoardForCodec = nextSnapshotPatch?.selectedBoard ?? null;
+    // Phase 58 hotfix: on a real board switch, persist the active board
+    // (also makes selection survive a restart) THEN re-evaluate the codec
+    // so resolveEffectiveCodec reads the new board; restart SSR only if the
+    // effective codec actually changed.
+    if (nextBoardForCodec && nextBoardForCodec !== prevBoardForCodec) {
+      void persistActiveBoardId(nextBoardForCodec)
+        .then(() => maybeRestartSsrForCodec("board-switch"))
+        .catch(() => {});
+    }
   } else if (
     mutationType === "trigger-room" ||
     mutationType === "edit-room" ||
@@ -1327,7 +1593,7 @@ function applyLiveMutation({
         // the new key at SSR launch; without it in restartKeys, slider
         // changes persisted to global-defaults.json but the running SSR
         // tab kept the old bitrate.
-        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap", "codecPreference", "contentHint"];
+        const restartKeys = ["encoder", "streamBitrateMbps", "fpsTarget", "resolutionPreference", "streamFpsCap", "codecPreference", "codecMode", "contentHint"];
         const needsRestart =
           payload && typeof payload === "object"
           && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));
@@ -2051,6 +2317,152 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
+// Phase 58 Wave 3: ffmpeg-driven reverse encode for mp4 animations.
+// Given a source asset URL like "/resources/animations/snow.mp4",
+// returns the path to a cached reverse-encoded .mp4 file on disk.
+// First call for a given (asset, mtime) pair spawns ffmpeg
+// synchronously (~0.5-3s for typical short animation clips); the
+// result is cached on disk under REVERSE_CACHE_DIR and served
+// directly thereafter.
+//
+// Cache invalidation: keyed by mtime, so if the operator replaces
+// the source mp4 the next request triggers a re-encode automatically.
+//
+// Concurrent requests for the same key share the in-flight promise
+// via REVERSE_ENCODE_INFLIGHT — no duplicate ffmpeg processes.
+// Phase 58 Wave 3.7n: shared validation for the animation-mp4 encode
+// endpoints (reverse + proxy). Must be /resources/animations/*.mp4 —
+// same surface as the operator-upload endpoint. Path traversal blocked
+// by prefix + extension check. Returns the absolute source path plus
+// the cache-key ingredients (sanitized basename + mtime key).
+async function _resolveAnimationMp4Source(assetUrl) {
+  const trimmed = String(assetUrl || "").trim();
+  if (!trimmed.startsWith("/resources/animations/") || !/\.mp4$/i.test(trimmed)) {
+    throw new Error(`invalid asset path: ${trimmed}`);
+  }
+  const relPath = trimmed.replace(/^\//, "");
+  const sourceAbsPath = path.join(ROOT_DIR, relPath);
+  if (!sourceAbsPath.startsWith(RESOURCES_DIR)) {
+    throw new Error(`asset escape: ${sourceAbsPath}`);
+  }
+  let sourceStat;
+  try {
+    sourceStat = await stat(sourceAbsPath);
+  } catch {
+    throw new Error(`asset not found: ${trimmed}`);
+  }
+  const basename = path.basename(sourceAbsPath, ".mp4").replace(/[^a-zA-Z0-9._-]/g, "_");
+  // Cache filename includes mtime so source replacement auto-invalidates.
+  const mtimeKey = Math.floor(sourceStat.mtimeMs);
+  return { sourceAbsPath, basename, mtimeKey };
+}
+
+// Phase 58 Wave 3.7n: shared cache-or-encode runner for the ffmpeg
+// mp4 variants. Checks the on-disk cache, dedups concurrent requests
+// via the supplied in-flight map, encodes to a temp file and renames
+// atomically so a partial encode is never observable as a cache hit.
+async function _getOrEncodeMp4Variant({ cacheDir, cacheFile, inflightMap, ffmpegVf, sourceAbsPath, label }) {
+  // Cache hit?
+  try {
+    const cacheStat = await stat(cacheFile);
+    if (cacheStat.isFile() && cacheStat.size > 0) {
+      return cacheFile;
+    }
+  } catch {
+    // cache miss
+  }
+
+  // In-flight dedup
+  if (inflightMap.has(cacheFile)) {
+    return inflightMap.get(cacheFile);
+  }
+
+  const encodePromise = (async () => {
+    await mkdir(cacheDir, { recursive: true });
+    // Write to a temp file first so partial encodes never get served.
+    const tmpFile = `${cacheFile}.tmp-${process.pid}-${Date.now()}`;
+    const startedAt = Date.now();
+    // Phase 58 Wave 3.7n: permanent encode diagnostics (mirrors the
+    // [58] console.warn pattern on the client).
+    console.warn(`[58] ${label} encode start`, JSON.stringify({ source: path.basename(sourceAbsPath), vf: ffmpegVf }));
+    await new Promise((resolve, reject) => {
+      // -f mp4 forces format detection — the temp filename doesn't
+      // carry a .mp4 extension at the very end (it has .tmp-PID-TS).
+      const args = ["-y", "-i", sourceAbsPath, "-vf", ffmpegVf, "-an", "-f", "mp4", tmpFile];
+      const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+      let stderr = "";
+      proc.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      proc.on("error", reject);
+      proc.on("close", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`ffmpeg exit ${code}: ${stderr.slice(-400)}`));
+      });
+    });
+    // Atomic rename so partial-temp never observable as cache file.
+    const { rename } = await import("node:fs/promises");
+    await rename(tmpFile, cacheFile);
+    console.warn(`[58] ${label} encode done`, JSON.stringify({
+      source: path.basename(sourceAbsPath),
+      cacheFile: path.basename(cacheFile),
+      tookMs: Date.now() - startedAt,
+    }));
+    return cacheFile;
+  })();
+
+  inflightMap.set(cacheFile, encodePromise);
+  try {
+    return await encodePromise;
+  } finally {
+    inflightMap.delete(cacheFile);
+  }
+}
+
+// Phase 58 Wave 3.7n: optional `height` — when given (whitelist
+// {360,480,720}) the reverse encode also downscales in the same pass
+// (`-vf reverse,scale=-2:<h>`), cached under a height-suffixed key.
+// Without the param behavior is byte-identical to the pre-3.7n
+// reverse cache (backward compatible).
+async function getOrEncodeReverseMp4(assetUrl, height = 0) {
+  const { sourceAbsPath, basename, mtimeKey } = await _resolveAnimationMp4Source(assetUrl);
+  const normalizedHeight = Number(height) || 0;
+  if (normalizedHeight && !PROXY_ALLOWED_HEIGHTS.has(normalizedHeight)) {
+    throw new Error(`invalid height: ${height}`);
+  }
+  const heightSuffix = normalizedHeight ? `-h${normalizedHeight}` : "";
+  const cacheFile = path.join(REVERSE_CACHE_DIR, `${basename}-${mtimeKey}${heightSuffix}.mp4`);
+  return _getOrEncodeMp4Variant({
+    cacheDir: REVERSE_CACHE_DIR,
+    cacheFile,
+    inflightMap: REVERSE_ENCODE_INFLIGHT,
+    ffmpegVf: normalizedHeight ? `reverse,scale=-2:${normalizedHeight}` : "reverse",
+    sourceAbsPath,
+    label: "reverse",
+  });
+}
+
+// Phase 58 Wave 3.7n: ffmpeg-driven downscaled "proxy" variant for
+// adaptive video quality. Keeps fps and h264 (ffmpeg defaults for
+// -f mp4), drops audio, scales to the requested height with width
+// auto-derived (-2 keeps it even, required by h264). Serves the
+// /api/animation-proxy endpoint; same cache + in-flight pattern as
+// the reverse encoder.
+async function getOrEncodeProxyMp4(assetUrl, height = 480) {
+  const { sourceAbsPath, basename, mtimeKey } = await _resolveAnimationMp4Source(assetUrl);
+  const normalizedHeight = Number(height) || 480;
+  if (!PROXY_ALLOWED_HEIGHTS.has(normalizedHeight)) {
+    throw new Error(`invalid height: ${height}`);
+  }
+  const cacheFile = path.join(PROXY_CACHE_DIR, `${basename}-${mtimeKey}-h${normalizedHeight}.mp4`);
+  return _getOrEncodeMp4Variant({
+    cacheDir: PROXY_CACHE_DIR,
+    cacheFile,
+    inflightMap: PROXY_ENCODE_INFLIGHT,
+    ffmpegVf: `scale=-2:${normalizedHeight}`,
+    sourceAbsPath,
+    label: "proxy",
+  });
+}
+
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   const chunks = [];
   let totalSize = 0;
@@ -2518,6 +2930,13 @@ function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRo
     if (inputBoard?.[field] !== undefined) {
       profileExtras[field] = inputBoard[field];
     }
+  }
+  // Phase 58 hotfix (2026-06-28): the per-board video codec is a first-class
+  // board-config field — always materialize it (default per board) so it is
+  // present on disk for every board created from an image, imported from a
+  // package, or normalized on load, and therefore travels with export/import.
+  if (profileExtras.videoCodec !== "h264" && profileExtras.videoCodec !== "vp9") {
+    profileExtras.videoCodec = defaultCodecForBoard(boardId);
   }
 
   return {
@@ -3623,6 +4042,12 @@ async function handleGlobalDefaultsSave(req, res) {
     }
   }
 
+  // Phase 58 hotfix: a per-board codec edit (Board settings) lands here via
+  // the board profile's `videoCodec`. In "board" codec mode this may change
+  // the active board's effective codec → restart SSR if so (idempotent: only
+  // restarts when the codec actually differs from the running one).
+  void maybeRestartSsrForCodec("board-profile-save");
+
   const incomingDiagnosticOverlay = typeof parsed.diagnosticOverlay === "boolean" ? parsed.diagnosticOverlay : null;
   const existingDiagnosticOverlay = typeof existing?.diagnosticOverlay === "boolean" ? existing.diagnosticOverlay : null;
   const diagnosticOverlay = incomingDiagnosticOverlay ?? existingDiagnosticOverlay ?? false;
@@ -3823,6 +4248,87 @@ const server = createServer(async (req, res) => {
 
     // Phase 38 W0 — JPEG screenshot of the SSR tab via CDP. Tests use this
     // to verify the mesh-warp render reflects grid mutations, end-to-end.
+    // Phase 58 Wave 3: serve ffmpeg-reversed mp4. Query param `asset`
+    // = URL path like "/resources/animations/snow.mp4". First call
+    // synchronously encodes; subsequent calls serve from cache.
+    // Used by the runtime when the operator picks Direction=Reverse
+    // or playbackMode=Boomerang on a mp4-based animation.
+    // Phase 58 Wave 3.7n: optional `height` query param (whitelist
+    // 360/480/720) — encodes reverse + downscale in one pass for the
+    // adaptive-video-quality proxy tier. Without the param the
+    // behavior is unchanged (full-resolution reverse).
+    if (req.method === "GET" && routePath === "/api/animation-reverse") {
+      const requestUrl = new URL(req.url || "", "http://localhost");
+      const assetParam = requestUrl.searchParams.get("asset") || "";
+      const heightParam = requestUrl.searchParams.get("height");
+      let height = 0;
+      if (heightParam !== null && heightParam !== "") {
+        height = Number(heightParam);
+        if (!PROXY_ALLOWED_HEIGHTS.has(height)) {
+          sendJson(res, 400, { ok: false, reason: "invalid-height", detail: `height must be one of ${[...PROXY_ALLOWED_HEIGHTS].join(", ")}` });
+          return;
+        }
+      }
+      try {
+        const cacheFile = await getOrEncodeReverseMp4(assetParam, height);
+        const cacheStat = await stat(cacheFile);
+        res.writeHead(200, {
+          "content-type": "video/mp4",
+          "content-length": String(cacheStat.size),
+          "accept-ranges": "bytes",
+          "cache-control": "public, max-age=86400",
+        });
+        const stream = createReadStream(cacheFile);
+        stream.pipe(res);
+        stream.on("error", () => {
+          try { res.destroy(); } catch { /* ignore */ }
+        });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "reverse-encode-failed", detail: err?.message || String(err) });
+      }
+      return;
+    }
+
+    // Phase 58 Wave 3.7n: downscaled "proxy" mp4 variant for adaptive
+    // video quality. `asset` = URL path like
+    // "/resources/animations/snow.mp4"; `height` optional (default 480,
+    // whitelist 360/480/720). First call synchronously encodes
+    // (ffmpeg -vf scale=-2:<h>, fps preserved, audio dropped);
+    // subsequent calls serve from PROXY_CACHE_DIR. Used by the runtime
+    // when the adaptive quality controller downswitches under
+    // sustained framedrops.
+    if (req.method === "GET" && routePath === "/api/animation-proxy") {
+      const requestUrl = new URL(req.url || "", "http://localhost");
+      const assetParam = requestUrl.searchParams.get("asset") || "";
+      const heightParam = requestUrl.searchParams.get("height");
+      let height = 480;
+      if (heightParam !== null && heightParam !== "") {
+        height = Number(heightParam);
+        if (!PROXY_ALLOWED_HEIGHTS.has(height)) {
+          sendJson(res, 400, { ok: false, reason: "invalid-height", detail: `height must be one of ${[...PROXY_ALLOWED_HEIGHTS].join(", ")}` });
+          return;
+        }
+      }
+      try {
+        const cacheFile = await getOrEncodeProxyMp4(assetParam, height);
+        const cacheStat = await stat(cacheFile);
+        res.writeHead(200, {
+          "content-type": "video/mp4",
+          "content-length": String(cacheStat.size),
+          "accept-ranges": "bytes",
+          "cache-control": "public, max-age=86400",
+        });
+        const stream = createReadStream(cacheFile);
+        stream.pipe(res);
+        stream.on("error", () => {
+          try { res.destroy(); } catch { /* ignore */ }
+        });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "proxy-encode-failed", detail: err?.message || String(err) });
+      }
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/diag/ssr-screenshot") {
       const host = getActiveSsrRenderHost();
       if (!host || typeof host.captureScreenshot !== "function") {
@@ -5025,6 +5531,22 @@ try {
   }
 
   if (activeBoardId) {
+    // Phase 58 hotfix: persist the active board for codec resolution +
+    // selection persistence, and (one-time) re-sync the SSR codec — the
+    // host booted before the active board was known, so on a fresh install
+    // (no active-board.json yet) its cold-boot codec guess may be wrong.
+    void persistActiveBoardId(activeBoardId)
+      .then(() => {
+        // Wait until the freshly-booted host has resolved its codec, then
+        // re-sync once (active-board.json is now written, so resolveEffective-
+        // Codec reads the right board). No-op unless the cold-boot guess was
+        // wrong (e.g. fresh install with no active-board.json yet).
+        const refreshServerInfo = globalThis.__ttbRefreshServerInfo;
+        return typeof refreshServerInfo === "function"
+          ? refreshServerInfo().then(() => maybeRestartSsrForCodec("boot"))
+          : undefined;
+      })
+      .catch(() => {});
     const boardDefaults = buildDefaultAnimationsForBoard(activeBoardId);
     if (boardDefaults.length > 0) {
       if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};

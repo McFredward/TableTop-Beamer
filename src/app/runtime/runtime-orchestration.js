@@ -14,6 +14,7 @@ const {
   OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
   GLOBAL_ANIMATIONS,
   ALL_ANIMATION_TYPES,
+  ALL_CODED_EFFECT_TYPES,
   SOUND_MAPPING_NONE,
   EVENT_SOUND_ASSETS,
   ALL_SOUND_ASSET_PATHS,
@@ -163,7 +164,7 @@ const {
 } = window.TT_BEAMER_RUNTIME_POLYGON_NORMALIZERS;
 
 const {
-  stage, boardImage, canvas, roomOverlay, boardSelect, boardImportFileInput,
+  stage, boardImage, canvas, roomOverlay, boardSelect, boardCodecSelect, boardImportFileInput,
   boardImportImageInput, boardImportNameInput, boardImportIdInput, boardImportButton,
   boardStatus, zonesStatus, alignModeToggleInput, alignModeButton, alignModeStatus,
   exportGlobalDefaultsButton, globalDefaultsStatus, apiDiagnoseStatus, triggerFeedback,
@@ -196,12 +197,12 @@ const {
   liveEditorPanel, liveEditorTitle, liveEditorClose,
   liveEditorOpacity, liveEditorOpacityValue, liveEditorIntensity, liveEditorIntensityValue,
   liveEditorSpeed, liveEditorSpeedValue, liveEditorSoundVolume, liveEditorSoundVolumeValue,
-  liveEditorColor, liveEditorColorLabel,
+  liveEditorColor, liveEditorColorLabel, liveEditorCoded, liveEditorCodedSection, liveEditorFade,
   liveEditorOutsideFx, liveEditorOutsideMode, liveEditorOutsideDirection,
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
   liveEditorHeight, liveEditorHeightValue, liveEditorOffsetX, liveEditorOffsetXValue,
-  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault, dashboardDefaultAnimation,
+  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard, liveEditorSaveDefault, liveEditorDefault, dashboardDefaultAnimation,
   audioEnabledInput, audioVolumeInput,
   audioVolumeValue, audioStatus, animationSpeedInput, animationSpeedValue, animationSpeedStatus,
   hitareaOffsetXInput, hitareaOffsetXValue, hitareaOffsetYInput, hitareaOffsetYValue,
@@ -245,7 +246,7 @@ const {
   insideIntensityInput,
   insideIntensityValue, insideSpeedInput, insideSpeedValue, insideAssetTypeInput,
   insideAssetRefInput, insideResourceSelect, insideSoundRefSelect, insideLoopUntilStopInput, insideApplyChangesButton,
-  insideGlobalButtons, outsideGlobalButtons, outsideAnimationDeleteButton, dashboardGlobalLoopUntilStopInput, dashboardGlobalPlaySoundInput,
+  insideGlobalButtons, outsideGlobalButtons, outsideAnimationDeleteButton, dashboardGlobalPlaySoundInput,
   dashboardTransformOptions, dashboardRotationDegInput, dashboardRotationDegValue,
   dashboardStretchToPolygonInput, dashboardWidthScaleInput, dashboardWidthScaleValue,
   dashboardHeightScaleInput, dashboardHeightScaleValue, dashboardOffsetXScaleInput,
@@ -698,6 +699,9 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   observeGlobalStopRevisions: (runtime) => observeGlobalStopRevisions(runtime),
   observeGlobalClearRevision: (runtime) => observeGlobalClearRevision(runtime),
   filterRunningAnimationsForBoard: (running, boardId) => filterRunningAnimationsForBoard(running, boardId),
+  // Phase 58 Wave 3.7r: re-trigger re-stamp detection in the snapshot
+  // preservation block needs the previous animation's epoch.
+  getAnimationStartedAtEpochMs: (a) => getAnimationStartedAtEpochMs(a),
   primeGlobalTriggerRuntimeTimestamps: (running, prev) => primeGlobalTriggerRuntimeTimestamps(running, prev),
   reconcileHydratedAnimations: (running) => reconcileHydratedAnimations(running),
   retainActiveSeenOneShotRuns: (running) => retainActiveSeenOneShotRuns(running),
@@ -731,6 +735,9 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   applyGlobalDefaultsPayloadToState: (payload, runtimeExtras) => applyGlobalDefaultsPayloadToState(payload, runtimeExtras),
   shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
   warmGifAssetPath: (path, opts) => warmGifAssetPath(path, opts),
+  // Phase 58-w3.8k: snapshot-apply prewarm of the active board's GIF
+  // definitions (live-hello / board activation on the projector role).
+  warmBoardGifDefinitions: (boardId, opts) => warmBoardGifDefinitions(boardId, opts),
   // 28-h3: explicitly inject syncOutsideRuntimeMirror so the post-snapshot
   // mirror-rebuild guard at runtime-live-sync-core.js evaluates true on
   // /output/. Without this, the typeof check fails silently and the mirror
@@ -836,6 +843,7 @@ window.TT_BEAMER_RUNTIME_ZONE_LOADER.init({
   state,
   zonesStatus,
   boardSelect,
+  boardCodecSelect,
   INLINE_FALLBACK_BOARDS,
   getBoards: () => BOARDS,
   setBoards: (next) => { BOARDS = next; },
@@ -1187,6 +1195,8 @@ const {
   getShipPolygonPixels,
   getPlayAreaPolygonsPixels,
   getRoomRenderMetrics,
+  getInsideRegionMetrics,
+  getOutsideRegionMetrics,
 } = window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY;
 
 window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS.init({
@@ -1233,7 +1243,15 @@ window.TT_BEAMER_RUNTIME_GIF_PLAYBACK.init({
   ROOM_GIF_ANIMATION_ASSETS,
   outputRole,
   OUTPUT_ROLE_FINAL,
-  getBoards: () => getBoards(),
+  // Phase 58-w3.8k (2026-06-07): was `() => getBoards()` — but no
+  // `getBoards` binding exists in this file's scope (every other ctx
+  // literal uses `() => BOARDS`). Calling it threw ReferenceError,
+  // which warmRoomGifAssets' bare catch swallowed — so per-board GIF
+  // definitions were NEVER prewarmed on any client since 26-h9. The
+  // first trigger of a board-defined GIF then cold-decoded on the SSR
+  // tab's main thread (~3.5 s rAF stall, measured) and froze the
+  // projected stream. Operator UAT 2026-06-07.
+  getBoards: () => BOARDS,
   clampGifPlaybackSpeed: (value) => clampGifPlaybackSpeed(value),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
 });
@@ -1241,9 +1259,11 @@ const {
   getGifPlaybackCacheEntry,
   ensureGifPlaybackReady,
   getGifPlaybackFrame,
+  getGifPlaybackTotalDurationSec,
   resolveRoomGifRenderConfig,
   warmGifAssetPath,
   warmRoomGifAssets,
+  warmBoardGifDefinitions,
 } = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
 
 window.TT_BEAMER_RUNTIME_OUTSIDE_MP4.init({
@@ -1253,6 +1273,14 @@ window.TT_BEAMER_RUNTIME_OUTSIDE_MP4.init({
   getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
   isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   getMp4PerformanceControls: () => getMp4PerformanceControls(),
+  // Phase 58 Wave 2.5: render-driven cleanup for play-once-disappear
+  // calls stopAnimation when video.ended fires. Wired lazily so the
+  // lifecycle stop pipeline is initialised before reference.
+  stopAnimation: (animationId) => {
+    const fn = window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE?.stopAnimation
+      ?? window.TT_BEAMER_RUNTIME_LIFECYCLE_STOP_PIPELINE?.stopAnimation;
+    if (typeof fn === "function") fn(animationId);
+  },
 });
 const {
   getOutsideVideoElement,
@@ -1270,10 +1298,22 @@ const {
   bindOutsideMp4FrameCallback,
   shouldDrawOutsideMp4Now,
   ensureOutsideMp4Playback,
+  maybeDispatchPlaybackCleanup,
+  maybeTransitionPlaybackPhase,
+  maybeTransitionGifPlaybackPhase,
+  resolveMp4AssetUrlForDirection,
+  // Phase 58 Wave 3.7n — applied-tier probe for frozen-instance pinning
+  getAppliedVideoQualityTier,
+  releaseMp4VideoElementsForInstance,
   ensureRoomMp4Playback,
   maybeWrapRoomMp4Loop,
   captureRoomMp4FallbackFrame,
   getRoomMp4FallbackSource,
+  getFrozenScaledBitmap,
+  recordMp4PaintDiag,
+  hasNewDecodedFrame,
+  markMp4FramePainted,
+  isRvfcFresh,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
 window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
@@ -1375,6 +1415,10 @@ const {
   shouldSkipRoomMp4Frame,
   getRuntimeVisualCaps,
   recordRuntimeFrameCost,
+  // Phase 58 Wave 3.7n — adaptive video quality controller (the
+  // settings toggle is wired directly against TT_BEAMER_RUNTIME_PERF
+  // in runtime-wire-room-audio-binders.js)
+  getAdaptiveVideoQualityTier,
 } = window.TT_BEAMER_RUNTIME_PERF;
 
 window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
@@ -1542,6 +1586,11 @@ window.TT_BEAMER_RUNTIME_REGRESSION_TESTS.init({
   setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
   updateOutsideFxProfile: (boardId, partial) => updateOutsideFxProfile(boardId, partial),
   syncOutsideRuntimeMirror: (boardId) => syncOutsideRuntimeMirror(boardId),
+  // Phase 58-w3.8p — the outside-isolation guard must recognise ANY
+  // outside type the board profile knows about (the unified catalog
+  // lets outside host heat / city-workers / hull-flicker, not just
+  // outside-space), mirroring findOutsideGlobalAnimation.
+  isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   syncOutsideFxPanel: () => syncOutsideFxPanel(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
   getPlayAreas: (boardId) => getPlayAreas(boardId),
@@ -1616,6 +1665,7 @@ const {
 
 window.TT_BEAMER_RUNTIME_ASSET_REFS.init({
   OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
+  ALL_CODED_EFFECT_TYPES,
   normalizeOutsideAnimationId: (id, fallback) => normalizeOutsideAnimationId(id, fallback),
   normalizeInsideAnimationId: (id, fallback) => normalizeInsideAnimationId(id, fallback),
   createDefaultInsideAnimationDefinitions: () => createDefaultInsideAnimationDefinitions(),
@@ -1965,6 +2015,7 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   stage,
   boardImage,
   boardSelect,
+  boardCodecSelect,
   boardStatus,
   topbarBoardLabel,
   triggerFeedback,
@@ -2147,6 +2198,10 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     recomputeDirtyFromBaseline: () => recomputeDirtyFromBaseline(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
+    // Phase 58-w3.8p — inside/outside resolvers for the Coded-effect
+    // card (tint / heat / city-workers) now surfaced in those scopes.
+    resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
+    resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
     getRoomCodedAssetKeys: () => getRoomCodedAssetKeys(),
     getInsideCodedAssetKeys: () => getInsideCodedAssetKeys(),
     getOutsideCodedAssetKeys: () => getOutsideCodedAssetKeys(),
@@ -2156,6 +2211,20 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     // has unsaved edits.
     applyLocalConfigToServer: () => applyLocalConfigToServer(),
     discardLocalConfigAndReloadFromServer: () => discardLocalConfigAndReloadFromServer(),
+    // Phase 58 Wave 3.7q: rebuild the dashboard FX panels (room/inside/
+    // outside <select> options + pickers) when the editor closes, so
+    // definitions created/renamed/deleted in the editor are reflected
+    // BEFORE the operator's next dashboard selection. Without this the
+    // room dropdown kept its pre-editor options: the quick-pill click
+    // then set select.value to a missing option ("" per HTML spec) and
+    // the change handler "validated" "" back to animations[0] —
+    // overwriting the just-selected draft id (operator UAT: first
+    // selection after editor return triggered the FIRST animation).
+    syncDashboardFxPanels: () => {
+      syncRoomFxPanel();
+      syncInsideFxPanel();
+      syncOutsideFxPanel();
+    },
   });
 }
 
@@ -2319,6 +2388,9 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorSoundVolumeValue,
   liveEditorColor,
   liveEditorColorLabel,
+  liveEditorCoded,
+  liveEditorCodedSection,
+  liveEditorFade,
   liveEditorOutsideFx,
   liveEditorOutsideMode,
   liveEditorOutsideDirection,
@@ -2333,7 +2405,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorOffsetX,
   liveEditorOffsetXValue,
   liveEditorOffsetY,
-  liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault,
+  liveEditorOffsetYValue, liveEditorDiscard, liveEditorSaveDefault, liveEditorDefault,
   roomAnimationSelect,
   roomOpacityInput,
   roomOpacityValue,
@@ -2362,6 +2434,12 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
   normalizeRoomAssetRefForType: (assetType, ref, fallback) => normalizeRoomAssetRefForType(assetType, ref, fallback),
   resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
+  // Phase 58-w3.9g: the Live Editor resolves the coded-effect type of a
+  // running coded animation across all three scopes so it can surface
+  // the full coded option set (heat / city-workers) for inside / outside
+  // globals too, not only room/cluster.
+  resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
+  resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampRoomIntensity: (value) => clampRoomIntensity(value),
   clampRoomSpeed: (value) => clampRoomSpeed(value),
@@ -2486,9 +2564,13 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   resolveInsideCodedEffectType: (assetRef) => resolveInsideCodedEffectType(assetRef),
   resolveOutsideCodedEffectType: (assetRef) => resolveOutsideCodedEffectType(assetRef),
   resolveRoomGifRenderConfig: (type, age, intensity, options) => resolveRoomGifRenderConfig(type, age, intensity, options),
-  getGifPlaybackFrame: (path, elapsed) => getGifPlaybackFrame(path, elapsed),
-  getRoomVideoElement: (path) => getRoomVideoElement(path),
-  getOutsideVideoElement: (path) => getOutsideVideoElement(path),
+  getGifPlaybackFrame: (path, elapsed, playbackMode, playbackDirection, playbackPhase) =>
+    getGifPlaybackFrame(path, elapsed, playbackMode, playbackDirection, playbackPhase),
+  getGifPlaybackTotalDurationSec: (path) => getGifPlaybackTotalDurationSec(path),
+  getRoomVideoElement: (path, opts) => getRoomVideoElement(path, opts),
+  getOutsideVideoElement: (path, opts) => getOutsideVideoElement(path, opts),
+  // Phase 58 Wave 3.2: per-instance video element cleanup
+  releaseMp4VideoElementsForInstance: (instanceId) => releaseMp4VideoElementsForInstance(instanceId),
   buildOutsideLifecycleKey: (boardId, definition) => buildOutsideLifecycleKey(boardId, definition),
   resolveOutsideElapsedSeconds: (now, opts) => resolveOutsideElapsedSeconds(now, opts),
   resolveOutsideTimeline: (elapsed, speed) => resolveOutsideTimeline(elapsed, speed),
@@ -2496,14 +2578,36 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   clearOutsideTimelineState: (boardId) => clearOutsideTimelineState(boardId),
   ensureOutsideMp4Playback: (video, opts) => ensureOutsideMp4Playback(video, opts),
   maybeWrapOutsideMp4Loop: (video, playbackState) => maybeWrapOutsideMp4Loop(video, playbackState),
+  // Phase 58 Wave 2.5 — render-driven cleanup for play-once-disappear
+  maybeDispatchPlaybackCleanup: (animation, mediaSignals) => maybeDispatchPlaybackCleanup(animation, mediaSignals),
+  // Phase 58 Wave 3.4 — playback phase transitions on EOS
+  // Phase 58 Wave 3.7p: forward the playbackState third param (Wave
+  // 3.7i added it for freeze-frame pinning but this wrapper dropped it).
+  maybeTransitionPlaybackPhase: (animation, video, playbackState) => maybeTransitionPlaybackPhase(animation, video, playbackState),
+  // Phase 58 Wave 3.7p — gif timeline phase transitions (room gifs)
+  maybeTransitionGifPlaybackPhase: (animation, signals) => maybeTransitionGifPlaybackPhase(animation, signals),
+  // Phase 58 Wave 3 — pick forward / reverse-cached URL for mp4
+  // Phase 58 Wave 3.7n — optional qualityTier ("full" | "proxy480")
+  resolveMp4AssetUrlForDirection: (assetPath, direction, qualityTier) => resolveMp4AssetUrlForDirection(assetPath, direction, qualityTier),
+  // Phase 58 Wave 3.7n — adaptive video quality
+  getAdaptiveVideoQualityTier: () => getAdaptiveVideoQualityTier(),
+  getAppliedVideoQualityTier: (video) => getAppliedVideoQualityTier(video),
   // Phase 50 (2026-05-25) — room MP4 seam machinery
   ensureRoomMp4Playback: (video, opts) => ensureRoomMp4Playback(video, opts),
   maybeWrapRoomMp4Loop: (video, state) => maybeWrapRoomMp4Loop(video, state),
   captureRoomMp4FallbackFrame: (state, video) => captureRoomMp4FallbackFrame(state, video),
   getRoomMp4FallbackSource: (state) => getRoomMp4FallbackSource(state),
+  getFrozenScaledBitmap: (state, destW, destH) => getFrozenScaledBitmap(state, destW, destH),
   shouldDrawOutsideMp4Now: (playbackState) => shouldDrawOutsideMp4Now(playbackState),
   captureOutsideMp4FallbackFrame: (playbackState, video) => captureOutsideMp4FallbackFrame(playbackState, video),
   drawOutsideMp4FallbackFrame: (playbackState) => drawOutsideMp4FallbackFrame(playbackState),
+  // Phase 57 diag (2026-06-02) — gated behind window.TT_MP4_DIAG
+  recordMp4PaintDiag: (playbackState, label, outcome) => recordMp4PaintDiag(playbackState, label, outcome),
+  // Phase 57 v1.1.5 (2026-06-02) — rVFC-driven mp4 paint gating
+  hasNewDecodedFrame: (playbackState) => hasNewDecodedFrame(playbackState),
+  markMp4FramePainted: (playbackState) => markMp4FramePainted(playbackState),
+  // Phase 58 Wave 3.7h (2026-06-05) — rVFC delivery freshness gate
+  isRvfcFresh: (playbackState) => isRvfcFresh(playbackState),
   getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
   getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
@@ -2515,6 +2619,13 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   getBoard: (boardId) => getBoard(boardId),
   buildClusterMemberRuntimeViews: (clusterAnimation) => buildClusterMemberRuntimeViews(clusterAnimation),
   getRoomRenderMetrics: (room, boardId) => getRoomRenderMetrics(room, boardId),
+  // Phase 58-w3.8p — region metrics for inside/outside coded effects.
+  getInsideRegionMetrics: (boardId) => getInsideRegionMetrics(boardId),
+  getOutsideRegionMetrics: (boardId) => getOutsideRegionMetrics(boardId),
+  // Phase 58-w3.8g — nearest-heat-source pulse sync needs the
+  // normalized (canvas-size-independent) room centroid for
+  // deterministic cross-client distance ordering.
+  getRoomLabelPosition: (room, boardId) => getRoomLabelPosition(room, boardId),
   clampRoomSpeed: (value) => clampRoomSpeed(value),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampOutsideIntensity: (value) => clampOutsideIntensity(value),
@@ -2545,6 +2656,7 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
   state,
   triggerFeedback,
   boardSelect,
+  boardCodecSelect,
   boardImportButton,
   boardImportFileInput,
   boardImportImageInput,
@@ -2912,7 +3024,6 @@ window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
   liveSync,
   roomOverlay,
   triggerFeedback,
-  dashboardGlobalLoopUntilStopInput,
   dashboardGlobalPlaySoundInput,
   outputRole,
   OUTPUT_ROLE_CONTROL,
@@ -2975,7 +3086,6 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   state,
   triggerFeedback,
   globalDefaultsStatus,
-  dashboardGlobalLoopUntilStopInput,
   dashboardGlobalPlaySoundInput,
   dashboardTransformOptions,
   dashboardRotationDegInput,

@@ -139,12 +139,16 @@
   // transforms are an "advanced" tweak and shouldn't clutter the pane
   // when not in use ("Ausklappmenu" per operator UAT 2026-05-22).
   function buildTransformCard(scope, def, boardId) {
-    // Live editor only shows transform for room (incl. cluster) +
-    // mp4/gif asset type. Mirror that gate here so the edit pane
-    // matches.
-    if (scope !== "room") return null;
+    // Transform applies to mp4/gif animations. Phase 58 Wave 3.8n:
+    // extended from room-only to ALSO cover inside animations (operator
+    // request: inside transform 1:1 with rooms — default-editable here,
+    // live-editable while running, savable). Outside stays excluded.
+    if (scope !== "room" && scope !== "inside") return null;
     const assetType = String(def.assetType ?? "").toLowerCase();
     if (assetType !== "mp4" && assetType !== "gif") return null;
+    const stretchSub = scope === "inside"
+      ? "Fit the media to the inside Play Area."
+      : "Fit the media to the room polygon shape.";
 
     const card = document.createElement("details");
     card.className = "anim-editor-card anim-editor-card-collapsible";
@@ -158,7 +162,7 @@
         min: -180, max: 180, step: 1,
         format: (v) => `${Math.round(v)}°` },
       { kind: "toggle", key: "stretchToPolygon", label: "Stretch to polygon",
-        sub: "Fit the media to the room polygon shape." },
+        sub: stretchSub },
       { kind: "slider", key: "widthScale", label: "Width scale",
         min: 0.1, max: 10, step: 0.01,
         format: (v) => v.toFixed(2),
@@ -260,11 +264,22 @@
     return scope;
   }
 
+  // Curated label overrides — keys whose auto-title-case would read
+  // wrong in the Effect dropdown. Phase 58-w3.8i: the w3.8e
+  // "city-workers-lit" A/B key merged into the configurable
+  // city-workers effect (the registry no longer lists it; legacy
+  // definitions are alias-normalized to "city-workers" with
+  // workerStyle "lit"), so its picker label override is gone —
+  // "city-workers" auto-formats to "City Workers".
+  const CODED_EFFECT_LABEL_OVERRIDES = {};
+
   // Pretty-print a coded effect key for the dropdown
   // (e.g. "hull-flicker" → "Hull Flicker").
   function formatCodedEffectLabel(key) {
     const raw = String(key || "").trim();
     if (!raw) return "(none)";
+    const override = CODED_EFFECT_LABEL_OVERRIDES[raw.toLowerCase()];
+    if (override) return override;
     return raw
       .replace(/[-_]/g, " ")
       .replace(/\s+/g, " ")
@@ -359,6 +374,18 @@
         card.append(buildSelectRow(scope, def, boardId, f));
       }
     }
+    // Phase 58-w3.9h: optional fade-in/fade-out (toggle + conditional
+    // duration slider), built by the shared options builder so the full
+    // editor and the live editor never drift. Applies to every scope +
+    // asset type. Persists to the definition via patchAnimation.
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (codedOptions?.buildFadeOptionRows) {
+      const fadeRows = codedOptions.buildFadeOptionRows({
+        get: (key) => def[key],
+        set: (key, value) => patchAnimation(scope, boardId, def.id, { [key]: value }),
+      });
+      for (const row of fadeRows) card.append(row);
+    }
     return card;
   }
 
@@ -381,13 +408,18 @@
         : null;
       const isSolidColor = codedType === "solid-color";
       const isMedia = def.assetType === "gif" || def.assetType === "mp4";
+      // Phase 58-w3.8i: city-workers population is configured via the
+      // explicit "Anzahl Bewohner" option (Coded effect card); the
+      // intensity knob is decoupled and otherwise unused by that
+      // renderer — hide it so it isn't dead UI.
+      const isCityWorkers = codedType === "city-workers" || codedType === "city-workers-lit";
 
       fields.push({
         kind: "slider", key: "opacity", label: "Opacity",
         min: 0.1, max: 1, step: 0.05,
         format: (v) => `${Math.round(v * 100)}%`,
       });
-      if (!isMedia) {
+      if (!isMedia && !isCityWorkers) {
         fields.push({
           kind: "slider", key: "intensity", label: "Intensity",
           min: 0.2, max: 1.5, step: 0.05,
@@ -417,13 +449,6 @@
         min: 0.3, max: 2.5, step: 0.05,
         format: (v) => `${v.toFixed(2)}x`,
       });
-      if (scope === "inside") {
-        fields.push({
-          kind: "toggle", key: "loopUntilStopped",
-          label: "Loop",
-          sub: "Repeats until stopped.",
-        });
-      }
       if (scope === "outside") {
         // Mode + direction used to live in
         // a separate Playback card; inlined into Defaults so the user
@@ -448,7 +473,100 @@
         }
       }
     }
+    // Phase 58: per-animation playback mode for gif/mp4 in all three
+    // scopes. Replaces the legacy inside-only `loopUntilStopped` toggle.
+    // Stufenweise picker: Mode dropdown, then On-retrigger sub-dropdown
+    // appears conditionally when Mode = "play-then-freeze".
+    const isMedia = def.assetType === "gif" || def.assetType === "mp4";
+    if (isMedia) {
+      // Phase 58 Wave 3.3: initial direction is a separate per-animation
+      // control. Forward (default) plays start→end; Reverse plays
+      // end→start. The "When ended" dropdown defines what happens AFTER
+      // that initial playthrough (forward OR reverse).
+      fields.push({
+        kind: "select", key: "playbackDirection", label: "Initial direction",
+        options: [
+          { value: "forward", label: "Forward (start to end)" },
+          { value: "reverse", label: "Reverse (end to start)" },
+        ],
+      });
+      // Phase 58 Wave 3.3: the previous 4-mode + 3-sub-option layout
+      // was confusing because "Play once, then freeze" combined with
+      // "reverse-then-disappear" said freeze on the surface but
+      // actually disappeared after re-trigger (operator UAT
+      // 2026-06-04). Restructured into 5 self-explanatory uiMode
+      // entries; the sub-dropdown only appears when the uiMode
+      // explicitly mentions reverse-on-re-trigger.
+      const uiMode = computeUiPlaybackMode(def);
+      fields.push({
+        kind: "select", key: "_uiPlaybackMode", label: "When ended",
+        options: [
+          { value: "loop",                       label: "Loop forever" },
+          { value: "play-once-disappear",        label: "Disappear" },
+          { value: "play-once-freeze",           label: "Freeze (re-trigger removes)" },
+          { value: "play-once-freeze-reversible", label: "Freeze, reverse on re-trigger" },
+          { value: "boomerang",                  label: "Boomerang (auto forward & reverse)" },
+        ],
+        // Synthetic field: read/write derives playbackMode + onRetrigger.
+        _uiMode: true,
+        _currentUiValue: uiMode,
+      });
+      if (uiMode === "play-once-freeze-reversible") {
+        fields.push({
+          kind: "select", key: "onRetrigger", label: "After reverse on re-trigger",
+          options: [
+            { value: "reverse-then-freeze-first", label: "Freeze at first frame (manual ping-pong)" },
+            { value: "reverse-then-disappear",    label: "Disappear" },
+          ],
+        });
+      }
+    }
     return fields;
+  }
+
+  // Phase 58 Wave 3.3: derive the UI-level playback mode from the
+  // stored (playbackMode, onRetrigger) pair. See getDefaultFields for
+  // the mapping rationale.
+  function computeUiPlaybackMode(def) {
+    const mode = String(def?.playbackMode || "loop");
+    const onRetrigger = String(def?.onRetrigger || "instant-disappear");
+    if (mode === "loop") return "loop";
+    if (mode === "play-once-disappear") return "play-once-disappear";
+    if (mode === "boomerang") return "boomerang";
+    if (mode === "play-then-freeze") {
+      if (onRetrigger === "instant-disappear") return "play-once-freeze";
+      return "play-once-freeze-reversible";
+    }
+    return "loop";
+  }
+
+  // Phase 58 Wave 3.3: inverse mapping. Given a uiMode value picked in
+  // the dropdown, return the (playbackMode, onRetrigger) patch the
+  // patchAnimation call must apply.
+  function uiPlaybackModeToPatch(uiMode, prevOnRetrigger) {
+    switch (uiMode) {
+      case "loop":
+        return { playbackMode: "loop", onRetrigger: "instant-disappear" };
+      case "play-once-disappear":
+        return { playbackMode: "play-once-disappear", onRetrigger: "instant-disappear" };
+      case "play-once-freeze":
+        return { playbackMode: "play-then-freeze", onRetrigger: "instant-disappear" };
+      case "play-once-freeze-reversible":
+        // Default to freeze-first if the previous onRetrigger wasn't a
+        // reverse-then-X choice; otherwise preserve the operator's
+        // previous selection so toggling in/out of the uiMode doesn't
+        // lose state.
+        return {
+          playbackMode: "play-then-freeze",
+          onRetrigger: (prevOnRetrigger === "reverse-then-disappear"
+            ? "reverse-then-disappear"
+            : "reverse-then-freeze-first"),
+        };
+      case "boomerang":
+        return { playbackMode: "boomerang", onRetrigger: "instant-disappear" };
+      default:
+        return { playbackMode: "loop", onRetrigger: "instant-disappear" };
+    }
   }
 
   function buildSliderRow(scope, def, boardId, field) {
@@ -469,6 +587,20 @@
     input.max = String(field.max);
     input.step = String(field.step);
     input.value = String(Number.isFinite(initial) ? initial : field.min);
+    // Phase 58-w3.8t: capture the pointer for the whole drag. The FIRST
+    // input on a slider flips localConfigDirty false→true, which reveals
+    // the topbar dirty bar (reflowing the layout, nudging the slider out
+    // from under the held pointer) and blurs focus — either of which
+    // detaches a native <input type=range> drag mid-gesture in real
+    // browsers, so the operator could only move ONE tick on the first
+    // drag and had to press again (operator UAT: "kann man zu Beginn
+    // immer nur einen Tick verschieben"). Binding the pointer to this
+    // element until pointerup keeps the slide alive across the dirty-flag
+    // activation regardless of focus or layout shift. (Belt-and-braces
+    // with the range-input blur exclusion in shell.js syncDirtyBar.)
+    input.addEventListener("pointerdown", (e) => {
+      try { input.setPointerCapture(e.pointerId); } catch { /* unsupported — ignore */ }
+    });
     input.addEventListener("input", () => {
       const v = Number(input.value);
       val.textContent = field.format(v);
@@ -520,17 +652,27 @@
   // swatch; hull-flicker and power-outage expose breaksSolidColor.
   // Non-matching variants don't need this card.
   function buildColorCard(scope, def, boardId) {
-    if (scope !== "room") return null;
-    const resolveCodedType = ctx.resolveRoomCodedEffectType;
+    // Phase 58-w3.8p — the coded catalog is unified across scopes, so
+    // the Coded-effect card (tint / heat source / city-workers) now
+    // surfaces for inside + outside too, not only room. The
+    // breaksSolidColor toggle stays ROOM-ONLY: solid-color coupling
+    // resolves per room polygon (findActiveBreakingGate keys on
+    // room.id), so it is a no-op in the inside/outside scopes.
+    const resolveCodedType = scope === "inside" ? ctx.resolveInsideCodedEffectType
+      : scope === "outside" ? ctx.resolveOutsideCodedEffectType
+      : ctx.resolveRoomCodedEffectType;
     const coded = def.assetType === "coded"
       ? (typeof resolveCodedType === "function"
         ? resolveCodedType(def.assetRef) || def.assetRef
         : def.assetRef)
       : null;
-    const isSolidColor = coded === "solid-color";
-    const isHullFlicker = coded === "hull-flicker";
-    const isPowerOutage = coded === "power-outage";
-    if (!isSolidColor && !isHullFlicker && !isPowerOutage) return null;
+    // Phase 58-w3.9g: the coded option controls (color / heat / city-
+    // workers / break-solid-color) are built by the SHARED coded-options
+    // builder so the full editor and the live editor never drift. This
+    // editor's IO bridge reads the DEFINITION and writes via
+    // patchAnimation (persists to the def + dirty bar + live preview).
+    const codedOptions = window.TT_BEAMER_RUNTIME_ANIMATION_CODED_OPTIONS;
+    if (!codedOptions || !codedOptions.hasCodedOptions(coded, scope)) return null;
 
     const card = document.createElement("section");
     card.className = "anim-editor-card";
@@ -539,35 +681,13 @@
     eyebrow.textContent = "Coded effect";
     card.append(eyebrow);
 
-    if (isSolidColor) {
-      const label = document.createElement("label");
-      label.className = "anim-editor-field-label";
-      const cap = document.createElement("span");
-      cap.textContent = "Color";
-      const picker = document.createElement("input");
-      picker.type = "color";
-      picker.value = /^#[0-9a-f]{6}$/i.test(def.colorHex) ? def.colorHex : "#ff0000";
-      picker.addEventListener("input", () => {
-        patchAnimation(scope, boardId, def.id, { colorHex: picker.value });
-      });
-      label.append(cap, picker);
-      card.append(label);
-    }
-
-    if (isHullFlicker) {
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "breaksSolidColor",
-        label: "Break solid color",
-        sub: "Cuts any solid-color animation in the same room during the flicker’s off-gate.",
-      }));
-    }
-    if (isPowerOutage) {
-      card.append(buildToggleRow(scope, def, boardId, {
-        key: "breaksSolidColor",
-        label: "Break solid color",
-        sub: "Cuts any solid-color animation in the same room except during the brief blue-flash flickers.",
-      }));
-    }
+    const rows = codedOptions.buildCodedOptionRows({
+      scope,
+      codedType: coded,
+      get: (key) => def[key],
+      set: (key, value) => patchAnimation(scope, boardId, def.id, { [key]: value }),
+    });
+    for (const row of rows) card.append(row);
     return card;
   }
 
@@ -622,7 +742,28 @@
         select.append(option);
       }
       select.addEventListener("change", () => {
-        patchAnimation(scope, boardId, def.id, { assetRef: select.value });
+        const patch = { assetRef: select.value };
+        // heat (Phase 58-w3.7w, renamed from "generator-heat" in
+        // w3.7x — the alias can still appear as a legacy option) and
+        // city-workers (w3.7y) seed their muted default tints when the
+        // definition still carries the legacy solid-color red default
+        // (every fresh definition does) or no color at all — the
+        // operator picked "heat"/"workers", not "alarm". An explicitly
+        // chosen non-default color is preserved.
+        const tintSeedByEffect = {
+          "heat": "#ff7a1a",
+          "generator-heat": "#ff7a1a",
+          "city-workers": "#c98a4b",
+          "city-workers-lit": "#c98a4b",
+        };
+        const tintSeed = tintSeedByEffect[select.value];
+        if (tintSeed) {
+          const currentHex = String(def.colorHex ?? "").trim().toLowerCase();
+          if (!/^#[0-9a-f]{6}$/.test(currentHex) || currentHex === "#ff0000") {
+            patch.colorHex = tintSeed;
+          }
+        }
+        patchAnimation(scope, boardId, def.id, patch);
         // Phase 46 iter6 (2026-05-17): coded-effect change can change the
         // fields shown in the pane — e.g. picking "solid-color" should
         // immediately surface the colour picker; switching FROM solid-color
@@ -663,16 +804,48 @@
       option.textContent = opt.label;
       select.append(option);
     }
-    select.value = String(def[field.key] ?? field.options[0]?.value ?? "");
+    // Phase 58 Wave 3.3: the synthetic uiPlaybackMode field reads its
+    // current value from the field metadata (since it doesn't exist on
+    // the definition) and writes back as a translated patch.
+    if (field._uiMode) {
+      select.value = String(field._currentUiValue ?? field.options[0]?.value ?? "");
+    } else {
+      select.value = String(def[field.key] ?? field.options[0]?.value ?? "");
+    }
     select.addEventListener("change", () => {
+      if (field._uiMode) {
+        const patch = uiPlaybackModeToPatch(select.value, def.onRetrigger);
+        patchAnimation(scope, boardId, def.id, patch);
+        currentPaneKey = null;
+        renderPane();
+        return;
+      }
       patchAnimation(scope, boardId, def.id, { [field.key]: select.value });
       // Changing assetType in the Source card should rebuild the
       // asset-ref caption ("GIF path" vs "Effect key"); easiest way
       // is a full pane rebuild, losing any in-flight caret — but
       // changing assetType is an infrequent, deliberate action.
-      if (field.key === "assetType") {
+      // Phase 58: same treatment for playbackMode + direction — these
+      // change the live-preview semantics and the visible subfields.
+      if (
+        field.key === "assetType"
+        || field.key === "playbackMode"
+        || field.key === "playbackDirection"
+        || field.key === "onRetrigger"
+      ) {
         currentPaneKey = null;
         renderPane();
+      }
+      // Phase 58 W3.7v (2026-06-06): the library row's subtitle shows
+      // the animation's assetType (and the row icon is derived from
+      // it) — refresh the list so both update immediately instead of
+      // only after the editor is closed and reopened. renderList()
+      // preserves selection (state.selectedIds) and scrollTop
+      // (gap-closure-21), so this is a safe in-place refresh. Name
+      // staleness doesn't exist: the Name input patches the selected
+      // row's textContent directly (buildIdentityCard).
+      if (field.key === "assetType") {
+        renderList();
       }
     });
     label.append(cap, select);
@@ -857,8 +1030,30 @@
     const touchesPreviewSource = patch && (
       Object.prototype.hasOwnProperty.call(patch, "assetType")
       || Object.prototype.hasOwnProperty.call(patch, "assetRef")
+      // Phase 58 Wave 3.1: mode + direction change the preview
+      // element's playback semantics (loop attr, initial src for
+      // reverse, ended-handler behavior). Force a full rebuild so the
+      // <video> element gets the new flags applied.
+      || Object.prototype.hasOwnProperty.call(patch, "playbackMode")
+      || Object.prototype.hasOwnProperty.call(patch, "playbackDirection")
+      || Object.prototype.hasOwnProperty.call(patch, "onRetrigger")
     );
     if (touchesPreviewSource) {
+      renderPreview();
+      return;
+    }
+    // Phase 58 Wave 3.3: for non-loop modes, the preview is supposed
+    // to fully demo each playthrough — but our numeric-patch fast path
+    // would otherwise leave a frozen / disappeared preview untouched
+    // when the operator nudges sliders. Force a full rebuild so the
+    // operator sees the freshly-tuned playthrough every time. Loop
+    // mode keeps the fast path (no visible benefit from rebuilding
+    // mid-loop and it would interrupt the continuous animation).
+    const freshDef = findDefinition(scope, id, boardId);
+    const isNonLoop = freshDef
+      && freshDef.playbackMode
+      && freshDef.playbackMode !== "loop";
+    if (isNonLoop && (freshDef.assetType === "mp4" || freshDef.assetType === "gif")) {
       renderPreview();
       return;
     }

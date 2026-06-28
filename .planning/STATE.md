@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Release ready (Phase 49 closed 2026-05-19)
-last_updated: "2026-05-19T00:00:00.000Z"
+last_updated: "2026-06-05T13:31:40.472Z"
 progress:
-  total_phases: 47
-  completed_phases: 14
-  total_plans: 76
-  completed_plans: 168
-  percent: 100
+  total_phases: 51
+  completed_phases: 28
+  total_plans: 94
+  completed_plans: 182
+  percent: 55
 ---
 
 # STATE

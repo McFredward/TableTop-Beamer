@@ -169,9 +169,8 @@ export function buildChromiumLaunchArgs({
     // enable-gpu-rasterization are appended below only when VAAPI is
     // explicitly enabled (D-06 lock).
     // Phase 47 gap-closure-2 (2026-05-17): drop `--use-gl=angle` +
-    // `--use-angle=default` on Win32 headless-new. On Linux+Xvfb these
-    // flags route Chrome's GL through ANGLE→Mesa-llvmpipe at ~60 fps
-    // (Phase 31 h19 + Phase 34 h2 history). On Windows headless-new
+    // `--use-angle=...` on Win32 headless-new. On Linux+Xvfb these
+    // flags route Chrome's GL through ANGLE. On Windows headless-new
     // Chrome has no platform window / no D3D11 swap-chain; forcing ANGLE
     // tries D3D11 init, fails, and the GPU process crashes — observed in
     // operator UAT logs as `[ssr-tab:reqfailed] /ssr :: net::ERR_ABORTED`
@@ -180,9 +179,27 @@ export function buildChromiumLaunchArgs({
     // what we want. `--enable-unsafe-swiftshader` (below) keeps software
     // GL allowed for WebGL contexts.
     //
-    // Linux path (and Win32 escape-hatch path) unchanged — same iter15
-    // flags as before. The headless-new path drops them.
-    ...(dropOnHeadlessNew ? [] : ["--use-gl=angle", "--use-angle=default"]),
+    // Phase 57 v1.1.6 (2026-06-02): ANGLE backend pinned to `vulkan`
+    // instead of `default`. Root cause of the residual SSR-tab mp4
+    // stutter (operator UAT 2026-06-01, "kleine hänger" surviving the
+    // v1.1.5 rVFC paint-gate fix): with `--use-angle=default`, ANGLE
+    // selected Mesa llvmpipe (software) as the GL backend, which made
+    // the Chromium video compositor too slow to keep up with 24fps mp4
+    // content — `getVideoPlaybackQuality().droppedVideoFrames` rose at
+    // ~4.3/s. Switching to `vulkan` lets ANGLE pick the host's Vulkan
+    // ICD (Intel/RADV on dev box, lavapipe as software fallback) for
+    // hardware-accelerated compositor surfaces. Measured impact on Linux
+    // dev box: vpq.droppedFps 4.3/s → 0.5/s (88% reduction), decoded
+    // frame rate 19.8/s → 24.0/s (matches source 23.976fps), median
+    // dropped frames per second = 0. ANGLE falls back to GL/llvmpipe
+    // automatically if Vulkan is unavailable, so this is safe on
+    // systems without a Vulkan ICD (the worst-case behavior is the
+    // pre-v1.1.6 baseline — no new failure mode introduced).
+    //
+    // Linux path (and Win32 escape-hatch path) get the new backend. The
+    // Win32 headless-new path drops the entire `--use-gl=`/`--use-angle=`
+    // pair — same as before.
+    ...(dropOnHeadlessNew ? [] : ["--use-gl=angle", "--use-angle=vulkan"]),
     "--enable-unsafe-swiftshader",
     "--disable-dev-shm-usage",
     // Anti-throttling: prevent Chromium from treating the Xvfb-headful
@@ -277,6 +294,7 @@ import {
   ENCODER_PRIORITY,
 } from "./server-encoder-detect.mjs";
 import { injectInPagePublisher } from "./ssr-stream-publisher.mjs";
+import { resolveEffectiveCodec } from "./ssr-server-rendering-config.mjs";
 
 // ---------------------------------------------------------------------
 // Stream-quality preset → concrete bitrate / fps / keyframe-interval map.
@@ -350,6 +368,17 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     if (err && err.code !== "ENOENT") {
       logger.warn(`[ssr-host] could not parse config: ${err.message}`);
     }
+  }
+
+  // Phase 58 hotfix (2026-06-28): the effective codec is no longer just
+  // serverRendering.codecPreference — it depends on the global codec MODE
+  // and, in "board" mode, the active board's per-board codec. Resolve it
+  // here so a host self-restart (crash recovery) also picks up the right
+  // codec for whatever board is currently active (active-board.json).
+  try {
+    userCodecPreference = await resolveEffectiveCodec({ rootDir });
+  } catch (err) {
+    logger.warn(`[ssr-host] effective-codec resolve failed, using ${userCodecPreference}: ${err?.message || err}`);
   }
 
   // Phase 32 D-A3: effectiveStreamFpsCap. 0 = native (no cap) → 60 actual constraint.
@@ -1171,6 +1200,12 @@ export function bootSsrRenderHost({
             logger.info(text.slice(0, 800));
             return;
           }
+          // Phase 57 diag (2026-06-02): forward mp4 paint diagnostics
+          // from the SSR tab when enabled. Gated on SSR_PUBLISHER_DEBUG.
+          if (text.startsWith("[mp4-diag]") && process.env.SSR_PUBLISHER_DEBUG === "1") {
+            logger.info(text.slice(0, 800));
+            return;
+          }
           if (t !== "error" && t !== "warning" && process.env.SSR_TAB_CONSOLE_VERBOSE !== "1") return;
           const fn = (t === "error" ? logger.error : t === "warning" ? logger.warn : logger.info).bind(logger);
           fn(`[ssr-tab:${t}] ${text.slice(0, 800)}`);
@@ -1202,7 +1237,11 @@ export function bootSsrRenderHost({
       } catch {}
       // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
       // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
-      await page.goto(`http://127.0.0.1:${port}/ssr`, {
+      // Phase 57 diag (2026-06-02): when SSR_PUBLISHER_DEBUG=1, enable
+      // the in-page mp4 paint diagnostic by appending ?mp4diag=1 to the
+      // SSR navigation URL.
+      const ssrDiagSuffix = process.env.SSR_PUBLISHER_DEBUG === "1" ? "?mp4diag=1" : "";
+      await page.goto(`http://127.0.0.1:${port}/ssr${ssrDiagSuffix}`, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });

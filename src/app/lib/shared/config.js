@@ -112,6 +112,33 @@
   const OUTSIDE_SHIP_GLOBAL_ANIMATIONS = [{ id: "outside-space", label: "Outside Space", category: "outside-ship" }];
   const GLOBAL_ANIMATIONS = [...INSIDE_SHIP_GLOBAL_ANIMATIONS, ...OUTSIDE_SHIP_GLOBAL_ANIMATIONS];
   const ALL_ANIMATION_TYPES = [...GLOBAL_ANIMATIONS, ...ROOM_ANIMATIONS];
+
+  // Phase 58-w3.8p — SINGLE SOURCE OF TRUTH for the coded-effect
+  // catalog. Every key here MUST have a render branch in
+  // drawEffectVisual (runtime-effect-visuals.js). Before w3.8p the
+  // three scopes (room/inside/outside) each exposed a DIFFERENT subset
+  // — inside derived its keys from createDefaultInsideAnimationDefinitions
+  // (only hull-flicker/intruder-alert/power-outage) and outside hard-
+  // coded just outside-space — so the editor's Effect dropdown listed
+  // fewer effects for inside/outside than for rooms. The operator spec
+  // (2026-06-08) is "überall sollen dieselben verfügbar sein, kein
+  // Unterschied": getRoomCodedAssetKeys / getInsideCodedAssetKeys /
+  // getOutsideCodedAssetKeys all now return THIS list (see
+  // runtime-asset-refs.js), so all three pickers offer the identical
+  // set and every effect renders in every scope against that scope's
+  // region (room polygon / inside-ship region / outside region).
+  const ALL_CODED_EFFECT_TYPES = [
+    "hull-flicker",
+    "intruder-alert",
+    "power-outage",
+    "special-scanning",
+    "special-slime",
+    "solid-color",
+    "heat",
+    "city-workers",
+    "snow",
+    "outside-space",
+  ];
   const SOUND_MAPPING_NONE = "none";
 
   const EVENT_SOUND_ASSETS = Object.fromEntries(
@@ -217,7 +244,16 @@
   // `package.json` — both must stay in lockstep or the topbar chip
   // drifts from the actual build (surfaced via the small chip in the
   // topbar, index.html #app-version + inline script).
-  const APP_VERSION = "1.1.3";
+  const APP_VERSION = "1.3.1";
+
+  // Phase 58 hotfix (2026-06-28): per-board video codec. Mirror of the
+  // server's defaultCodecForBoard (ssr-server-rendering-config.mjs) — used
+  // to seed the Board-settings codec select for boards with no explicit
+  // `videoCodec` yet. Frostpunk → H.264; every other board → VP9. MUST stay
+  // in lockstep with the server.
+  function defaultVideoCodecForBoard(boardId) {
+    return boardId === "frostpunk" ? "h264" : "vp9";
+  }
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,
@@ -229,6 +265,7 @@
     OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
     GLOBAL_ANIMATIONS,
     ALL_ANIMATION_TYPES,
+    ALL_CODED_EFFECT_TYPES,
     SOUND_MAPPING_NONE,
     EVENT_SOUND_ASSETS,
     ALL_SOUND_ASSET_PATHS,
@@ -251,5 +288,6 @@
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
     APP_VERSION,
+    defaultVideoCodecForBoard,
   };
 })();

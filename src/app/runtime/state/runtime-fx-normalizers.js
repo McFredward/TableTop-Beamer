@@ -37,6 +37,49 @@
     return sentinelNone;
   }
 
+  // Phase 58: per-animation playback mode.
+  // Valid modes: loop (default, legacy behavior),
+  // play-once-disappear, play-then-freeze, boomerang.
+  // Backwards-compat: if neither playbackMode nor loopUntilStopped is
+  // present, default = "loop" (preserves existing behavior). If
+  // loopUntilStopped === false (legacy explicit non-loop), infer
+  // play-once-disappear so the operator's intent is preserved.
+  const VALID_PLAYBACK_MODES = new Set([
+    "loop",
+    "play-once-disappear",
+    "play-then-freeze",
+    "boomerang",
+  ]);
+  const VALID_ON_RETRIGGER = new Set([
+    "instant-disappear",
+    "reverse-then-freeze-first",
+    "reverse-then-disappear",
+  ]);
+  // Phase 58 Wave 2.5: per-animation direction. Independent of
+  // playbackMode — applies as the INITIAL direction. Loop+reverse
+  // = reverse-loop. Boomerang+reverse = start reverse, alternate.
+  const VALID_PLAYBACK_DIRECTION = new Set(["forward", "reverse"]);
+  function normalizePlaybackDirection(definition) {
+    const raw = definition?.playbackDirection;
+    if (typeof raw === "string" && VALID_PLAYBACK_DIRECTION.has(raw)) return raw;
+    return "forward";
+  }
+  function normalizePlaybackMode(definition) {
+    const raw = definition?.playbackMode;
+    if (typeof raw === "string" && VALID_PLAYBACK_MODES.has(raw)) return raw;
+    if (raw != null) return "loop";
+    if (Object.prototype.hasOwnProperty.call(definition || {}, "loopUntilStopped")
+        && definition.loopUntilStopped === false) {
+      return "play-once-disappear";
+    }
+    return "loop";
+  }
+  function normalizeOnRetrigger(definition) {
+    const raw = definition?.onRetrigger;
+    if (typeof raw === "string" && VALID_ON_RETRIGGER.has(raw)) return raw;
+    return "instant-disappear";
+  }
+
   // Accept a design-system icon key if it exists in
   // ICON_DEFS (loaded by icons.js), otherwise return null. null is
   // the "no user override" sentinel — resolveAnimationIcon falls back
@@ -52,6 +95,94 @@
     const defs = window.TT_BEAMER_UI_ICONS?.ICON_DEFS;
     if (!defs) return trimmed;
     return Object.prototype.hasOwnProperty.call(defs, trimmed) ? trimmed : null;
+  }
+
+  // Phase 58-w3.8p — SHARED coded-effect per-definition fields. The
+  // coded catalog is now unified across room/inside/outside (every
+  // effect is selectable in every scope), so the colour / heat-source /
+  // city-workers options that used to live only on room definitions
+  // must SURVIVE normalization for inside + outside too — otherwise
+  // this normalizer's explicit-allowlist rebuild (the "Phase 50 mask
+  // trap": each scope returns a brand-new object, so any field not
+  // re-listed is silently dropped on every getProfile / setProfile /
+  // live-sync pass) would strip the operator's colour / worker edits.
+  // Defaults reproduce each effect's standalone look, so non-coded
+  // (gif/mp4) and overlay (hull-flicker/intruder-alert/power-outage)
+  // definitions are unaffected — they ignore these fields at render.
+  function clampNumber(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+  function normalizeCodedEffectFields(definition, rawAssetRef = "") {
+    const ref = String(rawAssetRef || "").trim().toLowerCase();
+    return {
+      colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex)
+        ? definition.colorHex
+        : "#ff0000",
+      breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      heatShowSource: definition?.heatShowSource !== false,
+      heatSyncNearestSource: Boolean(definition?.heatSyncNearestSource),
+      workerStyle: definition?.workerStyle === "lit" || definition?.workerStyle === "dark"
+        ? definition.workerStyle
+        : (ref === "city-workers-lit" ? "lit" : "dark"),
+      workerCount: clampNumber(
+        definition?.workerCount,
+        1, 24,
+        clampNumber(4.5 * clampNumber(definition?.intensity, 0.2, 1.5, 0.8), 1, 24, 4),
+      ),
+      workerGroups: ["off", "rare", "normal", "frequent"].includes(definition?.workerGroups)
+        ? definition.workerGroups
+        : "normal",
+      workerLanternShare: clampNumber(definition?.workerLanternShare, 0, 100, 30),
+      workerTrails: definition?.workerTrails !== false,
+      // Phase 58-w3.8s: "Größe der Bewohner" figure-size multiplier
+      // (0.5–2.0, default 1.0 = historical size).
+      workerSize: clampNumber(definition?.workerSize, 0.5, 2, 1),
+      // Phase 58-w3.9l: "Gehbewegung" walk-sway amount (0–150 % of the
+      // original gait-swing amplitude). Default 55 — the operator found the
+      // prior look "schwingt zu viel"; an omitted/legacy field therefore
+      // normalizes to the calmer 55 % (NOT byte-identical to the old walk),
+      // so existing definitions get the calmer gait while staying dialable.
+      workerSwayAmount: clampNumber(definition?.workerSwayAmount, 0, 150, 55),
+      // Phase 58-w3.8w: clothing-brightness multiplier (0.3–2.0, default
+      // 1.0 = current coat luminance), snow-trail intensity (0–100,
+      // default 100 = current peak alpha), and center-exclusion toggle +
+      // radius (0–60% of region radius, default 25). All default to the
+      // historical look.
+      workerClothingBrightness: clampNumber(definition?.workerClothingBrightness, 0.3, 2, 1),
+      // Phase 58-w3.9b: max raised 100 → 300 so trails can read much
+      // stronger; default 100 unchanged.
+      workerTrailIntensity: clampNumber(definition?.workerTrailIntensity, 0, 300, 100),
+      workerCenterExclusion: definition?.workerCenterExclusion === true,
+      workerCenterExclusionRadius: clampNumber(definition?.workerCenterExclusionRadius, 0, 60, 25),
+      // Phase 58-w3.9b: exclusion-zone centre offset (−50..+50% of the
+      // region half-extent, default 0 = centroid) + visible-ring toggle
+      // (default true = the current trampled-ring look). All default to
+      // the historical render.
+      workerExclusionOffsetX: clampNumber(definition?.workerExclusionOffsetX, -50, 50, 0),
+      workerExclusionOffsetY: clampNumber(definition?.workerExclusionOffsetY, -50, 50, 0),
+      workerExclusionRingVisible: definition?.workerExclusionRingVisible !== false,
+      // Phase 58-w3.8x: optional irregular (seeded) heat pulse, default off.
+      heatIrregularPulse: definition?.heatIrregularPulse === true,
+      // Phase 58-w3.9m: coded snow — "Dichte" (0–100, default 55),
+      // "Geschwindigkeit" (0–100, default 50) and "Sturm" (bool, default off).
+      // Defaults approximate the calm snow.mp4 density / fall rate.
+      snowDensity: clampNumber(definition?.snowDensity, 0, 100, 55),
+      snowSpeed: clampNumber(definition?.snowSpeed, 0, 100, 50),
+      snowStorm: definition?.snowStorm === true,
+      // Phase 58-w3.9s: mean flake size (0–100, default 50).
+      snowFlakeSize: clampNumber(definition?.snowFlakeSize, 0, 100, 50),
+      // Phase 58-w3.9h: optional fade-in/fade-out. Per-definition, shared
+      // across room/inside/outside (this helper is spread into all three
+      // normalizers) and across asset types (mp4/gif/coded). fadeEnabled
+      // default false ⇒ byte-identical legacy (abrupt) start/stop;
+      // fadeDurationMs clamps to 100..5000 (default 800). A whole-animation
+      // opacity ramp applied at render (see runtime-animation-fade.js) and a
+      // deferred, wedge-safe fade-out stop (see runtime-lifecycle-stop-pipeline).
+      fadeEnabled: definition?.fadeEnabled === true,
+      fadeDurationMs: clampNumber(definition?.fadeDurationMs, 100, 5000, 800),
+    };
   }
 
   // ========= INSIDE =========
@@ -80,6 +211,16 @@
     const rawAssetRef = String(definition?.assetRef || "").trim();
     const fallbackAssetRef = assetType === "coded" ? id : "";
     const assetRef = ctx.normalizeInsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    // Phase 58 Wave 3.8n: per-definition transform for mp4/gif inside
+    // animations — same fields + clamps as normalizeRoomAnimationDefinition
+    // so the editor Transform card, live-editor sliders and render path
+    // are 1:1 with rooms. Defaults preserve the pre-transform behaviour
+    // (stretch to the inside area, no rotation / scale / offset).
+    const clamp = (value, min, max, fallback) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    };
     return {
       id,
       name,
@@ -88,6 +229,23 @@
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
+      // Phase 58 Wave 3.8n: transform (mp4/gif only; harmless no-ops for
+      // coded inside effects).
+      rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
+      stretchToPolygon: definition?.stretchToPolygon !== false,
+      widthScale: clamp(definition?.widthScale, 0.05, 10, 1),
+      heightScale: clamp(definition?.heightScale, 0.05, 10, 1),
+      offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
+      offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
+      // Phase 58-w3.8p — unified coded-effect catalog: inside can now
+      // host any coded effect, so preserve the colour / heat / city-
+      // workers options (no-ops for overlay + gif/mp4 inside defs).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option.
+      // See 58-CONTEXT.md for the state machine and decisions.
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key from the design-system set.
@@ -246,6 +404,17 @@
       mode: ctx.normalizeOutsideMode(definition?.mode),
       direction: ctx.normalizeOutsideDirection(definition?.direction),
       soundEnabled: Boolean(definition?.soundEnabled),
+      // Phase 58-w3.8p — unified coded-effect catalog: outside can now
+      // host any coded effect (heat, city-workers, …), so preserve the
+      // colour / heat / city-workers options (no-ops for outside-space
+      // and gif/mp4 outside defs).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option
+      // (gif/mp4 only; coded outside effects keep their forever-loop
+      // semantics regardless of this field).
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       // User-assigned icon key (see Inside normalizer).
@@ -471,11 +640,27 @@
       intensity: clamp(definition?.intensity, 0.2, 1.5, 0.8),
       speed: clamp(definition?.speed, 0.1, 2.5, 1),
       soundVolume: clamp(definition?.soundVolume, 0, 1, 1),
-      colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex) ? definition.colorHex : "#ff0000",
-      // Opt-in. When true and this definition resolves to
-      // hull-flicker, a running instance in room R cuts any concurrent
-      // solid-color animation in R during the flicker's off-gate.
-      breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      // Phase 58-w3.8p — coded-effect options moved to the shared
+      // normalizeCodedEffectFields helper so room / inside / outside
+      // stay byte-identical (the catalog is unified). It covers:
+      //   colorHex            solid-color / heat tint / lantern tint.
+      //   breaksSolidColor    hull-flicker / power-outage off-gate cut.
+      //   heatShowSource      bright breathing core ON (w3.8g).
+      //   heatSyncNearestSource pulse phase-lock to nearest source.
+      //   workerStyle         dark (Silhouette) | lit (Beleuchtet); the
+      //                       default derives from the RAW assetRef so
+      //                       legacy "city-workers-lit" defs stay lit.
+      //   workerCount         base population 1..24, decoupled from
+      //                       intensity (missing → 4.5 × intensity).
+      //   workerGroups / workerLanternShare / workerTrails (w3.8i).
+      //   workerSize          figure-size multiplier 0.5..2.0 (w3.8s).
+      //   workerSwayAmount    walk-sway 0..150 %, default 55 (w3.9l).
+      ...normalizeCodedEffectFields(definition, rawAssetRef),
+      // Phase 58: per-animation playback mode + on-retrigger sub-option
+      // (gif/mp4 only; coded room effects keep their own lifecycle).
+      playbackMode: normalizePlaybackMode(definition),
+      onRetrigger: normalizeOnRetrigger(definition),
+      playbackDirection: normalizePlaybackDirection(definition),
       // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };

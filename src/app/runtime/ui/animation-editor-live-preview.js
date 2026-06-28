@@ -129,12 +129,53 @@
       const video = document.createElement("video");
       video.className = "anim-editor-preview-media";
       video.dataset.animEditorPreviewMedia = "mp4";
-      video.src = toResourceUrl(ref);
+      // Phase 58 Wave 3.1: preview respects per-animation mode +
+      // direction. Reverse uses the ffmpeg-cached URL; non-loop modes
+      // stop at EOS instead of looping; boomerang src-swaps on ended.
+      const prevMode = def.playbackMode || "loop";
+      const prevDir = def.playbackDirection || "forward";
+      const previewForwardUrl = toResourceUrl(ref);
+      const previewReverseUrl = `/api/animation-reverse?asset=${encodeURIComponent(ref.startsWith("/") ? ref : `/${ref}`)}`;
+      const initialSrc = prevDir === "reverse" ? previewReverseUrl : previewForwardUrl;
+      video.src = initialSrc;
       video.autoplay = true;
-      video.loop = true;
+      video.loop = prevMode === "loop";
       video.muted = true;
       video.playsInline = true;
       video.setAttribute("playsinline", "");
+      // Mode + boomerang src-swap markers (mirror the render path's
+      // attachMp4LifecycleHandlers protocol so the same ended logic
+      // applies in the editor preview).
+      video._tt58PlaybackMode = prevMode;
+      if (prevMode === "boomerang") {
+        video._tt58ForwardSrc = previewForwardUrl;
+        video._tt58ReverseSrc = previewReverseUrl;
+      }
+      video.addEventListener("ended", () => {
+        const m = video._tt58PlaybackMode || "loop";
+        if (m === "loop") return;
+        if (m === "boomerang") {
+          const fwd = video._tt58ForwardSrc;
+          const rev = video._tt58ReverseSrc;
+          if (!fwd || !rev) {
+            try { video.currentTime = 0; void video.play().catch(() => undefined); } catch { /* ignore */ }
+            return;
+          }
+          const currentAbs = video.src;
+          const fwdAbs = new URL(fwd, window.location.href).href;
+          const next = currentAbs === fwdAbs ? rev : fwd;
+          try { video.src = next; video.currentTime = 0; void video.play().catch(() => undefined); } catch { /* ignore */ }
+          return;
+        }
+        // Phase 58 Wave 3.3: play-once-disappear hides the preview
+        // element entirely so the operator sees the actual "disappear"
+        // outcome. play-then-freeze just pauses at the last frame so
+        // the visible state matches the freeze semantics.
+        try { video.pause(); } catch { /* ignore */ }
+        if (m === "play-once-disappear") {
+          video.style.visibility = "hidden";
+        }
+      });
       video.addEventListener("error", () => {
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
       });
@@ -247,6 +288,34 @@
         outsideDirection: current.direction,
         outsideSpeed: speed,
         densityFactor: 1,
+        // Phase 58-w3.8g: preview reflects the heat-source visibility
+        // option (sync has no meaning in the single-room preview —
+        // the preview always runs on its own clock).
+        heatShowSource: current.heatShowSource !== false,
+        // Phase 58-w3.8i: preview reflects the merged city-workers
+        // options. The raw assetRef is passed as the type below, so
+        // legacy "city-workers-lit" definitions preview lit even
+        // before normalization fills workerStyle.
+        workerStyle: current.workerStyle,
+        workerCount: current.workerCount ?? null,
+        workerGroups: current.workerGroups,
+        workerLanternShare: current.workerLanternShare,
+        workerTrails: current.workerTrails !== false,
+        workerSize: current.workerSize ?? 1,
+        workerSwayAmount: current.workerSwayAmount ?? 55,
+        workerClothingBrightness: current.workerClothingBrightness ?? 1,
+        workerTrailIntensity: current.workerTrailIntensity ?? 100,
+        workerCenterExclusion: current.workerCenterExclusion === true,
+        workerCenterExclusionRadius: current.workerCenterExclusionRadius ?? 25,
+        workerExclusionOffsetX: current.workerExclusionOffsetX ?? 0,
+        workerExclusionOffsetY: current.workerExclusionOffsetY ?? 0,
+        workerExclusionRingVisible: current.workerExclusionRingVisible !== false,
+        heatIrregularPulse: current.heatIrregularPulse === true,
+        // Phase 58-w3.9m: coded snow options in the editor preview.
+        snowDensity: current.snowDensity ?? 55,
+        snowSpeed: current.snowSpeed ?? 50,
+        snowStorm: current.snowStorm === true,
+        snowFlakeSize: current.snowFlakeSize ?? 50,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {
@@ -310,10 +379,30 @@
       const opacity = Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
       const effective = window.TT_BEAMER_RUNTIME_UTILS.clamp01(opacity * intensity);
+      // Phase 58 Wave 3.3: gif preview honors per-animation
+      // playback mode + initial direction (forward/reverse). Boomerang
+      // ping-pongs natively via the decoder's _resolveFrameIndex math.
+      // For play-once-disappear we hide the canvas after the cursor
+      // walks past total duration; play-then-freeze leaves the last
+      // frame on screen.
+      const previewMode = String(current.playbackMode || "loop");
+      const previewDir = String(current.playbackDirection || "forward");
+      const cursorScaled = age * speed * globalSpeedSafe;
+      const gifTotalSec = gifApi.getGifPlaybackTotalDurationSec
+        ? gifApi.getGifPlaybackTotalDurationSec(path)
+        : 0;
+      const isHidden = previewMode === "play-once-disappear"
+        && gifTotalSec > 0
+        && cursorScaled >= gifTotalSec;
+      if (isHidden) {
+        canvas.style.visibility = "hidden";
+      } else if (canvas.style.visibility === "hidden") {
+        canvas.style.visibility = "visible";
+      }
       c2d.save();
       c2d.fillStyle = "#000";
       c2d.fillRect(0, 0, canvas.width, canvas.height);
-      const frame = gifApi.getGifPlaybackFrame(path, age * speed * globalSpeedSafe);
+      const frame = gifApi.getGifPlaybackFrame(path, cursorScaled, previewMode, previewDir);
       if (frame) {
         c2d.globalAlpha = effective;
         const fw = frame.width;

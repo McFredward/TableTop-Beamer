@@ -15,10 +15,123 @@
   let renderRunningAnimationsList = null;
   let refreshGlobalButtons = null;
 
+  // Phase 58 Wave 3.9d: self-heal grace. A stop dispatched while the id is
+  // still present in snapshots may have been LOST server-side (the
+  // sequence-stale drop the fair scheduler could trigger, a version-rejected
+  // stop snapshot, or an id drift). If a pendingStop id is STILL present this
+  // long after its last dispatch, reconcileStopPendingFromSnapshot re-emits
+  // the stop (with a fresh clientSequence) so a "Stopping" instance always
+  // self-heals without an operator re-toggle or a server restart.
+  const STOP_RETRY_GRACE_MS = 2_500;
+
+  // Phase 58 Wave 3.9h: pending deferred-stop timers keyed by the target
+  // animation id. A fadeEnabled stop does NOT remove the instance
+  // immediately — it stamps + broadcasts a fade-out start, ramps the
+  // opacity 1→0 over fadeDurationMs, then re-enters stopAnimation to run
+  // the REAL v1.2.52-hardened removal (retriable, self-healing, never
+  // wedged). Re-triggering during the fade cancels the timer + the ramp.
+  const fadeOutTimers = new Map();
+
+  function fadeApi() {
+    return window.TT_BEAMER_RUNTIME_ANIMATION_FADE;
+  }
+
+  function clearFadeOutTimer(animationId) {
+    const timerId = fadeOutTimers.get(animationId);
+    if (timerId != null) {
+      try { window.clearTimeout(timerId); } catch { /* defensive */ }
+    }
+    fadeOutTimers.delete(animationId);
+  }
+
   function init(dependencies) {
     ctx = dependencies?.ctx ?? dependencies;
     renderRunningAnimationsList = dependencies?.renderRunningAnimationsList ?? null;
     refreshGlobalButtons = dependencies?.refreshGlobalButtons ?? null;
+  }
+
+  // Phase 58 Wave 3.9h: begin a deferred fade-out. Stamps fadeOutStartedAt*
+  // on the target (and cluster members) and BROADCASTS via the existing
+  // edit-room live mutation so /output + other clients ramp out too (not
+  // abruptly). The actual removal is scheduled for fadeDurationMs later by
+  // re-calling stopAnimation — which, with fadeOutStartedAtEpochMs now set,
+  // skips this gate and runs the hardened stop. The fade is purely a
+  // presentation deferral; the removal path is unchanged + never bypassed.
+  function beginFadeOutThenStop(target) {
+    const { state, emitLiveMutation, buildAnimationSnapshotForLiveSync } = ctx;
+    const api = fadeApi();
+    const durationMs = api ? api.clampFadeDurationMs(target.fadeDurationMs) : 800;
+    const idsToFade = collectAnimationStopIds(target, { mutateClusterMembership: false });
+    const epoch = Date.now();
+    const perf = performance.now();
+    for (const id of idsToFade) {
+      const anim = state.runningAnimations.find((entry) => entry?.id === id);
+      if (!anim) continue;
+      anim.fadeOutStartedAt = perf;
+      anim.fadeOutStartedAtEpochMs = epoch;
+      void emitLiveMutation("edit-room", {
+        animationId: anim.id,
+        animation: buildAnimationSnapshotForLiveSync(anim),
+      }).catch(() => {});
+    }
+    console.warn("[58] fade-out-start", JSON.stringify({
+      id: target.id, durationMs, ids: [...idsToFade],
+    }));
+    if (typeof renderRunningAnimationsList === "function") renderRunningAnimationsList();
+    clearFadeOutTimer(target.id);
+    const timerId = window.setTimeout(() => {
+      fadeOutTimers.delete(target.id);
+      const still = state.runningAnimations.find((entry) => entry?.id === target.id);
+      if (!still) return;
+      // Cancelled (revived) mid-fade — fadeOutStartedAtEpochMs cleared to null.
+      if (!(Number(still.fadeOutStartedAtEpochMs) > 0)) return;
+      stopAnimation(target.id);
+    }, durationMs);
+    fadeOutTimers.set(target.id, timerId);
+  }
+
+  // Phase 58 Wave 3.9h: cancel an in-progress fade-out and resume fading IN
+  // from the CURRENT opacity (no abrupt jump). Returns true if a fade-out
+  // was active. Called on re-trigger (toggle ON) of a fading instance.
+  function cancelFadeOutIfFading(animation) {
+    if (!animation || !(Number(animation.fadeOutStartedAtEpochMs) > 0)) {
+      return false;
+    }
+    const { state, emitLiveMutation, buildAnimationSnapshotForLiveSync } = ctx;
+    const api = fadeApi();
+    const idsToRevive = collectAnimationStopIds(animation, { mutateClusterMembership: false });
+    const perfNow = performance.now();
+    const epochNow = Date.now();
+    for (const id of idsToRevive) {
+      const anim = state.runningAnimations.find((entry) => entry?.id === id);
+      if (!anim) continue;
+      const durationMs = api ? api.clampFadeDurationMs(anim.fadeDurationMs) : 800;
+      // Sample the current (mid-fade) multiplier so fade-in resumes from it.
+      const v = api ? api.computeFadeMultiplier(anim, perfNow) : 1;
+      anim.fadeOutStartedAt = null;
+      anim.fadeOutStartedAtEpochMs = null;
+      const tIn = api ? api.inverseSmoothstep01(v) : 1;
+      anim.startedAt = perfNow - tIn * durationMs;
+      anim.startedAtEpochMs = epochNow - tIn * durationMs;
+      // Phase 58 Wave 3.9j: fade-in now ramps from a client-local render
+      // anchor (runtime-animation-fade.js), not startedAt. Seed the anchor
+      // so the resumed fade-in continues from the CURRENT (mid-fade) opacity
+      // `v` instead of snapping — perfNow - tIn*durationMs gives
+      // smoothstep(tIn) === v at the next sample.
+      if (api && typeof api.seedFadeInAnchor === "function") {
+        api.seedFadeInAnchor(anim.id, perfNow - tIn * durationMs);
+      }
+      clearFadeOutTimer(id);
+      void emitLiveMutation("edit-room", {
+        animationId: anim.id,
+        animation: buildAnimationSnapshotForLiveSync(anim),
+      }).catch(() => {});
+    }
+    clearFadeOutTimer(animation.id);
+    console.warn("[58] fade-out-cancel", JSON.stringify({ id: animation.id }));
+    if (typeof renderRunningAnimationsList === "function") renderRunningAnimationsList();
+    if (typeof refreshGlobalButtons === "function") refreshGlobalButtons();
+    return true;
   }
 
   function collectAnimationStopIds(targetAnimation, { mutateClusterMembership = false } = {}) {
@@ -58,18 +171,44 @@
     return typeof animationId === "string" && ctx.liveSync.pendingStopAnimationIds.has(animationId);
   }
 
+  // Phase 58 Wave 3.9d: per-id last-dispatch timestamps backing the
+  // self-heal retry. Lazily created on liveSync so it resets with the
+  // session and stays adjacent to pendingStopAnimationIds.
+  function stopAttempts() {
+    if (!(ctx.liveSync.pendingStopAttempts instanceof Map)) {
+      ctx.liveSync.pendingStopAttempts = new Map();
+    }
+    return ctx.liveSync.pendingStopAttempts;
+  }
+
+  function stampStopAttempt(animationIds) {
+    const now = Date.now();
+    const attempts = stopAttempts();
+    for (const animationId of animationIds) {
+      if (typeof animationId === "string" && animationId) {
+        attempts.set(animationId, now);
+      }
+    }
+  }
+
   function markStopPending(animationIds) {
     for (const animationId of animationIds) {
       if (typeof animationId === "string" && animationId) {
         ctx.liveSync.pendingStopAnimationIds.add(animationId);
+        // Phase 58 Wave 3.9d: permanent diagnostic — a future wedge must be
+        // explainable from console output (stop-pending set / clear / retry).
+        console.warn("[58] stop-pending-set", JSON.stringify({ id: animationId }));
       }
     }
   }
 
   function clearStopPending(animationIds) {
+    const attempts = stopAttempts();
     for (const animationId of animationIds) {
       if (typeof animationId === "string" && animationId) {
         ctx.liveSync.pendingStopAnimationIds.delete(animationId);
+        attempts.delete(animationId);
+        console.warn("[58] stop-pending-clear", JSON.stringify({ id: animationId }));
       }
     }
   }
@@ -79,14 +218,42 @@
     if (liveSync.pendingStopAnimationIds.size === 0) {
       return;
     }
-    const runningIds = new Set(
+    const runningById = new Map(
       state.runningAnimations
-        .map((animation) => (typeof animation?.id === "string" ? animation.id : null))
-        .filter(Boolean),
+        .filter((animation) => typeof animation?.id === "string")
+        .map((animation) => [animation.id, animation]),
     );
+    const attempts = stopAttempts();
+    const now = Date.now();
     for (const pendingId of [...liveSync.pendingStopAnimationIds]) {
-      if (!runningIds.has(pendingId)) {
-        liveSync.pendingStopAnimationIds.delete(pendingId);
+      if (!runningById.has(pendingId)) {
+        // Server confirmed removal -> the stop landed; clear pending.
+        clearStopPending([pendingId]);
+        continue;
+      }
+      // Phase 58 Wave 3.9d: the id is STILL present after a stop was
+      // dispatched. The stop may have been lost server-side (sequence-stale
+      // drop, version-rejected stop snapshot, or id drift). Once the grace
+      // window elapses, re-emit the stop with a FRESH clientSequence so the
+      // wedge self-heals — no operator re-toggle, no server restart.
+      const lastAttempt = Number(attempts.get(pendingId));
+      if (!Number.isFinite(lastAttempt)) {
+        // Pending but never stamped (defensive): stamp now so the grace
+        // window starts cleanly.
+        attempts.set(pendingId, now);
+        continue;
+      }
+      if (now - lastAttempt >= STOP_RETRY_GRACE_MS) {
+        const target = runningById.get(pendingId) ?? null;
+        attempts.set(pendingId, now);
+        console.warn("[58] stop-pending-retry", JSON.stringify({
+          id: pendingId,
+          sinceMs: Math.round(now - lastAttempt),
+        }));
+        void emitStopAnimationCommand(pendingId, {
+          priorityHint: "high",
+          targetAnimation: target,
+        });
       }
     }
   }
@@ -98,10 +265,16 @@
     const targetScope = typeof targetAnimation.scope === "string" ? targetAnimation.scope.trim() : "";
     const targetType = typeof targetAnimation.type === "string" ? targetAnimation.type.trim() : "";
     const boardId = typeof targetAnimation.boardId === "string" ? targetAnimation.boardId.trim() : "";
+    // Phase 58 Wave 3.9d: carry roomId so the server can fall back to a
+    // scope+type+room+board match when the stop's id misses (id drift /
+    // retried stop) — otherwise a room-loop stop with a stale id is a silent
+    // server no-op and the client wedges on "Stopping".
+    const roomId = typeof targetAnimation.roomId === "string" ? targetAnimation.roomId.trim() : "";
     return {
       ...(targetScope ? { targetScope } : {}),
       ...(targetType ? { targetType } : {}),
       ...(boardId ? { boardId } : {}),
+      ...(roomId ? { roomId } : {}),
       ...(targetScope === "global"
         && (ctx.isOutsideAnimationType?.(targetType, boardId) || targetType === "outside-space")
         ? { outsideHint: true }
@@ -118,10 +291,14 @@
       targetAnimation
       ?? state.runningAnimations.find((entry) => entry?.id === animationId)
       ?? null;
+    const meta = buildStopCommandTargetMeta(animationForMeta);
+    // Phase 58 Wave 3.9d: permanent diagnostic — single choke point for every
+    // stop dispatch (initial, force re-issue, and self-heal retry).
+    console.warn("[58] stop-emit", JSON.stringify({ animationId, priorityHint, ...meta }));
     return emitLiveMutation(STOP_ANIMATION_MUTATION_TYPE, {
       animationId,
       priorityHint,
-      ...buildStopCommandTargetMeta(animationForMeta),
+      ...meta,
     });
   }
 
@@ -135,14 +312,40 @@
     if (!target) {
       return;
     }
+    // Phase 58 Wave 3.9h: deferred fade-out. On CONTROL, a fadeEnabled
+    // instance that is not already fading out ramps out first, then the real
+    // hardened stop is re-issued from beginFadeOutThenStop's timer. /output
+    // receives the fade-out stamp via the broadcast and ramps too; it is
+    // removed only when the real stop lands. (OUTPUT role removes directly.)
+    if (getOutputRole() === OUTPUT_ROLE_CONTROL
+      && target.fadeEnabled === true
+      && !(Number(target.fadeOutStartedAtEpochMs) > 0)) {
+      beginFadeOutThenStop(target);
+      return;
+    }
     const idsToStop = collectAnimationStopIds(target, { mutateClusterMembership: true });
+    // Real stop is landing now — drop any pending fade-out timers for these
+    // ids so a late timer can't re-enter after removal.
+    for (const id of idsToStop) clearFadeOutTimer(id);
+    clearFadeOutTimer(target.id);
     if (getOutputRole() === OUTPUT_ROLE_CONTROL) {
-      const idsToDispatch = [...idsToStop].filter((id) => !isStopPendingForAnimationId(id));
-      if (idsToDispatch.length === 0) {
-        triggerFeedback.textContent = `Pending: stop command for ${idsToStop.size} animation(s) already in flight`;
-        return;
-      }
-      markStopPending(idsToDispatch);
+      // Phase 58 Wave 3.9d: a stop is ALWAYS re-dispatchable. Previously, if
+      // every target id was already stop-pending, this bailed with "already
+      // in flight" — leaving a LOST stop (sequence-stale drop / version-
+      // rejected snapshot / id drift) wedged on "Stopping" with no escape but
+      // a server restart. Now re-toggling a "Stopping" animation FORCE
+      // re-issues the stop. The re-issue gets a fresh clientSequence, so it is
+      // no longer vulnerable to the server's sequence-stale gate.
+      const idsToDispatch = [...idsToStop];
+      const freshIds = idsToDispatch.filter((id) => !isStopPendingForAnimationId(id));
+      const isForce = freshIds.length === 0;
+      markStopPending(freshIds);
+      stampStopAttempt(idsToDispatch);
+      console.warn("[58] stop-dispatch", JSON.stringify({
+        ids: idsToDispatch,
+        fresh: freshIds,
+        force: isForce,
+      }));
       const commandPairs = idsToDispatch.map((id) => {
         const commandTarget = state.runningAnimations.find((entry) => entry?.id === id) ?? (id === target.id ? target : null);
         return [id, emitStopAnimationCommand(id, {
@@ -155,11 +358,19 @@
           .map((result, index) => (result.status === "rejected" ? commandPairs[index][0] : null))
           .filter(Boolean);
         if (failedIds.length > 0) {
-          clearStopPending(failedIds);
+          // Only release ids that were FRESHLY marked by this dispatch; a
+          // force re-issue must keep the prior pending state authoritative so
+          // the self-heal retry stays armed.
+          const clearable = failedIds.filter((id) => freshIds.includes(id));
+          if (clearable.length > 0) {
+            clearStopPending(clearable);
+          }
           triggerFeedback.textContent = `Status: stop command failed for ${failedIds.length} animation(s)`;
           return;
         }
-        triggerFeedback.textContent = `Pending: stop command for ${idsToDispatch.length} animation(s) accepted (waiting for snapshot)`;
+        triggerFeedback.textContent = isForce
+          ? `Pending: stop re-issued for ${idsToDispatch.length} animation(s) (waiting for snapshot)`
+          : `Pending: stop command for ${idsToDispatch.length} animation(s) accepted (waiting for snapshot)`;
       });
       return;
     }
@@ -200,5 +411,7 @@
     buildStopCommandTargetMeta,
     emitStopAnimationCommand,
     stopAnimation,
+    beginFadeOutThenStop,
+    cancelFadeOutIfFading,
   };
 })();
