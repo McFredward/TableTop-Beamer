@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.67] — 2026-06-28
+
+### Fixed
+
+- **Snow no longer stutters/freezes at high density (the "flakes stand still for ~½ s then jump" lag on /output).** With density at 100 % the snow draws up to ~1400 flakes per frame, and each flake was building fresh `rgba(…, ${alpha})` colour strings (several per flake, every frame) — hundreds to thousands of throwaway strings per frame. That garbage triggered periodic GC pauses, which froze the whole render for a fraction of a second and read as flakes (especially the small fast ones) stalling then jumping. Drawing is now **allocation-free**: every flake's opacity rides `globalAlpha` (a number) and all colours are constant string literals, so no per-frame strings are created. Combined with the v1.2.66 sprite cache, the snow holds up at density 100 %. Purely a rendering-cost fix — the look and determinism are unchanged.
+
+---
+
 ## [1.2.66] — 2026-06-28
 
 ### Fixed

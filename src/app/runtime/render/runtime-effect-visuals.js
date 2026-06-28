@@ -1629,25 +1629,33 @@
           snowBlobSprite = off;
         }
       }
+      // Phase 58-w3.9t — ALLOCATION-FREE drawing. Per-flake `rgba(…,${a})`
+      // template strings (built for every flake every frame — hundreds to
+      // ~1400 at density 100) churned the GC, which stalled /output: small
+      // flakes froze ~0.5 s then jumped (operator 2026-06-28). All flake
+      // opacity now rides c.globalAlpha (a number, no allocation); colours
+      // are constant string literals (interned, not allocated). fillStyle is
+      // set ONCE here (only streaks change strokeStyle); globalAlpha is reset
+      // to 1 after the loop.
+      const COL_TAIL = "rgb(228, 237, 255)";
+      const COL_CORE = "rgb(240, 246, 255)";
+      c.fillStyle = "rgb(237, 243, 255)";
       // Blit the cached blob sprite at the flake's size, modulating opacity
       // via globalAlpha (cheap GPU blit vs a per-flake gradient build).
       const softBlob = (x, y, r, a) => {
         if (!snowBlobSprite) return;
-        const prevA = c.globalAlpha;
-        c.globalAlpha = Math.max(0, Math.min(1, a));
+        c.globalAlpha = a < 0 ? 0 : (a > 1 ? 1 : a);
         c.drawImage(snowBlobSprite, x - r, y - r, r * 2, r * 2);
-        c.globalAlpha = prevA;
       };
-      // Cheap soft-edged dot (no gradient allocation) — a dim wide disc + a
-      // brighter core, soft enough under additive blending. Used for the
-      // many small/medium soft flakes so only the ~15 % big OOF bokeh pay
-      // the gradient cost (Pi budget).
+      // Cheap soft-edged dot — a dim wide disc + a brighter core (additive
+      // blend softens it). No string/style allocation: constant fillStyle +
+      // globalAlpha for opacity.
       const softDot = (x, y, r, a) => {
-        c.fillStyle = `rgba(236, 243, 255, ${a * 0.5})`;
+        c.globalAlpha = a * 0.5;
         c.beginPath();
         c.arc(x, y, r, 0, TAU);
         c.fill();
-        c.fillStyle = `rgba(238, 244, 255, ${a})`;
+        c.globalAlpha = a;
         c.beginPath();
         c.arc(x, y, r * 0.5, 0, TAU);
         c.fill();
@@ -1807,13 +1815,15 @@
             // snow and points along the shared layer wind (coherent).
             const hx = windUX * len * 0.5;
             const hy = windUY * len * 0.5;
-            c.strokeStyle = `rgba(230, 239, 255, ${alpha * 0.5})`;
+            c.globalAlpha = alpha * 0.5;
+            c.strokeStyle = COL_TAIL;
             c.lineWidth = Math.max(0.7, size * 1.1);
             c.beginPath();
             c.moveTo(px - hx, py - hy);
             c.lineTo(px + hx, py + hy);
             c.stroke();
-            c.strokeStyle = `rgba(240, 246, 255, ${alpha * 0.95})`;
+            c.globalAlpha = alpha * 0.95;
+            c.strokeStyle = COL_CORE;
             c.lineWidth = Math.max(0.6, size * 0.65);
             c.beginPath();
             c.moveTo(px - hx * 0.62, py - hy * 0.62);
@@ -1826,7 +1836,7 @@
           if (size > unit * 0.0030) {
             softDot(px, py, size * 1.4, alpha * 0.95);
           } else {
-            c.fillStyle = `rgba(236, 243, 255, ${alpha})`;
+            c.globalAlpha = alpha;
             c.beginPath();
             c.arc(px, py, size, 0, TAU);
             c.fill();
@@ -1834,6 +1844,7 @@
         }
       }
 
+      c.globalAlpha = 1;
       c.lineCap = prevCap;
       c.globalCompositeOperation = prevComposite;
       return;
