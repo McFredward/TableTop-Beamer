@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.75] — 2026-06-28
+
+### Changed
+
+- **Snowstorm made much more menacing** (operator: it read like a slightly hard breeze, too close to calm "snow"; it should feel threatening). The prevailing wind is stronger and more horizontal (a driving blizzard, not a gentle fall), the flakes move faster, the gust swells are bigger and the intermittent gust punches hit harder (peak wind speedFrac raised 3.0 → 4.0), the motion-blur smears are longer in the wind (stretch cap 4.5 → 6.5), the field is denser (storm count ×1.9 → ×2.3), and gusts brighten the snow more strongly so a stoß reads as a surging wall of snow. Still the soft-bokeh system (no hard streaks) and still deterministic. Because the menace comes mostly from faster/bigger/brighter snow — which is *lower* spatial frequency and therefore encoder-friendly — it does not reintroduce the /output stutter; the density bump is kept moderate to stay within the encoder budget.
+
+---
+
 ## [1.2.74] — 2026-06-28
 
 ### Fixed

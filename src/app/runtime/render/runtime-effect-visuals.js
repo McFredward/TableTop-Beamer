@@ -1555,7 +1555,7 @@
       // Flake count. Calm default (~55 %) lands near the snow.mp4 density;
       // storm roughly doubles it. Capped by the non-critical density scale
       // (Pi / low-power throttle) so a dense storm never tanks fps.
-      const stormCountMul = storm ? 1.9 : 1;
+      const stormCountMul = storm ? 2.3 : 1; // denser, overwhelming (menacing)
       // Calm default (~55 %) lands near snow.mp4's fine, dense flurry.
       const rawCount = 230 * (0.2 + densityKnob * 1.55) * stormCountMul
         * densityFactor * visualCaps.nonCriticalDensityScale;
@@ -1706,7 +1706,12 @@
       const layerWind = [];
       if (storm) {
         const STORM_LAYERS = 3;
-        const vBase = unit * (0.085 + speedKnob * 0.14);
+        // Phase 58-w3.9ab — MENACING storm (operator 2026-06-28: should feel
+        // "viel bedrohlicher", not a hard breeze). Faster driving wind,
+        // stronger/more violent gusts, more horizontal lean — a blizzard, not
+        // a flurry. (Bigger/faster/brighter snow is also lower spatial
+        // frequency → encoder-friendly, so this does not reintroduce the lag.)
+        const vBase = unit * (0.11 + speedKnob * 0.18);
         // Wind model = gravity (down) + a strong GUSTING HORIZONTAL wind
         // (operator 2026-06-28: previous near-vertical mean read as strokes
         // FALLING top→bottom, not wind). Gravity is a modest constant down;
@@ -1717,10 +1722,11 @@
         // lull lets it fall steeper — so the slant SHIFTS over time = reads as
         // wind. Layers gust out of phase (parallax + cross-wind chaos). All
         // integrable → shared closed-form displacement, no per-flake cost.
-        const gravityV = 0.5;            // constant downward (units of vBase)
-        const baseH = 0.6;               // prevailing horizontal wind (rightward)
-        // [amp, omega] horizontal gusts: slow strong swell + mid + fast.
-        const HWIND = [[0.55, 0.13], [0.34, 0.31], [0.2, 0.72]];
+        const gravityV = 0.45;           // constant downward (units of vBase)
+        const baseH = 0.98;              // strong prevailing driving wind (rightward)
+        // [amp, omega] horizontal gusts: slow VIOLENT swell + mid + fast. Big
+        // amplitudes → the wind surges hard and the slant sweeps wide.
+        const HWIND = [[0.9, 0.12], [0.52, 0.30], [0.3, 0.7]];
         for (let L = 0; L < STORM_LAYERS; L += 1) {
           const layerH = baseH * (0.8 + 0.25 * L); // layers: different wind strength
           let wx = layerH;
@@ -1747,7 +1753,7 @@
             uy: wy / speed,
             dx: vBase * dx,
             dy: vBase * dy,
-            speedFrac: Math.min(3.0, speed + punch * 1.7),
+            speedFrac: Math.min(4.0, speed + punch * 2.5), // harder gust bursts
           });
         }
       }
@@ -1842,7 +1848,7 @@
         // Wind gusts brighten the snow they carry → the field reads denser
         // when a stoß blows through (windSpeedFrac peaks across the layer).
         const alpha = Math.max(0.14, Math.min(0.96,
-          alphaBase * overall * intensitySafe * (storm ? (0.78 + windSpeedFrac * 0.42) : 1)));
+          alphaBase * overall * intensitySafe * (storm ? (0.72 + windSpeedFrac * 0.6) : 1)));
 
         if (oof) {
           // Out-of-focus bokeh — soft blob in BOTH modes; never streaks.
@@ -1859,7 +1865,7 @@
           // continuous, speed-driven stretch (gusts smear it longer, lulls
           // round it off). No hard line; points along the wind, not vertical.
           const flakeSpeed = windSpeedFrac * (0.35 + h4 * 1.15);
-          const stretch = 1 + Math.min(4.5, flakeSpeed * (0.8 + speedKnob * 0.8));
+          const stretch = 1 + Math.min(6.5, flakeSpeed * (1.1 + speedKnob * 1.0));
           const r = Math.max(minSoftR, size * 1.1);
           softStreak(px, py, r, alpha, ux, uy, stretch);
         } else {
