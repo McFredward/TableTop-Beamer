@@ -1865,7 +1865,12 @@
           // continuous, speed-driven stretch (gusts smear it longer, lulls
           // round it off). No hard line; points along the wind, not vertical.
           const flakeSpeed = windSpeedFrac * (0.35 + h4 * 1.15);
-          const stretch = 1 + Math.min(6.5, flakeSpeed * (1.1 + speedKnob * 1.0));
+          // Mostly ROUND flakes (operator 2026-06-28: should read as snow-
+          // FLAKES like calm snow, not streaks). The motion-blur stretch is
+          // kept small so flakes stay flake-like; only the fastest gust
+          // flakes get a mild elongation. The menace comes from density +
+          // speed + gusts + brightness, NOT from long streaks.
+          const stretch = 1 + Math.min(1.5, flakeSpeed * (0.22 + speedKnob * 0.28));
           const r = Math.max(minSoftR, size * 1.1);
           softStreak(px, py, r, alpha, ux, uy, stretch);
         } else {

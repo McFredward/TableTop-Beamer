@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.76] — 2026-06-28
+
+### Changed
+
+- **Snowstorm now reads as snow FLAKES, not streaks.** The menacing storm (v1.2.75) was going the right way but the long motion-blur smears still looked like streaks/lines. The per-flake stretch is cut right down (cap 6.5 → 1.5) so the flakes stay mostly round and flake-like — like the calm "snow" — with only the fastest gust flakes getting a mild elongation. The storm keeps its menace from the dense, fast, gusting, brightening wind field, not from drawn streaks.
+
+---
+
 ## [1.2.75] — 2026-06-28
 
 ### Changed
