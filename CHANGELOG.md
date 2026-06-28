@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.73] — 2026-06-28
+
+### Diagnostics
+
+- **The SSR encoder now logs its average QP and quality-limitation reason periodically (every 4 s) under load**, not just one-shot at boot. The snow-only `/output` stutter is now confirmed to be server-side (it persists with a strong gaming PC as the `/output` client, so it is baked into the stream, not a client-decode issue). The offline A/B proved the cause is the encoder's realized QP climbing past ~32 (which quantizes small high-frequency flakes' motion away). This log surfaces that exact number live — `[ssr-publisher] enc-stats [periodic]: avgQp=… qualityLimitReason=… framesPerSecond=… encoderImpl=…` — so the realized QP and whether the encoder is "cpu"- or "bandwidth"-limited can be read directly from the server console while snow runs. `avgQp` ≳ 30 with snow running confirms encoder quantization (fix = lower realized QP: hardware encoder / more flowing bitrate); `avgQp` < ~26 means the cause is elsewhere.
+
+---
+
 ## [1.2.72] — 2026-06-28
 
 ### Fixed
