@@ -73,12 +73,16 @@
     toggle.type = "button";
     toggle.className = "rd-toggle";
     toggle.setAttribute("role", "switch");
-    const initial = Boolean(io.get(field.key));
+    // Optional value mapping: when field.trueValue / field.falseValue are
+    // set, the toggle drives a non-boolean field (e.g. workerStyle
+    // "lit"/"dark") — checked maps to trueValue, unchecked to falseValue.
+    const hasMap = field.trueValue !== undefined || field.falseValue !== undefined;
+    const initial = hasMap ? io.get(field.key) === field.trueValue : Boolean(io.get(field.key));
     toggle.setAttribute("aria-checked", initial ? "true" : "false");
     toggle.addEventListener("click", () => {
       const next = toggle.getAttribute("aria-checked") !== "true";
       toggle.setAttribute("aria-checked", next ? "true" : "false");
-      io.set(field.key, next);
+      io.set(field.key, hasMap ? (next ? field.trueValue : field.falseValue) : next);
       if (typeof opts.onChange === "function") {
         try { opts.onChange(next); } catch (err) { console.error(err); }
       }
@@ -200,13 +204,16 @@
     }
 
     if (isCityWorkers) {
-      rows.push(makeSelectRow(io, {
+      // Boolean toggle (operator 2026-06-28): replaces the old Dashboard/
+      // Beamer dropdown. ON = brighter, lit workers (the old "Beamer" look,
+      // reads better on the projector); OFF = dark silhouettes (the old
+      // "Dashboard" look). Maps to the existing workerStyle "lit"/"dark".
+      rows.push(makeToggleRow(io, {
         key: "workerStyle",
-        label: "Darstellung",
-        options: [
-          { value: "dark", label: "Silhouette (Dashboard)" },
-          { value: "lit", label: "Beleuchtet (Beamer)" },
-        ],
+        label: "Stronger lighting",
+        sub: "On: brighter, lit workers (better on the beamer). Off: dark silhouettes.",
+        trueValue: "lit",
+        falseValue: "dark",
       }));
       rows.push(makeSliderRow(io, {
         key: "workerCount",

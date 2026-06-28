@@ -10,6 +10,34 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.3.0] — 2026-06-28
+
+Release milestone rolling up the Phase 58 collection work (v1.2.6 → v1.2.76).
+Headline: a new coded **Snow / Snowstorm** effect, per-animation **playback
+modes** and **fade**, **live editing** of coded animations, big **city-workers**
+improvements, and a deep round of **projector (/output) smoothness** work.
+
+### Added
+
+- **Coded "Snow" effect** — a decode-free snow that never hitches like the snow video. Three controls (Dichte / Geschwindigkeit / Sturm) plus a **Mittlere Größe** (mean flake size) slider. "Sturm" is a full menacing, gusting, wind-driven **blizzard** built as a soft volumetric bokeh field (no hard streaks), and the calm mode is a depth-of-field flurry. Selectable in every scope (room / inside / outside).
+- **Per-animation playback modes** (loop / play-once / play-then-freeze / boomerang / reverse-on-retrigger) with the inside/outside reverse paths fixed to always play to completion before ending.
+- **Fade-in / fade-out** for any animation, with a duration slider that appears when fade is enabled.
+- **Live editing of coded animations** in Active Animations — edit a running effect's coded settings in real time (preview is dashboard-local until Done / Save-as-default), under a collapsible "Coded Settings" section.
+- **Unified coded-effect catalog** — room, inside and outside now offer the identical set of coded effects.
+
+### Changed
+
+- **City-workers**: a "Stronger lighting" toggle (replaces the old Dashboard/Beamer dropdown), configurable count (up to 24) and figure size, a calmer walk with a "Gehbewegung" sway slider, a movable/toggleable center-exclusion ring, and trail-intensity up to 300 % that no longer compounds where workers overlap.
+- **Inside/outside coded effects now honour the running instance**, so a configured "Snowstorm" (or any worker/heat setting) renders on the dashboard *and* the beamer from the first trigger — not only in the editor preview.
+- Frozen ("freeze") videos cost far less while parked on a still frame.
+
+### Fixed
+
+- A long, decisive round on the **snow /output smoothness**: the projector receives a server-side **WebRTC video** of the SSR-rendered tab, so smoothness is bound by the server encoder. Small high-frequency flakes were being quantized away at high QP (the "stick then jump"); fixes include a minimum soft flake footprint, brighter dim flakes, and the finding that **H.264 is the right codec on this hardware** (software VP9 only sustained ~15 fps at 1080p; H.264 reaches ~30 fps and lower QP). The SSR encoder also logs avg QP / quality-limitation reason for diagnosis.
+- Various stability fixes: a room/loop animation could wedge in "Stopping"; order-independent inside animation layering; a frozen inside animation restarting on an unrelated room edit; editor slider drag-release on first move.
+
+---
+
 ## [1.2.76] — 2026-06-28
 
 ### Changed

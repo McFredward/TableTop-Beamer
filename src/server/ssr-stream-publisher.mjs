@@ -491,17 +491,19 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     setTimeout(() => __pollEncoderStats("t+8s"), 8000);
     setTimeout(() => __pollEncoderStats("t+12s"), 12000);
     setTimeout(() => __pollEncoderStats("t+18s"), 18000);
-    // Phase 58-w3.9z: keep polling every 4s so the encoder's QP /
-    // qualityLimitationReason are visible UNDER LOAD (e.g. while snow runs),
-    // not just at boot. This is the data needed to confirm/refute the
-    // snow-only /output stutter as encoder quantization. Cleared on producer
-    // close so it doesn't leak across SSR restarts.
-    const __encStatsInterval = setInterval(() => __pollEncoderStats("periodic"), 4000);
-    try {
-      videoProducer.observer?.on?.("close", () => clearInterval(__encStatsInterval));
-      videoProducer.on?.("transportclose", () => clearInterval(__encStatsInterval));
-    } catch (e) {
-      console.warn("[ssr-publisher] enc-stats interval cleanup wiring failed:", e?.message);
+    // Phase 58-w3.9z: under SSR_PUBLISHER_DEBUG, keep polling every 4s so the
+    // encoder's QP / qualityLimitationReason are visible UNDER LOAD (e.g.
+    // while snow runs), not just at boot — the data for diagnosing the
+    // snow /output stutter. Off by default (the t+8/12/18s one-shots above
+    // already carry avgQp); cleared on producer close so it doesn't leak.
+    if (${publisherDebug ? "true" : "false"}) {
+      const __encStatsInterval = setInterval(() => __pollEncoderStats("periodic"), 4000);
+      try {
+        videoProducer.observer?.on?.("close", () => clearInterval(__encStatsInterval));
+        videoProducer.on?.("transportclose", () => clearInterval(__encStatsInterval));
+      } catch (e) {
+        console.warn("[ssr-publisher] enc-stats interval cleanup wiring failed:", e?.message);
+      }
     }
 
     // h17: SSR-side stats reporter. Replaces h8's single-fps message
