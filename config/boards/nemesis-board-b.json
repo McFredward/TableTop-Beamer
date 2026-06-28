@@ -9016,6 +9016,7 @@
       "room-71": true,
       "room-73": true
     },
-    "lastUsedProfileName": null
+    "lastUsedProfileName": null,
+    "videoCodec": "vp9"
   }
 }

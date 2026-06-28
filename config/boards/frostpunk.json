@@ -1929,6 +1929,7 @@
       }
     ],
     "frozenRooms": {},
-    "lastUsedProfileName": null
+    "lastUsedProfileName": null,
+    "videoCodec": "h264"
   }
 }

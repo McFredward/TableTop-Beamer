@@ -14,7 +14,7 @@ up into one MINOR release section at cut-time.
 
 ### Added
 
-- **Per-board video codec.** Each board now has its own codec (Settings → Board → "Video codec (this board)"). Defaults: all Nemesis boards (and newly imported boards) → **VP9**; Frostpunk → **H.264**.
+- **Per-board video codec.** Each board now has its own codec (Settings → Board → "Video codec (this board)"). Defaults: all Nemesis boards (and newly imported boards) → **VP9**; Frostpunk → **H.264**. The codec is stored in the board's config (`config/boards/<id>.json` → `videoCodec`) and travels with board **export / import**.
 - **Global codec mode** (Settings → System → "Video codec"): **Board-specific** (default — each board uses its own codec), or **Force H.264 / Force VP9** to override every board at once.
 - The active board now persists across server restarts (`config/active-board.json`).
 

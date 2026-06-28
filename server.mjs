@@ -31,6 +31,7 @@ import {
   scheduleServerRenderingWrite,
   SERVER_RENDERING_DEFAULTS,
   resolveEffectiveCodec,
+  defaultCodecForBoard,
 } from "./src/server/ssr-server-rendering-config.mjs";
 // Phase-31 h15: hardware-agnostic resource header helper (Connection: close
 // for /resources/animations/* etc.) — see module header for rationale.
@@ -2929,6 +2930,13 @@ function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRo
     if (inputBoard?.[field] !== undefined) {
       profileExtras[field] = inputBoard[field];
     }
+  }
+  // Phase 58 hotfix (2026-06-28): the per-board video codec is a first-class
+  // board-config field — always materialize it (default per board) so it is
+  // present on disk for every board created from an image, imported from a
+  // package, or normalized on load, and therefore travels with export/import.
+  if (profileExtras.videoCodec !== "h264" && profileExtras.videoCodec !== "vp9") {
+    profileExtras.videoCodec = defaultCodecForBoard(boardId);
   }
 
   return {

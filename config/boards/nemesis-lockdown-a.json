@@ -8753,6 +8753,7 @@
       "room-79": true,
       "room-80": true
     },
-    "lastUsedProfileName": null
+    "lastUsedProfileName": null,
+    "videoCodec": "vp9"
   }
 }

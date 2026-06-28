@@ -7277,6 +7277,7 @@
       "room-59": true,
       "room-63": true
     },
-    "lastUsedProfileName": null
+    "lastUsedProfileName": null,
+    "videoCodec": "vp9"
   }
 }
