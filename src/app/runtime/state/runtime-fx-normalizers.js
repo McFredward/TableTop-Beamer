@@ -171,6 +171,8 @@
       snowDensity: clampNumber(definition?.snowDensity, 0, 100, 55),
       snowSpeed: clampNumber(definition?.snowSpeed, 0, 100, 50),
       snowStorm: definition?.snowStorm === true,
+      // Phase 58-w3.9s: mean flake size (0–100, default 50).
+      snowFlakeSize: clampNumber(definition?.snowFlakeSize, 0, 100, 50),
       // Phase 58-w3.9h: optional fade-in/fade-out. Per-definition, shared
       // across room/inside/outside (this helper is spread into all three
       // normalizers) and across asset types (mp4/gif/coded). fadeEnabled

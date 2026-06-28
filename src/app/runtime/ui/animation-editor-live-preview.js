@@ -315,6 +315,7 @@
         snowDensity: current.snowDensity ?? 55,
         snowSpeed: current.snowSpeed ?? 50,
         snowStorm: current.snowStorm === true,
+        snowFlakeSize: current.snowFlakeSize ?? 50,
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {

@@ -15,6 +15,12 @@
 //   flickerNoise            — noise function for flicker effects
 (() => {
   let ctx = null;
+  // Phase 58-w3.9s: cached soft-blob sprite for the snow bokeh flakes.
+  // Built once (lazily) and blitted via drawImage — far cheaper than a
+  // per-flake createRadialGradient + fill, which measurably dropped fps on
+  // the projector (operator 2026-06-28: snow felt laggy). Static → keeps the
+  // effect deterministic (same blit every client).
+  let snowBlobSprite = null;
 
   function init(dependencies) {
     ctx = dependencies;
@@ -1532,6 +1538,12 @@
         (Number.isFinite(Number(options.snowDensity)) ? Number(options.snowDensity) : 55) / 100));
       const speedKnob = Math.max(0, Math.min(1,
         (Number.isFinite(Number(options.snowSpeed)) ? Number(options.snowSpeed) : 50) / 100));
+      // Phase 58-w3.9s: mean flake size knob (0–100, default 50). Maps to a
+      // size multiplier where 50 → 1.0; scales BOTH the mean and the per-
+      // flake variance, so the whole field grows/shrinks around its mean.
+      const sizeKnob = Math.max(0, Math.min(100,
+        Number.isFinite(Number(options.snowFlakeSize)) ? Number(options.snowFlakeSize) : 50));
+      const sizeMul = sizeKnob / 50;
 
       // Region bounds (bounding box of the clipped polygon).
       const regX = roomMinX;
@@ -1596,15 +1608,35 @@
       // sehr nach Punkten"). A radial gradient gives the soft falloff; only
       // the ~15 % OOF flakes use it, so the per-frame gradient count stays
       // modest (Pi budget).
+      if (!snowBlobSprite) {
+        // Build the soft radial blob ONCE into a 64px offscreen canvas.
+        const S = 64;
+        const off = (typeof document !== "undefined" && document.createElement)
+          ? document.createElement("canvas")
+          : null;
+        if (off) {
+          off.width = S;
+          off.height = S;
+          const oc = off.getContext("2d");
+          const g = oc.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+          g.addColorStop(0, "rgba(238, 244, 255, 1)");
+          g.addColorStop(0.45, "rgba(236, 243, 255, 0.4)");
+          g.addColorStop(1, "rgba(236, 243, 255, 0)");
+          oc.fillStyle = g;
+          oc.beginPath();
+          oc.arc(S / 2, S / 2, S / 2, 0, TAU);
+          oc.fill();
+          snowBlobSprite = off;
+        }
+      }
+      // Blit the cached blob sprite at the flake's size, modulating opacity
+      // via globalAlpha (cheap GPU blit vs a per-flake gradient build).
       const softBlob = (x, y, r, a) => {
-        const g = c.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, `rgba(238, 244, 255, ${a})`);
-        g.addColorStop(0.45, `rgba(236, 243, 255, ${a * 0.4})`);
-        g.addColorStop(1, "rgba(236, 243, 255, 0)");
-        c.fillStyle = g;
-        c.beginPath();
-        c.arc(x, y, r, 0, TAU);
-        c.fill();
+        if (!snowBlobSprite) return;
+        const prevA = c.globalAlpha;
+        c.globalAlpha = Math.max(0, Math.min(1, a));
+        c.drawImage(snowBlobSprite, x - r, y - r, r * 2, r * 2);
+        c.globalAlpha = prevA;
       };
       // Cheap soft-edged dot (no gradient allocation) — a dim wide disc + a
       // brighter core, soft enough under additive blending. Used for the
@@ -1691,10 +1723,12 @@
         let size;
         let alphaBase;
         if (oof) {
-          size = unit * (0.006 + h3 * (storm ? 0.010 : 0.015));
+          // Base sizes reduced (operator 2026-06-28: flakes too big) then
+          // scaled by the mean-size knob; the variance term scales too.
+          size = unit * (0.0040 + h3 * (storm ? 0.0070 : 0.0100)) * sizeMul;
           alphaBase = 0.07 + h2 * 0.13;
         } else {
-          size = Math.max(0.7, unit * (0.0012 + sizeHash * (storm ? 0.0050 : 0.0058)));
+          size = Math.max(0.6, unit * (0.0009 + sizeHash * (storm ? 0.0034 : 0.0040)) * sizeMul);
           alphaBase = 0.26 + h2 * 0.56;
         }
 
@@ -1711,10 +1745,10 @@
           // isn't a rigid grid. Layer chosen by the focus hash so depth,
           // softness and wind-layer correlate (nearer = own wind).
           const lw = layerWind[h7 < 0.34 ? 0 : (h7 < 0.67 ? 1 : 2)] || layerWind[0];
-          const turbX = Math.sin(tw * 0.7 + i * 1.7) * unit * 0.018
-            + Math.sin(tw * 0.31 + i * 0.9) * unit * 0.020;
-          const turbY = Math.cos(tw * 0.62 + i * 1.3) * unit * 0.018
-            + Math.sin(tw * 0.27 + i * 2.1) * unit * 0.020;
+          // Single low-frequency oscillator per axis (was two) — cheaper and
+          // smoother (slower wander reads less "steppy" at stream fps).
+          const turbX = Math.sin(tw * 0.5 + i * 1.7) * unit * 0.032;
+          const turbY = Math.cos(tw * 0.45 + i * 1.3) * unit * 0.032;
           let fx = (h1 * regW + lw.dx + turbX) % regW;
           if (fx < 0) fx += regW;
           let fy = (h2 * regH + lw.dy + turbY) % regH;

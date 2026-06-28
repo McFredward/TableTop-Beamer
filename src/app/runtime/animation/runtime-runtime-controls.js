@@ -345,6 +345,32 @@
       offsetXScale: matchedDefinition.offsetXScale ?? 0,
       offsetYScale: matchedDefinition.offsetYScale ?? 0,
     } : {};
+    // Phase 58-w3.9s: forward ALL coded-effect options from the definition
+    // onto the running instance (mirrors insideTransformSeed). Without this
+    // a triggered coded inside/outside animation lost its configured options
+    // — most visibly, a "Snowstorm" definition (snowStorm=true) rendered as
+    // calm Snow on the dashboard AND /output because the instance carried no
+    // snow options and the render reads instance-first (operator 2026-06-28:
+    // "Storm" only differed in the editor preview, not on the board). Only
+    // present values are copied so the renderer's own defaults still apply
+    // for anything the definition omits. Keys mirror createAnimation's coded
+    // params + the server's codedOptionKeys.
+    const codedOptionsSeed = {};
+    if (matchedDefinition) {
+      const CODED_OPTION_KEYS = [
+        "colorHex", "heatShowSource", "heatSyncNearestSource", "heatIrregularPulse",
+        "workerStyle", "workerCount", "workerGroups", "workerLanternShare",
+        "workerTrails", "workerSize", "workerSwayAmount", "workerClothingBrightness",
+        "workerTrailIntensity", "workerCenterExclusion", "workerCenterExclusionRadius",
+        "workerExclusionOffsetX", "workerExclusionOffsetY", "workerExclusionRingVisible",
+        "snowDensity", "snowSpeed", "snowStorm", "snowFlakeSize",
+      ];
+      for (const key of CODED_OPTION_KEYS) {
+        if (matchedDefinition[key] !== undefined && matchedDefinition[key] !== null) {
+          codedOptionsSeed[key] = matchedDefinition[key];
+        }
+      }
+    }
     const isNonLoopMode = definitionPlaybackMode !== "loop";
     // Phase 58 Wave 3.8m (2026-06-08): the per-trigger "Loop until
     // stopped" dashboard switch was removed — looping is now driven
@@ -429,6 +455,7 @@
         // exactly like room dispatch stamps selectedDefinition.name.
         animationName: matchedDefinition?.name,
         ...insideTransformSeed,
+        ...codedOptionsSeed,
         // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
         fadeEnabled: matchedDefinition?.fadeEnabled === true,
         fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,
@@ -494,6 +521,7 @@
           animationName: matchedDefinition?.name,
           // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
           ...insideTransformSeed,
+          ...codedOptionsSeed,
           // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
           fadeEnabled: matchedDefinition?.fadeEnabled === true,
           fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,
@@ -548,6 +576,7 @@
         animationName: matchedDefinition?.name,
         // Phase 58 Wave 3.8n: inside transform seed (empty for outside).
         ...insideTransformSeed,
+        ...codedOptionsSeed,
         // Phase 58-w3.9h: optional fade-in/fade-out (per-definition).
         fadeEnabled: matchedDefinition?.fadeEnabled === true,
         fadeDurationMs: matchedDefinition?.fadeDurationMs ?? 800,

@@ -522,6 +522,7 @@
         snowDensity: animation.snowDensity ?? 55,
         snowSpeed: animation.snowSpeed ?? 50,
         snowStorm: animation.snowStorm === true,
+        snowFlakeSize: animation.snowFlakeSize ?? 50,
       },
     );
   }
@@ -760,6 +761,7 @@
       snowDensity: pick("snowDensity") ?? 55,
       snowSpeed: pick("snowSpeed") ?? 50,
       snowStorm: pick("snowStorm") === true,
+      snowFlakeSize: pick("snowFlakeSize") ?? 50,
     };
   }
 

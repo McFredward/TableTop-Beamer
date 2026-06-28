@@ -921,7 +921,7 @@ function applyGlobalMutationPatch(payload) {
       "workerTrails", "workerSize", "workerSwayAmount", "workerClothingBrightness",
       "workerTrailIntensity", "workerCenterExclusion", "workerCenterExclusionRadius",
       "workerExclusionOffsetX", "workerExclusionOffsetY", "workerExclusionRingVisible",
-      "snowDensity", "snowSpeed", "snowStorm",
+      "snowDensity", "snowSpeed", "snowStorm", "snowFlakeSize",
     ];
     const incomingCodedOptions = {};
     for (const key of codedOptionKeys) {

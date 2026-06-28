@@ -10,6 +10,22 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.66] — 2026-06-28
+
+### Fixed
+
+- **"Snowstorm" (the Storm toggle) now actually renders on the dashboard and /output — not only in the editor preview.** A triggered inside/outside coded animation was created without ANY of its definition's coded options (`snowStorm`, `snowDensity`, `snowSpeed`, the `worker*`/`heat*` set, `colorHex`): `upsertGlobalAnimation` forwarded transform/playback/sound/fade but not the coded options, so the running instance carried none and — since the renderer reads instance-first — fell back to the renderer's defaults (storm → calm). The editor *preview* read the definition directly, which is why only it showed the difference. The trigger dispatch now seeds the full coded-option set from the definition onto the instance (a `codedOptionsSeed`, mirroring the existing transform seed), so a "Snowstorm" definition storms everywhere from the first trigger. This also fixes any configured worker/heat option not showing on a freshly-triggered inside/outside animation.
+
+### Added
+
+- **"Mittlere Größe" (mean flake size) slider for the coded snow effect** (0–100 %, default 50). Sets the average flake size; the per-flake size variance scales with it, so the whole field grows or shrinks around the chosen mean (the operator's "von dort aus gibt es in der Standardabweichung größere oder kleinere"). Plumbed through the full Phase-50 chain (definition → normalizer → all dispatch sites → instance → snapshot → draw loop → both editors). Default flake sizes were also reduced (operator: flakes too big), so the default look is finer.
+
+### Changed
+
+- **Snow rendering is cheaper / smoother on the projector.** Following a single flake on /output looked slightly jerky despite ~30 fps. The soft out-of-focus bokeh flakes now blit a **cached sprite** (built once) instead of allocating a radial gradient per flake every frame — the single most expensive primitive on low-power hardware — and the storm's per-flake turbulence was reduced from two oscillators per axis to one (lower-frequency, smoother). Combined with the smaller default flake size and the reduced storm density, per-frame cost drops, so frames are more even and the motion reads smoother. Still fully deterministic (dashboard == /output == SSR).
+
+---
+
 ## [1.2.65] — 2026-06-28
 
 ### Changed

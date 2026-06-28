@@ -99,6 +99,10 @@
     snowDensity = 55,
     snowSpeed = 50,
     snowStorm = false,
+    // Phase 58-w3.9s: mean flake size (0–100, default 50). Scales the
+    // average flake size; the per-flake size variance (std-dev) scales with
+    // it, so dialing it up/down grows/shrinks the whole field proportionally.
+    snowFlakeSize = 50,
     // Phase 58-w3.9h: optional fade-in/fade-out (per-definition, all
     // scopes + asset types). Defaults preserve the abrupt start/stop, so a
     // caller that misses these forwards the legacy behavior (Phase 50
@@ -224,6 +228,9 @@
         ? Math.max(0, Math.min(100, Number(snowSpeed)))
         : 50,
       snowStorm: snowStorm === true,
+      snowFlakeSize: Number.isFinite(Number(snowFlakeSize))
+        ? Math.max(0, Math.min(100, Number(snowFlakeSize)))
+        : 50,
       // Phase 58-w3.9h: per-instance fade config (same factory-default-mask
       // contract as the fields above; snapshots carry these via the full
       // object spread in buildAnimationSnapshotForLiveSync). The render

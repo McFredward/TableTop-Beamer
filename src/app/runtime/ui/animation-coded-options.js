@@ -333,6 +333,14 @@
         min: 0, max: 100, step: 5,
         format: (v) => `${Math.round(v)}%`,
       }));
+      // Phase 58-w3.9s: mean flake size. The per-flake size variance scales
+      // with it, so this grows/shrinks the whole field around its mean.
+      rows.push(makeSliderRow(io, {
+        key: "snowFlakeSize",
+        label: "Mittlere Größe",
+        min: 0, max: 100, step: 5,
+        format: (v) => `${Math.round(v)}%`,
+      }));
       rows.push(makeToggleRow(io, {
         key: "snowStorm",
         label: "Sturm",
@@ -412,6 +420,7 @@
     "snowDensity",
     "snowSpeed",
     "snowStorm",
+    "snowFlakeSize",
     "breaksSolidColor",
   ];
 

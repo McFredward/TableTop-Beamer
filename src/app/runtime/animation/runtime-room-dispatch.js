@@ -137,6 +137,7 @@
         snowDensity: selectedDefinition.snowDensity ?? 55,
         snowSpeed: selectedDefinition.snowSpeed ?? 50,
         snowStorm: selectedDefinition.snowStorm === true,
+        snowFlakeSize: selectedDefinition.snowFlakeSize ?? 50,
         // Phase 58-w3.9h: optional fade-in/fade-out — per-definition, carried
         // onto every dispatched instance (same factory-default-mask trap as
         // the fields above: every createAnimation call site forwards these).
@@ -494,6 +495,7 @@
                     snowDensity: draftPayload.snowDensity,
                     snowSpeed: draftPayload.snowSpeed,
                     snowStorm: draftPayload.snowStorm,
+                    snowFlakeSize: draftPayload.snowFlakeSize,
                     // Phase 58-w3.9h: fade config — explicit pass-through.
                     fadeEnabled: draftPayload.fadeEnabled,
                     fadeDurationMs: draftPayload.fadeDurationMs,
@@ -640,6 +642,7 @@
           snowDensity: draftPayload.snowDensity,
           snowSpeed: draftPayload.snowSpeed,
           snowStorm: draftPayload.snowStorm,
+          snowFlakeSize: draftPayload.snowFlakeSize,
           // Phase 58-w3.9h: fade config — explicit pass-through.
           fadeEnabled: draftPayload.fadeEnabled,
           fadeDurationMs: draftPayload.fadeDurationMs,
@@ -698,6 +701,7 @@
             snowDensity: draftPayload.snowDensity,
             snowSpeed: draftPayload.snowSpeed,
             snowStorm: draftPayload.snowStorm,
+            snowFlakeSize: draftPayload.snowFlakeSize,
             // Phase 58-w3.9h: fade config — explicit pass-through.
             fadeEnabled: draftPayload.fadeEnabled,
             fadeDurationMs: draftPayload.fadeDurationMs,
@@ -847,6 +851,7 @@
                   snowDensity: draftPayload.snowDensity,
                   snowSpeed: draftPayload.snowSpeed,
                   snowStorm: draftPayload.snowStorm,
+                  snowFlakeSize: draftPayload.snowFlakeSize,
                   // Phase 58-w3.9h: fade config — explicit pass-through.
                   fadeEnabled: draftPayload.fadeEnabled,
                   fadeDurationMs: draftPayload.fadeDurationMs,
@@ -999,6 +1004,7 @@
         snowDensity: draftPayload.snowDensity,
         snowSpeed: draftPayload.snowSpeed,
         snowStorm: draftPayload.snowStorm,
+        snowFlakeSize: draftPayload.snowFlakeSize,
         // Phase 58-w3.9h: fade config — explicit pass-through.
         fadeEnabled: draftPayload.fadeEnabled,
         fadeDurationMs: draftPayload.fadeDurationMs,
@@ -1059,6 +1065,7 @@
           snowDensity: draftPayload.snowDensity,
           snowSpeed: draftPayload.snowSpeed,
           snowStorm: draftPayload.snowStorm,
+          snowFlakeSize: draftPayload.snowFlakeSize,
           // Phase 58-w3.9h: fade config — explicit pass-through.
           fadeEnabled: draftPayload.fadeEnabled,
           fadeDurationMs: draftPayload.fadeDurationMs,
