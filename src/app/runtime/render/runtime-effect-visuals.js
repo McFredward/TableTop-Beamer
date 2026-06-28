@@ -1705,13 +1705,13 @@
           // streak length + brightness (via speedFrac below) so a stoß hits
           // visibly harder than the steady swell — bounded so it stays
           // immersive, not cartoonish. Layers punch at different times.
-          const punch = Math.pow(Math.max(0, Math.sin(tw * 0.24 + L * 2.3)), 8);
+          const punch = Math.pow(Math.max(0, Math.sin(tw * 0.26 + L * 2.3)), 5);
           layerWind.push({
             ux: wx / speed,
             uy: wy / speed,
             dx: vBase * dx,
             dy: vBase * dy,
-            speedFrac: Math.min(2.4, speed + punch * 1.0), // gust bursts on top of the swell
+            speedFrac: Math.min(3.0, speed + punch * 1.7), // gust bursts on top of the swell
           });
         }
       }
@@ -1802,35 +1802,34 @@
           // Out-of-focus bokeh — soft blob in BOTH modes; never streaks.
           softBlob(px, py, size, alpha * 0.95);
         } else if (storm) {
-          // Streak length comes from the SHARED layer wind speed × a per-
-          // flake size/speed factor. When the wind gusts the whole layer
-          // streaks longer together; in a lull it shrinks to soft dots —
-          // coherent, never extreme (length is bounded).
-          const flakeSpeed = windSpeedFrac * (0.5 + h4 * 0.95);
+          // Per-flake direction = the layer wind ROTATED by a FIXED per-flake
+          // offset → chaos around the prevailing wind. The wind still drives
+          // the bulk one general way, but each flake leans differently
+          // (operator 2026-06-28: "mehr chaos auch wenn der wind den großteil
+          // in eine richtung treibt"). The offset is static per flake (+ a
+          // slow gentle drift), so directions DON'T flicker frame-to-frame.
+          const angOff = (h5 - 0.5) * 1.5 + Math.sin(tw * 0.3 + i * 1.3) * 0.16;
+          const co = Math.cos(angOff);
+          const so = Math.sin(angOff);
+          const ux = windUX * co - windUY * so;
+          const uy = windUX * so + windUY * co;
+          // CONTINUOUS length: a round-capped capsule centred on the flake,
+          // whose length grows from ~0 (a soft dot) smoothly with speed. No
+          // binary dot↔streak switch, so flakes no longer POP in and out as
+          // the gust waxes/wanes (operator: "Striche verschwinden und tauchen
+          // wieder auf"). Per-flake speed factor adds length chaos. One op.
+          const flakeSpeed = windSpeedFrac * (0.35 + h4 * 1.15);
           const len = unit * (0.010 + speedKnob * 0.012) * (0.5 + sizeHash)
-            * Math.min(2.4, flakeSpeed * 2.2);
-          if (len < size * 1.9) {
-            // lull / slow flake → soft round flake (keeps the field snow-like)
-            softDot(px, py, size * 1.4, alpha * 0.9);
-          } else {
-            // SYMMETRIC soft motion-blur streak CENTRED on the flake: a faint
-            // full-length pass + a brighter inner pass, both centred, round
-            // caps. No bright head dot → no comet/"sperm" shape (operator
-            // 2026-06-28); it fades evenly at both ends like wind-blurred
-            // snow and points along the shared layer wind (coherent).
-            // Single round-capped stroke centred on the flake (w3.9u: was
-            // two passes — halved for the SSR budget). Round caps + additive
-            // blend keep it a soft symmetric motion-blur, no head/"sperm".
-            const hx = windUX * len * 0.5;
-            const hy = windUY * len * 0.5;
-            c.globalAlpha = alpha * 0.92;
-            c.strokeStyle = COL_CORE;
-            c.lineWidth = Math.max(0.7, size * 0.95);
-            c.beginPath();
-            c.moveTo(px - hx, py - hy);
-            c.lineTo(px + hx, py + hy);
-            c.stroke();
-          }
+            * Math.min(2.7, flakeSpeed * 2.3);
+          const hx = ux * len * 0.5;
+          const hy = uy * len * 0.5;
+          c.globalAlpha = alpha;
+          c.strokeStyle = COL_CORE;
+          c.lineWidth = Math.max(0.8, size * 1.5);
+          c.beginPath();
+          c.moveTo(px - hx, py - hy);
+          c.lineTo(px + hx, py + hy);
+          c.stroke();
         } else {
           // Calm in-focus flake. Medium ones get a soft edge; the tiniest
           // stay crisp pinpoints — the size/softness mix reads as snow.

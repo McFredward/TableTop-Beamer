@@ -10,6 +10,19 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.69] — 2026-06-28
+
+### Fixed
+
+- **Snowstorm streaks no longer pop in and out of existence.** Each flake was rendered by a binary choice — a dot below a length threshold, a streak above it — so as the gust waxed and waned, flakes flipped between the two and the streaks appeared/disappeared (very visible, not immersive). A flake is now always drawn as ONE round-capped capsule whose length grows continuously from ~0 (which reads as a soft dot) with the wind speed — so it smoothly stretches and shrinks instead of popping.
+
+### Changed
+
+- **Snowstorm has more chaos again, while still wind-driven.** The coherent wind made every flake in a layer point the *exact* same way, which read as too uniform. Each flake now takes a FIXED per-flake angular offset around its layer's prevailing wind (≈ ±43°), plus a slow gentle drift — so the wind still drives the bulk one general direction but individual flakes scatter around it (operator: "mehr chaos auch wenn der wind den großteil in eine richtung treibt"). The offset is static per flake, so directions don't flicker frame-to-frame.
+- **Gust punches hit noticeably harder.** The intermittent per-layer gust burst is stronger and a touch more frequent (the operator felt no difference before), so a stoß now clearly lengthens and brightens that layer's snow before settling back — still bounded.
+
+---
+
 ## [1.2.68] — 2026-06-28
 
 ### Fixed
