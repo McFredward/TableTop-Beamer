@@ -10,6 +10,14 @@ up into one MINOR release section at cut-time.
 
 ---
 
+## [1.2.71] — 2026-06-28
+
+### Fixed
+
+- **The snow-only /output lag — small flakes "stick then jump" — fixed with the same anti-quantization the workers needed.** Decisive operator observation (2026-06-28): the lag affects ONLY the snow animation; every other animation runs smoothly on `/output` in parallel, and it's worse for smaller flakes. That is precisely the per-figure worker stutter solved in v1.2.48: a small, slowly-translating element moving under ~0.2 px/frame cannot be represented on the discrete pixel pipeline (canvas raster → VP9/WebRTC encode → projector grid) — its centroid holds a pixel for several frames then snaps ("stick then jump"). The worker debugging proved brightness and edge-feather do NOT help — only per-frame motion magnitude does (so the earlier softening attempt was the wrong lever). Every snow flake now carries a tiny constant-speed circular **micro-orbit** (~0.7–0.8 px radius, 2.2 Hz, per-flake phase): a circle has no velocity zero-crossing, so each flake's per-frame motion stays above the grid threshold every frame even when nearly stationary, while the orbit averages to zero over a cycle so the net drift, the look, and the dashboard==SSR==/output determinism are all preserved. Because motion magnitude (not size) is what matters, the minimum flake footprint was also reduced so the "Mittlere Größe" slider can make flakes genuinely small again without bringing the stutter back.
+
+---
+
 ## [1.2.70] — 2026-06-28
 
 ### Changed
