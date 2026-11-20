@@ -39,40 +39,26 @@
   const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
   const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
   const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
-  // Phase 30 Plan 30-04 T16: bumped 350 → 1500 ms.
-  // T13 captures the fallback every 5th rAF; on Pi at 12 fps that's
-  // ~417 ms between captures, sometimes slipping past the 350 ms
-  // freshness gate → drawOutsideMp4FallbackFrame returned false →
-  // outside region went black during the loop-wrap seek window
-  // (the visible "hiccup" the user reports). 1500 ms is generously
-  // above any plausible capture cadence on Pi (would need <0.7 fps
-  // to miss the gate); the captured frame is still very close to
-  // the live frame visually for a slow-moving particle/sand backdrop.
-  const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 1500;
 
   function init(dependencies) {
     ctx = dependencies;
   }
 
-  function getMediaVideoElement(cacheMap, path, opts = {}) {
+  function mp4CacheKey(path, { instanceId, playbackMode, scope } = {}) {
+    // Rooms sharing a loop stay in sync. An inside global effect can use
+    // the same asset at a different rate, so it has its own cache entry.
+    const scopedPath = scope === "inside" ? `inside:${path}` : path;
+    return instanceId && playbackMode && playbackMode !== "loop"
+      ? `${scopedPath}#${instanceId}`
+      : scopedPath;
+  }
+
+  function getMediaVideoElement(cacheMap, path, opts) {
     const normalizedPath = String(path || "").trim();
     if (!normalizedPath) {
       return null;
     }
-    // Phase 58 Wave 3.2: per-instance video element for non-loop modes
-    // so multiple rooms running the same play-then-freeze animation
-    // have INDEPENDENT lifecycles. Without this, Room B's just-triggered
-    // animation inherits Room A's already-frozen video and shows the
-    // last frame immediately (operator UAT 2026-06-04).
-    // Loop mode keeps the shared per-path cache (legacy behavior;
-    // identical content stays in sync across multiple targets).
-    const usePerInstance =
-      opts.instanceId
-      && opts.playbackMode
-      && opts.playbackMode !== "loop";
-    const cacheKey = usePerInstance
-      ? `${normalizedPath}#${opts.instanceId}`
-      : normalizedPath;
+    const cacheKey = mp4CacheKey(normalizedPath, opts);
     // Phase 28 B5: resolve the hash-suffixed URL. Map key stays as the raw
     // `normalizedPath` so the asset-picker delete logic and the rest of the
     // render layer continue to find cache entries by canonical path. Only
@@ -81,12 +67,12 @@
       window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(normalizedPath) ?? normalizedPath;
     if (!cacheMap.has(cacheKey)) {
       const video = document.createElement("video");
-      video.src = resolveHashUrl();
       video.crossOrigin = "anonymous";
       video.preload = "auto";
       video.muted = true;
       video.loop = false;
       video.playsInline = true;
+      video.src = resolveHashUrl();
       cacheMap.set(cacheKey, {
         status: "loading",
         video,
@@ -259,40 +245,23 @@
     return /[?&]height=\d+/.test(src) ? "proxy480" : "full";
   }
 
-  function prewarmBoardOutsideMp4Asset(boardId, { reason = "board-switch" } = {}) {
+  function prewarmBoardOutsideMp4Asset(boardId) {
     const definition = ctx.getSelectedOutsideAnimationDefinition(boardId);
     if (!definition || definition.assetType !== "mp4") {
       return;
     }
-    const videoEntry = getOutsideVideoElement(definition.assetRef);
-    const video = videoEntry?.video;
-    if (!video) {
-      return;
-    }
-    video.preload = "auto";
-    if (video.readyState >= 2) {
-      return;
-    }
-    const prime = () => {
-      void video.play()
-        .then(() => {
-          video.pause();
-        })
-        .catch(() => undefined);
-    };
-    if (reason === "startup") {
-      prime();
-      return;
-    }
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(() => prime(), { timeout: 400 });
-      return;
-    }
-    window.setTimeout(() => prime(), 40);
+    // The element uses preload=auto. A prewarm play()/pause() can pause an
+    // already visible video when the promise settles after the first draw.
+    getOutsideVideoElement(definition.assetRef);
   }
 
   function clearOutsideMp4PlaybackState(boardId) {
-    outsideMp4PlaybackStateByBoard.delete(boardId ?? ctx.state.boardId);
+    const effectiveBoardId = boardId ?? ctx.state.boardId;
+    const playbackState = outsideMp4PlaybackStateByBoard.get(effectiveBoardId);
+    if (!playbackState) return;
+    outsideMp4PlaybackStateByBoard.delete(effectiveBoardId);
+    unbindOutsideMp4FrameCallback(playbackState);
+    playbackState.video.pause();
   }
 
   function clearOutsideTimelineState(boardId) {
@@ -341,30 +310,31 @@
     return Math.min(Math.max(0.01, OUTSIDE_MP4_LOOP_START_OFFSET_SEC), Math.max(0, duration - 0.02));
   }
 
-  function ensureOutsideMp4FallbackCanvas(playbackState) {
-    if (!playbackState) {
-      return null;
-    }
+  function ensureOutsideMp4FallbackCanvas(playbackState, video) {
+    // The cached frame only needs the detail the source and projection
+    // can both show. Small previews can also reuse a smaller surface.
+    const width = Math.min(video.videoWidth, ctx.canvas.width);
+    const height = Math.min(video.videoHeight, ctx.canvas.height);
     if (!playbackState.fallbackCanvas || !playbackState.fallbackCtx) {
       const fallbackCanvas = document.createElement("canvas");
-      const fallbackCtx = fallbackCanvas.getContext("2d", { alpha: true });
+      const fallbackCtx = fallbackCanvas.getContext("2d", { alpha: false });
       if (!fallbackCtx) {
         return null;
       }
       playbackState.fallbackCanvas = fallbackCanvas;
       playbackState.fallbackCtx = fallbackCtx;
     }
-    const mainCanvas = ctx.canvas;
-    if (playbackState.fallbackCanvas.width !== mainCanvas.width || playbackState.fallbackCanvas.height !== mainCanvas.height) {
-      playbackState.fallbackCanvas.width = mainCanvas.width;
-      playbackState.fallbackCanvas.height = mainCanvas.height;
+    if (playbackState.fallbackCanvas.width !== width || playbackState.fallbackCanvas.height !== height) {
+      playbackState.fallbackCanvas.width = width;
+      playbackState.fallbackCanvas.height = height;
+      playbackState.hasVisibleFrame = false;
     }
     return playbackState;
   }
 
   function captureOutsideMp4FallbackFrame(playbackState, video) {
-    if (!playbackState || !video) {
-      return;
+    if (!playbackState || !video || video.seeking || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+      return false;
     }
     // Phase 58 Wave 3.7i (2026-06-05): ended-video blank-frame guard.
     // On Firefox, drawImage of an ENDED video can intermittently yield
@@ -374,17 +344,22 @@
     // the video has ended UNLESS the state has no visible frame yet
     // (first capture is strictly better than nothing).
     if (video.ended === true && playbackState.hasVisibleFrame && playbackState.fallbackCanvas) {
-      return;
+      return false;
     }
-    const fallbackState = ensureOutsideMp4FallbackCanvas(playbackState);
+    const fallbackState = ensureOutsideMp4FallbackCanvas(playbackState, video);
     if (!fallbackState?.fallbackCtx) {
-      return;
+      return false;
     }
-    fallbackState.fallbackCtx.clearRect(0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
-    fallbackState.fallbackCtx.drawImage(video, 0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
-    fallbackState.lastVisibleFrameAtMs = performance.now();
-    fallbackState.lastDecodedFrameAtMs = fallbackState.lastVisibleFrameAtMs;
+    try {
+      fallbackState.fallbackCtx.drawImage(video, 0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
+    } catch {
+      // The decoder can lose the frame between the readiness check and
+      // drawImage. Keep compositing the last frame and retry next draw.
+      return false;
+    }
     fallbackState.hasVisibleFrame = true;
+    markMp4FramePainted(playbackState);
+    return true;
   }
 
   function drawOutsideMp4FallbackFrame(playbackState) {
@@ -445,52 +420,32 @@
     }
   }
 
+  function unbindOutsideMp4FrameCallback(playbackState) {
+    const binding = playbackState.videoFrameBinding;
+    if (!binding) return;
+    playbackState.videoFrameBinding = null;
+    playbackState.videoFrameCallbackBound = false;
+    binding.video.cancelVideoFrameCallback?.(binding.id);
+  }
+
   function bindOutsideMp4FrameCallback(video, playbackState) {
-    // Phase 58 Wave 3.7h (2026-06-05): bind per (state, video-element)
-    // PAIR, not per state. The old boolean `videoFrameCallbackBound`
-    // guard meant a brand-new <video> element attached to a preserved /
-    // stale playback state was NEVER rVFC-bound (counters frozen →
-    // hasNewDecodedFrame false forever → permanent stale-fallback
-    // paint). See phase-58-bugB-flicker.md root cause (2).
-    if (!video || !playbackState || playbackState._rvfcBoundVideo === video) {
-      return;
-    }
-    if (typeof video.requestVideoFrameCallback !== "function") {
-      return;
-    }
+    if (!video || !playbackState || playbackState.videoFrameBinding?.video === video
+        || typeof video.requestVideoFrameCallback !== "function") return;
+    unbindOutsideMp4FrameCallback(playbackState);
+    const binding = { video, id: null };
+    playbackState.videoFrameBinding = binding;
     playbackState.videoFrameCallbackBound = true;
-    playbackState._rvfcBoundVideo = video;
-    const onVideoFrame = (_t, metadata) => {
-      // Phase 58 Wave 3.7h: freshness stamp consumed by isRvfcFresh —
-      // lets the draw loop detect Firefox rVFC starvation and degrade
-      // to the time-gate instead of replaying a frozen fallback.
-      playbackState._lastRvfcFireAtMs = performance.now();
-      playbackState.lastDecodedFrameAtMs = performance.now();
-      playbackState.hasVisibleFrame = true;
-      // Phase 57 diag: count rVFC decode events for instrumentation
-      playbackState._decodedFrameCount = (playbackState._decodedFrameCount || 0) + 1;
-      if (metadata && typeof metadata.mediaTime === "number") {
-        playbackState._lastMediaTime = metadata.mediaTime;
-      }
-      if (metadata && typeof metadata.presentedFrames === "number") {
-        playbackState._lastPresentedFrames = metadata.presentedFrames;
-      }
-      // Phase 57 v1.1.7 (2026-06-02): Bug A — eagerly capture the
-      // fallback canvas on every rVFC fire (not only after a successful
-      // live paint). Closes the race where the paint site's
-      // `haveLiveFrame` check fails transiently (seek window /
-      // readyState dip) → no capture happens → fallback stays null →
-      // `getRoomMp4FallbackSource` returns null → region painted BLACK
-      // (operator-visible strobe). rVFC firing proves Chromium has a
-      // presentable frame in the texture, so the capture is safe.
-      try {
-        captureOutsideMp4FallbackFrame(playbackState, video);
-      } catch {
-        // canvas surface may be transiently unavailable during page tear-down
-      }
-      video.requestVideoFrameCallback(onVideoFrame);
+    playbackState._decodedFrameCount = 0;
+    playbackState._lastPaintedDecodedCount = 0;
+    playbackState._lastRvfcFireAtMs = -Infinity;
+
+    const onVideoFrame = (now) => {
+      if (playbackState.videoFrameBinding !== binding) return;
+      playbackState._lastRvfcFireAtMs = now;
+      playbackState._decodedFrameCount += 1;
+      binding.id = video.requestVideoFrameCallback(onVideoFrame);
     };
-    video.requestVideoFrameCallback(onVideoFrame);
+    binding.id = video.requestVideoFrameCallback(onVideoFrame);
   }
 
   function shouldDrawOutsideMp4Now(playbackState) {
@@ -619,7 +574,16 @@
     const didLifecycleChange =
       !previous
       || previous.lifecycleKey !== normalizedLifecycleKey
-      || previous.assetRef !== normalizedAssetRef;
+      || previous.assetRef !== normalizedAssetRef
+      || previous.video !== video;
+
+    if (previous && previous.video !== video) {
+      unbindOutsideMp4FrameCallback(previous);
+      previous.video.pause();
+      previous.hasVisibleFrame = false;
+      previous.lastDrawAtMs = 0;
+      previous.lastLoopWrapAtMs = 0;
+    }
 
     // Phase 58: non-loop modes flip video.loop=false so the native
     // `ended` event fires once and the render path can freeze the last
@@ -683,40 +647,20 @@
       void video.play().catch(() => undefined);
     }
 
-    // Phase 58 Wave 3.7i (2026-06-05): REUSE the previous playback-state
-    // object instead of recreating it every rAF. Wave 3.7h's per
-    // (state, video) rVFC binding (`_rvfcBoundVideo`) made the old
-    // recreate-per-call pattern pathological: every fresh object failed
-    // the `_rvfcBoundVideo === video` identity check, registering ONE
-    // NEW perpetual rVFC capture chain per rAF tick (~60 chains/s,
-    // each doing a full-res fallback capture per decoded frame).
-    // Load accumulated for as long as an outside mp4 was on-screen —
-    // a strong contributor to the operator's "after some seconds all
-    // frozen rooms start flickering" UAT (2026-06-05). The room-mp4
-    // path always reused its state object and is unaffected.
+    // Keep the fallback frame across a seek or a direction change on the
+    // same video. A subsequent draw can replace it once the decoder is ready.
     const playbackState = previous ?? {
       fallbackCanvas: null,
       fallbackCtx: null,
-      lastVisibleFrameAtMs: 0,
-      lastDecodedFrameAtMs: 0,
       lastLoopWrapAtMs: 0,
       lastDrawAtMs: 0,
-      videoFrameCallbackBound: false,
       hasVisibleFrame: false,
     };
-    if (playbackState.assetRef !== normalizedAssetRef) {
-      // Asset changed under the same board key — the captured fallback
-      // shows the OLD asset; invalidate it.
-      playbackState.hasVisibleFrame = false;
-    }
+    playbackState.video = video;
     playbackState.lifecycleKey = normalizedLifecycleKey;
     playbackState.assetRef = normalizedAssetRef;
-    // Phase 58: stamp mode so maybeWrapOutsideMp4Loop can branch
-    // without needing to plumb the value through the call site.
     playbackState.playbackMode = playbackMode;
     bindOutsideMp4FrameCallback(video, playbackState);
-    // Phase 57 diag stash — used by recordMp4PaintDiag to query
-    // getVideoPlaybackQuality without touching paint sites
     playbackState._videoForDiag = video;
     outsideMp4PlaybackStateByBoard.set(effectiveBoardId, playbackState);
     return playbackState;
@@ -729,24 +673,6 @@
   // element, and therefore share the playback state). The fallback
   // canvas matches the video's natural dimensions; drawImage handles
   // any rect transformation downstream via drawRoomAssetImage.
-
-  // Phase 58 Wave 3.6: composite key (assetRef + instanceId) for
-  // non-loop modes so each running animation instance gets its OWN
-  // playback state (fallback canvas, rVFC binding, mode marker).
-  // Without this, multiple rooms running the same mp4 with
-  // play-then-freeze share state — Room A's rVFC binding wins, Room
-  // A's fallback canvas leaks into Room B's polygon, and the wrap /
-  // freeze logic uses whichever room last called ensureRoomMp4Playback.
-  // Operator UAT 2026-06-05: "die Räume syncen sich, jeder Raum
-  // zeigt das gefreezte Bild des anderen". Loop mode keeps the
-  // shared-per-path key (multi-room loop sync is intentional).
-  function _roomMp4Key(assetRef, instanceId, playbackMode) {
-    const ref = String(assetRef || "").trim() || "?";
-    if (instanceId && playbackMode && playbackMode !== "loop") {
-      return `${ref}#${instanceId}`;
-    }
-    return ref;
-  }
 
   function _ensureRoomMp4FallbackCanvas(state, video) {
     if (!state || !video) return null;
@@ -1204,10 +1130,9 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "", playbackPhase = "" } = {}) {
+  function ensureRoomMp4Playback(video, { assetRef = "", targetRate = 1, playbackMode = "loop", boomerangForwardSrc = null, boomerangReverseSrc = null, instanceId = "", expectedSrcUrl = "", playbackPhase = "", scope } = {}) {
     if (!video) return null;
-    // Phase 58 Wave 3.6: composite per-instance key — see _roomMp4Key.
-    const key = _roomMp4Key(assetRef, instanceId, playbackMode);
+    const key = mp4CacheKey(String(assetRef || "").trim() || "?", { instanceId, playbackMode, scope });
     const previous = roomMp4PlaybackStateByKey.get(key) ?? null;
     // Phase 58 Wave 3.6: phase transitions (forward → reverse on
     // re-trigger; reverse → forward) swap video.src in-place INSTEAD

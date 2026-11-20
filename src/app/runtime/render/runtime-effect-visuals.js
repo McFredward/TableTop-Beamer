@@ -15,6 +15,19 @@
 //   flickerNoise            — noise function for flicker effects
 (() => {
   let ctx = null;
+  const outsideSpaceLayers = {
+    standard: [
+      { density: 32, speed: 130, size: 0.85, alpha: 0.14, wave: 0.006 },
+      { density: 50, speed: 230, size: 1.1, alpha: 0.22, wave: 0.009 },
+      { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
+    ],
+    immersive: [
+      { density: 46, speed: 190, size: 0.9, alpha: 0.16, wave: 0.008 },
+      { density: 66, speed: 310, size: 1.2, alpha: 0.26, wave: 0.011 },
+      { density: 82, speed: 470, size: 1.6, alpha: 0.38, wave: 0.014 },
+      { density: 98, speed: 660, size: 2, alpha: 0.52, wave: 0.017 },
+    ],
+  };
   // Phase 58-w3.9s: cached soft-blob sprite for the snow bokeh flakes.
   // Built once (lazily) and blitted via drawImage — far cheaper than a
   // per-flake createRadialGradient + fill, which measurably dropped fps on
@@ -1151,22 +1164,14 @@
       const speedInfluence = ctx.clampOutsideSpeed(options.outsideSpeed ?? 1);
       const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
       const directionMultiplier = options.outsideDirection === "reverse" ? -1 : 1;
+      const baseAlpha = c.globalAlpha;
 
-      c.fillStyle = "rgba(0, 0, 0, 1)";
+      c.fillStyle = "#000";
       c.fillRect(0, 0, w, h);
 
-      const parallaxLayers = immersive
-        ? [
-          { density: 46, speed: 190, size: 0.9, alpha: 0.16, wave: 0.008 },
-          { density: 66, speed: 310, size: 1.2, alpha: 0.26, wave: 0.011 },
-          { density: 82, speed: 470, size: 1.6, alpha: 0.38, wave: 0.014 },
-          { density: 98, speed: 660, size: 2, alpha: 0.52, wave: 0.017 },
-        ]
-        : [
-          { density: 32, speed: 130, size: 0.85, alpha: 0.14, wave: 0.006 },
-          { density: 50, speed: 230, size: 1.1, alpha: 0.22, wave: 0.009 },
-          { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
-        ];
+      const parallaxLayers = immersive ? outsideSpaceLayers.immersive : outsideSpaceLayers.standard;
+      const wrapWidth = w + 8;
+      const intensityAlpha = 0.8 + intensity * 0.7;
 
       for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
         const layer = parallaxLayers[layerIndex];
@@ -1177,30 +1182,31 @@
             Math.round(layer.density * intensity * visualCaps.nonCriticalDensityScale),
           ),
         );
-        const layerSpeed = layer.speed * (0.8 + intensity * 0.75) * speedFactor;
+        const layerOffset = age * layer.speed * (0.8 + intensity * 0.75) * speedFactor * directionMultiplier;
         const layerWave = h * layer.wave;
+        const layerAlpha = layer.alpha * intensityAlpha;
+        const streakLength = (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
+        const streakOffset = directionMultiplier < 0 ? -streakLength : 0;
 
         for (let i = 0; i < starCount; i += 1) {
           const seedX = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
           const seedY = ((i * 57.913 + layerIndex * 79.1) % 1000) / 1000;
-          const progressRaw = (seedX * (w + 8) - age * layerSpeed * directionMultiplier) % (w + 8);
-          const x = progressRaw < 0 ? progressRaw + w + 8 : progressRaw;
+          const progressRaw = (seedX * wrapWidth - layerOffset) % wrapWidth;
+          const x = progressRaw < 0 ? progressRaw + wrapWidth : progressRaw;
           const y = seedY * h + Math.sin(age * 0.35 + i * 0.07 + layerIndex) * layerWave;
           const twinkle = (Math.sin(age * (2 + layerIndex * 0.7) + i * 0.9) + 1) / 2;
-          const alpha = Math.min(0.95, layer.alpha * (0.8 + intensity * 0.7) * (0.75 + twinkle * 0.45));
+          const alpha = Math.min(0.95, layerAlpha * (0.75 + twinkle * 0.45));
           const size = layer.size * (0.8 + (((i * 19.9) % 100) / 100) * 0.7);
-          const streakLength =
-            (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
           const streakWidth = Math.max(0.8, size * (0.65 + layerIndex * 0.08));
 
-          c.strokeStyle = `rgba(232, 238, 255, ${Math.min(0.9, alpha * 0.72)})`;
-          c.lineWidth = streakWidth;
-          c.beginPath();
-          c.moveTo(x + streakLength * directionMultiplier, y);
-          c.lineTo(x, y);
-          c.stroke();
+          // A horizontal stroke with butt caps is a rectangle. Use the
+          // Canvas 2D rect fast path and keep the color strings constant.
+          c.fillStyle = "#e8eeff";
+          c.globalAlpha = baseAlpha * alpha * 0.72;
+          c.fillRect(x + streakOffset, y - streakWidth / 2, streakLength, streakWidth);
 
-          c.fillStyle = `rgba(245, 248, 255, ${alpha})`;
+          c.fillStyle = "#f5f8ff";
+          c.globalAlpha = baseAlpha * alpha;
           c.fillRect(x, y, size, size);
         }
       }
@@ -1209,19 +1215,19 @@
         4,
         Math.min(22, Math.round((immersive ? 14 : 9) * intensity * visualCaps.nonCriticalDensityScale)),
       );
+      const laneLength = 140 + speedInfluence * 55 + intensity * 70;
+      const laneOffset = directionMultiplier < 0 ? -laneLength : 0;
+      c.fillStyle = "#e0e9ff";
       for (let i = 0; i < expressLanes; i += 1) {
         const laneY = (((i * 63.17) % 1000) / 1000) * h;
         const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
-        const laneLength = 140 + speedInfluence * 55 + intensity * 70;
         const laneAlpha = (0.04 + ((Math.sin(age * 4.6 + i) + 1) / 2) * 0.15) * (immersive ? 1.2 : 0.92);
-        c.strokeStyle = `rgba(224, 233, 255, ${Math.min(0.48, laneAlpha)})`;
-        c.lineWidth = 0.8 + ((i % 3) + 1) * 0.38;
-        c.beginPath();
+        const laneWidth = 0.8 + ((i % 3) + 1) * 0.38;
         const laneHeadX = directionMultiplier > 0 ? w - pulse : pulse;
-        c.moveTo(laneHeadX + laneLength * directionMultiplier, laneY);
-        c.lineTo(laneHeadX, laneY);
-        c.stroke();
+        c.globalAlpha = baseAlpha * laneAlpha;
+        c.fillRect(laneHeadX + laneOffset, laneY - laneWidth / 2, laneLength, laneWidth);
       }
+      c.globalAlpha = baseAlpha;
       return;
     }
 

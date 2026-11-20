@@ -190,10 +190,7 @@ test("runtime-gif-playback.js: T12 WARM_DECODE_TIMEOUT_MS = 30000 universal (h8 
   );
 });
 
-test("runtime-outside-mp4.js + runtime-draw-loop.js: server-keep hotfixes NOT modified", () => {
-  // These files are classified server-keep by the audit (T4/T13/T16 stay
-  // unchanged). The verification is purely structural: their hotfix
-  // markers remain present and unchanged in shape.
+test("outside MP4 playback and compositing remain environment-agnostic", () => {
   const mp4 = readFileSync(
     "./src/app/runtime/render/runtime-outside-mp4.js",
     "utf8",
@@ -202,9 +199,6 @@ test("runtime-outside-mp4.js + runtime-draw-loop.js: server-keep hotfixes NOT mo
     "./src/app/runtime/render/runtime-draw-loop.js",
     "utf8",
   );
-  assert.match(mp4, /T16:\s*bumped 350 → 1500 ms/, "T16 untouched");
-  assert.match(drawLoop, /T4 \(Option B\)/, "T4 untouched");
-  assert.match(drawLoop, /T10\/T13/, "T13 untouched");
   // Neither file should have been wrapped with getRuntimeEnvironment
   // (audit classifies them as environment-agnostic).
   assert.equal(

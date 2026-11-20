@@ -15,6 +15,8 @@
 (() => {
   let ctx = null;
   let lastListRenderAt = 0;
+  let frameIntervalMs = 0;
+  let nextRenderAt = 0;
 
   function init(dependencies) {
     ctx = dependencies;
@@ -872,7 +874,8 @@
       const insideMp4UseReverseUrl = insideMp4Phase === "reverse" || insideMp4Phase === "frozen-first";
       const insideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, insideMp4UseReverseUrl ? "reverse" : "forward") || definition.assetRef;
       const insideMp4Mode2 = animation?.playbackMode || definition?.playbackMode || "loop";
-      const videoEntry = ctx.getOutsideVideoElement(definition.assetRef, {
+      const videoEntry = ctx.getRoomVideoElement(definition.assetRef, {
+        scope: "inside",
         instanceId: animation?.id,
         playbackMode: insideMp4Mode2,
       });
@@ -898,6 +901,7 @@
         const insideMp4Forward = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "forward") || definition.assetRef : null;
         const insideMp4Reverse = insideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(definition.assetRef, "reverse") : null;
         const playbackState = ctx.ensureRoomMp4Playback?.(video, {
+          scope: "inside",
           assetRef: definition.assetRef,
           expectedSrcUrl: insideMp4ExpectedSrcUrl,
           targetRate,
@@ -1274,6 +1278,7 @@
       c.filter = "none";
       const clipped = ctx.clipToOutsideShip(state.boardId);
       if (!clipped) {
+        ctx.clearOutsideMp4PlaybackState(state.boardId);
         return;
       }
       if (selectedDefinition.assetType === "gif") {
@@ -1302,15 +1307,14 @@
         const outsideMp4IsFrozen = outsideMp4Phase === "frozen-last" || outsideMp4Phase === "frozen-first";
         const outsideMp4UseReverseUrl = outsideMp4Phase === "reverse" || outsideMp4Phase === "frozen-first";
         const outsideMp4ExpectedSrcUrl = ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, outsideMp4UseReverseUrl ? "reverse" : "forward") || selectedDefinition.assetRef;
-        const outsideMp4Mode2 = runningInstance?.playbackMode || selectedDefinition?.playbackMode || "loop";
+        const outsideMp4Mode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
         const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef, {
           instanceId: runningInstance?.id,
-          playbackMode: outsideMp4Mode2,
+          playbackMode: outsideMp4Mode,
         });
         if (videoEntry?.video) {
           const video = videoEntry.video;
           const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
-          const outsideMp4Mode = runningInstance?.playbackMode || selectedDefinition.playbackMode || "loop";
           const outsideMp4IsBoomerang = outsideMp4Mode === "boomerang";
           const outsideMp4Forward = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "forward") || selectedDefinition.assetRef : null;
           const outsideMp4Reverse = outsideMp4IsBoomerang ? ctx.resolveMp4AssetUrlForDirection?.(selectedDefinition.assetRef, "reverse") : null;
@@ -1329,89 +1333,22 @@
             instanceId: runningInstance?.id || '',
             playbackPhase: outsideMp4Phase,
           });
-          // Phase 58 Wave 2.5: cleanup-dispatch for outside-mp4.
+          const canRefreshFrame = !playbackState.hasVisibleFrame || (!outsideMp4IsFrozen && (
+            ctx.hasNewDecodedFrame(playbackState)
+            || (!ctx.isRvfcFresh(playbackState) && ctx.shouldDrawOutsideMp4Now(playbackState))
+          ));
+          const captured = canRefreshFrame && ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
+          // Both current and held frames use the same compositing path.
+          // Room effects can keep updating while the decoder seeks or stalls.
+          const painted = ctx.drawOutsideMp4FallbackFrame(playbackState);
+          ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", captured ? "live" : painted ? "fallback" : "no-frame");
+
           if (runningInstance) {
             ctx.maybeDispatchPlaybackCleanup?.(runningInstance, { hasReachedEnd: Boolean(video.ended) });
-            // Phase 58 Wave 3.7i: pass playbackState (freeze-frame pin).
             ctx.maybeTransitionPlaybackPhase?.(runningInstance, video, playbackState);
           }
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
-          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1) * outsideFadeMul;
-          // Phase 57 (2026-06-01): removed the Phase 30 T4 final-output
-          // bypass. T4 assumed "/output/ rAF rate is below any tier-
-          // target gate so shouldDrawOutsideMp4Now never returns false"
-          // — true on Pi at ~16 fps rAF, but FALSE on the operator's
-          // modern Win11 RTX 4090 box where /output/ rAF runs ~60Hz and
-          // tier targets are 33/22/16 ms (= 30/45/60 fps). With T4 in
-          // place, snow.mp4 (30 fps source) was oversampled every rAF →
-          // operator-reported "konstantes leichtes Stockeln" on
-          // /output/. Collapse final-output and non-final-output into a
-          // single tier-gated branch; live-paint + capture when gated
-          // through, fallback replay when gated out or during the loop-
-          // wrap seek window. Win32 canvas-damage budget preserved:
-          // still 1 drawImage(video) + 1 capture op per painted frame
-          // (project_win32_ssr_canvas_damage.md).
-          //
-          // Critical: also check `video.seeking`.
-          // maybeWrapOutsideMp4Loop sets video.currentTime back to
-          // a small value before natural EOS. During the seek the
-          // video is in `seeking` state for 1-3 rAF cycles, and
-          // readyState typically does NOT drop below 2 (Chromium
-          // keeps the prior buffer alive). Without the
-          // video.seeking guard, drawImage(video) during seeking
-          // paints stale or partial pixels → the visible hiccup.
-          const isSeeking = video.seeking === true;
-          const haveLiveFrame =
-            !isSeeking
-            && video.readyState >= 2
-            && Number(video.videoWidth) > 0
-            && Number(video.videoHeight) > 0;
-          // Phase 57 v1.1.5 (2026-06-02): rVFC-driven paint gate
-          // (see inside-mp4 path comment for full rationale).
-          // Phase 58 Wave 3.7h (2026-06-05): trust rVFC only while
-          // fresh (see room-mp4 path comment). Outside path already
-          // captures the fallback on every live paint.
-          const rvfcFreshO = Boolean(playbackState && ctx.isRvfcFresh?.(playbackState));
-          const newFrameO = Boolean(playbackState && ctx.hasNewDecodedFrame(playbackState));
-          const drawNowO = newFrameO || (!rvfcFreshO && ctx.shouldDrawOutsideMp4Now(playbackState));
-          if (outsideMp4IsFrozen && playbackState) {
-            // Phase 58 Wave 3.7i: FROZEN paint mode — fallback canvas
-            // only, zero per-frame video work (see room-mp4 comment).
-            let paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
-            if (!paintedFrozen && haveLiveFrame) {
-              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-              paintedFrozen = ctx.drawOutsideMp4FallbackFrame(playbackState);
-            }
-            if (!paintedFrozen && haveLiveFrame) {
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              paintedFrozen = true;
-            }
-            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", paintedFrozen ? "fallback" : "no-frame");
-          } else if (haveLiveFrame && drawNowO) {
-            c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-            ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-            ctx.markMp4FramePainted(playbackState);
-            ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
-          } else {
-            const painted = ctx.drawOutsideMp4FallbackFrame(playbackState);
-            if (!painted && haveLiveFrame) {
-              // Phase 57 v1.1.7 (2026-06-02): Bug A last-resort. Fallback
-              // canvas not yet captured. Paint live <video> directly so
-              // the region is never left UNPAINTED (would bleed black).
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-              ctx.markMp4FramePainted(playbackState);
-              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
-            } else if (!painted && !isSeeking && Number(video.videoWidth) > 0 && video.readyState >= 1) {
-              // Phase 58 Wave 3.7: extended last-resort for concurrent-
-              // load race (see room-mp4 path comment).
-              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
-              ctx.captureOutsideMp4FallbackFrame(playbackState, video);
-              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", "live");
-            } else {
-              ctx.recordMp4PaintDiag?.(playbackState, "outside-mp4", haveLiveFrame ? "gated-out" : "fallback");
-            }
-          }
         } else {
           ctx.clearOutsideMp4PlaybackState(state.boardId);
         }
@@ -1537,6 +1474,12 @@
   }
 
   function draw(now) {
+    if (now + 1 < nextRenderAt) {
+      requestAnimationFrame(draw);
+      return;
+    }
+    nextRenderAt = Math.max(nextRenderAt + frameIntervalMs, now + frameIntervalMs / 2);
+
     const state = ctx.state;
     const c = ctx.canvasCtx;
     const canvas = ctx.canvas;
@@ -1761,8 +1704,14 @@
     requestAnimationFrame(draw);
   }
 
+  function setFrameRateCap(fps) {
+    frameIntervalMs = Number.isFinite(fps) && fps > 0 ? 1000 / fps : 0;
+    nextRenderAt = 0;
+  }
+
   window.TT_BEAMER_RUNTIME_DRAW_LOOP = {
     init,
+    setFrameRateCap,
     drawRoomComposition,
     drawInsideGlobalVisual,
     drawAnimation,

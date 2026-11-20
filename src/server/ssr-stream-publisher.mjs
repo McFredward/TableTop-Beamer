@@ -166,6 +166,11 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
   return `
 (async () => {
   try {
+    // SSR Chromium can run rAF uncapped. There is no need to render more
+    // composite frames than tab capture can send.
+    const drawLoop = window.TT_BEAMER_RUNTIME_DRAW_LOOP;
+    const frameRate = { ideal: ${effectiveStreamFpsCap}, max: ${effectiveStreamFpsCap} };
+    drawLoop?.setFrameRateCap(frameRate.max);
     if (!window.mediasoupClient) {
       const s = document.createElement("script");
       s.src = "/vendor/mediasoup-client.min.js";
@@ -235,10 +240,7 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       video: {
         width: { ideal: ${targetWidth} },
         height: { ideal: ${targetHeight} },
-        // Phase 32 D-A3: frameRate driven by streamFpsCap config.
-        // h18 previously hardcoded 60 — now uses effectiveStreamFpsCap so
-        // operator-configured cap flows through from config to capture.
-        frameRate: { ideal: ${effectiveStreamFpsCap}, max: ${effectiveStreamFpsCap} },
+        frameRate,
         cursor: "never",
       },
       audio: false,
@@ -249,30 +251,21 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     });
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error("getDisplayMedia returned no video track");
-    // Phase 32 D-A3: lock in configured fps cap via applyConstraints.
-    // Best-effort — Chromium falls back to source natural rate if page can't sustain.
-    try {
-      await videoTrack.applyConstraints({ frameRate: { ideal: ${effectiveStreamFpsCap}, max: ${effectiveStreamFpsCap} } });
-    } catch (e) {
-      console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
-    }
-    // Phase 47 gap-closure-18: try to upgrade the captured track to
-    // 1920x1080 via applyConstraints. The initial getDisplayMedia uses
-    // "ideal" hints which Chromium clamps on headless=new (~800x450 source
-    // cap) and on Win32 headful (~1920x956 due to chrome UI overhead).
-    // applyConstraints can renegotiate the source if Chromium has spare
-    // headroom (e.g. headless surface can grow, or DPR can change).
-    // Non-fatal: if the source genuinely can't go higher, OverconstrainedError
-    // is caught and the existing lower-res track stays in use.
+    // applyConstraints replaces the previous constraints. Keep the frame
+    // rate when renegotiating dimensions, or Chromium can reset to 30 fps.
     try {
       await videoTrack.applyConstraints({
+        frameRate,
         width: { min: ${targetWidth}, ideal: ${targetWidth} },
         height: { min: ${targetHeight}, ideal: ${targetHeight} },
+        cursor: "never",
       });
       console.log("[ssr-publisher] applyConstraints upgraded to ${targetWidth}x${targetHeight}");
     } catch (e) {
       console.warn("[ssr-publisher] applyConstraints ${targetWidth}x${targetHeight} not satisfiable:", e?.message);
     }
+    const captureFps = videoTrack.getSettings().frameRate;
+    if (captureFps > 0) drawLoop?.setFrameRateCap(Math.min(frameRate.max, captureFps));
 
     // h18: log effective track settings so the operator can read them
     // in the SSR-tab console when chasing fps issues.
@@ -511,13 +504,9 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     // the consumer's diagnostic overlay can show render method,
     // resolution, GIF counts, board, decoder, etc. Server piggybacks
     // the latest stats on heartbeat.
-    let __ssrFpsFrames = 0;
     let __ssrFpsLastReported = performance.now();
-    const __ssrFpsTick = () => {
-      __ssrFpsFrames += 1;
-      requestAnimationFrame(__ssrFpsTick);
-    };
-    requestAnimationFrame(__ssrFpsTick);
+    const readRenderedFrames = () => Number(window.__TT_BEAMER_STATE_FOR_DIAG__?.runtimePerf?.frameIndex) || 0;
+    let lastRenderedFrames = readRenderedFrames();
 
     // Collect non-fps stats once per tick. These poll cheap globals
     // populated by the runtime (TT_BEAMER_RUNTIME_*). All fields are
@@ -630,8 +619,9 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     setInterval(() => {
       const now = performance.now();
       const dt = now - __ssrFpsLastReported;
-      const fps = dt > 0 ? (__ssrFpsFrames * 1000) / dt : 0;
-      __ssrFpsFrames = 0;
+      const renderedFrames = readRenderedFrames();
+      const fps = dt > 0 ? (Math.max(0, renderedFrames - lastRenderedFrames) * 1000) / dt : 0;
+      lastRenderedFrames = renderedFrames;
       __ssrFpsLastReported = now;
       try {
         if (ws && ws.readyState === WebSocket.OPEN) {
