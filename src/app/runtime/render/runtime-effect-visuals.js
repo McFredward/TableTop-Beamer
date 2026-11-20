@@ -36,19 +36,46 @@
   let snowBlobSprite = null;
 
   const slimeLobes = [
-    // x, y, length, width, bend
-    [-0.43, -0.01, 0.45, 0.61, -0.35],
-    [-0.21, 0.23, 0.55, 0.34, 0.22],
-    [0.17, -0.13, 0.65, 0.28, -0.17],
-    [0.39, 0.19, 0.55, 0.10, 0.31],
-    [-0.06, -0.38, 0.52, 0.15, -0.37],
-    [0.41, -0.45, 0.44, 0.077, 0.17],
-    [0.03, 0.49, 0.40, 0.074, -0.24],
+    // x, y, horizontal radius, vertical radius
+    [-0.32, -0.04, 0.54, 0.57],
+    [-0.49, -0.38, 0.29, 0.27],
+    [0.14, -0.12, 0.53, 0.45],
+    [0.45, -0.19, 0.36, 0.23],
+    [-0.04, 0.37, 0.47, 0.33],
+    [-0.44, 0.39, 0.25, 0.22],
+    [0.34, 0.25, 0.32, 0.16],
+    [0.54, 0.35, 0.29, 0.13],
+  ];
+  const slimePores = [
+    [-0.55, -0.17, 0.06],
+    [-0.34, 0.22, 0.10],
+    [0.00, -0.29, 0.07],
+    [0.23, -0.12, 0.064],
+    [0.37, 0.08, 0.10],
+    [0.52, 0.40, 0.049],
+    [-0.15, 0.46, 0.052],
   ];
   const slimeDeposits = [
-    { x: -0.08, y: -0.09, width: 1.00, height: 0.65, angle: -0.13, phase: 0 },
-    { x: 0.24, y: 0.20, width: 0.55, height: 0.30, angle: 0.31, phase: 0.39 },
-    { x: -0.27, y: 0.22, width: 0.33, height: 0.18, angle: -0.53, phase: 0.64 },
+    { x: -0.13, y: -0.076, width: 0.90, height: 0.77, angle: -0.20, phase: 0 },
+    { x: 0.285, y: 0.21, width: 0.46, height: 0.36, angle: 0.83, phase: 0.48 },
+    { x: 0.30, y: -0.30, width: 0.27, height: 0.18, angle: 0.37, phase: 0.67 },
+    { x: -0.32, y: 0.29, width: 0.24, height: 0.17, angle: -0.91, phase: 0.77 },
+  ];
+  const slimeFilaments = [
+    // start X/Y, end X/Y, bend, thickness
+    [-0.23, -0.18, 0.33, -0.30, -0.114, 0.029],
+    [-0.04, -0.05, 0.30, 0.24, -0.11, 0.054],
+    [-0.12, 0.10, 0.23, 0.37, 0.087, 0.034],
+    [-0.25, 0.07, -0.36, 0.31, 0.063, 0.027],
+    [0.19, 0.20, 0.40, 0.35, -0.058, 0.023],
+  ];
+  const slimeBlisters = [
+    // x, y, radius, cycle seconds, phase offset
+    [-0.27, -0.14, 0.052, 5.1, 0.27],
+    [-0.14, -0.02, 0.042, 3.6, 0],
+    [-0.10, -0.19, 0.029, 6.3, 0.62],
+    [-0.035, 0.065, 0.050, 4.4, 0.51],
+    [0.28, 0.23, 0.042, 5.8, 0.14],
   ];
   let slimeTextures = null;
 
@@ -73,91 +100,161 @@
     return s - Math.floor(s);
   }
 
-  function buildSlimeTextures() {
-    const width = 128;
-    const height = 80;
-    const frames = 14;
-    const body = document.createElement("canvas");
-    body.width = width;
-    body.height = height;
-    const current = document.createElement("canvas");
-    current.width = width;
-    current.height = height * frames;
-    const bodyCtx = body.getContext("2d");
-    const currentCtx = current.getContext("2d");
-    if (!bodyCtx || !currentCtx) return null;
+  function slimeNoise(x, y) {
+    const col = Math.floor(x);
+    const row = Math.floor(y);
+    const dx = x - col;
+    const dy = y - row;
+    const u = dx * dx * (3 - 2 * dx);
+    const v = dy * dy * (3 - 2 * dy);
+    const seed = col * 173 + row * 227;
+    const top = heatHash01(seed) * (1 - u) + heatHash01(seed + 173) * u;
+    const bottom = heatHash01(seed + 227) * (1 - u) + heatHash01(seed + 400) * u;
+    return top * (1 - v) + bottom * v;
+  }
 
-    // Bake a damp film from overlapping lobes and lengthwise ridges.
-    // The mask, relief and moving reflection all use the same contours.
-    const relief = new Float32Array(width * height);
-    const coverage = new Float32Array(width * height);
-    const ridges = new Float32Array(width * height);
-    for (let row = 1; row < height - 1; row += 1) {
-      const y = row / (height - 1) * 2 - 1;
-      for (let col = 1; col < width - 1; col += 1) {
-        const x = col / (width - 1) * 2 - 1;
-        const i = row * width + col;
-        const px = x + 0.036 * Math.sin(16 * y + 9 * x) + 0.018 * Math.sin(37 * y - 19 * x);
-        const py = y + 0.068 * Math.sin(7 * x + 3 * y) + 0.024 * Math.sin(29 * x - 20 * y);
+  function buildSlimeTextures() {
+    const body = document.createElement("canvas");
+    const size = 120;
+    body.width = size;
+    body.height = size;
+    const bodyCtx = body.getContext("2d");
+    const blister = document.createElement("canvas");
+    const blisterSize = 40;
+    blister.width = blisterSize;
+    blister.height = blisterSize;
+    const blisterCtx = blister.getContext("2d");
+    if (!bodyCtx || !blisterCtx) return null;
+
+    // Irregular mounds with holes in the film. Isotropic noise pits the
+    // surface so the glossy edges break into irregular patches of light.
+    const relief = new Float32Array(size * size);
+    const coverage = new Float32Array(size * size);
+    const sediment = new Float32Array(size * size);
+    for (let y = 1; y < size - 1; y += 1) {
+      for (let x = 1; x < size - 1; x += 1) {
+        const u = 2 * x / (size - 1) - 1;
+        const v = 2 * y / (size - 1) - 1;
+        const px = u + (slimeNoise(u * 5, v * 5) - 0.5) * 0.17;
+        const py = v + (slimeNoise(u * 6 + 23, v * 6) - 0.5) * 0.17;
         let mound = 0;
-        for (const [cx, cy, rx, ry, bend] of slimeLobes) {
-          const dx = px - cx;
-          const along = dx / rx;
-          const across = (py - cy + dx * bend) / ry;
-          const lobe = Math.max(0, 1 - along * along - across * across);
+        for (const [cx, cy, rx, ry] of slimeLobes) {
+          const dx = (px - cx) / rx;
+          const dy = (py - cy) / ry;
+          const lobe = Math.max(0, 1 - dx * dx - dy * dy);
           mound += lobe * lobe;
         }
         if (mound === 0) continue;
-        const fold = Math.sin(33 * py + 1.8 * Math.sin(7 * px + 2 * py));
-        const fiber = Math.sin(71 * py - 5 * px + 1.6 * Math.sin(15 * x));
+        let membrane = 1;
+        for (const [cx, cy, radius] of slimePores) {
+          const edge = (Math.hypot(px - cx, py - cy) - radius) * 18;
+          membrane = Math.min(membrane, Math.max(0.05, Math.min(1, edge)));
+        }
+        const i = y * size + x;
         const film = Math.sqrt(mound);
-        coverage[i] = Math.min(1, film * (4.0 + fold * 0.9));
-        relief[i] = film * 0.36 + coverage[i] * (0.017 * fold + 0.004 * fiber);
-        ridges[i] = Math.pow((1 + fold) * 0.5, 3) * (0.77 + 0.23 * fiber);
+        const mottling = slimeNoise(px * 15, py * 15 + 9);
+        coverage[i] = Math.min(1, film * 5) * membrane;
+        relief[i] = (film * 0.31 + (mottling - 0.5) * 0.057) * coverage[i];
+        sediment[i] = mottling;
       }
     }
 
-    const bodyPixels = bodyCtx.createImageData(width, height);
-    const currentPixels = currentCtx.createImageData(width, height * frames);
-    const frameStride = width * height * 4;
-    for (let row = 1; row < height - 1; row += 1) {
-      const y = row / (height - 1) * 2 - 1;
-      for (let col = 1; col < width - 1; col += 1) {
-        const i = row * width + col;
-        const ink = coverage[i];
-        if (ink === 0) continue;
-        const x = col / (width - 1) * 2 - 1;
-        const normalX = (relief[i - 1] - relief[i + 1]) * 12;
-        const normalY = (relief[i - width] - relief[i + width]) * 12;
-        const inverseLength = 1 / Math.hypot(normalX, normalY, 1);
-        const light = Math.max(0, (0.77 - 0.39 * normalX - 0.50 * normalY) * inverseLength);
-        const gloss = Math.pow(Math.max(0, (0.94 - 0.19 * normalX - 0.27 * normalY) * inverseLength), 18);
-        const grain = heatHash01(i) * 9;
-        const olive = 16 + 28 * light + 27 * gloss + grain + 7 * ridges[i];
+    const bodyPixels = bodyCtx.createImageData(size, size);
+    for (let y = 1; y < size - 1; y += 1) {
+      for (let x = 1; x < size - 1; x += 1) {
+        const i = y * size + x;
+        const film = coverage[i];
+        if (!film) continue;
+        const nx = (relief[i - 1] - relief[i + 1]) * 17;
+        const ny = (relief[i - size] - relief[i + size]) * 17;
+        const normal = 1 / Math.hypot(nx, ny, 1);
+        const diffuse = Math.max(0, (0.71 - 0.44 * nx - 0.54 * ny) * normal);
+        const gloss = Math.pow(Math.max(0, (0.93 - 0.23 * nx - 0.28 * ny) * normal), 26);
+        const tone = 14 + 28 * diffuse + 16 * sediment[i];
+        const shine = (54 + 62 * sediment[i]) * gloss;
         const index = i * 4;
-        bodyPixels.data[index] = olive * 0.99;
-        bodyPixels.data[index + 1] = olive * 1.03;
-        bodyPixels.data[index + 2] = olive * 0.74 + gloss * 12;
-        bodyPixels.data[index + 3] = ink * (166 + 53 * light + 17 * grain / 9);
-
-        const glintPath = x + 0.24 * y + 0.16 * Math.sin(9 * y + 3 * x);
-        const rim = 4 * ink * (1 - ink);
-        const glintStrength = Math.min(1, (ink * ridges[i] + rim * 0.28) * (0.68 + 0.55 * gloss));
-        for (let frame = 1; frame < frames - 1; frame += 1) {
-          const front = -1.85 + 3.7 * frame / (frames - 1);
-          const sweep = Math.max(0, 1 - Math.abs(glintPath - front) / 0.52);
-          if (sweep === 0) continue;
-          const offset = frameStride * frame + index;
-          currentPixels.data[offset] = 203;
-          currentPixels.data[offset + 1] = 210;
-          currentPixels.data[offset + 2] = 186;
-          currentPixels.data[offset + 3] = 251 * sweep * sweep * glintStrength;
-        }
+        bodyPixels.data[index] = tone + shine;
+        bodyPixels.data[index + 1] = tone * 1.03 + shine;
+        bodyPixels.data[index + 2] = tone * 0.72 + shine * 0.91;
+        bodyPixels.data[index + 3] = film * (167 + 60 * sediment[i]);
       }
     }
     bodyCtx.putImageData(bodyPixels, 0, 0);
-    currentCtx.putImageData(currentPixels, 0, 0);
-    return { body, current, width, height, frames };
+
+    // A low, cloudy blister with a crooked highlight and a soft shadow.
+    // Its texture moves with the membrane as the blister swells.
+    const blisterPixels = blisterCtx.createImageData(blisterSize, blisterSize);
+    for (let y = 0; y < blisterSize; y += 1) {
+      for (let x = 0; x < blisterSize; x += 1) {
+        const u = 2 * x / (blisterSize - 1) - 1;
+        const v = 2 * y / (blisterSize - 1) - 1;
+        const px = u + 0.12 * v * v;
+        const py = v + 0.10 * u;
+        const radius = Math.hypot(px, py);
+        if (radius >= 1) continue;
+        const dome = Math.sqrt(1 - radius * radius);
+        const cloud = slimeNoise(u * 3.3 + 23, v * 3.3);
+        const light = Math.max(0, 0.83 * dome - 0.27 * px - 0.49 * py);
+        const gloss = Math.pow(Math.max(0, 0.86 * dome - 0.25 * px - 0.44 * py), 20);
+        const tone = 12 + 47 * light + 28 * cloud;
+        const shine = gloss * (176 + 64 * cloud);
+        const index = (y * blisterSize + x) * 4;
+        blisterPixels.data[index] = tone + shine;
+        blisterPixels.data[index + 1] = tone * 1.04 + shine;
+        blisterPixels.data[index + 2] = tone * 0.72 + shine * 0.94;
+        blisterPixels.data[index + 3] = Math.min(1, (1 - radius) * 6) * (121 + 118 * dome);
+      }
+    }
+    blisterCtx.putImageData(blisterPixels, 0, 0);
+    return { body, blister };
+  }
+
+  function drawSlimeFilament(c, time, phase, filament) {
+    const [startX, startY, endX, endY, bend, thickness] = filament;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const length = Math.hypot(dx, dy);
+    const nx = -dy / length;
+    const ny = dx / length;
+    const pull = bend + 0.050 * Math.sin(time * 1.35 + phase)
+      + 0.016 * Math.sin(time * 2.9 + phase * 2);
+    const middleX = startX + dx * 0.56 + nx * pull;
+    const middleY = startY + dy * 0.56 + ny * pull;
+
+    c.fillStyle = "rgba(40,42,27,0.86)";
+    c.beginPath();
+    c.moveTo(startX - nx * thickness, startY - ny * thickness);
+    c.quadraticCurveTo(middleX - nx * thickness * 0.25, middleY - ny * thickness * 0.25, endX, endY);
+    c.quadraticCurveTo(middleX + nx * thickness * 0.29, middleY + ny * thickness * 0.29,
+      startX + nx * thickness, startY + ny * thickness);
+    c.closePath();
+    c.fill();
+
+    // Pick a short, fixed segment of the curve for the wet reflection.
+    // Its shape follows the strand as tension changes.
+    const t0 = 0.27 + 0.12 * Math.sin(phase);
+    const t1 = 0.69 + 0.12 * Math.cos(phase);
+    const flankX = startX + nx * thickness * 0.53;
+    const flankY = startY + ny * thickness * 0.53;
+    const bendX = middleX + nx * thickness * 0.20;
+    const bendY = middleY + ny * thickness * 0.20;
+    const fromX = slimeCurvePoint(flankX, bendX, endX, t0);
+    const fromY = slimeCurvePoint(flankY, bendY, endY, t0);
+    const controlX = fromX + (t1 - t0) * ((1 - t0) * (bendX - flankX) + t0 * (endX - bendX));
+    const controlY = fromY + (t1 - t0) * ((1 - t0) * (bendY - flankY) + t0 * (endY - bendY));
+    c.strokeStyle = "rgba(173,173,145,0.53)";
+    c.lineWidth = Math.min(0.009, thickness * 0.26);
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(fromX, fromY);
+    c.quadraticCurveTo(controlX, controlY,
+      slimeCurvePoint(flankX, bendX, endX, t1), slimeCurvePoint(flankY, bendY, endY, t1));
+    c.stroke();
+  }
+
+  function slimeCurvePoint(start, control, end, t) {
+    const u = 1 - t;
+    return u * u * start + 2 * u * t * control + t * t * end;
   }
 
   function drawSlimeSeep(c, age, intensity, opacity, roomKey, centerX, centerY, width, height) {
@@ -167,41 +264,47 @@
     slimeTextures ??= buildSlimeTextures();
     if (!slimeTextures) return;
 
-    const { body, current, width: texW, height: texH, frames } = slimeTextures;
+    const { body, blister } = slimeTextures;
     const time = Number.isFinite(age) ? Math.max(0, age) : 0;
     const seed = roomEffectSeed(roomKey);
     const unit = Math.min(width, height);
-    const aspect = Math.min(1.4, Math.max(width, height) / unit);
+    const aspect = Math.min(1.28, Math.max(width, height) / unit);
     const angle = (width < height ? Math.PI / 2 : 0) + (heatHash01(seed) - 0.5) * 0.85;
     const direction = heatHash01(seed + 1) < 0.5 ? -1 : 1;
     const offset = heatHash01(seed + 2);
-    const spread = 1 - 0.22 * Math.exp(-time * 1.6);
+    const spread = (1 - 0.19 * Math.exp(-time * 1.5)) * (0.87 + 0.13 * strength);
     c.save();
+    c.globalAlpha = alpha;
     c.translate(centerX, centerY);
     c.rotate(angle);
-    c.scale(unit * direction, unit);
-    for (const deposit of slimeDeposits) {
-      const phase = (time * 0.22 + deposit.phase + offset) % 1;
-      const extension = 0.88 + 0.12 * Math.sin(time * 0.77 + deposit.phase * 5 + offset * 6)
-        + 0.04 * Math.sin(time * 1.81 + deposit.phase * 11);
-      const drawWidth = deposit.width * aspect * extension * spread * (0.87 + 0.13 * strength);
-      const drawHeight = deposit.height * (0.87 + 0.13 * strength);
-      const left = -deposit.width * aspect * 0.46;
-      const top = -drawHeight * 0.5;
-      c.save();
-      c.translate(deposit.x, deposit.y);
-      c.rotate(deposit.angle);
-      c.globalAlpha = alpha;
-      c.drawImage(body, left, top, drawWidth, drawHeight);
+    c.scale(unit * direction * aspect, unit);
 
-      const sample = phase * (frames - 1);
-      const frame = Math.floor(sample);
-      const blend = sample - frame;
-      c.globalAlpha = alpha * (1 - blend);
-      c.drawImage(current, 0, frame * texH, texW, texH, left, top, drawWidth, drawHeight);
-      c.globalAlpha = alpha * blend;
-      c.drawImage(current, 0, (frame + 1) * texH, texW, texH, left, top, drawWidth, drawHeight);
+    for (let i = 0; i < slimeFilaments.length; i += 1) {
+      drawSlimeFilament(c, time, 5 * offset + i * 2.1, slimeFilaments[i]);
+    }
+
+    for (const deposit of slimeDeposits) {
+      const motion = time * 0.69 + deposit.phase * 8 + offset * 6;
+      const drawWidth = deposit.width * spread * (1 + 0.11 * Math.sin(motion));
+      const drawHeight = deposit.height * spread * (1 + 0.08 * Math.sin(motion * 1.7 + 0.9));
+      c.save();
+      c.translate(deposit.x + 0.037 * Math.sin(motion), deposit.y + 0.024 * Math.sin(motion * 0.88));
+      c.rotate(deposit.angle + 0.09 * Math.sin(motion));
+      c.drawImage(body, -drawWidth * 0.5, -drawHeight * 0.5, drawWidth, drawHeight);
       c.restore();
+    }
+
+    for (const [x, y, radius, duration, delay] of slimeBlisters) {
+      const phase = (time / duration + offset + delay) % 1;
+      const rise = Math.min(1, phase / 0.64);
+      const collapse = Math.max(0, Math.min(1, (0.89 - phase) / 0.16));
+      if (!collapse) continue;
+      const swelling = rise * rise * (3 - 2 * rise);
+      const size = radius * (0.58 + 0.94 * swelling) * (0.52 + 0.48 * collapse);
+      const cx = x + Math.sin(time * 1.5 + delay * 9) * 0.023;
+      const cy = y + Math.cos(time * 1.2 + delay * 7) * 0.013;
+      c.globalAlpha = alpha * collapse * Math.min(1, phase * 13);
+      c.drawImage(blister, cx - size, cy - size * 0.76, size * 2, size * 1.52);
     }
     c.restore();
   }
