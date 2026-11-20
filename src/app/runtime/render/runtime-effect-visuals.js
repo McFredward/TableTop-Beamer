@@ -54,12 +54,10 @@
         [-0.13, -0.08, 0.90, 0.77, -0.20], [0.29, 0.21, 0.46, 0.36, 0.83],
         [0.30, -0.30, 0.27, 0.18, 0.37], [-0.32, 0.29, 0.24, 0.17, -0.91],
       ],
-      filaments: [
-        [-0.23, -0.18, 0.30, -0.30, -0.114, 0.029],
-        [-0.04, -0.05, 0.29, 0.21, -0.11, 0.054],
-        [-0.12, 0.10, 0.25, 0.32, 0.087, 0.034],
-        [-0.25, 0.07, -0.32, 0.29, 0.063, 0.027],
-        [0.19, 0.20, 0.37, 0.29, -0.058, 0.023],
+      // Paired deposits, curve bend and width of the joined film.
+      connections: [
+        [0, 1, -0.098, 0.074], [0, 2, -0.110, 0.046],
+        [0, 3, 0.075, 0.047], [1, 2, 0.072, 0.039],
       ],
       blisters: [
         [-0.27, -0.14, 0.052], [-0.14, -0.02, 0.042], [-0.10, -0.19, 0.029],
@@ -85,13 +83,9 @@
         [0.32, -0.21, 0.31, 0.24, -0.54], [0.30, 0.30, 0.20, 0.145, 1.69],
         [-0.24, 0.30, 0.27, 0.12, -1.13],
       ],
-      filaments: [
-        [-0.37, -0.26, 0.32, -0.21, -0.14, 0.017],
-        [-0.37, -0.26, -0.15, 0.28, -0.13, 0.018],
-        [0.32, -0.21, 0.30, 0.30, -0.085, 0.019],
-        [0.13, 0.01, 0.30, 0.30, 0.055, 0.037],
-        [-0.23, 0.30, 0.30, 0.30, 0.115, 0.027],
-        [-0.31, 0.14, 0.31, -0.21, 0.061, 0.015],
+      connections: [
+        [0, 1, -0.101, 0.038], [0, 2, 0.086, 0.057], [0, 4, -0.073, 0.046],
+        [1, 2, -0.132, 0.036], [2, 3, -0.105, 0.042], [4, 3, 0.123, 0.035],
       ],
       blisters: [[-0.24, -0.12, 0.034], [0.09, -0.15, 0.028], [-0.15, 0.23, 0.034]],
     },
@@ -110,9 +104,10 @@
         [0.27, -0.20, 0.33, 0.27, 1.81], [0.32, 0.15, 0.28, 0.20, 0.54],
         [-0.31, 0.28, 0.20, 0.14, -0.71], [0.15, 0.33, 0.18, 0.13, 2.22],
       ],
-      filaments: [
-        [-0.23, -0.13, -0.03, 0.18, -0.083, 0.038],
-        [0.28, 0.16, 0.15, 0.33, 0.071, 0.024],
+      connections: [
+        [0, 1, -0.083, 0.064], [0, 4, 0.077, 0.047],
+        [1, 3, 0.061, 0.055], [2, 3, -0.091, 0.043],
+        [1, 5, 0.059, 0.042], [3, 5, 0.070, 0.037],
       ],
       blisters: [
         [-0.31, -0.13, 0.043], [-0.25, -0.15, 0.027], [-0.07, 0.21, 0.047],
@@ -258,52 +253,129 @@
     return blister;
   }
 
-  function drawSlimeFilament(c, time, phase, filament) {
-    const [startX, startY, endX, endY, bend, thickness] = filament;
-    const dx = endX - startX;
-    const dy = endY - startY;
-    const length = Math.hypot(dx, dy);
-    const nx = -dy / length;
-    const ny = dx / length;
-    const pull = bend + 0.050 * Math.sin(time * 1.35 + phase)
-      + 0.016 * Math.sin(time * 2.9 + phase * 2);
-    const middleX = startX + dx * 0.56 + nx * pull;
-    const middleY = startY + dy * 0.56 + ny * pull;
+  function slimeEase(start, end, value) {
+    const t = Math.max(0, Math.min(1, (value - start) / (end - start)));
+    return t * t * (3 - 2 * t);
+  }
 
-    c.fillStyle = "rgba(40,42,27,0.86)";
+  function drawSlimeSpan(c, length, sag, from, to, startWidth, waist, endWidth) {
+    const startX = length * from;
+    const endX = length * to;
+    const span = endX - startX;
+    if (span < 0.002) return;
+    const middle = (from + to) * 0.5;
+    const middleX = length * middle;
+    const startY = 2 * sag * from * (1 - from);
+    const middleY = 2 * sag * middle * (1 - middle);
+    const endY = 2 * sag * to * (1 - to);
+    const crown = startX + span * 0.20;
+    const shoulder = endX - span * 0.20;
+
+    // The soft shoulders stay rooted in the pools while the middle of
+    // the film swells and narrows.
+    c.fillStyle = "rgba(65,65,46,0.88)";
     c.beginPath();
-    c.moveTo(startX - nx * thickness, startY - ny * thickness);
-    c.quadraticCurveTo(middleX - nx * thickness * 0.25, middleY - ny * thickness * 0.25, endX, endY);
-    c.quadraticCurveTo(middleX + nx * thickness * 0.29, middleY + ny * thickness * 0.29,
-      startX + nx * thickness, startY + ny * thickness);
+    c.moveTo(startX, startY - startWidth);
+    c.bezierCurveTo(crown, middleY - startWidth, crown, middleY - waist,
+      middleX, middleY - waist);
+    c.bezierCurveTo(shoulder, middleY - waist, shoulder, middleY - endWidth,
+      endX, endY - endWidth);
+    c.quadraticCurveTo(endX + endWidth * 0.65, endY, endX, endY + endWidth);
+    c.bezierCurveTo(shoulder, middleY + endWidth, shoulder, middleY + waist,
+      middleX, middleY + waist);
+    c.bezierCurveTo(crown, middleY + waist, crown, middleY + startWidth,
+      startX, startY + startWidth);
     c.closePath();
     c.fill();
 
-    // Pick a short, fixed segment of the curve for the wet reflection.
-    // Its shape follows the strand as tension changes.
-    const t0 = 0.27 + 0.12 * Math.sin(phase);
-    const t1 = 0.69 + 0.12 * Math.cos(phase);
-    const flankX = startX + nx * thickness * 0.53;
-    const flankY = startY + ny * thickness * 0.53;
-    const bendX = middleX + nx * thickness * 0.20;
-    const bendY = middleY + ny * thickness * 0.20;
-    const fromX = slimeCurvePoint(flankX, bendX, endX, t0);
-    const fromY = slimeCurvePoint(flankY, bendY, endY, t0);
-    const controlX = fromX + (t1 - t0) * ((1 - t0) * (bendX - flankX) + t0 * (endX - bendX));
-    const controlY = fromY + (t1 - t0) * ((1 - t0) * (bendY - flankY) + t0 * (endY - bendY));
-    c.strokeStyle = "rgba(173,173,145,0.53)";
-    c.lineWidth = Math.min(0.009, thickness * 0.26);
+    // The reflection sits along the film, with softer edges at the roots.
+    const shine = Math.min(0.010, waist * 0.34);
+    c.strokeStyle = "rgba(159,160,130,0.66)";
+    c.lineWidth = shine;
     c.lineCap = "round";
     c.beginPath();
-    c.moveTo(fromX, fromY);
-    c.quadraticCurveTo(controlX, controlY,
-      slimeCurvePoint(flankX, bendX, endX, t1), slimeCurvePoint(flankY, bendY, endY, t1));
+    c.moveTo(startX + span * 0.15, startY * 0.66 + middleY * 0.34 - startWidth * 0.18);
+    c.quadraticCurveTo(middleX, middleY * 1.36 - waist * 0.52,
+      startX + span * 0.75, middleY * 0.58 + endY * 0.42 - endWidth * 0.17);
     c.stroke();
   }
 
-  function slimeCurvePoint(start, control, end, t) {
-    const u = 1 - t;
-    return u * u * start + 2 * u * t * control + t * t * end;
+  function drawSlimeConnection(c, time, connection) {
+    const { source, target, phase, reach, contact, width } = connection;
+    if (reach <= 0.015) return;
+    const dx = target.pose.x - source.pose.x;
+    const dy = target.pose.y - source.pose.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 0.016) return;
+    const sag = connection.bend * (1 - contact * 0.68)
+      + Math.sin(time * connection.pace + connection.wobble) * (0.047 - contact * 0.028);
+    const root = width * (0.37 + contact * 0.53);
+    const waist = width * (0.047 + contact * 0.92);
+
+    c.save();
+    c.translate(source.pose.x, source.pose.y);
+    c.rotate(Math.atan2(dy, dx));
+    if (phase >= connection.meet && phase < connection.tear) {
+      drawSlimeSpan(c, length, sag, 0, 1, root, waist, root * 0.81);
+    } else {
+      // Before contact and after the tear, the two sides can reach/recoil
+      // independently. Neither arm crosses the break point.
+      const broken = phase >= connection.tear;
+      const pull = broken ? Math.pow(reach, 1.55) : reach;
+      const left = connection.meetAt * pull;
+      const right = (1 - connection.meetAt) * (broken ? reach : Math.pow(reach, 1.3));
+      const tip = Math.min(0.003, width * 0.07);
+      if (broken) c.globalAlpha *= 0.28 + reach * 0.72;
+      drawSlimeSpan(c, length, sag, 0, left, root * reach, waist * reach, tip);
+      drawSlimeSpan(c, length, sag, 1 - right, 1, tip, waist * reach, root * 0.81 * reach);
+    }
+    c.restore();
+  }
+
+  function updateSlimeGeometry(scene, time, size) {
+    for (const deposit of scene.deposits) {
+      const motion = time * deposit.pace + deposit.phase;
+      const swell = Math.sin(motion);
+      const spread = size * (1 - 0.23 * Math.exp(-Math.max(0, time - deposit.onset) * 1.5));
+      const { pose } = deposit;
+      pose.x = deposit.x + 0.036 * swell;
+      pose.y = deposit.y + 0.023 * Math.sin(motion * 0.88);
+      pose.width = deposit.width * spread * (1 + deposit.wobble * swell);
+      pose.height = deposit.height * spread * (1 + deposit.wobble * 0.82 * Math.sin(motion * 1.64 + 0.9));
+      pose.angle = deposit.angle + 0.09 * swell;
+    }
+
+    for (const connection of scene.connections) {
+      const { source, target, meet, tear, recovery } = connection;
+      const phase = ((time + connection.offset) % connection.period) / connection.period;
+      const approach = slimeEase(0.07, meet, phase);
+      connection.phase = phase;
+      connection.reach = approach * (1 - slimeEase(tear, recovery, phase));
+      connection.contact = slimeEase(meet, meet + 0.15, phase) * (1 - slimeEase(tear - 0.20, tear, phase));
+
+      // The two deposits creep together, then pull away while the film
+      // is still intact. Larger deposits move less than their neighbors.
+      const tug = approach * (1 - slimeEase(tear - 0.27, tear, phase)) * 0.62;
+      const sourceShare = target.width / (source.width + target.width);
+      const pullX = (target.x - source.x) * tug;
+      const pullY = (target.y - source.y) * tug;
+      source.pose.x += pullX * sourceShare;
+      source.pose.y += pullY * sourceShare;
+      target.pose.x -= pullX * (1 - sourceShare);
+      target.pose.y -= pullY * (1 - sourceShare);
+      const bulge = 1 + connection.contact * 0.10;
+      source.pose.width *= bulge;
+      target.pose.width *= bulge;
+    }
+
+    for (const deposit of scene.deposits) {
+      const { pose } = deposit;
+      const dx = pose.x - deposit.x;
+      const dy = pose.y - deposit.y;
+      const limit = Math.max(1, Math.hypot(dx, dy) / 0.17);
+      pose.x = deposit.x + dx / limit;
+      pose.y = deposit.y + dy / limit;
+    }
   }
 
   function getSlimeScene(boardId, roomId, instanceId) {
@@ -329,21 +401,44 @@
         pace: 0.52 + rand(salt + 5) * 0.66,
         wobble: 0.06 + rand(salt + 6) * 0.13,
         onset: rand(salt + 7) * 0.53,
+        pose: {},
       };
     });
-    const filaments = layout.filaments.map(([fromX, fromY, toX, toY, bend, thickness], index) => {
-      const salt = 70 + index * 4;
+    const connections = layout.connections.map(([from, to, bend, width], index) => {
+      const salt = 70 + index * 10;
+      const period = 5.1 + rand(salt + 2) * 4.0;
       return {
-        shape: [fromX, fromY, toX, toY, bend * (0.70 + rand(salt) * 0.60), thickness * (0.77 + rand(salt + 1) * 0.44)],
-        phase: rand(salt + 2) * Math.PI * 2,
-        pace: 0.72 + rand(salt + 3) * 0.60,
+        source: deposits[from],
+        target: deposits[to],
+        bend: bend * (0.70 + rand(salt) * 0.60),
+        width: width * (0.82 + rand(salt + 1) * 0.43),
+        period,
+        offset: period * (index + rand(salt + 3)) / layout.connections.length,
+        meet: 0.27 + rand(salt + 4) * 0.09,
+        meetAt: 0.38 + rand(salt + 5) * 0.24,
+        tear: 0.72 + rand(salt + 6) * 0.09,
+        recovery: 0.92 + rand(salt + 7) * 0.068,
+        pace: 1.1 + rand(salt + 8) * 1.6,
+        wobble: rand(salt + 9) * Math.PI * 2,
+        phase: 0,
+        reach: 0,
+        contact: 0,
       };
     });
     const blisters = layout.blisters.map(([x, y, radius], index) => {
-      const salt = 100 + index * 4;
+      const salt = 140 + index * 4;
       const period = 3.1 + rand(salt) * 4.1;
+      let owner = deposits[0];
+      let distance = Infinity;
+      for (const deposit of deposits) {
+        const candidate = Math.hypot((x - deposit.x) / deposit.width, (y - deposit.y) / deposit.height);
+        if (candidate < distance) {
+          distance = candidate;
+          owner = deposit;
+        }
+      }
       return {
-        x, y, radius,
+        x, y, radius, owner,
         period,
         offset: rand(salt + 1) * period,
         seed: seed * 0.79 + salt * 3.19,
@@ -354,7 +449,7 @@
       direction: rand(2) < 0.5 ? -1 : 1,
       angle: (rand(3) - 0.5) * 1.12,
       deposits,
-      filaments,
+      connections,
       blisters,
     };
     if (slimeScenes.size >= 96) slimeScenes.delete(slimeScenes.keys().next().value);
@@ -380,26 +475,22 @@
     const aspect = Math.min(1.28, Math.max(width, height) / unit);
     const angle = (width < height ? Math.PI / 2 : 0) + scene.angle;
     const size = 0.87 + 0.13 * strength;
+    updateSlimeGeometry(scene, time, size);
     c.save();
     c.globalAlpha = alpha;
     c.translate(centerX, centerY);
     c.rotate(angle);
     c.scale(unit * scene.direction * aspect, unit);
 
-    for (const filament of scene.filaments) {
-      drawSlimeFilament(c, time * filament.pace, filament.phase, filament.shape);
+    for (const connection of scene.connections) {
+      drawSlimeConnection(c, time, connection);
     }
 
-    for (const deposit of scene.deposits) {
-      const motion = time * deposit.pace + deposit.phase;
-      const swell = Math.sin(motion);
-      const spread = size * (1 - 0.23 * Math.exp(-Math.max(0, time - deposit.onset) * 1.5));
-      const drawWidth = deposit.width * spread * (1 + deposit.wobble * swell);
-      const drawHeight = deposit.height * spread * (1 + deposit.wobble * 0.82 * Math.sin(motion * 1.64 + 0.9));
+    for (const { pose } of scene.deposits) {
       c.save();
-      c.translate(deposit.x + 0.036 * swell, deposit.y + 0.023 * Math.sin(motion * 0.88));
-      c.rotate(deposit.angle + 0.09 * swell);
-      c.drawImage(body, -drawWidth * 0.5, -drawHeight * 0.5, drawWidth, drawHeight);
+      c.translate(pose.x, pose.y);
+      c.rotate(pose.angle);
+      c.drawImage(body, -pose.width * 0.5, -pose.height * 0.5, pose.width, pose.height);
       c.restore();
     }
 
@@ -420,8 +511,10 @@
         const bubbleSize = radius * (0.50 + 0.99 * swelling) * (0.51 + 0.49 * collapse);
         const dx = (heatHash01(emergence + 27) - 0.5) * 0.064;
         const dy = (heatHash01(emergence + 33) - 0.5) * 0.052;
-        const cx = blister.x + dx + Math.sin(time * 1.43 + blister.offset) * 0.018;
-        const cy = blister.y + dy + Math.cos(time * 1.17 + blister.offset) * 0.012;
+        const cx = blister.x + blister.owner.pose.x - blister.owner.x + dx
+          + Math.sin(time * 1.43 + blister.offset) * 0.018;
+        const cy = blister.y + blister.owner.pose.y - blister.owner.y + dy
+          + Math.cos(time * 1.17 + blister.offset) * 0.012;
         c.globalAlpha = alpha * collapse * Math.min(1, phase * 12);
         c.drawImage(slimeBlisterTexture, cx - bubbleSize, cy - bubbleSize * 0.76, bubbleSize * 2, bubbleSize * 1.52);
       }
