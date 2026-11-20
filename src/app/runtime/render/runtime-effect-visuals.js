@@ -35,49 +35,94 @@
   // effect deterministic (same blit every client).
   let snowBlobSprite = null;
 
-  const slimeLobes = [
-    // x, y, horizontal radius, vertical radius
-    [-0.32, -0.04, 0.54, 0.57],
-    [-0.49, -0.38, 0.29, 0.27],
-    [0.14, -0.12, 0.53, 0.45],
-    [0.45, -0.19, 0.36, 0.23],
-    [-0.04, 0.37, 0.47, 0.33],
-    [-0.44, 0.39, 0.25, 0.22],
-    [0.34, 0.25, 0.32, 0.16],
-    [0.54, 0.35, 0.29, 0.13],
+  const slimeLayouts = [
+    {
+      // Pooled residue with thick pockets and a few stretched strands.
+      lobes: [
+        [-0.32, -0.04, 0.54, 0.57], [-0.49, -0.38, 0.29, 0.27],
+        [0.14, -0.12, 0.53, 0.45], [0.45, -0.19, 0.36, 0.23],
+        [-0.04, 0.37, 0.47, 0.33], [-0.44, 0.39, 0.25, 0.22],
+        [0.34, 0.25, 0.32, 0.16], [0.54, 0.35, 0.29, 0.13],
+      ],
+      pores: [
+        [-0.55, -0.17, 0.06], [-0.34, 0.22, 0.10], [0, -0.29, 0.07],
+        [0.23, -0.12, 0.064], [0.37, 0.08, 0.10], [0.52, 0.40, 0.049], [-0.15, 0.46, 0.052],
+      ],
+      depth: 0.31,
+      bodyAlpha: 1,
+      deposits: [
+        [-0.13, -0.08, 0.90, 0.77, -0.20], [0.29, 0.21, 0.46, 0.36, 0.83],
+        [0.30, -0.30, 0.27, 0.18, 0.37], [-0.32, 0.29, 0.24, 0.17, -0.91],
+      ],
+      filaments: [
+        [-0.23, -0.18, 0.30, -0.30, -0.114, 0.029],
+        [-0.04, -0.05, 0.29, 0.21, -0.11, 0.054],
+        [-0.12, 0.10, 0.25, 0.32, 0.087, 0.034],
+        [-0.25, 0.07, -0.32, 0.29, 0.063, 0.027],
+        [0.19, 0.20, 0.37, 0.29, -0.058, 0.023],
+      ],
+      blisters: [
+        [-0.27, -0.14, 0.052], [-0.14, -0.02, 0.042], [-0.10, -0.19, 0.029],
+        [-0.04, 0.07, 0.050], [0.28, 0.24, 0.042],
+      ],
+    },
+    {
+      // A ruptured sheet held up by thinner strands.
+      lobes: [
+        [-0.45, -0.31, 0.38, 0.39], [-0.12, -0.44, 0.43, 0.28],
+        [0.36, -0.24, 0.43, 0.40], [0.33, 0.29, 0.30, 0.42],
+        [-0.10, 0.41, 0.44, 0.30], [-0.49, 0.18, 0.34, 0.40],
+        [-0.24, -0.06, 0.25, 0.18], [0.60, 0.11, 0.25, 0.17],
+      ],
+      pores: [
+        [-0.10, 0.03, 0.24], [0.34, -0.27, 0.14], [-0.43, 0.26, 0.13],
+        [-0.32, -0.25, 0.090], [0.27, 0.28, 0.11],
+      ],
+      depth: 0.21,
+      bodyAlpha: 0.86,
+      deposits: [
+        [-0.07, 0.02, 0.86, 0.79, 0.23], [-0.37, -0.26, 0.22, 0.17, 0.8],
+        [0.32, -0.21, 0.31, 0.24, -0.54], [0.30, 0.30, 0.20, 0.145, 1.69],
+        [-0.24, 0.30, 0.27, 0.12, -1.13],
+      ],
+      filaments: [
+        [-0.37, -0.26, 0.32, -0.21, -0.14, 0.017],
+        [-0.37, -0.26, -0.15, 0.28, -0.13, 0.018],
+        [0.32, -0.21, 0.30, 0.30, -0.085, 0.019],
+        [0.13, 0.01, 0.30, 0.30, 0.055, 0.037],
+        [-0.23, 0.30, 0.30, 0.30, 0.115, 0.027],
+        [-0.31, 0.14, 0.31, -0.21, 0.061, 0.015],
+      ],
+      blisters: [[-0.24, -0.12, 0.034], [0.09, -0.15, 0.028], [-0.15, 0.23, 0.034]],
+    },
+    {
+      // Scattered clots and smears left along the floor.
+      lobes: [
+        [-0.34, -0.18, 0.47, 0.48], [-0.26, 0.24, 0.40, 0.39],
+        [0.12, -0.03, 0.61, 0.31], [0.55, -0.20, 0.33, 0.17],
+        [0.28, 0.30, 0.45, 0.13], [0.55, 0.07, 0.30, 0.10],
+      ],
+      pores: [[-0.33, 0.15, 0.087], [0.05, 0.07, 0.052], [0.34, -0.01, 0.070]],
+      depth: 0.34,
+      bodyAlpha: 0.96,
+      deposits: [
+        [-0.29, -0.14, 0.52, 0.40, -0.47], [-0.03, 0.18, 0.45, 0.36, 0.69],
+        [0.27, -0.20, 0.33, 0.27, 1.81], [0.32, 0.15, 0.28, 0.20, 0.54],
+        [-0.31, 0.28, 0.20, 0.14, -0.71], [0.15, 0.33, 0.18, 0.13, 2.22],
+      ],
+      filaments: [
+        [-0.23, -0.13, -0.03, 0.18, -0.083, 0.038],
+        [0.28, 0.16, 0.15, 0.33, 0.071, 0.024],
+      ],
+      blisters: [
+        [-0.31, -0.13, 0.043], [-0.25, -0.15, 0.027], [-0.07, 0.21, 0.047],
+        [0.26, -0.20, 0.032], [0.31, 0.15, 0.030],
+      ],
+    },
   ];
-  const slimePores = [
-    [-0.55, -0.17, 0.06],
-    [-0.34, 0.22, 0.10],
-    [0.00, -0.29, 0.07],
-    [0.23, -0.12, 0.064],
-    [0.37, 0.08, 0.10],
-    [0.52, 0.40, 0.049],
-    [-0.15, 0.46, 0.052],
-  ];
-  const slimeDeposits = [
-    { x: -0.13, y: -0.076, width: 0.90, height: 0.77, angle: -0.20, phase: 0 },
-    { x: 0.285, y: 0.21, width: 0.46, height: 0.36, angle: 0.83, phase: 0.48 },
-    { x: 0.30, y: -0.30, width: 0.27, height: 0.18, angle: 0.37, phase: 0.67 },
-    { x: -0.32, y: 0.29, width: 0.24, height: 0.17, angle: -0.91, phase: 0.77 },
-  ];
-  const slimeFilaments = [
-    // start X/Y, end X/Y, bend, thickness
-    [-0.23, -0.18, 0.33, -0.30, -0.114, 0.029],
-    [-0.04, -0.05, 0.30, 0.24, -0.11, 0.054],
-    [-0.12, 0.10, 0.23, 0.37, 0.087, 0.034],
-    [-0.25, 0.07, -0.36, 0.31, 0.063, 0.027],
-    [0.19, 0.20, 0.40, 0.35, -0.058, 0.023],
-  ];
-  const slimeBlisters = [
-    // x, y, radius, cycle seconds, phase offset
-    [-0.27, -0.14, 0.052, 5.1, 0.27],
-    [-0.14, -0.02, 0.042, 3.6, 0],
-    [-0.10, -0.19, 0.029, 6.3, 0.62],
-    [-0.035, 0.065, 0.050, 4.4, 0.51],
-    [0.28, 0.23, 0.042, 5.8, 0.14],
-  ];
-  let slimeTextures = null;
+  const slimePoolTextures = new Map();
+  const slimeScenes = new Map();
+  let slimeBlisterTexture = null;
 
   function init(dependencies) {
     ctx = dependencies;
@@ -113,21 +158,15 @@
     return top * (1 - v) + bottom * v;
   }
 
-  function buildSlimeTextures() {
+  function buildSlimePoolTexture({ lobes, pores, depth, bodyAlpha }) {
     const body = document.createElement("canvas");
     const size = 120;
     body.width = size;
     body.height = size;
     const bodyCtx = body.getContext("2d");
-    const blister = document.createElement("canvas");
-    const blisterSize = 40;
-    blister.width = blisterSize;
-    blister.height = blisterSize;
-    const blisterCtx = blister.getContext("2d");
-    if (!bodyCtx || !blisterCtx) return null;
+    if (!bodyCtx) return null;
 
-    // Irregular mounds with holes in the film. Isotropic noise pits the
-    // surface so the glossy edges break into irregular patches of light.
+    // Pits and irregular contours break the sheen into small highlights.
     const relief = new Float32Array(size * size);
     const coverage = new Float32Array(size * size);
     const sediment = new Float32Array(size * size);
@@ -138,7 +177,7 @@
         const px = u + (slimeNoise(u * 5, v * 5) - 0.5) * 0.17;
         const py = v + (slimeNoise(u * 6 + 23, v * 6) - 0.5) * 0.17;
         let mound = 0;
-        for (const [cx, cy, rx, ry] of slimeLobes) {
+        for (const [cx, cy, rx, ry] of lobes) {
           const dx = (px - cx) / rx;
           const dy = (py - cy) / ry;
           const lobe = Math.max(0, 1 - dx * dx - dy * dy);
@@ -146,7 +185,7 @@
         }
         if (mound === 0) continue;
         let membrane = 1;
-        for (const [cx, cy, radius] of slimePores) {
+        for (const [cx, cy, radius] of pores) {
           const edge = (Math.hypot(px - cx, py - cy) - radius) * 18;
           membrane = Math.min(membrane, Math.max(0.05, Math.min(1, edge)));
         }
@@ -154,7 +193,7 @@
         const film = Math.sqrt(mound);
         const mottling = slimeNoise(px * 15, py * 15 + 9);
         coverage[i] = Math.min(1, film * 5) * membrane;
-        relief[i] = (film * 0.31 + (mottling - 0.5) * 0.057) * coverage[i];
+        relief[i] = (film * depth + (mottling - 0.5) * 0.057) * coverage[i];
         sediment[i] = mottling;
       }
     }
@@ -176,10 +215,20 @@
         bodyPixels.data[index] = tone + shine;
         bodyPixels.data[index + 1] = tone * 1.03 + shine;
         bodyPixels.data[index + 2] = tone * 0.72 + shine * 0.91;
-        bodyPixels.data[index + 3] = film * (167 + 60 * sediment[i]);
+        bodyPixels.data[index + 3] = film * bodyAlpha * (167 + 60 * sediment[i]);
       }
     }
     bodyCtx.putImageData(bodyPixels, 0, 0);
+    return body;
+  }
+
+  function buildSlimeBlisterTexture() {
+    const blister = document.createElement("canvas");
+    const blisterSize = 40;
+    blister.width = blisterSize;
+    blister.height = blisterSize;
+    const blisterCtx = blister.getContext("2d");
+    if (!blisterCtx) return null;
 
     // A low, cloudy blister with a crooked highlight and a soft shadow.
     // Its texture moves with the membrane as the blister swells.
@@ -206,7 +255,7 @@
       }
     }
     blisterCtx.putImageData(blisterPixels, 0, 0);
-    return { body, blister };
+    return blister;
   }
 
   function drawSlimeFilament(c, time, phase, filament) {
@@ -257,54 +306,125 @@
     return u * u * start + 2 * u * t * control + t * t * end;
   }
 
-  function drawSlimeSeep(c, age, intensity, opacity, roomKey, centerX, centerY, width, height) {
+  function getSlimeScene(boardId, roomId, instanceId) {
+    const key = `${boardId}:${roomId}:${instanceId}`;
+    const cached = slimeScenes.get(key);
+    if (cached) return cached;
+
+    // Live-sync shares the instance id with the projector. A restart can
+    // pick a different layout while one playthrough stays deterministic.
+    const seed = roomEffectSeed(key);
+    const rand = salt => heatHash01(seed + salt * 17.31);
+    const layout = slimeLayouts[Math.floor(rand(1) * slimeLayouts.length)];
+    const deposits = layout.deposits.map(([x, y, width, height, angle], index) => {
+      const salt = 10 + index * 8;
+      const scale = 0.85 + rand(salt) * 0.29;
+      return {
+        x: x + (rand(salt + 1) - 0.5) * 0.051,
+        y: y + (rand(salt + 2) - 0.5) * 0.051,
+        width: width * scale,
+        height: height * scale,
+        angle: angle + (rand(salt + 3) - 0.5) * 0.48,
+        phase: rand(salt + 4) * Math.PI * 2,
+        pace: 0.52 + rand(salt + 5) * 0.66,
+        wobble: 0.06 + rand(salt + 6) * 0.13,
+        onset: rand(salt + 7) * 0.53,
+      };
+    });
+    const filaments = layout.filaments.map(([fromX, fromY, toX, toY, bend, thickness], index) => {
+      const salt = 70 + index * 4;
+      return {
+        shape: [fromX, fromY, toX, toY, bend * (0.70 + rand(salt) * 0.60), thickness * (0.77 + rand(salt + 1) * 0.44)],
+        phase: rand(salt + 2) * Math.PI * 2,
+        pace: 0.72 + rand(salt + 3) * 0.60,
+      };
+    });
+    const blisters = layout.blisters.map(([x, y, radius], index) => {
+      const salt = 100 + index * 4;
+      const period = 3.1 + rand(salt) * 4.1;
+      return {
+        x, y, radius,
+        period,
+        offset: rand(salt + 1) * period,
+        seed: seed * 0.79 + salt * 3.19,
+      };
+    });
+    const scene = {
+      layout,
+      direction: rand(2) < 0.5 ? -1 : 1,
+      angle: (rand(3) - 0.5) * 1.12,
+      deposits,
+      filaments,
+      blisters,
+    };
+    if (slimeScenes.size >= 96) slimeScenes.delete(slimeScenes.keys().next().value);
+    slimeScenes.set(key, scene);
+    return scene;
+  }
+
+  function drawSlimeSeep(c, age, intensity, opacity, roomId, instanceId, centerX, centerY, width, height) {
     const strength = Math.max(0, Math.min(1.5, intensity));
     const alpha = c.globalAlpha * Math.max(0, Math.min(1, opacity)) * Math.min(1, strength);
     if (!alpha) return;
-    slimeTextures ??= buildSlimeTextures();
-    if (!slimeTextures) return;
 
-    const { body, blister } = slimeTextures;
+    const scene = getSlimeScene(ctx.state?.boardId ?? "", roomId, instanceId);
+    let body = slimePoolTextures.get(scene.layout);
+    if (!body) {
+      body = buildSlimePoolTexture(scene.layout);
+      if (!body) return;
+      slimePoolTextures.set(scene.layout, body);
+    }
+    slimeBlisterTexture ??= buildSlimeBlisterTexture();
     const time = Number.isFinite(age) ? Math.max(0, age) : 0;
-    const seed = roomEffectSeed(roomKey);
     const unit = Math.min(width, height);
     const aspect = Math.min(1.28, Math.max(width, height) / unit);
-    const angle = (width < height ? Math.PI / 2 : 0) + (heatHash01(seed) - 0.5) * 0.85;
-    const direction = heatHash01(seed + 1) < 0.5 ? -1 : 1;
-    const offset = heatHash01(seed + 2);
-    const spread = (1 - 0.19 * Math.exp(-time * 1.5)) * (0.87 + 0.13 * strength);
+    const angle = (width < height ? Math.PI / 2 : 0) + scene.angle;
+    const size = 0.87 + 0.13 * strength;
     c.save();
     c.globalAlpha = alpha;
     c.translate(centerX, centerY);
     c.rotate(angle);
-    c.scale(unit * direction * aspect, unit);
+    c.scale(unit * scene.direction * aspect, unit);
 
-    for (let i = 0; i < slimeFilaments.length; i += 1) {
-      drawSlimeFilament(c, time, 5 * offset + i * 2.1, slimeFilaments[i]);
+    for (const filament of scene.filaments) {
+      drawSlimeFilament(c, time * filament.pace, filament.phase, filament.shape);
     }
 
-    for (const deposit of slimeDeposits) {
-      const motion = time * 0.69 + deposit.phase * 8 + offset * 6;
-      const drawWidth = deposit.width * spread * (1 + 0.11 * Math.sin(motion));
-      const drawHeight = deposit.height * spread * (1 + 0.08 * Math.sin(motion * 1.7 + 0.9));
+    for (const deposit of scene.deposits) {
+      const motion = time * deposit.pace + deposit.phase;
+      const swell = Math.sin(motion);
+      const spread = size * (1 - 0.23 * Math.exp(-Math.max(0, time - deposit.onset) * 1.5));
+      const drawWidth = deposit.width * spread * (1 + deposit.wobble * swell);
+      const drawHeight = deposit.height * spread * (1 + deposit.wobble * 0.82 * Math.sin(motion * 1.64 + 0.9));
       c.save();
-      c.translate(deposit.x + 0.037 * Math.sin(motion), deposit.y + 0.024 * Math.sin(motion * 0.88));
-      c.rotate(deposit.angle + 0.09 * Math.sin(motion));
+      c.translate(deposit.x + 0.036 * swell, deposit.y + 0.023 * Math.sin(motion * 0.88));
+      c.rotate(deposit.angle + 0.09 * swell);
       c.drawImage(body, -drawWidth * 0.5, -drawHeight * 0.5, drawWidth, drawHeight);
       c.restore();
     }
 
-    for (const [x, y, radius, duration, delay] of slimeBlisters) {
-      const phase = (time / duration + offset + delay) % 1;
-      const rise = Math.min(1, phase / 0.64);
-      const collapse = Math.max(0, Math.min(1, (0.89 - phase) / 0.16));
-      if (!collapse) continue;
-      const swelling = rise * rise * (3 - 2 * rise);
-      const size = radius * (0.58 + 0.94 * swelling) * (0.52 + 0.48 * collapse);
-      const cx = x + Math.sin(time * 1.5 + delay * 9) * 0.023;
-      const cy = y + Math.cos(time * 1.2 + delay * 7) * 0.013;
-      c.globalAlpha = alpha * collapse * Math.min(1, phase * 13);
-      c.drawImage(blister, cx - size, cy - size * 0.76, size * 2, size * 1.52);
+    if (slimeBlisterTexture) {
+      for (const blister of scene.blisters) {
+        const elapsed = time + blister.offset;
+        const cycle = Math.floor(elapsed / blister.period);
+        const emergence = blister.seed + cycle * 29.71;
+        // Each pocket can form at a slightly different spot and take
+        // a different share of its cycle to swell and sink back.
+        const duration = 0.58 + heatHash01(emergence) * 0.36;
+        const phase = (elapsed % blister.period) / blister.period / duration;
+        if (phase >= 1) continue;
+        const rise = Math.min(1, phase / (0.58 + 0.20 * heatHash01(emergence + 9)));
+        const collapse = Math.min(1, (1 - phase) * 6);
+        const swelling = rise * rise * (3 - 2 * rise);
+        const radius = blister.radius * (0.68 + 0.57 * heatHash01(emergence + 17));
+        const bubbleSize = radius * (0.50 + 0.99 * swelling) * (0.51 + 0.49 * collapse);
+        const dx = (heatHash01(emergence + 27) - 0.5) * 0.064;
+        const dy = (heatHash01(emergence + 33) - 0.5) * 0.052;
+        const cx = blister.x + dx + Math.sin(time * 1.43 + blister.offset) * 0.018;
+        const cy = blister.y + dy + Math.cos(time * 1.17 + blister.offset) * 0.012;
+        c.globalAlpha = alpha * collapse * Math.min(1, phase * 12);
+        c.drawImage(slimeBlisterTexture, cx - bubbleSize, cy - bubbleSize * 0.76, bubbleSize * 2, bubbleSize * 1.52);
+      }
     }
     c.restore();
   }
@@ -1530,7 +1650,8 @@
     }
 
     if (type === "slime-seep") {
-      drawSlimeSeep(c, age, intensity, options.opacity ?? 1, room?.id ?? "preview", roomX, roomY, roomWidth, roomHeight);
+      drawSlimeSeep(c, age, intensity, options.opacity ?? 1, room?.id ?? "", options.slimeInstanceId ?? "",
+        roomX, roomY, roomWidth, roomHeight);
       return;
     }
 

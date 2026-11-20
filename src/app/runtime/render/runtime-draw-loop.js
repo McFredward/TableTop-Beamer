@@ -481,6 +481,7 @@
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: playbackSpeed,
         roomAnimationType: animation.type,
+        slimeInstanceId: animation.id,
         colorHex: animation.colorHex,
         // Phase 58-w3.8g: heat source-visibility option (default ON
         // when the instance predates the field).
@@ -735,6 +736,7 @@
       // Phase 58-w3.9h: fold the global fade multiplier into the coded
       // effect's opacity so inside/outside coded effects ramp too.
       opacity: (Number.isFinite(Number(pick("opacity"))) ? Number(pick("opacity")) : 1) * fadeMul,
+      slimeInstanceId: instance?.id,
       colorHex: pick("colorHex"),
       heatShowSource: pick("heatShowSource") !== false,
       workerStyle: pick("workerStyle") === "lit" ? "lit" : "dark",
