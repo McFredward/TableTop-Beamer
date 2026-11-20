@@ -35,6 +35,23 @@
   // effect deterministic (same blit every client).
   let snowBlobSprite = null;
 
+  const slimeLobes = [
+    // x, y, length, width, bend
+    [-0.43, -0.01, 0.45, 0.61, -0.35],
+    [-0.21, 0.23, 0.55, 0.34, 0.22],
+    [0.17, -0.13, 0.65, 0.28, -0.17],
+    [0.39, 0.19, 0.55, 0.10, 0.31],
+    [-0.06, -0.38, 0.52, 0.15, -0.37],
+    [0.41, -0.45, 0.44, 0.077, 0.17],
+    [0.03, 0.49, 0.40, 0.074, -0.24],
+  ];
+  const slimeDeposits = [
+    { x: -0.08, y: -0.09, width: 1.00, height: 0.65, angle: -0.13, phase: 0 },
+    { x: 0.24, y: 0.20, width: 0.55, height: 0.30, angle: 0.31, phase: 0.39 },
+    { x: -0.27, y: 0.22, width: 0.33, height: 0.18, angle: -0.53, phase: 0.64 },
+  ];
+  let slimeTextures = null;
+
   function init(dependencies) {
     ctx = dependencies;
   }
@@ -54,6 +71,139 @@
   function heatHash01(n) {
     const s = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
     return s - Math.floor(s);
+  }
+
+  function buildSlimeTextures() {
+    const width = 128;
+    const height = 80;
+    const frames = 14;
+    const body = document.createElement("canvas");
+    body.width = width;
+    body.height = height;
+    const current = document.createElement("canvas");
+    current.width = width;
+    current.height = height * frames;
+    const bodyCtx = body.getContext("2d");
+    const currentCtx = current.getContext("2d");
+    if (!bodyCtx || !currentCtx) return null;
+
+    // Bake a damp film from overlapping lobes and lengthwise ridges.
+    // The mask, relief and moving reflection all use the same contours.
+    const relief = new Float32Array(width * height);
+    const coverage = new Float32Array(width * height);
+    const ridges = new Float32Array(width * height);
+    for (let row = 1; row < height - 1; row += 1) {
+      const y = row / (height - 1) * 2 - 1;
+      for (let col = 1; col < width - 1; col += 1) {
+        const x = col / (width - 1) * 2 - 1;
+        const i = row * width + col;
+        const px = x + 0.036 * Math.sin(16 * y + 9 * x) + 0.018 * Math.sin(37 * y - 19 * x);
+        const py = y + 0.068 * Math.sin(7 * x + 3 * y) + 0.024 * Math.sin(29 * x - 20 * y);
+        let mound = 0;
+        for (const [cx, cy, rx, ry, bend] of slimeLobes) {
+          const dx = px - cx;
+          const along = dx / rx;
+          const across = (py - cy + dx * bend) / ry;
+          const lobe = Math.max(0, 1 - along * along - across * across);
+          mound += lobe * lobe;
+        }
+        if (mound === 0) continue;
+        const fold = Math.sin(33 * py + 1.8 * Math.sin(7 * px + 2 * py));
+        const fiber = Math.sin(71 * py - 5 * px + 1.6 * Math.sin(15 * x));
+        const film = Math.sqrt(mound);
+        coverage[i] = Math.min(1, film * (4.0 + fold * 0.9));
+        relief[i] = film * 0.36 + coverage[i] * (0.017 * fold + 0.004 * fiber);
+        ridges[i] = Math.pow((1 + fold) * 0.5, 3) * (0.77 + 0.23 * fiber);
+      }
+    }
+
+    const bodyPixels = bodyCtx.createImageData(width, height);
+    const currentPixels = currentCtx.createImageData(width, height * frames);
+    const frameStride = width * height * 4;
+    for (let row = 1; row < height - 1; row += 1) {
+      const y = row / (height - 1) * 2 - 1;
+      for (let col = 1; col < width - 1; col += 1) {
+        const i = row * width + col;
+        const ink = coverage[i];
+        if (ink === 0) continue;
+        const x = col / (width - 1) * 2 - 1;
+        const normalX = (relief[i - 1] - relief[i + 1]) * 12;
+        const normalY = (relief[i - width] - relief[i + width]) * 12;
+        const inverseLength = 1 / Math.hypot(normalX, normalY, 1);
+        const light = Math.max(0, (0.77 - 0.39 * normalX - 0.50 * normalY) * inverseLength);
+        const gloss = Math.pow(Math.max(0, (0.94 - 0.19 * normalX - 0.27 * normalY) * inverseLength), 18);
+        const grain = heatHash01(i) * 9;
+        const olive = 16 + 28 * light + 27 * gloss + grain + 7 * ridges[i];
+        const index = i * 4;
+        bodyPixels.data[index] = olive * 0.99;
+        bodyPixels.data[index + 1] = olive * 1.03;
+        bodyPixels.data[index + 2] = olive * 0.74 + gloss * 12;
+        bodyPixels.data[index + 3] = ink * (166 + 53 * light + 17 * grain / 9);
+
+        const glintPath = x + 0.24 * y + 0.16 * Math.sin(9 * y + 3 * x);
+        const rim = 4 * ink * (1 - ink);
+        const glintStrength = Math.min(1, (ink * ridges[i] + rim * 0.28) * (0.68 + 0.55 * gloss));
+        for (let frame = 1; frame < frames - 1; frame += 1) {
+          const front = -1.85 + 3.7 * frame / (frames - 1);
+          const sweep = Math.max(0, 1 - Math.abs(glintPath - front) / 0.52);
+          if (sweep === 0) continue;
+          const offset = frameStride * frame + index;
+          currentPixels.data[offset] = 203;
+          currentPixels.data[offset + 1] = 210;
+          currentPixels.data[offset + 2] = 186;
+          currentPixels.data[offset + 3] = 251 * sweep * sweep * glintStrength;
+        }
+      }
+    }
+    bodyCtx.putImageData(bodyPixels, 0, 0);
+    currentCtx.putImageData(currentPixels, 0, 0);
+    return { body, current, width, height, frames };
+  }
+
+  function drawSlimeSeep(c, age, intensity, opacity, roomKey, centerX, centerY, width, height) {
+    const strength = Math.max(0, Math.min(1.5, intensity));
+    const alpha = c.globalAlpha * Math.max(0, Math.min(1, opacity)) * Math.min(1, strength);
+    if (!alpha) return;
+    slimeTextures ??= buildSlimeTextures();
+    if (!slimeTextures) return;
+
+    const { body, current, width: texW, height: texH, frames } = slimeTextures;
+    const time = Number.isFinite(age) ? Math.max(0, age) : 0;
+    const seed = roomEffectSeed(roomKey);
+    const unit = Math.min(width, height);
+    const aspect = Math.min(1.4, Math.max(width, height) / unit);
+    const angle = (width < height ? Math.PI / 2 : 0) + (heatHash01(seed) - 0.5) * 0.85;
+    const direction = heatHash01(seed + 1) < 0.5 ? -1 : 1;
+    const offset = heatHash01(seed + 2);
+    const spread = 1 - 0.22 * Math.exp(-time * 1.6);
+    c.save();
+    c.translate(centerX, centerY);
+    c.rotate(angle);
+    c.scale(unit * direction, unit);
+    for (const deposit of slimeDeposits) {
+      const phase = (time * 0.22 + deposit.phase + offset) % 1;
+      const extension = 0.88 + 0.12 * Math.sin(time * 0.77 + deposit.phase * 5 + offset * 6)
+        + 0.04 * Math.sin(time * 1.81 + deposit.phase * 11);
+      const drawWidth = deposit.width * aspect * extension * spread * (0.87 + 0.13 * strength);
+      const drawHeight = deposit.height * (0.87 + 0.13 * strength);
+      const left = -deposit.width * aspect * 0.46;
+      const top = -drawHeight * 0.5;
+      c.save();
+      c.translate(deposit.x, deposit.y);
+      c.rotate(deposit.angle);
+      c.globalAlpha = alpha;
+      c.drawImage(body, left, top, drawWidth, drawHeight);
+
+      const sample = phase * (frames - 1);
+      const frame = Math.floor(sample);
+      const blend = sample - frame;
+      c.globalAlpha = alpha * (1 - blend);
+      c.drawImage(current, 0, frame * texH, texW, texH, left, top, drawWidth, drawHeight);
+      c.globalAlpha = alpha * blend;
+      c.drawImage(current, 0, (frame + 1) * texH, texW, texH, left, top, drawWidth, drawHeight);
+      c.restore();
+    }
+    c.restore();
   }
 
   // ---- city-workers tables (Phase 58-w3.7y, per-room w3.7z) --------
@@ -221,7 +371,7 @@
 
   // FNV-1a over the room-id string → 32-bit uint, folded into the
   // sin-hash domain. Pure string math — stable across clients.
-  function workerRoomSeed(roomKey) {
+  function roomEffectSeed(roomKey) {
     let h = 2166136261;
     const s = String(roomKey);
     for (let idx = 0; idx < s.length; idx += 1) {
@@ -413,7 +563,7 @@
     const cacheKey = `${roomKey}::${groupsOpt}::${lanternShare}::${excludeR}::${offX}::${offY}`;
     const cached = WORKER_SCENE_CACHE.get(cacheKey);
     if (cached) return cached;
-    const seedBase = workerRoomSeed(roomKey) * 0.6180339887; // golden-ratio spread
+    const seedBase = roomEffectSeed(roomKey) * 0.6180339887; // golden-ratio spread
     const rh = (n) => heatHash01(n + seedBase);
 
     // Per-room lantern density (w3.8c, parametrized in w3.8i): the
@@ -1273,6 +1423,11 @@
         c.fillStyle = `rgba(122, 182, 255, ${0.15 * intensity})`;
         c.fillRect(0, 0, w, h);
       }
+      return;
+    }
+
+    if (type === "slime-seep") {
+      drawSlimeSeep(c, age, intensity, options.opacity ?? 1, room?.id ?? "preview", roomX, roomY, roomWidth, roomHeight);
       return;
     }
 

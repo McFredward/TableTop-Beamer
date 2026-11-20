@@ -133,6 +133,7 @@
     "power-outage",
     "special-scanning",
     "special-slime",
+    "slime-seep",
     "solid-color",
     "heat",
     "city-workers",

@@ -8438,6 +8438,20 @@
           "icon": null
         },
         {
+          "id": "slime-seep",
+          "name": "Slime Seep",
+          "assetType": "coded",
+          "assetRef": "slime-seep",
+          "soundAssetRef": "none",
+          "opacity": 0.95,
+          "intensity": 1,
+          "speed": 1,
+          "fadeEnabled": true,
+          "fadeDurationMs": 450,
+          "playbackMode": "loop",
+          "icon": "drop"
+        },
+        {
           "id": "room-mp8ycrkc-9",
           "name": "Color (Light)",
           "assetType": "coded",

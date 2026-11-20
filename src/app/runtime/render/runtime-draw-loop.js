@@ -418,17 +418,10 @@
 
     const effectType = ctx.resolveRoomCodedEffectType(assetRef || animation.type);
     const playbackSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
-    // Phase 58-w3.8b: `age` is ALREADY speed-scaled by the caller
-    // (drawAnimation: elapsed × state.animationSpeed × runtimeSpeed,
-    // lines ~743/777) — multiplying by the per-animation speed AGAIN
-    // here squared the knob for coded room effects (same bug class as
-    // the old outside-space quadratic speed). city-workers now takes
-    // the singly-scaled age so its speed knob is linear and matches
-    // the animation-editor live preview (which scales once). The other
-    // coded effects keep the historical double application for now:
-    // their gate parity (findActiveBreakingGate × computeHullFlicker-
-    // Gate) is tuned around it and retuning them is out of scope here.
-    const playbackAge = effectType === "city-workers" || effectType === "city-workers-lit"
+    // The caller has already applied speed. Workers and Slime Seep use
+    // that timeline as-is to match the editor preview. Legacy effects
+    // retain their speed curve so their gating and visuals stay in sync.
+    const playbackAge = effectType === "city-workers" || effectType === "city-workers-lit" || effectType === "slime-seep"
       ? age
       : age * playbackSpeed;
     // Opt-in coded-effect ⇒ solid-color coupling. When any running
