@@ -147,6 +147,43 @@ the frame during an outage, drops stale frames and reconnects automatically.
 Without `TT_BEAMER_CAMERA_URL` the receiver remains disabled. Using the status
 endpoint does not open a second camera connection or send images to the browser.
 
+### Evaluate GPU models on board crops
+
+`scripts/benchmark_board_vision.py` runs RF-DETR Large or RF-DETR
+Seg-2XLarge on a saved camera image. The benchmark selects CUDA automatically
+when available. An explicit `--device cuda` makes a missing GPU an error.
+This is an offline tool. It does not change game state or start a stream.
+
+On Windows, create an independent Python 3.12 environment. This example
+uses the CUDA 12.8 build of PyTorch and assumes a compatible NVIDIA driver.
+Run the benchmark from the TT-Beamer directory.
+
+```powershell
+$visionEnv = Join-Path $env:LOCALAPPDATA "tt-beamer-vision"
+py -3.12 -m venv $visionEnv
+$visionPython = Join-Path $visionEnv "Scripts\python.exe"
+& $visionPython -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cu128
+& $visionPython -m pip install rfdetr==1.12.1
+& $visionPython scripts/benchmark_board_vision.py capture.jpg --device cuda --roi 800,500,704,704
+```
+
+The ROI is `x,y,width,height` in original image pixels. Replace the example
+with the bounds of a room and repeat `--roi` to time a batch of several rooms.
+The JSON report includes boxes in original image coordinates, the median and
+95th-percentile crop-batch time, mask areas for segmentation, and peak
+allocated PyTorch memory on CUDA. Image loading and cropping are outside
+the timed region.
+
+RF-DETR downloads its default weights on first use. Those pretrained
+models serve as a runtime check. Use `--checkpoint`
+with locally fine-tuned RF-DETR weights to evaluate actual Nemesis pieces.
+Compare the same held-out clips across models, with an emphasis on incorrect
+effect transitions during projected light and occlusion. For live deployment,
+check projection frame pacing with the detector running. Evaluate TensorRT
+FP16 against the PyTorch results before using it.
+[RF-DETR model and license](https://github.com/roboflow/RF-DETR) ·
+[TensorRT export](https://rfdetr.roboflow.com/latest/exports/tensorrt/)
+
 ---
 
 ## Diagnostic endpoints
