@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -43,6 +44,7 @@ let signalingState = null;
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
+const cameraReceiver = createCameraReceiver({ sourceUrl: process.env.TT_BEAMER_CAMERA_URL });
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
@@ -4399,6 +4401,12 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && routePath === "/api/camera/status") {
+      res.setHeader("Cache-Control", "no-store");
+      sendJson(res, 200, cameraReceiver.snapshot());
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
         ok: true,
@@ -5430,6 +5438,7 @@ attachLiveWebSocket(server);
     }
   })();
   process.on("SIGINT", async () => {
+    await cameraReceiver.stop();
     console.log("[server] SIGINT — shutting down SSR render host…");
     // Phase 31 Plan 04 (D-X7): flush pending debounced active-animations
     // write BEFORE tearing down the SSR host so we never lose state.
@@ -5442,6 +5451,7 @@ attachLiveWebSocket(server);
     process.exit(0);
   });
   process.on("SIGTERM", async () => {
+    await cameraReceiver.stop();
     console.log("[server] SIGTERM — shutting down SSR render host…");
     try { await flushRunningAnimations(); } catch (err) { console.error(err); }
     // h41: flush the active-grid pending write so the operator's
@@ -5576,7 +5586,9 @@ try {
   );
 }
 
+server.on("close", () => { void cameraReceiver.stop(); });
 server.listen(PORT, HOST, () => {
+  cameraReceiver.start();
   logSessionEvent("server-start", {
     host: HOST,
     port: PORT,

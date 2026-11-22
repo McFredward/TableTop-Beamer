@@ -7,6 +7,7 @@ works without them, but they cover common operator chores.
 
 - [`projection_mapper.py` — hardware-level cropping with `xrandr`](#projection_mapperpy--hardware-level-cropping-with-xrandr)
 - [`loop_video.sh` — making non-looping videos loop seamlessly](#loop_videosh--making-non-looping-videos-loop-seamlessly)
+- [Board camera](#board-camera)
 - [Diagnostic endpoints](#diagnostic-endpoints)
 - [Media cache utilities](#media-cache-utilities)
 - [Browser-side diagnostic flags](#browser-side-diagnostic-flags)
@@ -80,6 +81,71 @@ or get the same portable build that `start.bat` uses on Windows).
 The script auto-detects audio and cross-fades both the video and audio
 streams if present. Output drops into the same directory as the input by
 default; use the second argument to override.
+
+---
+
+## Board camera
+
+The optional camera receiver runs in the TT-Beamer server on the PC. The Pi
+continues to open TT-Beamer's `/output/` page to display the projection. A
+separate process on the Pi publishes the camera's existing MJPEG frames. The PC
+opens one HTTP connection to it. A browser on either machine is unnecessary
+for camera reception. The current receiver exposes diagnostics and makes the
+newest usable JPEG available in memory. It does not trigger effects or save images.
+
+### Capture on the Pi
+
+Install `ustreamer` and `v4l-utils` from the Raspberry Pi OS repositories.
+Connect the camera to a USB 3 port and find its V4L2 capture device. Prefer the
+corresponding `/dev/v4l/by-id/` link for a persistent setup when available.
+
+~~~bash
+sudo apt install ustreamer v4l-utils
+lsusb -t
+v4l2-ctl --list-devices
+v4l2-ctl --device=/dev/video0 --list-formats-ext
+v4l2-ctl --device=/dev/video0 --list-ctrls-menus
+~~~
+
+Start with a 3840×2160 MJPEG mode that the device lists. Request 30 fps and
+check the delivered rate. Replace the sample address with the Pi's LAN address
+and the capture node with the one found above.
+
+~~~bash
+ustreamer --device=/dev/video0 --format=MJPEG --encoder=HW \
+  --resolution=3840x2160 --desired-fps=30 \
+  --host=192.168.0.42 --port=8092
+~~~
+
+`--encoder=HW` instructs uStreamer to use the camera's JPEGs directly.
+Keep the stream on the local network. Reserve the Pi's IP in the router so the
+PC can reconnect to the same address. Compare Ethernet and the actual Wi-Fi
+link with projection running. Keep the spatial resolution for small pieces if
+an offered lower frame rate fixes a bandwidth problem. Once capture is proven,
+run the command as a Pi service that restarts on failure.
+[µStreamer manual](https://github.com/pikvm/ustreamer/blob/master/man/ustreamer.1).
+
+### Connect the PC
+
+Set the stream URL in the environment before starting TT-Beamer. On Windows
+PowerShell, start the launcher from the same window.
+
+~~~powershell
+$env:TT_BEAMER_CAMERA_URL = "http://192.168.0.42:8092/stream"
+.\start.bat
+~~~
+
+On Linux use `TT_BEAMER_CAMERA_URL=http://192.168.0.42:8092/stream ./start.sh`.
+Open `/api/camera/status` on the TT-Beamer server, for example
+`http://127.0.0.1:4173/api/camera/status`. Check for `streaming`, the expected
+width and height, and a sequence that advances on each refresh. After enough
+frames the endpoint also reports the received frame rate and JPEG payload rate.
+
+The receiver requests uStreamer's extra frame headers to distinguish offline
+placeholders and repeated capture timestamps from usable frames. It clears
+the frame during an outage, drops stale frames and reconnects automatically.
+Without `TT_BEAMER_CAMERA_URL` the receiver remains disabled. Using the status
+endpoint does not open a second camera connection or send images to the browser.
 
 ---
 
