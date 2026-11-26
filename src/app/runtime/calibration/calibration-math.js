@@ -322,11 +322,12 @@ export function measureGrid(probes, detected, projector) {
   return { matches, error: percentile(matches.map(match => match.error), 0.90) };
 }
 
-export function updateGrid(grid, measured) {
+export function updateGrid(grid, measured, { lockEdges = false } = {}) {
   const { srcXs, srcYs } = grid;
   const radius = 1 / (Math.max(srcXs.length, srcYs.length) - 1);
   const points = srcYs.map(y => srcXs.map(x => {
     const point = gridPoint(grid, x, y);
+    if (lockEdges && (x === 0 || x === 1 || y === 0 || y === 1)) return point;
     let weight = 0;
     let dx = 0;
     let dy = 0;

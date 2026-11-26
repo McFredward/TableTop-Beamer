@@ -144,12 +144,17 @@ The projector shows a black frame and then coded white dots. TT-Beamer matches
 the printed board to its reference artwork, refines the fit against local
 details, and measures any visible physical edges. A narrow inset at confirmed
 edges keeps bright border effects on the board. The projector measures and
-adjusts grids of 5×5, 9×9 and 13×13, with extra checks on the room outlines and
-small indicators. The regular picture returns after the measurements.
+adjusts grids of 5×5, 9×9 and 13×13, with extra checks on small indicators. It
+then projects the room outlines and compares the visible lines with the printed
+details. A second outline image verifies any correction before it is accepted.
+The regular picture returns after the measurements. In Output, moving the mouse
+shows the cursor again after idle. The cursor stays hidden during automatic
+measurements.
 
 A verified result activates and replaces the selected board's **autocalibrated**
-profile. The status reports the 90th-percentile error in camera pixels at a
-1920-pixel analysis width. When you edit that grid by hand, **Save** asks for
+profile. The status reports the 90th-percentile errors for the dot check and
+available outline samples in camera pixels at a 1920-pixel analysis width.
+When you edit that grid by hand, **Save** asks for
 a new profile name. **Cancel calibration** returns to the live camera. If the
 board moves, repeat Auto calibrate with a clear camera view.
 

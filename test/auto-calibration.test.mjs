@@ -6,6 +6,7 @@ import {
   gridPoint, initialGrid, measureGrid, normalizeGrid, refineProjectionGrid,
 } from "../src/app/runtime/calibration/calibration-math.js";
 import { refinePrintedBoard } from "../src/app/runtime/calibration/printed-board-detail.js";
+import { refineRoomOutlines } from "../src/app/runtime/calibration/calibration-room-outlines.js";
 
 test("a pattern requires a matching projector acknowledgement and fresh frames from the same camera", () => {
   const state = createCalibrationSession();
@@ -21,6 +22,11 @@ test("a pattern requires a matching projector acknowledgement and fresh frames f
   assert.deepEqual(state.frame(id, step, { sequence: 203, generation: 4 }).headers, {
     "X-Projector-Width": 1920, "X-Projector-Height": 1080,
   });
+  const outline = [{ x: 0.2, y: 0.5 }, { x: 0.3, y: 0.6 }, { x: 0.2, y: 0.6 }];
+  assert.equal(state.pattern(id, [], [outline]), null);
+  assert.equal(state.pattern(id, undefined, [[...outline.slice(1), { x: 1.1, y: 0.6 }]]), null);
+  assert.deepEqual(state.pattern(id, undefined, [outline]).paths, [outline]);
+  assert.equal(state.frame(id, step, { sequence: 205, generation: 4 }), false);
   assert.equal(state.stop(id), output);
   assert.equal(state.frame(id, step, { sequence: 204, generation: 4 }), false);
 });
@@ -114,4 +120,60 @@ test("printed detail and physical edges correct different parts of a coarse boar
   } finally {
     for (const mat of [reference, scene, camera, mapX, mapY]) mat.delete();
   }
+});
+
+test("the room-outline pass verifies a mesh correction and preserves its outside edges", async () => {
+  const { cv } = await new Promise(resolve => {
+    if (cvModule.Mat) resolve({ cv: cvModule });
+    else cvModule.onRuntimeInitialized = () => resolve({ cv: cvModule });
+  });
+  const size = { width: 480, height: 400 };
+  const board = { at: ({ x, y }) => ({ x: 40 + 400 * x, y: 40 + 320 * y }) };
+  const rectangle = (x, y) => [[x, y], [x + 0.20, y], [x + 0.20, y + 0.20], [x, y + 0.20]];
+  const rooms = [[0.20, 0.20], [0.55, 0.25], [0.35, 0.60]].map(([x, y]) => ({ polygon: rectangle(x, y) }));
+  function render(width, height, paths, value, translation = 0) {
+    const image = new cv.Mat(height, width, cv.CV_8UC1, new cv.Scalar(0));
+    const shapes = new cv.MatVector();
+    try {
+      for (const path of paths) {
+        const line = cv.matFromArray(path.length, 1, cv.CV_32SC2,
+          path.flatMap(({ x, y }) => [Math.round(x + translation), Math.round(y)]));
+        shapes.push_back(line);
+        line.delete();
+      }
+      cv.polylines(image, shapes, true, new cv.Scalar(value), 3, cv.LINE_AA);
+      return Uint8Array.from(image.data);
+    } finally { image.delete(); shapes.delete(); }
+  }
+  const printed = rooms.map(({ polygon }) => polygon.map(([x, y]) => ({ x, y })));
+  const reference = { width: 401, height: 321, pixels: render(401, 321,
+    printed.map(path => path.map(({ x, y }) => ({ x: x * 400, y: y * 320 }))), 105) };
+  const dark = { ...size, pixels: render(size.width, size.height, printed.map(path => path.map(board.at)), 85) };
+  const projector = {
+    cameraToProjector: point => point,
+    correction: (_, target, observed) => ({ x: target.x - observed.x, y: target.y - observed.y }),
+  };
+  const grid = initialGrid(board, projector);
+  let first;
+  async function refine(makeWorse) {
+    return refineRoomOutlines({
+      measured: { grid }, board, projector, reference, dark, rooms, size,
+      capture(paths, pass) {
+        first ??= paths;
+        const overlaid = render(size.width, size.height,
+          paths.map(path => path.map(({ x, y }) => ({ x: x * size.width, y: y * size.height }))),
+          130, makeWorse && pass === 2 ? 7 : 4);
+        return { ...size, pixels: Uint8Array.from(overlaid, (value, i) => Math.min(255, value + dark.pixels[i])) };
+      },
+    });
+  }
+  const improved = await refine(false);
+  const rejected = await refine(true);
+  assert.equal(first.length, rooms.length);
+  assert.ok(improved.outline.count > 12);
+  assert.ok(improved.outline.error < rejected.outline.error);
+  assert.notEqual(improved.grid, grid);
+  assert.equal(rejected.grid, grid);
+  assert.deepEqual(improved.grid.points[0], grid.points[0]);
+  assert.deepEqual(improved.grid.points.at(-1), grid.points.at(-1));
 });

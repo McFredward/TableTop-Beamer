@@ -4479,9 +4479,9 @@ const server = createServer(async (req, res) => {
         return;
       }
       let request;
-      try { request = await parseJsonBody(req, { maxBytes: 16 * 1024 }); }
+      try { request = await parseJsonBody(req, { maxBytes: local ? 240 * 1024 : 1024 }); }
       catch { sendJson(res, 400, { error: "Invalid calibration request." }); return; }
-      const { action, id, step, clientId, width, height, points } = request ?? {};
+      const { action, id, step, clientId, width, height, points, paths } = request ?? {};
       if (action === "shown" && fromOutput) {
         const accepted = calibration.shown(id, step, clientId, width, height, outputCamera.latestFrame());
         res.writeHead(accepted ? 204 : 409).end();
@@ -4511,13 +4511,14 @@ const server = createServer(async (req, res) => {
         if (!started) sendJson(res, 409, { error: "A calibration is already running." });
         else {
           console.info(`[auto-calibration] started for ${boardId}`);
+          sendLiveSocketMessage(output.socket, { type: "calibration-pattern", pattern: { id: started.id, starting: true } });
           sendJson(res, 200, started);
         }
         return;
       }
       if (action === "pattern") {
         const run = calibration.current(id);
-        const pattern = run?.boardId === liveSessionState.snapshot.selectedBoard && calibration.pattern(id, points);
+        const pattern = run?.boardId === liveSessionState.snapshot.selectedBoard && calibration.pattern(id, points, paths);
         if (!pattern) sendJson(res, 409, { error: "The active board or projector changed during calibration." });
         else {
           sendLiveSocketMessage(run.output.socket, { type: "calibration-pattern", pattern });

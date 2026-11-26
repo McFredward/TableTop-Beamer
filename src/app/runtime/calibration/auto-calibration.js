@@ -2,6 +2,7 @@ import {
   DOT_BITS, projectorDots, registerBoard, registerProjector, localContrast,
   detectDots, measureGrid, refineProjectionGrid, normalizeGrid,
 } from "./calibration-math.js";
+import { refineRoomOutlines } from "./calibration-room-outlines.js";
 
 let cvReady;
 
@@ -64,8 +65,8 @@ async function grayscale(blob) {
   }
 }
 
-async function capture(id, points, signal) {
-  const { step } = await jsonRequest("/api/calibration", { action: "pattern", id, points }, signal);
+async function capture(id, pattern, signal) {
+  const { step } = await jsonRequest("/api/calibration", { action: "pattern", id, ...pattern }, signal);
   const timeout = AbortSignal.timeout(9500);
   const combined = AbortSignal.any([signal, timeout]);
   while (!combined.aborted) {
@@ -106,15 +107,15 @@ async function runCalibration(signal, progress) {
     const reference = await grayscale(await image.blob());
 
     progress("Finding the printed board in the camera image…");
-    const unlit = await capture(session.id, [], signal);
+    const unlit = await capture(session.id, { points: [] }, signal);
     const registeredBoard = registerBoard(cv, reference, unlit.gray);
     const dark = localContrast(cv, unlit.gray);
-    const lit = localContrast(cv, (await capture(session.id, projectorDots, signal)).gray);
+    const lit = localContrast(cv, (await capture(session.id, { points: projectorDots }, signal)).gray);
     const bits = [];
     for (let bit = 0; bit < DOT_BITS; bit++) {
       progress(`Measuring the projector · pattern ${bit + 1} of ${DOT_BITS}`);
       const pattern = projectorDots.filter(dot => dot.id & (1 << bit));
-      bits.push(localContrast(cv, (await capture(session.id, pattern, signal)).gray));
+      bits.push(localContrast(cv, (await capture(session.id, { points: pattern }, signal)).gray));
     }
 
     const registeredProjector = registerProjector(cv, registeredBoard, dark, lit, bits, unlit.size);
@@ -125,22 +126,32 @@ async function runCalibration(signal, progress) {
       rooms: board.roomCatalog ?? [],
       async verify(probes, { level, pass, index, groups }) {
         progress(`Refining the ${level} × ${level} grid · pass ${pass} · pattern ${index + 1} of ${groups}`);
-        const photo = await capture(session.id, probes.map(({ projector }) => ({
+        const points = probes.map(({ projector }) => ({
           x: projector.x / unlit.size.width, y: projector.y / unlit.size.height,
-        })), signal);
+        }));
+        const photo = await capture(session.id, { points }, signal);
         const dots = detectDots(cv, dark, localContrast(cv, photo.gray));
         return measureGrid(probes, dots, registeredProjector);
       },
     });
+    const refined = await refineRoomOutlines({
+      measured, board: registeredBoard, projector: registeredProjector, reference, dark: unlit.gray,
+      rooms: board.roomCatalog ?? [], size: unlit.size,
+      async capture(paths, pass) {
+        progress(pass === 1 ? "Checking projected room outlines against the printed board…"
+          : "Verifying the room outline correction…");
+        return (await capture(session.id, { paths }, signal)).gray;
+      },
+    });
     signal.throwIfAborted();
     progress("Applying the verified calibration…");
-    const grid = normalizeGrid(measured.grid, unlit.size);
+    const grid = normalizeGrid(refined.grid, unlit.size);
     const { profileId } = await jsonRequest("/api/calibration", { action: "apply", id: session.id, grid });
     const profiles = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
     if (profiles?.getCurrentBoardId() === session.boardId) {
       profiles.applyAndCaptureSnapshot(grid, profileId, { broadcast: false, remember: true });
     }
-    return { profileId, grid, error: measured.error, verified: measured.matches.length };
+    return { profileId, grid, error: measured.error, verified: measured.matches.length, outline: refined.outline };
   } finally {
     await jsonRequest("/api/calibration", { action: "stop", id: session.id }).catch(() => {});
   }
@@ -162,7 +173,9 @@ export function bindAutoCalibration({ dialog, pausePreview, resumePreview }) {
       const result = await runCalibration(operation.signal, message => {
         status.textContent = message;
       });
-      status.textContent = `${result.profileId} active · ${result.grid.srcXs.length} × ${result.grid.srcYs.length} grid · ${result.verified} verified points · ${result.error.toFixed(1)} px error at the 90th percentile.`;
+      const dots = `${result.verified} points checked · ${result.error.toFixed(1)} px at P90`;
+      const outlines = result.outline ? ` · ${result.outline.count} outline samples · ${result.outline.error.toFixed(1)} px at P90` : "";
+      status.textContent = `${result.profileId} active · ${result.grid.srcXs.length} × ${result.grid.srcYs.length} grid · ${dots}${outlines}.`;
     } catch (error) {
       status.textContent = operation.signal.aborted ? "Calibration cancelled." : error.message;
     } finally {
