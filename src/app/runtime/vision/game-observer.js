@@ -2,8 +2,8 @@
 // 1600-pixel-wide reference. They are independent of pose and camera.
 const roundSlots = [895, 934, 973, 1012, 1051, 1090, 1129, 1192, 1231, 1269, 1308, 1347, 1385, 1424, 1462, 1523]
   .map((x, i) => ({ x, value: 15 - i, enabled: i >= 7 && i <= 14, track: "round" }));
-const destructionSlots = [60, 96, 137, 174, 236, 274, 313, 369]
-  .map((x, i) => ({ x, value: i === 0 ? null : 7 - i, enabled: i >= 4, track: "self-destruct" }));
+const destructionSlots = [96, 137, 174, 236, 274, 313, 369]
+  .map((x, i) => ({ x, value: 6 - i, enabled: i >= 3, track: "self-destruct" }));
 
 const rules = {
   noise: { label: "Light Flicker", asset: "hull-flicker" },
@@ -148,25 +148,27 @@ export function createGameObserver(layout) {
         const slot = slots.find(slot => polygonContains(slot.polygon, point));
         if (slot) matching.push(slot);
       }
-      if (!tracks.has(kind) && !matching.length) continue;
+      const empty = kind === "self-destruct" && !matching.length && frame.emptyDestruction;
+      if (!tracks.has(kind) && !matching.length && !empty) continue;
       const reading = tracks.get(kind) ?? { value: null, pending: 0, status: "checking" };
       tracks.set(kind, reading);
-      if (matching.length !== 1) {
+      if (matching.length !== 1 && !empty) {
         reading.pending = 0;
         reading.status = "uncertain";
         if (current.has(kind)) current.get(kind).status = "uncertain";
         continue;
       }
-      const [slot] = matching;
-      reading.pending = slot.value === reading.candidate ? reading.pending + 1 : 1;
-      reading.candidate = slot.value;
+      const value = empty ? null : matching[0].value;
+      const candidate = empty ? "empty" : value;
+      reading.pending = candidate === reading.candidate ? reading.pending + 1 : 1;
+      reading.candidate = candidate;
       reading.status = "checking";
       if (current.has(kind)) current.get(kind).status = "checking";
       if (reading.pending >= 2) {
-        reading.value = slot.value;
-        reading.status = "confirmed";
+        reading.value = value;
+        reading.status = empty ? "inactive" : "confirmed";
         const state = stateFor(kind, { kind, zone });
-        state.active = slot.enabled;
+        state.active = !empty && matching[0].enabled;
         state.status = "confirmed";
         state.confirmed = true;
       }

@@ -266,7 +266,9 @@ FP16 against the PyTorch results before using it.
 With the camera and TT-Beamer running, open `http://127.0.0.1:4173/` on the PC
 and choose **Camera** in the dashboard. **Live camera** shows the full incoming
 frame. **Detections** shows segmentation masks, boxes, labels and confidence
-scores on the exact frame used for inference. It shows the live camera while
+scores on the exact frame used for inference. On Nemesis Board A it also
+draws boxes and the confirmed artwork numbers for the transparent counters.
+It shows the local detections while
 waiting for a result from the Python process.
 
 In a second PowerShell window, start inference with the Python environment from
@@ -310,8 +312,9 @@ Open **Camera → Game observation** on the server PC. On Nemesis Board A,
 the view compares the printed track fields with the camera image to locate
 the transparent counters. Two matching frames confirm the slot. Round
 positions 8–1 propose **Scanning** in room 011. Self-destruct positions 3
-and below propose **Intruder Alert** in the ship interior. Uncertain or
-covered slots retain the last confirmed reading.
+and below propose **Intruder Alert** in the ship interior. A readable, empty
+self-destruct track is inactive. A counter beside the numbers is outside the
+track. Uncertain or covered slots retain the last confirmed reading.
 
 Run the vision worker with `--game --checkpoint path/to/weights.pth` to
 publish model detections for pieces. The expected labels are `noise`,

@@ -77,6 +77,13 @@ function bootCameraPreview() {
     });
   }
 
+  async function sameCameraFrame(id, signal) {
+    const response = await fetch("/api/camera/latest.jpg?" + new URLSearchParams({ frameId: id }), {
+      cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1800)]),
+    });
+    return response.ok ? createImageBitmap(await response.blob()) : null;
+  }
+
   function setStatus(message) {
     if (status.textContent !== message) status.textContent = message;
   }
@@ -84,6 +91,7 @@ function bootCameraPreview() {
   async function refresh(signal) {
     let visibleId;
     let visibleSource;
+    let retryBoardAt = 0;
     while (!signal.aborted) {
       const started = performance.now();
       let delay = 200;
@@ -100,13 +108,30 @@ function bootCameraPreview() {
           const blob = await response.blob();
           const id = response.headers.get("X-Camera-Frame-Id");
           const bitmap = await createImageBitmap(blob);
+          let original;
           try {
             if (signal.aborted) return;
-            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-              canvas.width = bitmap.width;
-              canvas.height = bitmap.height;
+            if (source === "vision") {
+              original = await sameCameraFrame(id, signal).catch(() => null);
             }
-            context.drawImage(bitmap, 0, 0);
+            if (signal.aborted) return;
+            const camera = original ?? bitmap;
+            if (canvas.width !== camera.width || canvas.height !== camera.height) {
+              canvas.width = camera.width;
+              canvas.height = camera.height;
+            }
+            context.drawImage(camera, 0, 0);
+            let annotated = false;
+            if (original) {
+              const coverage = response.headers.get("X-Vision-Coverage");
+              const coordinates = coverage ? coverage.split(",").map(Number)
+                : Math.abs(bitmap.width / bitmap.height - camera.width / camera.height) < 0.025 ? [0, 0, 1, 1] : null;
+              if (coordinates) {
+                const [x, y, w, h] = coordinates;
+                context.drawImage(bitmap, x * camera.width, y * camera.height, w * camera.width, h * camera.height);
+                annotated = true;
+              }
+            }
             if (mode === "fire") {
               try {
                 await fire.observe(bitmap, blob, id, context, signal);
@@ -116,16 +141,24 @@ function bootCameraPreview() {
                 delay = 1000;
               }
             }
-            if (mode === "game") {
+            const selectedBoard = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
+            const boardOverlay = mode === "vision" && selectedBoard?.startsWith("nemesis-") &&
+              (original || source === "raw") && performance.now() >= retryBoardAt;
+            if (mode === "game" || boardOverlay) {
               try {
-                await game.observe(bitmap, id, context, signal);
+                await game.observe(camera, id, context, signal, { annotated });
               } catch (error) {
                 if (signal.aborted) return;
-                game.unavailable(error.message);
-                delay = 1000;
+                if (mode === "game") {
+                  game.unavailable(error.message);
+                  delay = 1000;
+                } else {
+                  retryBoardAt = performance.now() + 3000;
+                }
               }
             }
           } finally {
+            original?.close();
             bitmap.close();
           }
           canvas.hidden = false;
@@ -140,7 +173,7 @@ function bootCameraPreview() {
           }
         }
         if (response.status === 200 || response.status === 204) {
-          setStatus(source === "raw" && mode === "vision" ? "Waiting for RF-DETR. Showing the live camera." : "");
+          setStatus(source === "raw" && mode === "vision" ? "Local detections. Waiting for RF-DETR." : "");
         } else {
           canvas.hidden = true;
           metrics.textContent = "";

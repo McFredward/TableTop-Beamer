@@ -34,6 +34,7 @@ export function createCameraVision(cameraInput) {
   let preview;
   let pending = false;
   const objectFrames = new Map();
+  const sourceFrames = new Map();
 
   function freshFrame(id) {
     const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
@@ -51,6 +52,17 @@ export function createCameraVision(cameraInput) {
   }
 
   return {
+    rememberSource(frame) {
+      sourceFrames.set(cameraFrameId(frame), frame);
+      if (sourceFrames.size > 4) sourceFrames.delete(sourceFrames.keys().next().value);
+    },
+
+    sourceFor(id) {
+      if (!freshFrame(id)) return null;
+      const latest = cameraInput.latestFrame();
+      return sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
+    },
+
     objectsFor(id) {
       id ??= [...objectFrames.keys()].reverse().find(key => freshFrame(key));
       return freshFrame(id) ? objectFrames.get(id) ?? null : null;
@@ -97,11 +109,12 @@ export function createCameraVision(cameraInput) {
       const count = Number(req.headers["x-vision-count"]);
       const masks = Number(req.headers["x-vision-masks"]);
       const elapsed = Number(req.headers["x-vision-ms"]);
+      const coverage = req.headers["x-vision-coverage"]?.split(",").map(Number);
       if (!parts || !Number.isSafeInteger(sequence) || sequence < 1 ||
           !/^(seg-nano|seg-large|seg-2xlarge|large)$/.test(model ?? "") ||
           !/^(pretrained|checkpoint)$/.test(weights ?? "") || !/^(cpu|cuda)$/.test(device ?? "") ||
           !Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(masks) || masks < 0 || masks > count ||
-          !Number.isFinite(elapsed) || elapsed < 0) return 400;
+          !Number.isFinite(elapsed) || elapsed < 0 || (coverage && !rect(coverage))) return 400;
       if (pending) return 429;
 
       pending = true;
@@ -119,6 +132,7 @@ export function createCameraVision(cameraInput) {
           headers: {
             "X-Vision-Count": count, "X-Vision-Masks": masks, "X-Vision-MS": elapsed,
             "X-Vision-Model": model, "X-Vision-Weights": weights, "X-Vision-Device": device,
+            ...(coverage && { "X-Vision-Coverage": coverage.join(",") }),
           },
         };
         return 204;

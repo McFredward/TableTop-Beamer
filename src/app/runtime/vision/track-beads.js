@@ -75,18 +75,24 @@ function intensityFit(frame, slot) {
 
 export function detectTrackBeads(frame, slots) {
   const ranked = new Map();
+  const destructionReads = [];
   for (const slot of slots) {
     const fit = intensityFit(frame, slot);
+    if (slot.track === "self-destruct") destructionReads.push(fit);
     if (!fit || fit.correlation > 0.65 || fit.highlights < 24) continue;
     const score = 1 - fit.correlation + Math.min(fit.highlights / slot.samples.length, 0.2) * 1.6;
     const proposals = ranked.get(slot.track) ?? [];
     proposals.push({ slot, score });
     ranked.set(slot.track, proposals);
   }
-  return [...ranked.values()].flatMap(proposals => {
+  const objects = [...ranked.values()].flatMap(proposals => {
     proposals.sort((a, b) => b.score - a.score);
     const [first, next] = proposals;
     if (next && first.score - next.score < 0.09) return [];
-    return [{ kind: "track-marker", confidence: 0.8, anchor: first.slot.anchor, box: first.slot.box }];
+    return [{ kind: "track-marker", confidence: 0.8, anchor: first.slot.anchor, box: first.slot.box,
+      track: first.slot.track, value: first.slot.value }];
   });
+  const emptyDestruction = destructionReads.length > 0 && !ranked.has("self-destruct") &&
+    destructionReads.every(fit => fit && fit.correlation >= 0.67 && fit.highlights < 24);
+  return { objects, emptyDestruction };
 }

@@ -80,3 +80,22 @@ test("the blue section starts scanning in the cryochamber and self-destruct 3 al
   assert.ok(observe(moved).effects.every(x => x.active));
   assert.ok(observe(moved).effects.every(x => !x.active));
 });
+
+test("a readable empty self-destruct track switches off the alarm and ignores the starting symbol", () => {
+  const observer = createGameObserver(layout);
+  let i = 0;
+  const advance = (objects, emptyDestruction = false) => observer.observe({
+    frameId: `${1795718100000 + i * 700}-1-${++i}`,
+    classes: ["track-marker"], coverage: [0, 0, 1, 1], objects, emptyDestruction,
+  });
+  const alarm = frame => frame.effects.find(effect => effect.kind === "self-destruct");
+  const three = item("track-marker", 236 / 1600, 0.9514);
+  const outside = item("track-marker", 60 / 1600, 0.9514);
+  advance([three]);
+  assert.equal(alarm(advance([three])).active, true);
+  assert.equal(alarm(advance([outside])).active, true);
+  assert.equal(alarm(advance([outside], true)).active, true);
+  const cleared = advance([outside], true);
+  assert.equal(alarm(cleared).active, false);
+  assert.equal(cleared.tracks.find(track => track.kind === "self-destruct").status, "inactive");
+});

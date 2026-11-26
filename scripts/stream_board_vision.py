@@ -174,7 +174,11 @@ def main():
                 except HTTPError as error:
                     if error.code not in (404, 409):
                         raise
-            result = annotate(image, detections, annotations, np)
+            annotated = detections[np.asarray(detections.data["class_name"]) != "track-marker"] if args.game else detections
+            result = annotate(image, annotated, annotations, np)
+            original_width, original_height = original_size
+            x, y, width, height = args.roi or (0, 0, original_width, original_height)
+            coverage = [x / original_width, y / original_height, width / original_width, height / original_height]
             request = Request(url + "/api/camera/vision.jpg", method="POST", data=result, headers={
                 "Content-Type": "image/jpeg",
                 "X-Camera-Frame-Id": last_frame,
@@ -184,6 +188,7 @@ def main():
                 "X-Vision-Count": str(len(detections)),
                 "X-Vision-Masks": str(len(detections) if detections.mask is not None else 0),
                 "X-Vision-MS": f"{elapsed:.1f}",
+                "X-Vision-Coverage": ",".join(str(value) for value in coverage),
             })
             try:
                 with urlopen(request, timeout=2):

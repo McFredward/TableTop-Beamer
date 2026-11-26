@@ -71,3 +71,15 @@ test("structured game detections stay attached to a recent camera frame and reje
   source = cameraFrame(12, 2);
   assert.equal(vision.objectsFor(shape.frameId), null);
 });
+
+test("original frames can be recovered by id for exact preview overlays", () => {
+  let source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const original = source;
+  vision.rememberSource(original);
+  source = cameraFrame(2);
+  assert.equal(vision.sourceFor(cameraFrameId(original)), original);
+  assert.equal(vision.sourceFor(cameraFrameId(source)), source);
+  source = cameraFrame(3, 2);
+  assert.equal(vision.sourceFor(cameraFrameId(original)), null);
+});

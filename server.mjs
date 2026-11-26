@@ -4676,14 +4676,16 @@ const server = createServer(async (req, res) => {
         }
         return;
       }
-      const input = routePath === "/api/camera/vision.jpg" ? cameraVision : cameraInput();
-      const frame = input.latestFrame();
+      const options = new URL(req.url, "http://localhost").searchParams;
+      const raw = routePath === "/api/camera/latest.jpg";
+      const id = raw ? options.get("frameId") : null;
+      const frame = id ? cameraVision.sourceFor(id) : (raw ? cameraInput() : cameraVision).latestFrame();
       if (!frame) {
         sendJson(res, 503, { error: "No recent camera frame" });
         return;
       }
-      const after = new URL(req.url, "http://localhost").searchParams.get("after");
-      sendCameraFrame(res, frame, after);
+      if (raw && !id) cameraVision.rememberSource(frame);
+      sendCameraFrame(res, frame, options.get("after"));
       return;
     }
 

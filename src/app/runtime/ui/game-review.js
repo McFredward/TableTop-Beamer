@@ -4,6 +4,26 @@ import { createFireTracker, detectFireTokens, makeFireGeometry } from "../vision
 import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 
+function paintBoxes(context, boxes) {
+  const { width, height } = context.canvas;
+  const unit = width / 960;
+  context.save();
+  context.lineWidth = Math.max(2, unit * 1.5);
+  context.font = `bold ${12 * unit}px system-ui`;
+  for (const { box, label, color } of boxes) {
+    const [x, y, w, h] = box.map((value, i) => value * (i % 2 === 0 ? width : height));
+    const textX = Math.min(x, width - context.measureText(label).width - 6 * unit);
+    const textY = Math.max(17 * unit, y - 2 * unit);
+    context.strokeStyle = color;
+    context.strokeRect(x, y, w, h);
+    context.fillStyle = "#10151e";
+    context.fillRect(textX, textY - 14 * unit, context.measureText(label).width + 6 * unit, 16 * unit);
+    context.fillStyle = color;
+    context.fillText(label, textX + 3 * unit, textY - 2 * unit);
+  }
+  context.restore();
+}
+
 export function createGameReview() {
   const panel = document.getElementById("game-review");
   const tracks = document.getElementById("game-review-tracks");
@@ -55,7 +75,7 @@ export function createGameReview() {
     if (element.textContent !== value) element.textContent = value;
   }
 
-  async function observe(bitmap, id, context, signal) {
+  async function observe(bitmap, id, context, signal, { annotated = false } = {}) {
     const frame = readBitmap(bitmap, true);
     const [, generation] = id.split("-");
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
@@ -68,16 +88,17 @@ export function createGameReview() {
     const candidate = sampleModel.status === 200 ? await sampleModel.json() : null;
     signal.throwIfAborted();
     const model = candidate?.frameId.split("-")[1] === generation ? candidate : null;
-    const objects = detectTrackBeads(frame, setup.beads);
-    const fallback = setup.geometry && setup.fireEffect && !model?.classes.includes("fire")
-      ? setup.fire.observe(frame, detectFireTokens(setup.cv, frame, setup.geometry), id, Number(id.split("-")[0]))
-      : [];
-    const native = setup.native.observe({ frameId: id, objects, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
+    const beads = detectTrackBeads(frame, setup.beads);
+    const hits = setup.geometry && setup.fireEffect && !model?.classes.includes("fire")
+      ? detectFireTokens(setup.cv, frame, setup.geometry) : null;
+    const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0])) : [];
+    const native = setup.native.observe({ frameId: id, ...beads, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
     const trained = model ? setup.trained.observe(model) : null;
     const proposed = native.effects.concat(trained?.effects ?? []);
     render(tracks, native.tracks.map(track => {
       const label = track.kind === "round" ? "Round" : "Self-destruct";
-      return `${label} ${track.value ?? "—"} · ${track.status}`;
+      return track.status === "inactive" ? `${label} · inactive`
+        : `${label} ${track.value ?? "—"} · ${track.status}`;
     }), setup.beads.length ? "Looking for the transparent track counters…" : "Track slots are mapped on Nemesis Board A.");
     render(effects, proposed.map(item =>
       `${item.zone} · ${item.effect.name} ${item.active ? "on" : "off"} · ${item.status}${item.kind === "alien" ? ` (${item.count} seen)` : ""}`)
@@ -86,12 +107,17 @@ export function createGameReview() {
     render(source, model ? [`Trained classes: ${model.classes.join(", ")}`] : [],
       "Local prototype checks Fire and track counters. Other pieces need a trained detector.");
 
-    const width = context.canvas.width, height = context.canvas.height;
-    context.save();
-    context.lineWidth = Math.max(2, width / 640);
-    context.strokeStyle = "#7ee6ff";
-    for (const { box: [x, y, w, h] } of objects) context.strokeRect(x * width, y * height, w * width, h * height);
-    context.restore();
+    const markerBoxes = beads.objects.map(({ track, value, box }) => ({
+      box, label: `${track === "round" ? "Round" : "Self-destruct"} ${value}`, color: "#7ee6ff",
+    }));
+    const fireBoxes = hits ? [...hits.values()].map(({ room, box: { x, y, w, h } }) => ({
+      box: [x / frame.width, y / frame.height, w / frame.width, h / frame.height],
+      label: `Fire · ${room.name}`, color: "#ffc359",
+    })) : [];
+    const modelBoxes = !annotated && model?.frameId === id ? model.objects
+      .filter(item => item.kind !== "track-marker" || !setup.beads.length)
+      .map(({ kind, confidence, box }) => ({ box, label: `${kind} ${Math.round(confidence * 100)}%`, color: "#7be4b5" })) : [];
+    paintBoxes(context, [...markerBoxes, ...fireBoxes, ...modelBoxes]);
   }
 
   return { reset, observe, unavailable };
