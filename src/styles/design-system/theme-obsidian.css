@@ -1847,3 +1847,43 @@ body[data-output-role="final-output"] .cluster-pads {
     padding: 4px 6px;
   }
 }
+.camera-preview {
+  width: min(1120px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 16px;
+  border: 1px solid var(--c-border-str, #454953);
+  border-radius: var(--rd-r-md, 12px);
+  background: var(--c-bg, #141820);
+  color: var(--c-text, #f1f3f7);
+}
+.camera-preview::backdrop { background: rgba(5, 8, 14, 0.72); }
+.camera-preview-header,
+.camera-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.camera-preview-header { justify-content: space-between; }
+.camera-preview-header h2 { margin: 0; font-size: 1.1rem; }
+.camera-preview-controls [aria-pressed="true"] {
+  background: var(--c-accent, #32d3a3);
+  color: var(--c-on-accent, #071c16);
+}
+.camera-preview-frame {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  overflow: hidden;
+  border-radius: var(--rd-r-sm, 8px);
+  background: #090b10;
+}
+.camera-preview-frame canvas {
+  width: auto;
+  max-width: 100%;
+  max-height: min(62dvh, 700px);
+}
+.camera-preview-status,
+.camera-preview-metrics { margin: 8px 0 0; font-size: .8rem; }
+.camera-preview-status:empty,
+.camera-preview-metrics:empty { display: none; }

@@ -4,7 +4,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const FRAMES_PER_SECOND = 5;
 const JPEG_SIZE_MARKERS = new Set([0xc0, 0xc1, 0xc2]);
 
-function jpegDimensions(jpeg) {
+export function jpegDimensions(jpeg) {
   if (jpeg.length < 16 || jpeg.readUInt16BE(0) !== 0xffd8 ||
       jpeg.readUInt16BE(jpeg.length - 2) !== 0xffd9) return null;
 
@@ -33,6 +33,7 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
   const enabled = isIP(ipv4) === 4;
   let frame = null;
   let framesReceived = 0;
+  let generation = 0;
   let pending = false;
   let rate = null;
   let intervalStart = 0;
@@ -72,6 +73,7 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
       if (jpeg.length !== length || !dimensions) return { code: 400, error: "Invalid camera JPEG" };
       const arrival = performance.now();
       if (!latestFrame()) {
+        generation++;
         intervalStart = arrival;
         intervalFrames = 0;
         intervalBytes = 0;
@@ -80,7 +82,7 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
         intervalFrames++;
         intervalBytes += jpeg.length;
       }
-      frame = { jpeg, ...dimensions, arrival, sequence: ++framesReceived, receivedAt: new Date().toISOString() };
+      frame = { jpeg, ...dimensions, arrival, generation, sequence: ++framesReceived, receivedAt: new Date().toISOString() };
       const elapsed = arrival - intervalStart;
       if (elapsed >= 1000) {
         rate = {

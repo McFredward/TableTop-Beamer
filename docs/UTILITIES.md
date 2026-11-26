@@ -125,8 +125,8 @@ is `streaming` and inspect the received resolution, sequence and frame rate.
 The PC can retrieve the latest fresh JPEG at `/api/camera/latest.jpg` over
 loopback. TT-Beamer keeps the latest frame in memory for diagnostics and
 future vision processing. If you put TT-Beamer behind a reverse proxy, block
-access to `/api/camera/latest.jpg` at the proxy. Browser capture requires the
-TT-Beamer server to see the Pi's address directly.
+access to `/api/camera/latest.jpg` and `/api/camera/vision.jpg` at the proxy.
+Browser capture requires the TT-Beamer server to see the Pi's address directly.
 
 ### Alternative capture with µStreamer
 
@@ -223,6 +223,36 @@ check projection frame pacing with the detector running. Evaluate TensorRT
 FP16 against the PyTorch results before using it.
 [RF-DETR model and license](https://github.com/roboflow/RF-DETR) ·
 [TensorRT export](https://rfdetr.roboflow.com/latest/exports/tensorrt/)
+
+### Live detections in the dashboard
+
+With the camera and TT-Beamer running, open `http://127.0.0.1:4173/` on the PC
+and choose **Camera** in the dashboard. **Live camera** shows the full incoming
+frame. **Detections** shows segmentation masks, boxes, labels and confidence
+scores on the exact frame used for inference. It shows the live camera while
+waiting for a result from the Python process.
+
+In a second PowerShell window, start inference with the Python environment from
+the previous section. The default model is RF-DETR Seg 2XLarge. Its first launch
+downloads the pretrained weights.
+
+```powershell
+$visionPython = Join-Path $env:LOCALAPPDATA "tt-beamer-vision\Scripts\python.exe"
+& $visionPython scripts/stream_board_vision.py --device cuda
+```
+
+The worker analyzes the most recent frame, up to three times per second. Use
+`--max-fps 1` to compare projection performance under a lighter load, or
+`--model seg-nano --device cpu` for a machine without CUDA. Use `--port` if
+TT-Beamer runs on a different port. `--roi 800,500,704,704` processes a crop
+from the original 4K image. Without a crop the annotated preview is scaled to
+fit within 1600×1600. Add `--checkpoint path\to\weights.pt` and choose the
+matching `--model` to test trained Nemesis classes. The dashboard identifies
+whether the result uses COCO weights or a custom checkpoint.
+
+The worker and dashboard access the camera images on the server PC over
+loopback. TT-Beamer keeps the newest result in memory. When the camera goes
+offline the preview clears, and inference waits for fresh frames.
 
 ---
 

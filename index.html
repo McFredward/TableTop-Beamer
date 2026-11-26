@@ -150,6 +150,8 @@
           </div>
         </div>
         <div class="rd-topbar-actions">
+          <button id="camera-preview-open" class="rd-btn rd-btn-ghost" type="button"
+            aria-haspopup="dialog" hidden>Camera</button>
           <!-- Phase 22 W2b / W5: running-count chip — split into default
                (auto-restoring) and custom (ad-hoc) animation counts on
                two lines. Each line only renders when its count is >0,
@@ -1022,6 +1024,23 @@
   </div>
 
   <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
+
+  <dialog id="camera-preview" class="camera-preview" aria-labelledby="camera-preview-title">
+    <header class="camera-preview-header">
+      <h2 id="camera-preview-title">Board camera</h2>
+      <form method="dialog"><button class="rd-btn rd-btn-ghost" type="submit">Close</button></form>
+    </header>
+    <div class="camera-preview-controls" role="group" aria-label="Camera view">
+      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="raw" aria-pressed="false">Live camera</button>
+      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="vision" aria-pressed="true">Detections</button>
+    </div>
+    <div class="camera-preview-frame">
+      <canvas id="camera-preview-image" role="img" aria-label="Latest board camera frame" hidden></canvas>
+    </div>
+    <p id="camera-preview-status" class="camera-preview-status" role="status"></p>
+    <p id="camera-preview-metrics" class="camera-preview-metrics"></p>
+  </dialog>
+  <script type="module" src="/src/app/runtime/ui/camera-preview.js"></script>
 
   <!-- Phase 24 W3.1-C4.5: pure self-contained utility IIFE; hoisted to top of
        runtime block so any consumer (e.g. animation-editor-view.js) sees it at

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
+import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -48,6 +49,7 @@ const PORT = Number(process.env.PORT ?? 4173);
 const cameraReceiver = createCameraReceiver({ sourceUrl: process.env.TT_BEAMER_CAMERA_URL });
 const outputCamera = createOutputCameraUpload({ address: process.env.TT_BEAMER_OUTPUT_CAMERA_IP });
 const cameraInput = outputCamera.enabled ? outputCamera : cameraReceiver;
+const cameraVision = createCameraVision(cameraInput);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
@@ -4428,24 +4430,30 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "GET" && routePath === "/api/camera/latest.jpg") {
+    if ((routePath === "/api/camera/latest.jpg" && req.method === "GET") ||
+        (routePath === "/api/camera/vision.jpg" && ["GET", "POST"].includes(req.method))) {
       res.setHeader("Cache-Control", "no-store");
-      const localHost = /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host ?? "");
-      const proxied = req.headers.forwarded || req.headers["x-forwarded-for"] || req.headers["x-forwarded-host"];
-      if (!localHost || proxied || !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress)) {
+      if (!isLocalCameraRequest(req)) {
+        req.resume();
         sendJson(res, 403, { error: "Camera frames are only available on the server" });
         return;
       }
-      const frame = cameraInput.latestFrame();
+      if (req.method === "POST") {
+        const code = await cameraVision.publish(req, readRawBody);
+        if (!res.destroyed) {
+          req.resume();
+          res.writeHead(code).end();
+        }
+        return;
+      }
+      const input = routePath === "/api/camera/vision.jpg" ? cameraVision : cameraInput;
+      const frame = input.latestFrame();
       if (!frame) {
         sendJson(res, 503, { error: "No recent camera frame" });
         return;
       }
-      res.writeHead(200, {
-        "Content-Type": "image/jpeg",
-        "Content-Length": frame.jpeg.length,
-        "X-Camera-Sequence": frame.sequence,
-      }).end(frame.jpeg);
+      const after = new URL(req.url, "http://localhost").searchParams.get("after");
+      sendCameraFrame(res, frame, after);
       return;
     }
 

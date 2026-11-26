@@ -113,6 +113,7 @@ export function createCameraReceiver({
   let status = url ? "connecting" : sourceUrl ? "invalid-config" : "disabled";
   let detail = status === "invalid-config" ? "Set an HTTP(S) uStreamer stream URL without credentials" : null;
   let framesReceived = 0;
+  let generation = 0;
   let frame = null;
   let controller = null;
   let task = null;
@@ -169,11 +170,17 @@ export function createCameraReceiver({
             throw new Error("Invalid JPEG data");
           }
           previousGrab = part.grabTime;
-          if (!frame) intervalStart = performance.now();
+          if (!latestFrame()) {
+            generation++;
+            intervalStart = performance.now();
+            intervalFrames = 0;
+            intervalBytes = 0;
+            rate = null;
+          }
           const arrival = performance.now();
           frame = {
             jpeg: part.jpeg, width: part.width, height: part.height,
-            sequence: ++framesReceived, arrival, receivedAt: new Date().toISOString(),
+            sequence: ++framesReceived, arrival, generation, receivedAt: new Date().toISOString(),
           };
           status = "streaming";
           detail = null;
