@@ -9,15 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-
-def parse_roi(value):
-    try:
-        x, y, width, height = map(int, value.split(","))
-    except ValueError as error:
-        raise argparse.ArgumentTypeError("expected x,y,width,height") from error
-    if min(x, y) < 0 or min(width, height) <= 0:
-        raise argparse.ArgumentTypeError("ROI coordinates must be non-negative and size positive")
-    return x, y, width, height
+from board_vision import add_tile_option, parse_roi, predict_tiled
 
 
 def run_benchmark(parser, args):
@@ -38,7 +30,7 @@ def run_benchmark(parser, args):
 
     try:
         import torch
-        from rfdetr import RFDETRLarge, RFDETRSeg2XLarge
+        from rfdetr import RFDETRLarge, RFDETRSeg2XLarge, RFDETRSegLarge, RFDETRSegNano
     except ImportError:
         parser.error("Install PyTorch and RF-DETR from docs/UTILITIES.md")
 
@@ -46,15 +38,19 @@ def run_benchmark(parser, args):
     if args.device == "cuda" and not has_cuda:
         parser.error("CUDA requested but unavailable in this PyTorch environment")
     device = ("cuda" if has_cuda else "cpu") if args.device == "auto" else args.device
-    model_type = RFDETRLarge if args.model == "large" else RFDETRSeg2XLarge
+    model_type = {"large": RFDETRLarge, "seg-2xlarge": RFDETRSeg2XLarge,
+                  "seg-large": RFDETRSegLarge, "seg-nano": RFDETRSegNano}[args.model]
     weights = {"pretrain_weights": str(args.checkpoint.resolve())} if args.checkpoint else {}
     started = time.perf_counter()
     model = model_type(device=device, **weights)
+    predictor = model.inference(compile=False)
     load_ms = (time.perf_counter() - started) * 1000
     synchronize = torch.cuda.synchronize if device == "cuda" else lambda: None
 
     def predict():
-        return model.predict(crops, threshold=args.threshold, include_source_image=False)
+        if args.tile_size:
+            return [predict_tiled(predictor, crop, args.threshold, args.tile_size) for crop in crops]
+        return predictor.predict(crops, threshold=args.threshold, include_source_image=False)
 
     predict()
     synchronize()
@@ -80,19 +76,23 @@ def run_benchmark(parser, args):
     }
     if device == "cuda":
         result["peak_vram_allocated_mib"] = round(torch.cuda.max_memory_allocated() / 2**20, 1)
+    if args.tile_size:
+        result["tile_size_px"] = args.tile_size
     for (x, y, width, height), prediction in zip(rois, detections, strict=True):
         boxes = []
-        for index, (box, class_id, confidence) in enumerate(zip(
-            prediction.xyxy, prediction.class_id, prediction.confidence, strict=True
+        mask_areas = prediction.mask.area if args.tile_size and prediction.mask is not None else None
+        for index, (box, class_id, confidence, name) in enumerate(zip(
+            prediction.xyxy, prediction.class_id, prediction.confidence, prediction.data.get("class_name", []), strict=True
         )):
             item = {
                 "class_id": int(class_id),
+                "class_name": str(name),
                 "confidence": round(float(confidence), 4),
                 "xyxy": [round(float(value + offset), 2)
                          for value, offset in zip(box, (x, y, x, y), strict=True)],
             }
             if prediction.mask is not None:
-                item["mask_area_px"] = int(prediction.mask[index].sum())
+                item["mask_area_px"] = int(mask_areas[index] if mask_areas is not None else prediction.mask[index].sum())
             boxes.append(item)
         result["crops"].append({"roi": (x, y, width, height), "boxes": boxes})
     return result
@@ -102,11 +102,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", type=Path, help="Path to a saved image, ideally the original 4K capture")
     parser.add_argument("--roi", action="append", type=parse_roi, help="Crop x,y,width,height. May be repeated.")
-    parser.add_argument("--model", choices=("large", "seg-2xlarge"), default="large")
+    parser.add_argument("--model", choices=("large", "seg-2xlarge", "seg-large", "seg-nano"), default="large")
     parser.add_argument("--checkpoint", type=Path, help="Optional fine-tuned RF-DETR checkpoint")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--repeats", type=int, default=10, help="Measured runs after one warm-up")
+    add_tile_option(parser)
     args = parser.parse_args()
     if not args.image.is_file():
         parser.error(f"Image not found: {args.image}")

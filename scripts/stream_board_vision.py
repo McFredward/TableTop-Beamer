@@ -10,9 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from benchmark_board_vision import parse_roi
-
-BOARD_CLASSES = {"noise", "fire", "malfunction", "alien", "character", "hand", "track-marker"}
+from board_vision import BOARD_CLASSES, add_tile_option, parse_roi, predict_tiled, resize_detections
 
 
 def board_objects(frame_id, classes, detections, size, original_size, roi, np):
@@ -22,7 +20,7 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
     sx, sy = roi_width / width / original_width, roi_height / height / original_height
     left, top = x / original_width, y / original_height
     objects = []
-    for i, (label, score, box) in enumerate(zip(detections.data["class_name"], detections.confidence,
+    for i, (label, score, box) in enumerate(zip(detections.data.get("class_name", []), detections.confidence,
                                                  detections.xyxy, strict=True)):
         if label not in classes:
             continue
@@ -34,7 +32,12 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
         if label in {"alien", "character"}:
             cy = y0 + 0.92 * (y1 - y0)
             if detections.mask is not None:
-                ys, xs = np.nonzero(detections.mask[i])
+                if hasattr(detections.mask, "crop"):
+                    dx, dy = detections.mask.offsets[i]
+                    ys, xs = np.nonzero(detections.mask.crop(i))
+                    ys, xs = ys + dy, xs + dx
+                else:
+                    ys, xs = np.nonzero(detections.mask[i])
                 base = ys >= cy
                 if base.any():
                     cx = min(x1, max(x0, float(np.median(xs[base]))))
@@ -95,6 +98,7 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.45)
     parser.add_argument("--max-fps", type=float, default=3)
     parser.add_argument("--roi", type=parse_roi, help="Optional crop x,y,width,height in raw camera pixels")
+    add_tile_option(parser)
     args = parser.parse_args()
     if not 0 <= args.threshold <= 1 or not 0 < args.max_fps <= 5 or not 0 < args.port <= 65535:
         parser.error("Use a threshold from 0 to 1, an FPS limit above 0 and at most 5, and a valid port")
@@ -158,10 +162,14 @@ def main():
                 if x + width > image.width or y + height > image.height:
                     parser.error("The ROI must fit inside the live camera image")
                 image = image.crop((x, y, x + width, y + height))
-            image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            if not args.tile_size:
+                image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
 
             inference_start = time.monotonic()
-            detections = predictor.predict(image, threshold=args.threshold, include_source_image=False)
+            if args.tile_size:
+                detections = predict_tiled(predictor, image, args.threshold, args.tile_size)
+            else:
+                detections = predictor.predict(image, threshold=args.threshold, include_source_image=False)
             elapsed = (time.monotonic() - inference_start) * 1000
             if classes:
                 payload = board_objects(last_frame, classes, detections, image.size, original_size, args.roi, np)
@@ -174,7 +182,13 @@ def main():
                 except HTTPError as error:
                     if error.code not in (404, 409):
                         raise
-            annotated = detections[np.asarray(detections.data["class_name"]) != "track-marker"] if args.game else detections
+            annotated = detections
+            if args.game and len(annotated):
+                annotated = annotated[np.asarray(annotated.data["class_name"]) != "track-marker"]
+            if args.tile_size:
+                prediction_size = image.size
+                image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+                annotated = resize_detections(annotated, prediction_size, image.size)
             result = annotate(image, annotated, annotations, np)
             original_width, original_height = original_size
             x, y, width, height = args.roi or (0, 0, original_width, original_height)

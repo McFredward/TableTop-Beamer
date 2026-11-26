@@ -226,8 +226,8 @@ endpoint does not open a second camera connection or send images to the browser.
 
 ### Evaluate GPU models on board crops
 
-`scripts/benchmark_board_vision.py` runs RF-DETR Large or RF-DETR
-Seg-2XLarge on a saved camera image. The benchmark selects CUDA automatically
+`scripts/benchmark_board_vision.py` runs RF-DETR box or segmentation models
+on a saved camera image. The benchmark selects CUDA automatically
 when available. An explicit `--device cuda` makes a missing GPU an error.
 This is an offline tool. It does not change game state or start a stream.
 
@@ -240,7 +240,7 @@ $visionEnv = Join-Path $env:LOCALAPPDATA "tt-beamer-vision"
 py -3.12 -m venv $visionEnv
 $visionPython = Join-Path $visionEnv "Scripts\python.exe"
 & $visionPython -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cu128
-& $visionPython -m pip install rfdetr==1.12.1
+& $visionPython -m pip install rfdetr==1.12.1 supervision==0.32.0
 & $visionPython scripts/benchmark_board_vision.py capture.jpg --device cuda --roi 800,500,704,704
 ```
 
@@ -248,8 +248,13 @@ The ROI is `x,y,width,height` in original image pixels. Replace the example
 with the bounds of a room and repeat `--roi` to time a batch of several rooms.
 The JSON report includes boxes in original image coordinates, the median and
 95th-percentile crop-batch time, mask areas for segmentation, and peak
-allocated PyTorch memory on CUDA. Image loading and cropping are outside
-the timed region.
+allocated PyTorch memory on CUDA. Image loading and ROI selection are outside
+the timed region. Tiled inference includes slicing and merging in its timing.
+
+Use `--tile-size 960` to benchmark overlapping 960-pixel tiles inside the
+same ROI. Compare against the same command with whole-image inference and
+use the same checkpoint and thresholds for both. Tile detections are merged
+and returned in original camera coordinates.
 
 RF-DETR downloads its default weights on first use. Those pretrained
 models serve as a runtime check. Use `--checkpoint`
@@ -260,6 +265,25 @@ check projection frame pacing with the detector running. Evaluate TensorRT
 FP16 against the PyTorch results before using it.
 [RF-DETR model and license](https://github.com/roboflow/RF-DETR) ·
 [TensorRT export](https://rfdetr.roboflow.com/latest/exports/tensorrt/)
+
+### Prepare annotated board images for training
+
+Run `python scripts/prepare_board_dataset.py captures/board.coco.json` to
+check bounding boxes and count examples per class, scene and lighting
+condition. Each COCO image needs a `scene_group`. Give repeated frames of
+the same piece placement one group, including frames recorded with the
+projected effects switched on and off. Record the condition in `lighting`.
+
+Once the dataset includes independent scenes, select held-out scene groups
+for RF-DETR and leave the remaining groups for training.
+
+```powershell
+& $visionPython scripts/prepare_board_dataset.py captures/board.coco.json --output captures/rfdetr --valid-scene placement-04 --test-scene placement-06
+```
+
+The export keeps each group in one split and checks for identical images
+across splits. Bounding boxes support box-detector training. Segmentation
+training also needs mask annotations.
 
 ### Live detections in the dashboard
 
@@ -285,7 +309,11 @@ The worker analyzes the most recent frame, up to three times per second. Use
 `--model seg-nano --device cpu` for a machine without CUDA. Use `--port` if
 TT-Beamer runs on a different port. `--roi 800,500,704,704` processes a crop
 from the original 4K image. Without a crop the annotated preview is scaled to
-fit within 1600×1600. Add `--checkpoint path\to\weights.pt` and choose the
+fit within 1600×1600. To try tiled inference on small game pieces, use
+`--tile-size 960 --max-fps 1` with an ROI covering the board. The model reads
+the tiles at source resolution, and the dashboard still shows one merged
+preview. Check projection smoothness and inference time before increasing
+the inference rate. Add `--checkpoint path\to\weights.pt` and choose the
 matching `--model` to test trained Nemesis classes. The dashboard identifies
 whether the result uses COCO weights or a custom checkpoint.
 
