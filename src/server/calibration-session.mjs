@@ -18,7 +18,7 @@ export function createCalibrationSession() {
     },
     pattern(id, points) {
       const session = current(id);
-      if (!session || session.output.socket.destroyed || !Array.isArray(points) || points.length > 128 ||
+      if (!session || session.output.socket.destroyed || !Array.isArray(points) || points.length > 180 ||
           points.some(point => !(point && point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1 &&
             Number.isFinite(point.x) && Number.isFinite(point.y)))) return null;
       session.step = { number: (session.step?.number ?? 0) + 1, shownAfter: null };

@@ -62,12 +62,14 @@ export async function bootOutputCamera() {
   let active;
   let timer;
   let restartOnShow = false;
+  let waitingForDevice = false;
 
   function start() {
     if (active) return;
     const controller = new AbortController();
     const { signal } = controller;
     active = controller;
+    waitingForDevice = false;
     show("Allow access to the board camera in Chromium.");
 
     void (async () => {
@@ -85,14 +87,15 @@ export async function bootOutputCamera() {
           worker.terminate();
           track.stop();
         }, { once: true });
-        const fail = (error) => {
+        const fail = (error, disconnected = false) => {
           if (signal.aborted) return;
           controller.abort();
           active = null;
+          waitingForDevice = disconnected;
           console.warn("[output-camera]", error);
           show("Board camera unavailable. Check the USB connection and Chromium camera permission.", true);
         };
-        track.addEventListener("ended", () => fail(new Error("Camera disconnected")), { once: true });
+        track.addEventListener("ended", () => fail(new Error("Camera disconnected"), true), { once: true });
 
         async function captureNext() {
           const started = performance.now();
@@ -139,6 +142,7 @@ export async function bootOutputCamera() {
         stream?.getTracks().forEach((track) => track.stop());
         if (signal.aborted) return;
         active = null;
+        waitingForDevice = error?.name === "NotFoundError" || error?.name === "NotReadableError";
         console.warn("[output-camera]", error);
         show("Board camera unavailable. Check the USB connection and Chromium camera permission.", true);
       } finally {
@@ -148,6 +152,9 @@ export async function bootOutputCamera() {
   }
 
   retry.addEventListener("click", start);
+  navigator.mediaDevices.addEventListener("devicechange", () => {
+    if (waitingForDevice && !document.hidden) start();
+  });
   window.addEventListener("pagehide", () => {
     restartOnShow = Boolean(active);
     active?.abort();

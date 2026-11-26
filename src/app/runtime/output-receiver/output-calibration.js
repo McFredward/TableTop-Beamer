@@ -34,7 +34,8 @@ export function bootOutputCalibration(liveSync) {
     context.fillStyle = "#fff";
     for (const point of pattern.points) {
       context.beginPath();
-      context.arc(point.x * width, point.y * height, Math.max(4, height * 8 / 1080), 0, Math.PI * 2);
+      const radius = Math.max(4, height * (pattern.points.length > 100 ? 6 : 8) / 1080);
+      context.arc(point.x * width, point.y * height, radius, 0, Math.PI * 2);
       context.fill();
     }
     document.body.append(canvas);

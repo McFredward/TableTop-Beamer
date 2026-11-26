@@ -6,9 +6,9 @@ import { createCameraPairing, readPairedCameraAddress } from "./src/server/camer
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
 import { isIPv4 } from "node:net";
-import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -76,6 +76,7 @@ const calibration = createCalibrationSession();
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
+const AUTO_CALIBRATED_PROFILE = "autocalibrated";
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
@@ -2529,7 +2530,20 @@ async function loadProjectionProfilesRaw() {
 
 async function saveProjectionProfilesRaw(data) {
   await mkdir(path.dirname(PROJECTION_PROFILES_PATH), { recursive: true });
-  await writeFile(PROJECTION_PROFILES_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
+  const temporaryFile = PROJECTION_PROFILES_PATH + "." + randomUUID() + ".tmp";
+  try {
+    await writeFile(temporaryFile, JSON.stringify(data, null, 2) + "\n", "utf8");
+    await rename(temporaryFile, PROJECTION_PROFILES_PATH);
+  } finally {
+    await unlink(temporaryFile).catch(() => {});
+  }
+}
+
+let projectionProfileWrite = Promise.resolve();
+function editProjectionProfiles(edit) {
+  const next = projectionProfileWrite.then(async () => edit(await loadProjectionProfilesRaw()));
+  projectionProfileWrite = next.catch(() => {});
+  return next;
 }
 
 // ── Minimal pure-Node ZIP encoder/decoder (DEFLATE) ───────────────────────
@@ -3997,11 +4011,11 @@ async function handleBoardDelete(req, res) {
   // mp4s under /resources/animations/) is intentionally left in
   // place — those are not board-owned.
   try {
-    const allProjection = await loadProjectionProfilesRaw();
-    if (Object.prototype.hasOwnProperty.call(allProjection, boardId)) {
-      delete allProjection[boardId];
-      await saveProjectionProfilesRaw(allProjection);
-    }
+    await editProjectionProfiles(async all => {
+      if (!Object.hasOwn(all, boardId)) return;
+      delete all[boardId];
+      await saveProjectionProfilesRaw(all);
+    });
   } catch { /* fine */ }
 
   const catalog = await loadBoardCatalog();
@@ -4509,6 +4523,45 @@ const server = createServer(async (req, res) => {
           sendLiveSocketMessage(run.output.socket, { type: "calibration-pattern", pattern });
           sendJson(res, 200, { step: pattern.step });
         }
+        return;
+      }
+      if (action === "apply") {
+        const run = calibration.current(id);
+        if (!run || !run.step || !calibration.frame(id, run.step.number, outputCamera.latestFrame()) || run.applying) {
+          sendJson(res, 409, { error: "The calibration run or its camera measurements are no longer available." });
+          return;
+        }
+        const { srcXs, srcYs, points } = request.grid ?? {};
+        const grid = { srcXs, srcYs, points };
+        const payload = {
+          ...grid, profileId: AUTO_CALIBRATED_PROFILE, isBaseline: true,
+          calibrationAgainst: { boardId: run.boardId, gridAt: run.gridAt },
+        };
+        if (!validateAlignGridSnapshotPayload(payload)) {
+          sendJson(res, 400, { error: "Invalid calibration grid." });
+          return;
+        }
+        run.applying = true;
+        const applied = await editProjectionProfiles(async all => {
+          if (run.boardId !== liveSessionState.snapshot.selectedBoard ||
+              run.gridAt !== (liveSessionState.snapshot.runtime?.lastAlignGridSnapshot?.at ?? null)) return false;
+          const profiles = all[run.boardId] ??= {};
+          const previous = profiles[AUTO_CALIBRATED_PROFILE];
+          profiles[AUTO_CALIBRATED_PROFILE] = grid;
+          await saveProjectionProfilesRaw(all);
+          const ack = await acceptCommandMutation({ mutationType: "align-grid-snapshot", payload });
+          if (ack.applied) return true;
+          if (previous) profiles[AUTO_CALIBRATED_PROFILE] = previous;
+          else delete profiles[AUTO_CALIBRATED_PROFILE];
+          if (!Object.keys(profiles).length) delete all[run.boardId];
+          await saveProjectionProfilesRaw(all);
+          return false;
+        });
+        if (applied) {
+          await persistBoardProfileToBoardFile(run.boardId, { lastUsedProfileName: AUTO_CALIBRATED_PROFILE })
+            .catch(error => console.warn("[auto-calibration] could not remember profile:", error.message));
+          sendJson(res, 200, { profileId: AUTO_CALIBRATED_PROFILE });
+        } else sendJson(res, 409, { error: "The board or grid changed during calibration. Run it again." });
         return;
       }
       if (action === "stop") {
@@ -5080,12 +5133,13 @@ const server = createServer(async (req, res) => {
       // Merge align-mode projection profiles.
       const projectionProfiles = manifest?.projectionProfiles;
       if (projectionProfiles && typeof projectionProfiles === "object") {
-        const all = await loadProjectionProfilesRaw();
-        all[boardId] = {
-          ...(all[boardId] && typeof all[boardId] === "object" ? all[boardId] : {}),
-          ...projectionProfiles,
-        };
-        await saveProjectionProfilesRaw(all);
+        await editProjectionProfiles(async all => {
+          all[boardId] = {
+            ...(all[boardId] && typeof all[boardId] === "object" ? all[boardId] : {}),
+            ...projectionProfiles,
+          };
+          await saveProjectionProfilesRaw(all);
+        });
       }
 
       sendJson(res, 200, { ok: true, boardId, resourcesWritten, resourcesSkipped });
@@ -5204,11 +5258,21 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: "boardId, name, data required" });
         return;
       }
-      const all = await loadProjectionProfilesRaw();
-      if (!all[boardId] || typeof all[boardId] !== "object") all[boardId] = {};
-      all[boardId][name] = data;
-      await saveProjectionProfilesRaw(all);
-      sendJson(res, 200, { ok: true, boardId, name });
+      if (name.toLowerCase() === AUTO_CALIBRATED_PROFILE) {
+        sendJson(res, 409, { error: "Save manual adjustments under a new profile name." });
+        return;
+      }
+      const saved = await editProjectionProfiles(async all => {
+        if (!all[boardId] || typeof all[boardId] !== "object") all[boardId] = {};
+        if (parsed.createOnly === true && Object.keys(all[boardId]).some(key => key.toLowerCase() === name.toLowerCase())) {
+          return false;
+        }
+        all[boardId][name] = data;
+        await saveProjectionProfilesRaw(all);
+        return true;
+      });
+      if (saved) sendJson(res, 200, { ok: true, boardId, name });
+      else sendJson(res, 409, { error: "A profile with this name already exists." });
       return;
     }
 
@@ -5220,12 +5284,16 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: "boardId and name required" });
         return;
       }
-      const all = await loadProjectionProfilesRaw();
-      if (all[boardId] && all[boardId][name]) {
+      if (name.toLowerCase() === AUTO_CALIBRATED_PROFILE) {
+        sendJson(res, 409, { error: "Auto calibrate updates this profile for the selected board." });
+        return;
+      }
+      await editProjectionProfiles(async all => {
+        if (!all[boardId]?.[name]) return;
         delete all[boardId][name];
         if (Object.keys(all[boardId]).length === 0) delete all[boardId];
         await saveProjectionProfilesRaw(all);
-      }
+      });
       sendJson(res, 200, { ok: true, boardId, name });
       return;
     }

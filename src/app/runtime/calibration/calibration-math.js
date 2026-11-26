@@ -1,6 +1,9 @@
+import { refinePrintedBoard } from "./printed-board-detail.js";
+
 const DOT_COLUMNS = 9;
 const DOT_ROWS = 7;
 const DOT_THRESHOLD = 38;
+const GRID_LEVELS = [{ size: 5, target: 4.5 }, { size: 9, target: 3 }, { size: 13, target: 2.2 }];
 
 export const projectorDots = Array.from({ length: DOT_COLUMNS * DOT_ROWS }, (_, index) => ({
   id: index + 1,
@@ -67,7 +70,7 @@ function fitMap(cv, pairs, tolerance, minimum, radius) {
       }
       return { x: position.x + dx / Math.max(1, weight), y: position.y + dy / Math.max(1, weight) };
     }
-    return { at, inverse: invert(matrix), inliers };
+    return { at, matrix, inverse: invert(matrix), inliers };
   } finally {
     src.delete();
     dst.delete();
@@ -109,7 +112,11 @@ export function registerBoard(cv, reference, camera) {
     if (spread.x < reference.width * 0.35 || spread.y < reference.height * 0.35) {
       throw new Error("Too little of the printed board could be matched.");
     }
-    const at = point => fit.at({ x: point.x * (reference.width - 1), y: point.y * (reference.height - 1) });
+    const detail = refinePrintedBoard(cv, a, b, fit.inverse);
+    const at = point => {
+      const pixel = { x: point.x * (reference.width - 1), y: point.y * (reference.height - 1) };
+      return detail.count || detail.edges ? projectPoint(fit.matrix, detail.at(pixel)) : fit.at(pixel);
+    };
     for (const point of [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]) {
       const position = at(point);
       if (!(position.x >= 0 && position.x < camera.width && position.y >= 0 && position.y < camera.height)) {
@@ -123,6 +130,8 @@ export function registerBoard(cv, reference, camera) {
         return { x: point.x / (reference.width - 1), y: point.y / (reference.height - 1) };
       },
       count: fit.inliers.length,
+      detailCount: detail.count,
+      edges: detail.edges,
     };
   } finally {
     for (const item of [a, b, orb, matcher, aKeys, bKeys, aDesc, bDesc, mask, matches]) item.delete();
@@ -170,10 +179,23 @@ export function detectDots(cv, dark, lit) {
     const components = cv.connectedComponentsWithStats(mask, labels, stats, centers, 8, cv.CV_32S);
     const result = [];
     for (let i = 1; i < components; i++) {
-      const row = stats.intPtr(i);
-      const [w, h, area] = [row[2], row[3], row[4]];
+      const [left, top, w, h, area] = stats.intPtr(i);
       if (area < 5 || area > 1000 || Math.min(w, h) < 2 || Math.max(w, h) > 35) continue;
-      const point = { x: centers.data64F[i*2], y: centers.data64F[i*2+1] };
+      let x = 0;
+      let y = 0;
+      let weight = 0;
+      const componentsByPixel = labels.data32S;
+      for (let row = top; row < top + h; row++) {
+        for (let col = left; col < left + w; col++) {
+          const pixel = row * lit.width + col;
+          if (componentsByPixel[pixel] !== i) continue;
+          const value = Math.min(lit.pixels[pixel], lit.pixels[pixel] - dark.pixels[pixel]) - DOT_THRESHOLD;
+          x += col * value;
+          y += row * value;
+          weight += value;
+        }
+      }
+      const point = { x: x / weight, y: y / weight };
       const off = patchMean(dark, point);
       const contrast = patchMean(lit, point) - off;
       if (contrast >= DOT_THRESHOLD) result.push({ ...point, off, contrast });
@@ -301,12 +323,8 @@ export function measureGrid(probes, detected, projector) {
 }
 
 export function updateGrid(grid, measured) {
-  const worstCell = measured.matches.filter(match => match.source.cell && match.error > 4)
-    .sort((a, b) => b.error - a.error)[0];
-  const addLine = (lines, value) => value !== undefined && lines.length < 8
-    ? [...new Set([...lines, value])].sort((a, b) => a - b) : lines;
-  const srcXs = addLine(grid.srcXs, worstCell?.source.x);
-  const srcYs = addLine(grid.srcYs, worstCell?.source.y);
+  const { srcXs, srcYs } = grid;
+  const radius = 1 / (Math.max(srcXs.length, srcYs.length) - 1);
   const points = srcYs.map(y => srcXs.map(x => {
     const point = gridPoint(grid, x, y);
     let weight = 0;
@@ -314,8 +332,8 @@ export function updateGrid(grid, measured) {
     let dy = 0;
     for (const match of measured.matches) {
       const d = distance({ x, y }, match.source);
-      if (d > 0.35) continue;
-      const w = Math.exp(-d*d/0.011);
+      if (d > 1.5 * radius) continue;
+      const w = Math.exp(-4 * (d / radius) ** 2);
       weight += w;
       dx += w * match.delta.x;
       dy += w * match.delta.y;
@@ -326,6 +344,76 @@ export function updateGrid(grid, measured) {
     };
   }));
   return { srcXs, srcYs, points };
+}
+
+function resizeGrid(grid, size) {
+  const lines = Array.from({ length: size }, (_, index) => index / (size - 1));
+  return { srcXs: lines, srcYs: lines, points: lines.map(y => lines.map(x => gridPoint(grid, x, y))) };
+}
+
+function roomProbes(rooms, grid, board) {
+  const samples = [];
+  const areas = rooms.flatMap(room => {
+    if (!Array.isArray(room.polygon)) return [];
+    const polygon = room.polygon.filter(point => Array.isArray(point) && point.length >= 2 &&
+      point.slice(0, 2).every(value => Number.isFinite(value) && value >= 0 && value <= 1))
+      .map(([x, y]) => ({ x, y }));
+    if (polygon.length < 3) return [];
+    const xs = polygon.toSorted((a, b) => a.x - b.x);
+    const ys = polygon.toSorted((a, b) => a.y - b.y);
+    const width = xs.at(-1).x - xs[0].x;
+    const height = ys.at(-1).y - ys[0].y;
+    const center = { x: xs[0].x + width / 2, y: ys[0].y + height / 2 };
+    return [{ area: width * height, center, edges: [xs[0], xs.at(-1), ys[0], ys.at(-1)] }];
+  }).toSorted((a, b) => a.area - b.area);
+  // Small targets such as indicator lights get their own observation
+  // before nearby room and corridor outlines can fill that part of the image.
+  const sources = [...areas.map(area => area.center), ...areas.flatMap(area => area.edges)];
+  for (const source of sources) {
+    if (samples.length === 120) break;
+    if (!samples.some(sample => distance(sample.source, source) < 0.027)) {
+      samples.push({ source, projector: gridPoint(grid, source.x, source.y), target: board.at(source) });
+    }
+  }
+  const quadrants = new Set(samples.map(({ source }) => (source.x > 0.5 ? 1 : 0) + (source.y > 0.5 ? 2 : 0)));
+  return samples.length >= 12 && quadrants.size === 4 ? samples : [];
+}
+
+export async function refineProjectionGrid({ board, projector, size, rooms = [], verify }) {
+  let grid = initialGrid(board, projector);
+  let result;
+  for (const level of GRID_LEVELS) {
+    if (grid.srcXs.length !== level.size) grid = resizeGrid(grid, level.size);
+    let best;
+    for (let pass = 1; pass <= 3; pass++) {
+      normalizeGrid(grid, size);
+      const probes = gridProbes(grid, board);
+      const groups = probes.length <= 100 ? [probes] : [
+        probes.filter(probe => !probe.source.cell), probes.filter(probe => probe.source.cell),
+      ];
+      if (level === GRID_LEVELS.at(-1)) {
+        const roomsToVerify = roomProbes(rooms, grid, board);
+        if (roomsToVerify.length) groups.push(roomsToVerify);
+      }
+      const observations = [];
+      for (const [index, group] of groups.entries()) {
+        observations.push(await verify(group, { level: level.size, pass, index, groups: groups.length }));
+      }
+      const matches = observations.flatMap(observation => observation.matches);
+      const error = percentile(matches.map(match => match.error), 0.90);
+      if (best && error >= best.error - 0.12) break;
+      best = { grid, matches, error, expected: groups.reduce((sum, group) => sum + group.length, 0) };
+      if (error <= level.target) break;
+      grid = updateGrid(grid, best);
+    }
+    grid = best.grid;
+    result = best;
+  }
+  const worstLocations = percentile(result.matches.map(match => match.error), 0.97);
+  if (result.error > 5 || worstLocations > 10 || result.matches.length < result.expected * 0.80) {
+    throw new Error("Fine alignment could not be verified across the board. Keep it still and fully within the projected area.");
+  }
+  return result;
 }
 
 export function normalizeGrid(grid, size) {

@@ -16,6 +16,7 @@
 // showContextMenu, handlesVisible) are init-injected as IIFE-local
 // lets so the moved bodies remain byte-identical.
 (() => {
+  const AUTO_PROFILE = "autocalibrated";
   let ctx = null;
 
   // Grid-state bindings.
@@ -349,7 +350,7 @@
     // Save = overwrite the loaded profile in place. If none loaded, defer to saveAsNewProfileFlow.
     const boardId = getCurrentBoardId();
     if (!boardId) { _showAlignErrorToast("No board selected."); return { ok: false }; }
-    if (!_loadedProfileName) { return saveAsNewProfileFlow(); }
+    if (!_loadedProfileName || _loadedProfileName.toLowerCase() === AUTO_PROFILE) return saveAsNewProfileFlow();
     try {
       const resp = await fetch("/api/projection-profiles", {
         method: "POST",
@@ -380,14 +381,23 @@
     // Open the modal (UI-SPEC: title "Save as new profile" / body "Give this alignment a name so you can reload it later." / placeholder "e.g. Main stage, Angled left" / confirm "Save profile" / cancel "Keep editing").
     const boardId = getCurrentBoardId();
     if (!boardId) { _showAlignErrorToast("No board selected."); return { ok: false }; }
+    const createOnly = _loadedProfileName?.toLowerCase() === AUTO_PROFILE;
     const name = await _promptProfileNameModal();
     if (!name) return { ok: false, cancelled: true };
+    if (name.toLowerCase() === AUTO_PROFILE) {
+      _showAlignErrorToast("Give your manual adjustments a new profile name.");
+      return { ok: false };
+    }
     try {
       const resp = await fetch("/api/projection-profiles", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ boardId, name, data: buildGridPayload() }),
+        body: JSON.stringify({ boardId, name, data: buildGridPayload(), createOnly }),
       });
+      if (resp.status === 409 && createOnly) {
+        _showAlignErrorToast("That profile already exists. Give this alignment a new name.");
+        return { ok: false };
+      }
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       _loadedProfileName = name;
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
@@ -417,6 +427,10 @@
     if (!boardId) { _showAlignErrorToast("No board selected."); return { ok: false }; }
     const name = await _promptProfileNameModal({ kind: "create-new" });
     if (!name) return { ok: false, cancelled: true };
+    if (name.toLowerCase() === AUTO_PROFILE) {
+      _showAlignErrorToast("Choose another name for the new profile.");
+      return { ok: false };
+    }
     // Step 1: load the new-profile default geometry into the editor
     // (this becomes the profile's saved state).
     pushUndo();
@@ -684,7 +698,7 @@
     if (!boardId) { alert("No board selected."); return; }
     let names;
     try {
-      names = await fetchProfileList(boardId);
+      names = (await fetchProfileList(boardId)).filter(name => name.toLowerCase() !== AUTO_PROFILE);
     } catch (err) {
       alert("Could not fetch profiles: " + (err?.message || err));
       return;
@@ -863,15 +877,17 @@
   // used by the silent auto-load on board-switch. Mirrors the order in
   // profileLoadFlow.onPick so isDirty()===false post-load (the
   // _loadedProfileSnapshot becomes equal to the freshly applied state).
-  // CRITICAL: this helper does NOT update state.lastUsedProfileNameByBoard.
-  // Per D-01, only user-explicit save/load triggers may write that field —
-  // auto-load is silent in BOTH directions (no popup, no field-write).
-  function applyAndCaptureSnapshot(data, name) {
+  // Auto-load leaves the remembered profile alone. A successful calibration
+  // can remember the new baseline locally because the server already saved it.
+  function applyAndCaptureSnapshot(data, name, { broadcast = true, remember = false } = {}) {
     if (!_gridStateApi) return;
     pushUndo();
     applyGridPayload(data);
     _loadedProfileName = name || null;
     _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    if (remember && ctx?.state) {
+      (ctx.state.lastUsedProfileNameByBoard ??= {})[getCurrentBoardId()] = _loadedProfileName;
+    }
     _persistLoadedProfileToLs();
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
@@ -885,7 +901,9 @@
     _notifyChipRefresh();
     // Phase-31 h30: profile load swaps the grid wholesale → broadcast.
     // 2026-05-15: silent auto-load is a baseline reset.
-    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
+    if (broadcast) {
+      try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
+    }
   }
 
   // Phase 28 B1 (D-03 fallback): silent default-geometry restore for the

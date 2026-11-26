@@ -141,17 +141,17 @@ in view of the camera. Open **Camera → Auto calibrate** on the server PC after
 the live camera is visible. Keep the projector's Output window in the foreground.
 
 The projector shows a black frame and then coded white dots. TT-Beamer matches
-the printed board to its reference artwork and measures where the dots land in
-the camera image. It proposes an Align grid and verifies it by projecting
-additional points around the corners and near the rooms. During verification
-it can move vertices and add grid lines where the measured error is largest.
-The projector returns to its regular picture after the measurements.
+the printed board to its reference artwork, refines the fit against local
+details, and measures any visible physical edges. A narrow inset at confirmed
+edges keeps bright border effects on the board. The projector measures and
+adjusts grids of 5×5, 9×9 and 13×13, with extra checks on the room outlines and
+small indicators. The regular picture returns after the measurements.
 
-Inspect the review and select **Apply and save** to activate the measured grid
-and save it as a new board profile. The review reports the 90th-percentile error
-in camera pixels at a 1920-pixel analysis width. **Cancel calibration** returns
-to the live camera. If a board is moved, re-run calibration with its matching
-reference artwork and a clear camera view.
+A verified result activates and replaces the selected board's **autocalibrated**
+profile. The status reports the 90th-percentile error in camera pixels at a
+1920-pixel analysis width. When you edit that grid by hand, **Save** asks for
+a new profile name. **Cancel calibration** returns to the live camera. If the
+board moves, repeat Auto calibrate with a clear camera view.
 
 ### Alternative capture with µStreamer
 

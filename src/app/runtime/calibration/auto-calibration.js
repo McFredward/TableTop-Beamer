@@ -1,11 +1,8 @@
 import {
   DOT_BITS, projectorDots, registerBoard, registerProjector, localContrast,
-  detectDots, initialGrid, gridProbes, measureGrid, updateGrid, normalizeGrid,
+  detectDots, measureGrid, refineProjectionGrid, normalizeGrid,
 } from "./calibration-math.js";
 
-const MAX_ITERATIONS = 4;
-const TARGET_ERROR = 3.5;
-const MAX_VERIFIED_ERROR = 8;
 let cvReady;
 
 function loadOpenCV() {
@@ -78,7 +75,7 @@ async function capture(id, points, signal) {
     if (response.status === 200) {
       const blob = await response.blob();
       return {
-        blob, gray: await grayscale(blob),
+        gray: await grayscale(blob),
         size: { width: Number(response.headers.get("X-Projector-Width")), height: Number(response.headers.get("X-Projector-Height")) },
       };
     }
@@ -121,141 +118,60 @@ async function runCalibration(signal, progress) {
     }
 
     const registeredProjector = registerProjector(cv, registeredBoard, dark, lit, bits, unlit.size);
-    let grid = initialGrid(registeredBoard, registeredProjector);
-    let best;
-    for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
-      normalizeGrid(grid, unlit.size);
-      progress(`Checking corners and room positions · pass ${iteration}`);
-      const probes = gridProbes(grid, registeredBoard);
-      const photo = await capture(session.id, probes.map(({ projector }) => ({
-        x: projector.x / unlit.size.width, y: projector.y / unlit.size.height,
-      })), signal);
-      const dots = detectDots(cv, dark, localContrast(cv, photo.gray));
-      let measurement;
-      try {
-        measurement = measureGrid(probes, dots, registeredProjector);
-      } catch (error) {
-        if (best?.measurement.error <= MAX_VERIFIED_ERROR) break;
-        throw error;
-      }
-      if (best && measurement.error >= best.measurement.error - 0.35) break;
-      best = { grid, photo, measurement, iteration };
-      if (measurement.error <= TARGET_ERROR) break;
-      grid = updateGrid(grid, measurement);
+    const measured = await refineProjectionGrid({
+      board: registeredBoard,
+      projector: registeredProjector,
+      size: unlit.size,
+      rooms: board.roomCatalog ?? [],
+      async verify(probes, { level, pass, index, groups }) {
+        progress(`Refining the ${level} × ${level} grid · pass ${pass} · pattern ${index + 1} of ${groups}`);
+        const photo = await capture(session.id, probes.map(({ projector }) => ({
+          x: projector.x / unlit.size.width, y: projector.y / unlit.size.height,
+        })), signal);
+        const dots = detectDots(cv, dark, localContrast(cv, photo.gray));
+        return measureGrid(probes, dots, registeredProjector);
+      },
+    });
+    signal.throwIfAborted();
+    progress("Applying the verified calibration…");
+    const grid = normalizeGrid(measured.grid, unlit.size);
+    const { profileId } = await jsonRequest("/api/calibration", { action: "apply", id: session.id, grid });
+    const profiles = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+    if (profiles?.getCurrentBoardId() === session.boardId) {
+      profiles.applyAndCaptureSnapshot(grid, profileId, { broadcast: false, remember: true });
     }
-    if (!best || best.measurement.error > MAX_VERIFIED_ERROR) {
-      throw new Error("Calibration could not verify the room positions. Check that the board is flat and fully visible.");
-    }
-    return {
-      session, ...best,
-      normalized: normalizeGrid(best.grid, unlit.size),
-    };
+    return { profileId, grid, error: measured.error, verified: measured.matches.length };
   } finally {
     await jsonRequest("/api/calibration", { action: "stop", id: session.id }).catch(() => {});
   }
 }
 
-function drawReview(canvas, result) {
-  return createImageBitmap(result.photo.blob).then(bitmap => {
-    try {
-      canvas.width = result.photo.gray.width;
-      canvas.height = result.photo.gray.height;
-      const context = canvas.getContext("2d");
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      context.strokeStyle = "#33e7ad";
-      context.lineWidth = 2;
-      for (const { target } of result.measurement.matches) {
-        context.beginPath();
-        context.arc(target.x, target.y, 10, 0, Math.PI * 2);
-        context.stroke();
-      }
-      canvas.hidden = false;
-    } finally {
-      bitmap.close();
-    }
-  });
-}
-
 export function bindAutoCalibration({ dialog, pausePreview, resumePreview }) {
   const start = document.getElementById("auto-calibration-start");
   const cancel = document.getElementById("auto-calibration-cancel");
-  const apply = document.getElementById("auto-calibration-apply");
   const status = document.getElementById("auto-calibration-status");
-  const preview = document.getElementById("auto-calibration-review");
   let controller;
-  let candidate;
 
-  function clearReview() {
-    candidate = null;
-    preview.hidden = true;
-    apply.hidden = true;
-  }
   start.addEventListener("click", async () => {
-    clearReview();
     pausePreview();
     const operation = new AbortController();
     controller = operation;
     start.disabled = true;
     cancel.hidden = false;
     try {
-      const result = await runCalibration(operation.signal, message => { status.textContent = message; });
-      if (operation.signal.aborted) return;
-      await drawReview(preview, result);
-      if (operation.signal.aborted) { clearReview(); return; }
-      candidate = result;
-      apply.hidden = false;
-      status.textContent = `${result.normalized.srcXs.length} × ${result.normalized.srcYs.length} grid · ${result.measurement.matches.length} verified points · ${result.measurement.error.toFixed(1)} px error at the 90th percentile.`;
+      const result = await runCalibration(operation.signal, message => {
+        status.textContent = message;
+      });
+      status.textContent = `${result.profileId} active · ${result.grid.srcXs.length} × ${result.grid.srcYs.length} grid · ${result.verified} verified points · ${result.error.toFixed(1)} px error at the 90th percentile.`;
     } catch (error) {
       status.textContent = operation.signal.aborted ? "Calibration cancelled." : error.message;
     } finally {
       start.disabled = false;
-      cancel.hidden = !candidate;
+      cancel.hidden = true;
       controller = null;
-      if (!candidate && dialog.open) resumePreview();
-    }
-  });
-  cancel.addEventListener("click", () => {
-    if (controller) controller.abort();
-    else {
-      clearReview();
-      cancel.hidden = true;
-      status.textContent = "";
-      resumePreview();
-    }
-  });
-  dialog.addEventListener("close", () => {
-    controller?.abort();
-    clearReview();
-    cancel.hidden = true;
-    status.textContent = "";
-  });
-  apply.addEventListener("click", async () => {
-    if (!candidate) return;
-    apply.disabled = true;
-    cancel.disabled = true;
-    start.disabled = true;
-    try {
-      const { session, normalized } = candidate;
-      const name = "Auto " + new Date().toISOString().replace(/[.:]/g, "-");
-      await jsonRequest("/api/projection-profiles", { boardId: session.boardId, name, data: normalized });
-      const result = await jsonRequest("/api/live/command", {
-        mutationType: "align-grid-snapshot",
-        payload: {
-          ...normalized, profileId: name, isBaseline: true,
-          calibrationAgainst: { boardId: session.boardId, gridAt: session.gridAt },
-        },
-      });
-      if (!result.applied) throw new Error("The board or grid changed. The new calibration was saved as a separate profile.");
-      clearReview();
-      cancel.hidden = true;
-      status.textContent = "Calibration applied and saved as " + name + ".";
       if (dialog.open) resumePreview();
-    } catch (error) {
-      status.textContent = error.message;
-    } finally {
-      apply.disabled = false;
-      cancel.disabled = false;
-      start.disabled = false;
     }
   });
+  cancel.addEventListener("click", () => controller?.abort());
+  dialog.addEventListener("close", () => controller?.abort());
 }
