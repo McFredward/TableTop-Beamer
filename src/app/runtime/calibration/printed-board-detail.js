@@ -60,14 +60,15 @@ function matchPatch(cv, reference, rectified, center, radius, search, margin, re
   }
 }
 
-function patchOffsets(cv, reference, rectified, radius, search, margin) {
+function patchOffsets(cv, reference, rectified, radius, search, margin, searchNearEdge) {
   const step = Math.round(radius * 1.1);
   const response = new cv.Mat();
   const samples = [];
   try {
     for (let y = radius + 1; y < reference.rows - radius; y += step) {
       for (let x = radius + 1; x < reference.cols - radius; x += step) {
-        const sample = matchPatch(cv, reference, rectified, { x, y }, radius, search, margin, response);
+        const center = { x, y };
+        const sample = matchPatch(cv, reference, rectified, center, radius, searchNearEdge(center), margin, response);
         if (sample) samples.push(sample);
       }
     }
@@ -165,7 +166,8 @@ export function refinePrintedBoard(cv, reference, camera, inverse) {
   const shorter = Math.min(width, height);
   const radius = Math.max(14, Math.round(shorter * 0.028));
   const search = Math.max(16, Math.round(shorter * 0.035));
-  const margin = search + 10;
+  const edgeSearch = Math.max(search, Math.round(shorter * 0.065));
+  const margin = edgeSearch + 10;
   const transform = cv.matFromArray(3, 3, cv.CV_64F, [
     ...inverse.slice(0, 3).map((value, i) => value + margin * inverse[i + 6]),
     ...inverse.slice(3, 6).map((value, i) => value + margin * inverse[i + 6]),
@@ -178,13 +180,26 @@ export function refinePrintedBoard(cv, reference, camera, inverse) {
     cv.warpPerspective(camera, rectified, transform, new cv.Size(width + 1 + margin * 2, height + 1 + margin * 2));
     referenceFeatures = edgeFeatures(cv, reference);
     cameraFeatures = edgeFeatures(cv, rectified);
-    const samples = patchOffsets(cv, referenceFeatures, cameraFeatures, radius, search, margin);
     const pixels = rectified.data;
     const read = (x, y) => pixels[(y + margin) * rectified.cols + x + margin];
-    const left = findEdge((along, inward) => read(inward, along), height, search);
-    const right = findEdge((along, inward) => read(width - inward, along), height, search);
-    const top = findEdge((along, inward) => read(along, inward), width, search);
-    const bottom = findEdge((along, inward) => read(along, height - inward), width, search);
+    // Prefer the side near the artwork fit. A cropped reference image or
+    // strong perspective can put the physical edge beyond that first search.
+    const side = (readSide, span) => findEdge(readSide, span, search) ?? findEdge(readSide, span, edgeSearch);
+    const left = side((along, inward) => read(inward, along), height);
+    const right = side((along, inward) => read(width - inward, along), height);
+    const top = side((along, inward) => read(along, inward), width);
+    const bottom = side((along, inward) => read(along, height - inward), width);
+    const detailBand = shorter * 0.16;
+    function searchNearEdge({ x, y }) {
+      const candidates = [
+        x < detailBand && left?.(y / height),
+        width - x < detailBand && right?.(y / height),
+        y < detailBand && top?.(x / width),
+        height - y < detailBand && bottom?.(x / width),
+      ];
+      return candidates.some(offset => Math.abs(offset) > search * 0.85) ? edgeSearch : search;
+    }
+    const samples = patchOffsets(cv, referenceFeatures, cameraFeatures, radius, search, margin, searchNearEdge);
     const edgeFade = shorter * 0.048;
     // Projector focus and video filtering spread bright pixels at the last
     // row of the picture. Leave a narrow inset at confirmed physical edges.
@@ -201,11 +216,11 @@ export function refinePrintedBoard(cv, reference, camera, inverse) {
       at(point) {
         const { x, y } = point;
         const adjusted = textureOffset(samples, point, radius * 1.8);
-        const horizontal = blend(x, adjusted.x, left?.(y / height) + edgeInset);
-        const vertical = blend(y, adjusted.y, top?.(x / width) + edgeInset);
+        const horizontal = blend(x, adjusted.x, x + left?.(y / height) + edgeInset);
+        const vertical = blend(y, adjusted.y, y + top?.(x / width) + edgeInset);
         return {
-          x: blend(width - x, horizontal, width - right?.(y / height) - edgeInset),
-          y: blend(height - y, vertical, height - bottom?.(x / width) - edgeInset),
+          x: blend(width - x, horizontal, x - right?.(y / height) - edgeInset),
+          y: blend(height - y, vertical, y - bottom?.(x / width) - edgeInset),
         };
       },
     };

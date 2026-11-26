@@ -103,6 +103,14 @@ test("printed detail and physical edges correct different parts of a coarse boar
     const middle = detail.at({ x: 336, y: 215 });
     assert.ok(left.x > -3 && left.x < 0 && right.x > width - 1 && right.x < width + 3);
     assert.ok(middle.y > 222 && middle.y < 226);
+
+    // The reference artwork can extend past the printed edge on one side.
+    cv.rectangle(scene, new cv.Point(border, border), new cv.Point(border + 28, border + height - 1),
+      new cv.Scalar(130), -1);
+    cv.remap(scene, camera, mapX, mapY, cv.INTER_LINEAR);
+    const trimmed = refinePrintedBoard(cv, reference, camera, [1, 0, -border, 0, 1, -border, 0, 0, 1]);
+    assert.equal(trimmed.edges, 4);
+    assert.ok(trimmed.at({ x: 0, y: 215 }).x > 24);
   } finally {
     for (const mat of [reference, scene, camera, mapX, mapY]) mat.delete();
   }
