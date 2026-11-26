@@ -88,18 +88,14 @@ default; use the second argument to override.
 
 ### Capture from `/output/` in Chromium
 
-Set `TT_BEAMER_OUTPUT_CAMERA_IP` to the Pi's LAN IPv4 address before starting TT-Beamer.
-On Windows PowerShell, start the launcher from the same window.
+The development checkout enables camera capture for the Pi at `192.168.0.29`
+on a normal start. If the Pi's address changes, update `config/output-camera.json`
+or set `TT_BEAMER_OUTPUT_CAMERA_IP` to the new LAN IPv4 before starting.
+The server accepts uploads from that address on the same origin.
 
-~~~powershell
-$env:TT_BEAMER_OUTPUT_CAMERA_IP = "192.168.0.29"
-.\start.bat
-~~~
-
-On Linux use `TT_BEAMER_OUTPUT_CAMERA_IP=192.168.0.29 ./start.sh`.
-Reserve the Pi's address in the router. The server enables browser capture for
-that address and accepts uploads from it on the same origin. If both camera
-settings are present, browser capture takes priority over the native receiver.
+Setting `TT_BEAMER_CAMERA_URL` selects µStreamer in place of the checked-in
+default. An explicit IPv4 in `TT_BEAMER_OUTPUT_CAMERA_IP` takes priority over
+the µStreamer URL.
 
 For a direct HTTP connection on a trusted LAN, launch Chromium with the exact
 TT-Beamer origin as an exception. Open `/output/` on the Pi and allow camera

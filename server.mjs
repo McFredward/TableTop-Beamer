@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
+import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -46,8 +47,11 @@ let signalingState = null;
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
-const cameraReceiver = createCameraReceiver({ sourceUrl: process.env.TT_BEAMER_CAMERA_URL });
-const outputCamera = createOutputCameraUpload({ address: process.env.TT_BEAMER_OUTPUT_CAMERA_IP });
+const nativeCameraUrl = process.env.TT_BEAMER_CAMERA_URL;
+const cameraReceiver = createCameraReceiver({ sourceUrl: nativeCameraUrl });
+const outputCamera = createOutputCameraUpload({
+  address: process.env.TT_BEAMER_OUTPUT_CAMERA_IP ?? (nativeCameraUrl ? undefined : outputCameraDefaults.piAddress),
+});
 const cameraInput = outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision(cameraInput);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
