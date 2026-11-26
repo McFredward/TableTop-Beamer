@@ -57,3 +57,17 @@ test("only direct loopback clients can view the preview and a browser cannot pub
   const withOrigin = prediction(frame, { origin: "http://127.0.0.1:4173" });
   assert.equal(await vision.publish(withOrigin, () => assert.fail()), 403);
 });
+
+test("structured game detections stay attached to a recent camera frame and reject invalid anchors", () => {
+  let source = cameraFrame(10);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const shape = { frameId: cameraFrameId(source), classes: ["fire", "character", "alien"], coverage: [0, 0, 1, 1],
+    objects: [{ kind: "alien", confidence: 0.8, box: [0.1, 0.2, 0.3, 0.3], anchor: [0.2, 0.42] }] };
+  assert.equal(vision.publishObjects(shape), 204);
+  assert.deepEqual(vision.objectsFor(shape.frameId), shape);
+  assert.deepEqual(vision.objectsFor(), shape);
+  assert.equal(vision.publishObjects(shape), 409);
+  assert.equal(vision.publishObjects({ ...shape, objects: [{ ...shape.objects[0], anchor: [1, 1] }] }), 400);
+  source = cameraFrame(12, 2);
+  assert.equal(vision.objectsFor(shape.frameId), null);
+});

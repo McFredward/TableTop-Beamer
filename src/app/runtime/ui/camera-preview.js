@@ -1,5 +1,6 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
 import { createFireReview } from "./fire-review.js";
+import { createGameReview } from "./game-review.js";
 
 function bindCameraSetup() {
   const details = document.getElementById("camera-setup");
@@ -63,6 +64,7 @@ function bootCameraPreview() {
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
   const fire = createFireReview();
+  const game = createGameReview();
   let mode = "vision";
   let active;
 
@@ -86,7 +88,7 @@ function bootCameraPreview() {
       const started = performance.now();
       let delay = 200;
       try {
-        let source = mode === "fire" ? "raw" : mode;
+        let source = mode === "fire" || mode === "game" ? "raw" : mode;
         let response = await getFrame(source, visibleSource === source ? visibleId : null, signal);
         if (source === "vision" && response.status === 503) {
           source = "raw";
@@ -114,6 +116,15 @@ function bootCameraPreview() {
                 delay = 1000;
               }
             }
+            if (mode === "game") {
+              try {
+                await game.observe(bitmap, id, context, signal);
+              } catch (error) {
+                if (signal.aborted) return;
+                game.unavailable(error.message);
+                delay = 1000;
+              }
+            }
           } finally {
             bitmap.close();
           }
@@ -135,6 +146,7 @@ function bootCameraPreview() {
           metrics.textContent = "";
           visibleId = null;
           if (mode === "fire") fire.unavailable("Waiting for a fresh camera frame. Observation is paused.");
+          if (mode === "game") game.unavailable("Waiting for a fresh camera frame. Observation is paused.");
           if (response.status === 403) {
             setStatus("Open TT-Beamer on the server PC using localhost to view the camera.");
             return;
@@ -149,6 +161,7 @@ function bootCameraPreview() {
         metrics.textContent = "";
         visibleId = null;
         if (mode === "fire") fire.unavailable("Observation paused during the camera interruption.");
+        if (mode === "game") game.unavailable("Observation paused during the camera interruption.");
         setStatus("Camera connection interrupted. Retrying…");
         delay = 750;
       }
@@ -160,6 +173,7 @@ function bootCameraPreview() {
     active?.abort();
     active = new AbortController();
     fire.reset(mode === "fire");
+    game.reset(mode === "game");
     canvas.hidden = true;
     metrics.textContent = "";
     setStatus("Connecting to the board camera…");
@@ -174,6 +188,7 @@ function bootCameraPreview() {
   dialog.addEventListener("close", () => {
     active?.abort();
     fire.reset(false);
+    game.reset(false);
     canvas.width = 1;
     canvas.height = 1;
   });
@@ -193,6 +208,7 @@ function bootCameraPreview() {
     pausePreview() {
       active?.abort();
       fire.reset(false);
+      game.reset(false);
       canvas.hidden = true;
       metrics.textContent = "";
       setStatus("");

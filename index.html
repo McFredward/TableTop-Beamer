@@ -1034,6 +1034,7 @@
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="raw" aria-pressed="false">Live camera</button>
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="vision" aria-pressed="true">Detections</button>
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="fire" aria-pressed="false">Fire observation</button>
+      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="game" aria-pressed="false">Game observation</button>
       <button id="auto-calibration-start" class="rd-btn rd-btn-ghost" type="button">Auto calibrate</button>
       <button id="auto-calibration-cancel" class="rd-btn rd-btn-ghost" type="button" hidden>Cancel calibration</button>
     </div>
@@ -1057,6 +1058,11 @@
     <div id="fire-review" hidden>
       <p id="fire-review-state" class="camera-preview-status" role="status"></p>
       <button id="fire-review-save" class="rd-btn rd-btn-ghost" type="button" disabled>Save board sample</button>
+    </div>
+    <div id="game-review" hidden>
+      <p id="game-review-tracks" class="camera-preview-status" role="status"></p>
+      <p id="game-review-effects" class="camera-preview-status" role="status"></p>
+      <p id="game-review-source" class="camera-preview-status"></p>
     </div>
   </dialog>
   <script type="module" src="/src/app/runtime/ui/camera-preview.js"></script>

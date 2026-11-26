@@ -4634,6 +4634,32 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (routePath === "/api/camera/board-objects" && ["GET", "POST"].includes(req.method)) {
+      res.setHeader("Cache-Control", "no-store");
+      if (!isLocalCameraRequest(req) || (req.method === "POST" && req.headers.origin !== undefined)) {
+        req.resume();
+        res.writeHead(403).end();
+        return;
+      }
+      if (req.method === "GET") {
+        const id = new URL(req.url, "http://localhost").searchParams.get("frameId");
+        const objects = cameraVision.objectsFor(id);
+        if (!objects) res.writeHead(204).end();
+        else sendJson(res, 200, objects);
+      } else {
+        if (req.headers["content-type"] !== "application/json") {
+          req.resume();
+          res.writeHead(415).end();
+          return;
+        }
+        let items;
+        try { items = await parseJsonBody(req, { maxBytes: 64 * 1024 }); }
+        catch { res.writeHead(400).end(); return; }
+        res.writeHead(cameraVision.publishObjects(items)).end();
+      }
+      return;
+    }
+
     if ((routePath === "/api/camera/latest.jpg" && req.method === "GET") ||
         (routePath === "/api/camera/vision.jpg" && ["GET", "POST"].includes(req.method))) {
       res.setHeader("Cache-Control", "no-store");

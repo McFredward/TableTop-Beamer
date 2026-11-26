@@ -2,6 +2,7 @@
 
 import argparse
 import io
+import json
 import sys
 import time
 from pathlib import Path
@@ -10,6 +11,43 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from benchmark_board_vision import parse_roi
+
+BOARD_CLASSES = {"noise", "fire", "malfunction", "alien", "character", "hand", "track-marker"}
+
+
+def board_objects(frame_id, classes, detections, size, original_size, roi, np):
+    width, height = size
+    original_width, original_height = original_size
+    x, y, roi_width, roi_height = roi or (0, 0, original_width, original_height)
+    sx, sy = roi_width / width / original_width, roi_height / height / original_height
+    left, top = x / original_width, y / original_height
+    objects = []
+    for i, (label, score, box) in enumerate(zip(detections.data["class_name"], detections.confidence,
+                                                 detections.xyxy, strict=True)):
+        if label not in classes:
+            continue
+        x0, y0, x1, y1 = (float(v) for v in box)
+        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(width, x1), min(height, y1)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        if label in {"alien", "character"}:
+            cy = y0 + 0.92 * (y1 - y0)
+            if detections.mask is not None:
+                ys, xs = np.nonzero(detections.mask[i])
+                base = ys >= cy
+                if base.any():
+                    cx = min(x1, max(x0, float(np.median(xs[base]))))
+                    cy = min(y1, float(np.median(ys[base])))
+        objects.append({
+            "kind": label, "confidence": float(score),
+            "box": [left + x0 * sx, top + y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy],
+            "anchor": [left + cx * sx, top + cy * sy],
+        })
+    return {
+        "frameId": frame_id, "classes": sorted(classes), "objects": objects[:256],
+        "coverage": [left, top, roi_width / original_width, roi_height / original_height],
+    }
 
 
 def annotate(image, detections, annotators, np):
@@ -52,6 +90,7 @@ def main():
     parser.add_argument("--model", choices=("seg-2xlarge", "seg-large", "seg-nano", "large"),
                         default="seg-2xlarge")
     parser.add_argument("--checkpoint", type=Path, help="Trusted local checkpoint for the selected model")
+    parser.add_argument("--game", action="store_true", help="Publish trained Nemesis classes to Game observation")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--threshold", type=float, default=0.45)
     parser.add_argument("--max-fps", type=float, default=3)
@@ -61,6 +100,8 @@ def main():
         parser.error("Use a threshold from 0 to 1, an FPS limit above 0 and at most 5, and a valid port")
     if args.checkpoint and not args.checkpoint.is_file():
         parser.error(f"Checkpoint not found: {args.checkpoint}")
+    if args.game and not args.checkpoint:
+        parser.error("--game needs a checkpoint trained on the board-game classes")
 
     try:
         import numpy as np
@@ -83,6 +124,12 @@ def main():
     print(f"Loading RF-DETR {args.model} on {device}…", flush=True)
     model = model_type(device=device, **weights)
     predictor = model.inference(compile=False)
+    classes = set()
+    if args.game:
+        names = model.class_names
+        classes = BOARD_CLASSES.intersection(names.values() if hasattr(names, "values") else names)
+        if not classes:
+            parser.error("The checkpoint does not define any board-game classes")
     annotations = (
         sv.MaskAnnotator(opacity=0.42),
         sv.BoxAnnotator(thickness=2),
@@ -105,6 +152,7 @@ def main():
                     image = source.convert("RGB")
             except OSError:
                 continue
+            original_size = image.size
             if args.roi:
                 x, y, width, height = args.roi
                 if x + width > image.width or y + height > image.height:
@@ -115,6 +163,17 @@ def main():
             inference_start = time.monotonic()
             detections = predictor.predict(image, threshold=args.threshold, include_source_image=False)
             elapsed = (time.monotonic() - inference_start) * 1000
+            if classes:
+                payload = board_objects(last_frame, classes, detections, image.size, original_size, args.roi, np)
+                request = Request(url + "/api/camera/board-objects", method="POST",
+                                  data=json.dumps(payload, allow_nan=False).encode("utf-8"),
+                                  headers={"Content-Type": "application/json"})
+                try:
+                    with urlopen(request, timeout=2):
+                        pass
+                except HTTPError as error:
+                    if error.code not in (404, 409):
+                        raise
             result = annotate(image, detections, annotations, np)
             request = Request(url + "/api/camera/vision.jpg", method="POST", data=result, headers={
                 "Content-Type": "image/jpeg",

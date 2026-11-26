@@ -304,6 +304,24 @@ images of the clear location. This view displays proposals for testing.
 **Save board sample** downloads the board crop at camera resolution and the
 current proposals in a JSON file for later review and labelling.
 
+### Observe Nemesis game state
+
+Open **Camera → Game observation** on the server PC. On Nemesis Board A,
+the view compares the printed track fields with the camera image to locate
+the transparent counters. Two matching frames confirm the slot. Round
+positions 8–1 propose **Scanning** in room 011. Self-destruct positions 3
+and below propose **Intruder Alert** in the ship interior. Uncertain or
+covered slots retain the last confirmed reading.
+
+Run the vision worker with `--game --checkpoint path/to/weights.pth` to
+publish model detections for pieces. The expected labels are `noise`,
+`fire`, `malfunction`, `alien`, `character` and optionally `hand`.
+The worker uses the base of an alien or character to assign it to a room.
+Noise in a mapped corridor proposes **Light Flicker** there. Fire and
+malfunction have independent room effects. A room gets an **Alarm** proposal
+while at least one alien remains. The view shows proposals and leaves the
+animation controls with the operator.
+
 ---
 
 ## Diagnostic endpoints

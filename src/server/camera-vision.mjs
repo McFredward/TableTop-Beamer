@@ -3,6 +3,7 @@ import { jpegDimensions } from "./output-camera-upload.mjs";
 const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
 const MAX_ANNOTATION_AGE_MS = 6000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const BOARD_CLASSES = new Set(["noise", "fire", "malfunction", "alien", "character", "hand", "track-marker"]);
 
 export function isLocalCameraRequest(req) {
   const { host, forwarded, "x-forwarded-for": forwardedFor, "x-forwarded-host": forwardedHost } = req.headers;
@@ -32,8 +33,45 @@ export function sendCameraFrame(res, frame, after) {
 export function createCameraVision(cameraInput) {
   let preview;
   let pending = false;
+  const objectFrames = new Map();
+
+  function freshFrame(id) {
+    const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
+    if (!parts) return null;
+    const [sourceTime, generation, sequence] = parts.slice(1).map(Number);
+    const source = cameraInput.latestFrame();
+    if (!source || source.generation !== generation || Date.now() - sourceTime > MAX_ANNOTATION_AGE_MS ||
+        sourceTime > Date.parse(source.receivedAt) || sequence < 1 || sequence > source.sequence) return null;
+    return { generation, sequence };
+  }
+
+  function rect(value) {
+    return Array.isArray(value) && value.length === 4 && value.every(x => Number.isFinite(x) && x >= 0 && x <= 1)
+      && value[2] > 0 && value[3] > 0 && value[0] + value[2] <= 1.000001 && value[1] + value[3] <= 1.000001;
+  }
 
   return {
+    objectsFor(id) {
+      id ??= [...objectFrames.keys()].reverse().find(key => freshFrame(key));
+      return freshFrame(id) ? objectFrames.get(id) ?? null : null;
+    },
+
+    publishObjects(payload) {
+      const { frameId, classes, objects, coverage } = payload ?? {};
+      if (typeof frameId !== "string" || !Array.isArray(classes) || !classes.length || classes.length > BOARD_CLASSES.size ||
+          new Set(classes).size !== classes.length || !classes.every(kind => BOARD_CLASSES.has(kind)) ||
+          !rect(coverage) || !Array.isArray(objects) || objects.length > 256 || objects.some(item =>
+            !item || !classes.includes(item.kind) || !Number.isFinite(item.confidence) ||
+            item.confidence < 0 || item.confidence > 1 || !rect(item.box) || !Array.isArray(item.anchor) ||
+            item.anchor.length !== 2 || !item.anchor.every((v, i) => Number.isFinite(v) &&
+              v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6))) return 400;
+      if (!freshFrame(frameId) || objectFrames.has(frameId)) return 409;
+      objectFrames.set(frameId, { frameId, classes, coverage, objects: objects.map(({ kind, confidence, box, anchor }) =>
+        ({ kind, confidence, box, anchor })) });
+      if (objectFrames.size > 4) objectFrames.delete(objectFrames.keys().next().value);
+      return 204;
+    },
+
     latestFrame() {
       const source = cameraInput.latestFrame();
       if (!preview || !source || source.generation !== preview.generation ||
