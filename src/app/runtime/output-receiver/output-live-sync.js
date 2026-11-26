@@ -75,6 +75,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   let alignMode = false;
   let profileId = null;
   let clientId = null;
+  let outputRevision = null;
   // Phase 49 gap-closure-9 (2026-05-17): track currently-running animations
   // by id so reconcileSnapshot can diff and emit animationStart/Stop. The
   // server's broadcast envelope's `mutationEnvelope` field carries only
@@ -365,6 +366,14 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       return;
     }
     if (envelope.type === "live-hello") {
+      if (enableCalibration && typeof envelope.outputRevision === "string") {
+        if (outputRevision && outputRevision !== envelope.outputRevision) {
+          stop();
+          window.location.reload();
+          return;
+        }
+        outputRevision = envelope.outputRevision;
+      }
       clientId = envelope.clientId ?? null;
       const snap = envelope?.session?.snapshot;
       if (snap) reconcileSnapshot(snap);
@@ -609,6 +618,13 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     }
   }
 
+  function stop() {
+    stopped = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    try { ws?.close(); } catch {}
+  }
+
   return {
     onAnimationStart: on("animationStart"),
     onAnimationStop: on("animationStop"),
@@ -654,11 +670,6 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // Phase 38 W4: expose pending-snapshot presence so callers can decide
     // whether to seed via this path vs. fetch /api/live/snapshot.
     hasPendingGridSnapshot: () => !!_pendingGridSnapshot,
-    stop() {
-      stopped = true;
-      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-      try { ws?.close(); } catch {}
-    },
+    stop,
   };
 }

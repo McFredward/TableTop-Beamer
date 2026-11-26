@@ -92,11 +92,14 @@ async function capture(id, points, signal) {
 }
 
 async function runCalibration(signal, progress) {
-  progress("Loading the board and calibration tools…");
-  const [{ cv }, catalog] = await Promise.all([loadOpenCV(), jsonRequest("/api/boards", null, signal)]);
+  progress("Checking the projector and camera…");
   signal.throwIfAborted();
-  const session = await jsonRequest("/api/calibration", { action: "start" }, signal);
+  const session = await jsonRequest("/api/calibration", { action: "start" });
   try {
+    signal.throwIfAborted();
+    progress("Loading the board and calibration tools…");
+    const [{ cv }, catalog] = await Promise.all([loadOpenCV(), jsonRequest("/api/boards", null, signal)]);
+    signal.throwIfAborted();
     const board = catalog.boards.find(board => board.boardId === session.boardId);
     if (!board?.metadata?.imageSrc) throw new Error("The selected board needs a reference image.");
     const url = new URL(board.metadata.imageSrc, location.origin);

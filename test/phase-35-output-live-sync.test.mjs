@@ -116,3 +116,38 @@ test("D-02-B2: output-audio-binder.js imports + uses bootOutputLiveSync", async 
     "audio-binder must subscribe to live-sync animation callbacks",
   );
 });
+
+test("the output reloads only when its deployed revision changes", async (t) => {
+  installBrowserGlobals();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false });
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  let reloads = 0;
+  let socket;
+  window.location.reload = () => { reloads++; };
+  globalThis.WebSocket = class extends EventTarget {
+    constructor(url) {
+      super();
+      this.url = url;
+      socket = this;
+    }
+    close() { this.closed = true; }
+  };
+  const { bootOutputLiveSync } = await import("../src/app/runtime/output-receiver/output-live-sync.js");
+  const live = bootOutputLiveSync({ logger: {}, enableCalibration: true });
+  t.after(live.stop);
+  assert.match(socket.url, /[?&]calibration=1\b/);
+
+  function hello(outputRevision) {
+    socket.dispatchEvent(new MessageEvent("message", {
+      data: JSON.stringify({ type: "live-hello", outputRevision }),
+    }));
+  }
+  hello("revision-one");
+  hello("revision-one");
+  assert.equal(reloads, 0);
+  hello("revision-two");
+  assert.equal(reloads, 1);
+  assert.equal(socket.closed, true);
+});

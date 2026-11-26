@@ -51,6 +51,16 @@ let signalingState = null;
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const OUTPUT_RECEIVER_DIR = "src/app/runtime/output-receiver";
+const outputRevisionHash = createHash("sha256");
+for (const file of [
+  "output.html", "src/styles.css", "src/app/lib/shared/runtime-env.js",
+  ...readdirSync(path.join(ROOT_DIR, OUTPUT_RECEIVER_DIR)).filter(name => name.endsWith(".js")).sort()
+    .map(name => `${OUTPUT_RECEIVER_DIR}/${name}`),
+]) {
+  outputRevisionHash.update(file).update(readFileSync(path.join(ROOT_DIR, file)));
+}
+const OUTPUT_REVISION = outputRevisionHash.digest("hex").slice(0, 16);
 const PAIRED_CAMERA_PATH = path.join(ROOT_DIR, "config", "runtime-output-camera.json");
 const nativeCameraUrl = process.env.TT_BEAMER_CAMERA_URL;
 const fixedCameraAddress = process.env.TT_BEAMER_OUTPUT_CAMERA_IP;
@@ -2127,6 +2137,7 @@ function attachLiveWebSocket(server) {
     sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-hello", {
       clientId,
       role,
+      ...(role === "final-output" && { outputRevision: OUTPUT_REVISION }),
       replay: {
         mode: "snapshot-base-version",
         baseVersion: liveSessionState.version,
@@ -4163,6 +4174,11 @@ async function handleStaticFile(req, res, routePath) {
     // Pi, Firefox, curl) cannot reuse a half-broken keep-alive socket.
     // See src/server/static-resource-headers.mjs for full rationale.
     const headers = buildStaticResourceHeaders(routePath, contentType);
+    if (routePath === "/output" || routePath === "/output/final" ||
+        routePath.startsWith(`/${OUTPUT_RECEIVER_DIR}/`) || routePath.startsWith("/src/app/runtime/calibration/") ||
+        routePath === "/src/app/runtime/ui/camera-preview.js") {
+      headers["cache-control"] = "no-cache";
+    }
 
     // Phase 39 Plan 39-2 D-01: HTTP Range request support.
     // Required so Chromium's <video> element can seek (loop-wrap in
@@ -4462,16 +4478,27 @@ const server = createServer(async (req, res) => {
         const boardId = liveSessionState.snapshot.selectedBoard;
         const gridAt = liveSessionState.snapshot.runtime?.lastAlignGridSnapshot?.at ?? null;
         const frame = outputCamera.latestFrame();
-        const outputs = [...liveClients].filter(([, client]) => client.calibrationOutput &&
+        const pairedClients = [...liveClients].filter(([, client]) => client.role === "final-output" &&
           !client.socket.destroyed && outputCamera.config({ socket: client.socket }).enabled);
-        if (outputs.length !== 1 || !frame || !boardId) {
-          sendJson(res, 409, { error: "Select a board and open one camera-enabled Output window before calibrating." });
+        const outputs = pairedClients.filter(([, client]) => client.calibrationOutput);
+        let problem;
+        if (!boardId) problem = "Select the board you want to calibrate.";
+        else if (pairedClients.length && !outputs.length) problem = "The Pi has an older Output page open. Reload /output/ and try again.";
+        else if (!outputs.length) problem = "Open /output/ on the paired Raspberry Pi and try again.";
+        else if (outputs.length > 1) problem = "Close the extra Output tabs on the Pi and try again.";
+        else if (!frame) problem = "Waiting for the board camera. Allow camera access on the Pi and try again.";
+        if (problem) {
+          console.info(`[auto-calibration] ${problem}`);
+          sendJson(res, 409, { error: problem });
           return;
         }
         const [outputId, output] = outputs[0];
         const started = calibration.start({ boardId, generation: frame.generation, gridAt, output: { ...output, id: outputId } });
         if (!started) sendJson(res, 409, { error: "A calibration is already running." });
-        else sendJson(res, 200, started);
+        else {
+          console.info(`[auto-calibration] started for ${boardId}`);
+          sendJson(res, 200, started);
+        }
         return;
       }
       if (action === "pattern") {
