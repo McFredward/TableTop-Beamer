@@ -1,13 +1,15 @@
+const MAX_UPLOAD_FPS = 2;
+const JPEG_BYTES_PER_MS = 750; // 6 Mbit/s of JPEG payload.
 const cameraConstraints = {
   audio: false,
   video: {
     width: { ideal: 3840, max: 3840 },
     height: { ideal: 2160, max: 2160 },
-    frameRate: { ideal: 10, max: 30 },
+    frameRate: { ideal: 5, max: 5 },
   },
 };
 
-function sendFrame(worker, bitmap, signal) {
+function sendFrame(worker, frame, signal) {
   return new Promise((resolve, reject) => {
     function finish(callback, value) {
       worker.onmessage = null;
@@ -21,9 +23,9 @@ function sendFrame(worker, bitmap, signal) {
     worker.onerror = (event) => finish(reject, new Error(event.message || "Camera encoder failed"));
     signal.addEventListener("abort", onAbort, { once: true });
     try {
-      worker.postMessage(bitmap, [bitmap]);
+      worker.postMessage(frame, frame instanceof Blob ? [] : [frame]);
     } catch (error) {
-      bitmap.close();
+      frame.close?.();
       finish(reject, error);
     }
   });
@@ -56,7 +58,7 @@ export async function bootOutputCamera() {
     return;
   }
 
-  const periodMs = 1000 / fps;
+  const periodMs = 1000 / Math.min(fps, MAX_UPLOAD_FPS);
   let active;
   let timer;
   let restartOnShow = false;
@@ -76,6 +78,7 @@ export async function bootOutputCamera() {
         if (signal.aborted) return;
         const track = stream.getVideoTracks()[0];
         const capture = new ImageCapture(track);
+        let usePhoto = typeof capture.takePhoto === "function";
         worker = new Worker(new URL("./output-camera-encode.worker.js", import.meta.url), { type: "module" });
         signal.addEventListener("abort", () => {
           clearTimeout(timer);
@@ -96,15 +99,24 @@ export async function bootOutputCamera() {
           let delay = periodMs;
           try {
             if (!track.muted) {
-              const bitmap = await capture.grabFrame();
+              let frame;
+              if (usePhoto) {
+                const photo = await capture.takePhoto().catch(() => null);
+                if (photo?.type === "image/jpeg") frame = photo;
+                else if (photo) usePhoto = false;
+              }
+              if (signal.aborted) return;
+              if (!frame) frame = await capture.grabFrame();
               if (signal.aborted) {
-                bitmap.close();
+                frame.close?.();
                 return;
               }
-              const error = await sendFrame(worker, bitmap, signal);
+              const { bytes, status, error } = await sendFrame(worker, frame, signal);
+              delay = Math.max(delay, (bytes || 0) / JPEG_BYTES_PER_MS);
               if (error) {
+                if (status === 400 && usePhoto) usePhoto = false;
                 show("Camera upload interrupted. Retrying…");
-                delay = 1000;
+                delay = Math.max(delay, 1000);
               } else {
                 show("");
               }

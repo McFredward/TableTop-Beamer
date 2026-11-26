@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const FRAMES_PER_SECOND = 5;
+const FRAMES_PER_SECOND = 2;
 const JPEG_SIZE_MARKERS = new Set([0xc0, 0xc1, 0xc2]);
 
 export function jpegDimensions(jpeg) {

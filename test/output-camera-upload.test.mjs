@@ -25,7 +25,7 @@ test("camera configuration and uploads are limited to the configured client and 
   const read = () => assert.fail("The body must not be read");
   assert.deepEqual(createOutputCameraUpload().config(request()), { enabled: false });
   assert.deepEqual(camera.config(request("192.0.2.21")), { enabled: false });
-  assert.deepEqual(camera.config(request("::ffff:" + address)), { enabled: true, fps: 5 });
+  assert.deepEqual(camera.config(request("::ffff:" + address)), { enabled: true, fps: 2 });
   assert.equal((await camera.upload(request("192.0.2.21"), read)).code, 403);
   assert.equal((await camera.upload(request(address, { origin: "http://example.com" }), read)).code, 403);
   assert.equal((await camera.upload(request(address, { "content-type": "text/plain" }), read)).code, 415);

@@ -110,10 +110,12 @@ chromium --disable-features=WebRtcPipeWireCamera \
 
 The first flag selects the direct V4L2 camera path on Raspberry Pi OS. Use
 the graphical session on the Pi to create and remember the site permission.
+For a dedicated projection browser, add `--kiosk` after granting access.
 Exit the existing Chromium process before changing its launch arguments. If
 permission was previously blocked, use Chromium's site settings to allow it
-and then press **Retry camera**. The browser requests up to 3840×2160 and
-uploads up to five JPEGs per second while the projection continues over WebRTC.
+and then press **Retry camera**. The browser requests up to 3840×2160 and sends
+camera JPEGs directly when available. The upload is paced at up to two frames
+per second and about 6 Mbit/s of JPEG payload to leave room for live projection.
 Closing `/output/` releases the camera. Use a single output tab on the Pi.
 
 Open `http://127.0.0.1:4173/api/camera/status` on the PC to check that the camera
