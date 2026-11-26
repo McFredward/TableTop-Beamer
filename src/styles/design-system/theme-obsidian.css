@@ -1865,6 +1865,7 @@ body[data-output-role="final-output"] .cluster-pads {
   margin-bottom: 12px;
 }
 .camera-preview-header { justify-content: space-between; }
+.camera-preview-controls { flex-wrap: wrap; }
 .camera-preview-header h2 { margin: 0; font-size: 1.1rem; }
 .camera-preview-controls [aria-pressed="true"] {
   background: var(--c-accent, #32d3a3);

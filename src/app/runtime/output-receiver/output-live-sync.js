@@ -53,10 +53,10 @@ const RECONNECT_BACKOFF_MS = [500, 1000, 2000, 5000, 10000, 30000];
  * @param {{ logger?: Console, role?: string, url?: string }} [opts]
  * @returns {LiveSyncSubscription}
  */
-export function bootOutputLiveSync({ logger = console, role = "final-output", url } = {}) {
+export function bootOutputLiveSync({ logger = console, role = "final-output", url, enableCalibration = false } = {}) {
   const proto = (typeof window !== "undefined" && window.location?.protocol === "https:") ? "wss:" : "ws:";
   const host = (typeof window !== "undefined" && window.location?.host) ? window.location.host : "localhost";
-  const wsUrl = url ?? `${proto}//${host}/api/live/ws?role=${role}`;
+  const wsUrl = url ?? `${proto}//${host}/api/live/ws?role=${role}${enableCalibration ? "&calibration=1" : ""}`;
 
   const handlers = {
     animationStart: new Set(),
@@ -70,6 +70,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // to remote grid mutations (e.g. force a handle-ui redraw after the
     // local grid is replaced).
     alignGridSnapshot: new Set(),
+    calibrationPattern: new Set(),
   };
   let alignMode = false;
   let profileId = null;
@@ -359,6 +360,10 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
 
   function dispatch(envelope) {
     if (!envelope || typeof envelope !== "object") return;
+    if (envelope.type === "calibration-pattern") {
+      emit("calibrationPattern", envelope.pattern);
+      return;
+    }
     if (envelope.type === "live-hello") {
       clientId = envelope.clientId ?? null;
       const snap = envelope?.session?.snapshot;
@@ -613,6 +618,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     onConnect: on("connect"),
     onDisconnect: on("disconnect"),
     onAlignGridSnapshot: on("alignGridSnapshot"),
+    onCalibrationPattern: on("calibrationPattern"),
     getAlignMode: () => alignMode,
     getActiveProjectionProfileId: () => profileId,
     getCurrentClientId: () => clientId,

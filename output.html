@@ -111,7 +111,9 @@
        so the page opens ONE WS to /api/live/ws?role=final-output instead of two. -->
   <script type="module">
     import { bootOutputLiveSync } from "/src/app/runtime/output-receiver/output-live-sync.js";
-    window.__ttbLiveSync = bootOutputLiveSync({ logger: console, role: "final-output" });
+    import { bootOutputCalibration } from "/src/app/runtime/output-receiver/output-calibration.js";
+    window.__ttbLiveSync = bootOutputLiveSync({ logger: console, role: "final-output", enableCalibration: true });
+    bootOutputCalibration(window.__ttbLiveSync);
   </script>
   <!-- Boot the receiver bootstrap. -->
   <script type="module">

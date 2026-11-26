@@ -1,0 +1,346 @@
+const DOT_COLUMNS = 9;
+const DOT_ROWS = 7;
+const DOT_THRESHOLD = 38;
+
+export const projectorDots = Array.from({ length: DOT_COLUMNS * DOT_ROWS }, (_, index) => ({
+  id: index + 1,
+  x: (index % DOT_COLUMNS + 0.5) / DOT_COLUMNS,
+  y: (Math.floor(index / DOT_COLUMNS) + 0.5) / DOT_ROWS,
+}));
+export const DOT_BITS = Math.ceil(Math.log2(projectorDots.length + 1));
+
+export function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+export function percentile(values, p) {
+  return values.toSorted((a, b) => a - b)[Math.max(0, Math.ceil(values.length * p) - 1)];
+}
+
+export function projectPoint(matrix, point) {
+  const [a, b, c, d, e, f, g, h, i] = matrix;
+  const z = g * point.x + h * point.y + i;
+  return { x: (a * point.x + b * point.y + c) / z, y: (d * point.x + e * point.y + f) / z };
+}
+
+function invert([a, b, c, d, e, f, g, h, i]) {
+  const complement = [e*i-f*h, c*h-b*i, b*f-c*e, f*g-d*i, a*i-c*g, c*d-a*f, d*h-e*g, b*g-a*h, a*e-b*d];
+  const det = a*complement[0] + b*complement[3] + c*complement[6];
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-12) throw new Error("The measured geometry is singular.");
+  return complement.map(value => value / det);
+}
+
+function span(points) {
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  return { x: Math.max(...xs) - Math.min(...xs), y: Math.max(...ys) - Math.min(...ys) };
+}
+
+function fitMap(cv, pairs, tolerance, minimum, radius) {
+  if (pairs.length < minimum) throw new Error("Too few matching points were visible.");
+  const points = side => cv.matFromArray(pairs.length, 1, cv.CV_32FC2, pairs.flatMap(pair => [pair[side].x, pair[side].y]));
+  const src = points("src");
+  const dst = points("dst");
+  const mask = new cv.Mat();
+  let transform;
+  try {
+    transform = cv.findHomography(src, dst, cv.USAC_MAGSAC, tolerance, mask, 3000, 0.995);
+    const inliers = pairs.filter((_, index) => mask.data[index]);
+    if (transform.empty() || inliers.length < minimum) throw new Error("The visible points do not agree on a flat surface.");
+    const matrix = Array.from(transform.data64F);
+    const residuals = inliers.map(({ src, dst }) => {
+      const estimate = projectPoint(matrix, src);
+      return { src, x: dst.x - estimate.x, y: dst.y - estimate.y };
+    });
+    function at(point) {
+      const position = projectPoint(matrix, point);
+      let weight = 0;
+      let dx = 0;
+      let dy = 0;
+      for (const residual of residuals) {
+        const ratio = distance(point, residual.src) / radius;
+        if (ratio >= 2) continue;
+        const w = Math.exp(-2 * ratio ** 2);
+        weight += w;
+        dx += w * residual.x;
+        dy += w * residual.y;
+      }
+      return { x: position.x + dx / Math.max(1, weight), y: position.y + dy / Math.max(1, weight) };
+    }
+    return { at, inverse: invert(matrix), inliers };
+  } finally {
+    src.delete();
+    dst.delete();
+    mask.delete();
+    transform?.delete();
+  }
+}
+
+export function registerBoard(cv, reference, camera) {
+  const a = cv.matFromArray(reference.height, reference.width, cv.CV_8UC1, reference.pixels);
+  const b = cv.matFromArray(camera.height, camera.width, cv.CV_8UC1, camera.pixels);
+  const orb = new cv.ORB(8000, 1.2, 8, 31, 0, 2, cv.ORB_HARRIS_SCORE, 31, 10);
+  const matcher = new cv.BFMatcher(cv.NORM_HAMMING, false);
+  const aKeys = new cv.KeyPointVector();
+  const bKeys = new cv.KeyPointVector();
+  const aDesc = new cv.Mat();
+  const bDesc = new cv.Mat();
+  const mask = new cv.Mat();
+  const matches = new cv.DMatchVectorVector();
+  try {
+    orb.detectAndCompute(a, mask, aKeys, aDesc);
+    orb.detectAndCompute(b, mask, bKeys, bDesc);
+    if (aDesc.empty() || bDesc.empty()) throw new Error("The printed board is too dark or out of focus.");
+    matcher.knnMatch(aDesc, bDesc, matches, 2);
+    const pairs = [];
+    for (let i = 0; i < matches.size(); i++) {
+      const pair = matches.get(i);
+      try {
+        if (pair.size() < 2) continue;
+        const closest = pair.get(0);
+        if (closest.distance >= 0.75 * pair.get(1).distance) continue;
+        pairs.push({ src: aKeys.get(closest.queryIdx).pt, dst: bKeys.get(closest.trainIdx).pt });
+      } finally {
+        pair.delete();
+      }
+    }
+    const fit = fitMap(cv, pairs, 4, 20, Math.min(reference.width, reference.height) * 0.16);
+    const spread = span(fit.inliers.map(pair => pair.src));
+    if (spread.x < reference.width * 0.35 || spread.y < reference.height * 0.35) {
+      throw new Error("Too little of the printed board could be matched.");
+    }
+    const at = point => fit.at({ x: point.x * (reference.width - 1), y: point.y * (reference.height - 1) });
+    for (const point of [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]) {
+      const position = at(point);
+      if (!(position.x >= 0 && position.x < camera.width && position.y >= 0 && position.y < camera.height)) {
+        throw new Error("The camera must see all four corners of the board.");
+      }
+    }
+    return {
+      at,
+      estimateBoardPoint(position) {
+        const point = projectPoint(fit.inverse, position);
+        return { x: point.x / (reference.width - 1), y: point.y / (reference.height - 1) };
+      },
+      count: fit.inliers.length,
+    };
+  } finally {
+    for (const item of [a, b, orb, matcher, aKeys, bKeys, aDesc, bDesc, mask, matches]) item.delete();
+  }
+}
+
+export function localContrast(cv, frame) {
+  const gray = cv.matFromArray(frame.height, frame.width, cv.CV_32FC1, frame.pixels);
+  const background = new cv.Mat();
+  try {
+    cv.GaussianBlur(gray, background, new cv.Size(0, 0), 8);
+    const blurred = background.data32F;
+    return { ...frame, pixels: Float32Array.from(gray.data32F, (value, index) => value - blurred[index]) };
+  } finally {
+    gray.delete();
+    background.delete();
+  }
+}
+
+function patchMean(frame, point) {
+  const x = Math.round(point.x);
+  const y = Math.round(point.y);
+  let sum = 0;
+  let count = 0;
+  for (let row = Math.max(y - 2, 0); row < Math.min(y + 3, frame.height); row++) {
+    for (let col = Math.max(x - 2, 0); col < Math.min(x + 3, frame.width); col++) {
+      sum += frame.pixels[row * frame.width + col];
+      count++;
+    }
+  }
+  return sum / count;
+}
+
+export function detectDots(cv, dark, lit) {
+  if (dark.width !== lit.width || dark.height !== lit.height) throw new Error("Camera size changed during calibration.");
+  const mask = new cv.Mat(lit.height, lit.width, cv.CV_8UC1);
+  const labels = new cv.Mat();
+  const stats = new cv.Mat();
+  const centers = new cv.Mat();
+  try {
+    const data = mask.data;
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.min(lit.pixels[i], lit.pixels[i] - dark.pixels[i]) > DOT_THRESHOLD ? 255 : 0;
+    }
+    const components = cv.connectedComponentsWithStats(mask, labels, stats, centers, 8, cv.CV_32S);
+    const result = [];
+    for (let i = 1; i < components; i++) {
+      const row = stats.intPtr(i);
+      const [w, h, area] = [row[2], row[3], row[4]];
+      if (area < 5 || area > 1000 || Math.min(w, h) < 2 || Math.max(w, h) > 35) continue;
+      const point = { x: centers.data64F[i*2], y: centers.data64F[i*2+1] };
+      const off = patchMean(dark, point);
+      const contrast = patchMean(lit, point) - off;
+      if (contrast >= DOT_THRESHOLD) result.push({ ...point, off, contrast });
+    }
+    return result;
+  } finally {
+    mask.delete();
+    labels.delete();
+    stats.delete();
+    centers.delete();
+  }
+}
+
+function interpolateProjector(fit, camera) {
+  const result = projectPoint(fit.inverse, camera);
+  for (let i = 0; i < 4; i++) {
+    const delta = toProjectorDelta(fit, result, camera, fit.at(result));
+    result.x += delta.x;
+    result.y += delta.y;
+    if (Math.hypot(delta.x, delta.y) < 0.05) break;
+  }
+  return result;
+}
+
+function toProjectorDelta(fit, position, target, observed) {
+  const a = fit.at(position);
+  const b = fit.at({ x: position.x + 1, y: position.y });
+  const c = fit.at({ x: position.x, y: position.y + 1 });
+  const m00 = b.x - a.x;
+  const m01 = c.x - a.x;
+  const m10 = b.y - a.y;
+  const m11 = c.y - a.y;
+  const determinant = m00*m11 - m01*m10;
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-8) return { x: 0, y: 0 };
+  const dx = target.x - observed.x;
+  const dy = target.y - observed.y;
+  return { x: (dx*m11 - dy*m01) / determinant, y: (dy*m00 - dx*m10) / determinant };
+}
+
+export function registerProjector(cv, board, dark, lit, bitFrames, size) {
+  if (bitFrames.length !== DOT_BITS || bitFrames.some(frame => frame.width !== dark.width || frame.height !== dark.height)) {
+    throw new Error("Camera size changed during calibration.");
+  }
+  const decoded = new Map();
+  for (const dot of detectDots(cv, dark, lit)) {
+    const boardPoint = board.estimateBoardPoint(dot);
+    if (boardPoint.x < -0.13 || boardPoint.x > 1.13 || boardPoint.y < -0.13 || boardPoint.y > 1.13) continue;
+    const scores = bitFrames.map(frame => (patchMean(frame, dot) - dot.off) / dot.contrast);
+    if (scores.some(score => Math.abs(score - 0.5) < 0.1)) continue;
+    const id = scores.reduce((sum, value, bit) => sum + (value > 0.5 ? 2 ** bit : 0), 0);
+    const pattern = projectorDots[id - 1];
+    if (!pattern || decoded.get(id)?.dst.contrast >= dot.contrast) continue;
+    decoded.set(id, { src: { x: pattern.x * size.width, y: pattern.y * size.height }, dst: dot });
+  }
+  const fit = fitMap(cv, [...decoded.values()], 16, 8, Math.min(size.width, size.height) * 0.18);
+  const spread = span(fit.inliers.map(pair => pair.src));
+  if (spread.x < size.width * 0.22 || spread.y < size.height * 0.22) {
+    throw new Error("Too few projected points were seen across the board.");
+  }
+  return {
+    count: fit.inliers.length,
+    cameraToProjector: position => interpolateProjector(fit, position),
+    correction: (projector, target, observed) => toProjectorDelta(fit, projector, target, observed),
+  };
+}
+
+const START_LINES = [0, 0.25, 0.5, 0.75, 1];
+
+export function initialGrid(board, projector) {
+  return {
+    srcXs: START_LINES.slice(),
+    srcYs: START_LINES.slice(),
+    points: START_LINES.map(y => START_LINES.map(x => projector.cameraToProjector(board.at({ x, y })))),
+  };
+}
+
+// The renderer splits each grid cell into TL/TR/BR and TL/BR/BL triangles.
+export function gridPoint(grid, x, y) {
+  const col = Math.max(0, grid.srcXs.findLastIndex(value => value <= x) - Number(x === 1));
+  const row = Math.max(0, grid.srcYs.findLastIndex(value => value <= y) - Number(y === 1));
+  const u = (x - grid.srcXs[col]) / (grid.srcXs[col+1] - grid.srcXs[col]);
+  const v = (y - grid.srcYs[row]) / (grid.srcYs[row+1] - grid.srcYs[row]);
+  const [tl, tr] = grid.points[row].slice(col, col+2);
+  const [bl, br] = grid.points[row+1].slice(col, col+2);
+  const weights = u >= v ? [1-u, u-v, 0, v] : [1-v, 0, v-u, u];
+  return Object.fromEntries(["x", "y"].map(axis => [axis,
+    [tl, tr, bl, br].reduce((sum, point, i) => sum + point[axis] * weights[i], 0)
+  ]));
+}
+
+export function gridProbes(grid, board) {
+  const vertices = grid.srcYs.flatMap(y => grid.srcXs.map(x => ({ x, y, cell: false })));
+  const cells = grid.srcYs.slice(1).flatMap((bottom, row) => grid.srcXs.slice(1).map((right, col) => ({
+    x: (right + grid.srcXs[col]) / 2,
+    y: (bottom + grid.srcYs[row]) / 2,
+    cell: true,
+  })));
+  return [...vertices, ...cells].map(source => ({
+    source, projector: gridPoint(grid, source.x, source.y), target: board.at(source),
+  }));
+}
+
+export function measureGrid(probes, detected, projector) {
+  const remaining = new Set(detected);
+  const matches = [];
+  for (const probe of probes) {
+    let observed;
+    let error = 36;
+    for (const dot of remaining) {
+      const delta = distance(dot, probe.target);
+      if (delta < error) {
+        error = delta;
+        observed = dot;
+      }
+    }
+    if (!observed) continue;
+    remaining.delete(observed);
+    matches.push({ ...probe, error, delta: projector.correction(probe.projector, probe.target, observed) });
+  }
+  const quadrants = new Set(matches.map(({ source }) => (source.x > 0.5 ? 1 : 0) + (source.y > 0.5 ? 2 : 0)));
+  if (matches.length < Math.max(12, probes.length * 0.65) || quadrants.size < 4) {
+    throw new Error("The projector could not verify enough points in all four parts of the board.");
+  }
+  return { matches, error: percentile(matches.map(match => match.error), 0.90) };
+}
+
+export function updateGrid(grid, measured) {
+  const worstCell = measured.matches.filter(match => match.source.cell && match.error > 4)
+    .sort((a, b) => b.error - a.error)[0];
+  const addLine = (lines, value) => value !== undefined && lines.length < 8
+    ? [...new Set([...lines, value])].sort((a, b) => a - b) : lines;
+  const srcXs = addLine(grid.srcXs, worstCell?.source.x);
+  const srcYs = addLine(grid.srcYs, worstCell?.source.y);
+  const points = srcYs.map(y => srcXs.map(x => {
+    const point = gridPoint(grid, x, y);
+    let weight = 0;
+    let dx = 0;
+    let dy = 0;
+    for (const match of measured.matches) {
+      const d = distance({ x, y }, match.source);
+      if (d > 0.35) continue;
+      const w = Math.exp(-d*d/0.011);
+      weight += w;
+      dx += w * match.delta.x;
+      dy += w * match.delta.y;
+    }
+    return {
+      x: point.x + 0.85 * dx / Math.max(1, weight),
+      y: point.y + 0.85 * dy / Math.max(1, weight),
+    };
+  }));
+  return { srcXs, srcYs, points };
+}
+
+export function normalizeGrid(grid, size) {
+  const points = grid.points.flatMap((items, row) => items.map((point, col) => ({
+    row, col, x: point.x / size.width, y: point.y / size.height,
+  })));
+  if (points.some(point => !(point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1))) {
+    throw new Error("Part of the board is outside the projector's usable picture.");
+  }
+  const cross = (a, b, c) => (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+  for (let r = 1; r < grid.points.length; r++) {
+    for (let c = 1; c < grid.points[r].length; c++) {
+      const [tl, tr, bl, br] = [grid.points[r-1][c-1], grid.points[r-1][c], grid.points[r][c-1], grid.points[r][c]];
+      if (cross(tl, tr, br) <= 0 || cross(tl, br, bl) <= 0) throw new Error("The proposed grid contains a folded cell.");
+    }
+  }
+  return { srcXs: grid.srcXs, srcYs: grid.srcYs, points };
+}

@@ -1,3 +1,5 @@
+import { bindAutoCalibration } from "../calibration/auto-calibration.js";
+
 function bindCameraSetup() {
   const details = document.getElementById("camera-setup");
   const row = document.getElementById("camera-setup-command-row");
@@ -145,6 +147,7 @@ function bootCameraPreview() {
     canvas.hidden = true;
     metrics.textContent = "";
     setStatus("Connecting to the board camera…");
+    for (const button of modeButtons) button.disabled = false;
     void refresh(active.signal);
   }
 
@@ -168,6 +171,17 @@ function bootCameraPreview() {
     });
   }
   bindCameraSetup();
+  bindAutoCalibration({
+    dialog,
+    pausePreview() {
+      active?.abort();
+      canvas.hidden = true;
+      metrics.textContent = "";
+      setStatus("");
+      for (const button of modeButtons) button.disabled = true;
+    },
+    resumePreview: start,
+  });
   trigger.hidden = false;
 }
 

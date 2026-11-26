@@ -134,6 +134,25 @@ future vision processing. If you put TT-Beamer behind a reverse proxy, block
 access to `/api/camera/latest.jpg` and `/api/camera/vision.jpg` at the proxy.
 Browser capture requires the TT-Beamer server to see the Pi's address directly.
 
+### Automatic board alignment
+
+Select the matching board in TT-Beamer, lay it flat and keep all four corners
+in view of the camera. Open **Camera → Auto calibrate** on the server PC after
+the live camera is visible. Keep the projector's Output window in the foreground.
+
+The projector shows a black frame and then coded white dots. TT-Beamer matches
+the printed board to its reference artwork and measures where the dots land in
+the camera image. It proposes an Align grid and verifies it by projecting
+additional points around the corners and near the rooms. During verification
+it can move vertices and add grid lines where the measured error is largest.
+The projector returns to its regular picture after the measurements.
+
+Inspect the review and select **Apply and save** to activate the measured grid
+and save it as a new board profile. The review reports the 90th-percentile error
+in camera pixels at a 1920-pixel analysis width. **Cancel calibration** returns
+to the live camera. If a board is moved, re-run calibration with its matching
+reference artwork and a clear camera view.
+
 ### Alternative capture with µStreamer
 
 As an alternative, run a separate process on the Pi to publish the camera's

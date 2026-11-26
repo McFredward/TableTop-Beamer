@@ -3,6 +3,7 @@ import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
+import { createCalibrationSession } from "./src/server/calibration-session.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
 import { isIPv4 } from "node:net";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
@@ -61,6 +62,7 @@ const outputCamera = createOutputCameraUpload({
 const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
+const calibration = createCalibrationSession();
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
@@ -1423,7 +1425,10 @@ function applyLiveMutation({
   // Phase 31 h30: full-grid sync validation. Reject malformed payloads
   // BEFORE apply. STRIDE T-31-30-01 mitigation.
   if (mutationType === "align-grid-snapshot") {
-    if (!validateAlignGridSnapshotPayload(payload)) {
+    const expected = payload?.calibrationAgainst;
+    const staleCalibration = expected && (expected.boardId !== liveSessionState.snapshot.selectedBoard ||
+      expected.gridAt !== (liveSessionState.snapshot.runtime?.lastAlignGridSnapshot?.at ?? null));
+    if (staleCalibration || !validateAlignGridSnapshotPayload(payload)) {
       logErrorEvent("align-grid-snapshot-rejected", "invalid-payload-shape", {
         clientId,
         role,
@@ -2102,7 +2107,8 @@ function attachLiveWebSocket(server) {
     const requestUrl = new URL(req.url || "/api/live/ws", "http://localhost");
     const role = requestUrl.searchParams.get("role") || "control";
     const clientId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
+    const calibrationOutput = role === "final-output" && requestUrl.searchParams.get("calibration") === "1";
+    liveClients.set(clientId, { socket, role, calibrationOutput, connectedAt: new Date().toISOString() });
     lastBroadcastVersionByClient.set(clientId, Number(liveSessionState.version || 0));
     upsertClientTelemetry(clientId, role);
     if (role === "final-output") {
@@ -4115,6 +4121,9 @@ async function handleGlobalDefaultsSave(req, res) {
 }
 
 function resolveStaticPath(urlValue, routePath) {
+  if (routePath === "/vendor/calibration-opencv.js") {
+    return path.join(ROOT_DIR, "node_modules", "@techstark", "opencv-js", "dist", "opencv.js");
+  }
   // Phase 34 D-04: SSR Chromium tab navigates here for the full app.
   // Localhost-only enforcement is layered at the ssr-tab WS role guard
   // (ssr-webrtc-signaling.mjs:269); the HTTP response itself is the same
@@ -4419,6 +4428,69 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && routePath === "/api/camera/status") {
       res.setHeader("Cache-Control", "no-store");
       sendJson(res, 200, cameraInput().snapshot());
+      return;
+    }
+
+    if (routePath === "/api/calibration" && ["GET", "POST"].includes(req.method)) {
+      res.setHeader("Cache-Control", "no-store");
+      const query = new URL(req.url, "http://localhost").searchParams;
+      const local = isLocalCameraRequest(req) && (req.method === "GET" || req.headers.origin === "http://" + req.headers.host);
+      const fromOutput = outputCamera.config(req).enabled && req.headers.origin === "http://" + req.headers.host;
+      if (!local && (req.method !== "POST" || !fromOutput)) {
+        req.resume();
+        sendJson(res, 403, { error: "Open calibration on the TT-Beamer PC." });
+        return;
+      }
+      if (req.method === "GET") {
+        const frame = calibration.frame(query.get("id"), Number(query.get("step")), outputCamera.latestFrame());
+        if (frame === false) sendJson(res, 409, { error: "Calibration stopped because the session or camera changed." });
+        else if (!frame) res.writeHead(204).end();
+        else sendCameraFrame(res, frame);
+        return;
+      }
+      let request;
+      try { request = await parseJsonBody(req, { maxBytes: 16 * 1024 }); }
+      catch { sendJson(res, 400, { error: "Invalid calibration request." }); return; }
+      const { action, id, step, clientId, width, height, points } = request ?? {};
+      if (action === "shown" && fromOutput) {
+        const accepted = calibration.shown(id, step, clientId, width, height, outputCamera.latestFrame());
+        res.writeHead(accepted ? 204 : 409).end();
+        return;
+      }
+      if (!local) { res.writeHead(403).end(); return; }
+      if (action === "start") {
+        const boardId = liveSessionState.snapshot.selectedBoard;
+        const gridAt = liveSessionState.snapshot.runtime?.lastAlignGridSnapshot?.at ?? null;
+        const frame = outputCamera.latestFrame();
+        const outputs = [...liveClients].filter(([, client]) => client.calibrationOutput &&
+          !client.socket.destroyed && outputCamera.config({ socket: client.socket }).enabled);
+        if (outputs.length !== 1 || !frame || !boardId) {
+          sendJson(res, 409, { error: "Select a board and open one camera-enabled Output window before calibrating." });
+          return;
+        }
+        const [outputId, output] = outputs[0];
+        const started = calibration.start({ boardId, generation: frame.generation, gridAt, output: { ...output, id: outputId } });
+        if (!started) sendJson(res, 409, { error: "A calibration is already running." });
+        else sendJson(res, 200, started);
+        return;
+      }
+      if (action === "pattern") {
+        const run = calibration.current(id);
+        const pattern = run?.boardId === liveSessionState.snapshot.selectedBoard && calibration.pattern(id, points);
+        if (!pattern) sendJson(res, 409, { error: "The active board or projector changed during calibration." });
+        else {
+          sendLiveSocketMessage(run.output.socket, { type: "calibration-pattern", pattern });
+          sendJson(res, 200, { step: pattern.step });
+        }
+        return;
+      }
+      if (action === "stop") {
+        const output = calibration.stop(id);
+        if (output) sendLiveSocketMessage(output.socket, { type: "calibration-pattern", pattern: null });
+        res.writeHead(204).end();
+        return;
+      }
+      sendJson(res, 400, { error: "Invalid calibration action." });
       return;
     }
 
