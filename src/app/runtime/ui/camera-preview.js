@@ -1,4 +1,5 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
+import { createFireReview } from "./fire-review.js";
 
 function bindCameraSetup() {
   const details = document.getElementById("camera-setup");
@@ -61,6 +62,7 @@ function bootCameraPreview() {
   const status = document.getElementById("camera-preview-status");
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
+  const fire = createFireReview();
   let mode = "vision";
   let active;
 
@@ -84,7 +86,7 @@ function bootCameraPreview() {
       const started = performance.now();
       let delay = 200;
       try {
-        let source = mode;
+        let source = mode === "fire" ? "raw" : mode;
         let response = await getFrame(source, visibleSource === source ? visibleId : null, signal);
         if (source === "vision" && response.status === 503) {
           source = "raw";
@@ -93,7 +95,9 @@ function bootCameraPreview() {
         if (signal.aborted) return;
 
         if (response.status === 200) {
-          const bitmap = await createImageBitmap(await response.blob());
+          const blob = await response.blob();
+          const id = response.headers.get("X-Camera-Frame-Id");
+          const bitmap = await createImageBitmap(blob);
           try {
             if (signal.aborted) return;
             if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
@@ -101,11 +105,20 @@ function bootCameraPreview() {
               canvas.height = bitmap.height;
             }
             context.drawImage(bitmap, 0, 0);
+            if (mode === "fire") {
+              try {
+                await fire.observe(bitmap, blob, id, context, signal);
+              } catch (error) {
+                if (signal.aborted) return;
+                fire.unavailable(error.message);
+                delay = 1000;
+              }
+            }
           } finally {
             bitmap.close();
           }
           canvas.hidden = false;
-          visibleId = response.headers.get("X-Camera-Frame-Id");
+          visibleId = id;
           visibleSource = source;
           if (source === "vision") {
             const header = (name) => response.headers.get("X-Vision-" + name);
@@ -121,6 +134,7 @@ function bootCameraPreview() {
           canvas.hidden = true;
           metrics.textContent = "";
           visibleId = null;
+          if (mode === "fire") fire.unavailable("Waiting for a fresh camera frame. Observation is paused.");
           if (response.status === 403) {
             setStatus("Open TT-Beamer on the server PC using localhost to view the camera.");
             return;
@@ -134,6 +148,7 @@ function bootCameraPreview() {
         canvas.hidden = true;
         metrics.textContent = "";
         visibleId = null;
+        if (mode === "fire") fire.unavailable("Observation paused during the camera interruption.");
         setStatus("Camera connection interrupted. Retrying…");
         delay = 750;
       }
@@ -144,6 +159,7 @@ function bootCameraPreview() {
   function start() {
     active?.abort();
     active = new AbortController();
+    fire.reset(mode === "fire");
     canvas.hidden = true;
     metrics.textContent = "";
     setStatus("Connecting to the board camera…");
@@ -157,6 +173,7 @@ function bootCameraPreview() {
   });
   dialog.addEventListener("close", () => {
     active?.abort();
+    fire.reset(false);
     canvas.width = 1;
     canvas.height = 1;
   });
@@ -175,6 +192,7 @@ function bootCameraPreview() {
     dialog,
     pausePreview() {
       active?.abort();
+      fire.reset(false);
       canvas.hidden = true;
       metrics.textContent = "";
       setStatus("");

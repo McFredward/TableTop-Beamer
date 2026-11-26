@@ -291,6 +291,19 @@ The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
 offline the preview clears, and inference waits for fresh frames.
 
+### Observe fire tokens on Nemesis Board A
+
+On the server PC, select Nemesis Board A and open **Camera → Fire observation**.
+This prototype matches the live camera image to the board artwork when the
+view opens. Reopen the view after moving the board. It uses the orange plastic
+token's colour and shape to test the room assignment and tracking behaviour.
+
+The panel proposes **Fire on** after two fresh detections in a room, **Keep
+fire** while the location may be covered, and **Fire off** after three fresh
+images of the clear location. This view displays proposals for testing.
+**Save board sample** downloads the board crop at camera resolution and the
+current proposals in a JSON file for later review and labelling.
+
 ---
 
 ## Diagnostic endpoints
