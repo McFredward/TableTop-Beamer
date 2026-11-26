@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
+import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -45,6 +46,8 @@ let signalingState = null;
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const cameraReceiver = createCameraReceiver({ sourceUrl: process.env.TT_BEAMER_CAMERA_URL });
+const outputCamera = createOutputCameraUpload({ address: process.env.TT_BEAMER_OUTPUT_CAMERA_IP });
+const cameraInput = outputCamera.enabled ? outputCamera : cameraReceiver;
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
@@ -4403,7 +4406,46 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && routePath === "/api/camera/status") {
       res.setHeader("Cache-Control", "no-store");
-      sendJson(res, 200, cameraReceiver.snapshot());
+      sendJson(res, 200, cameraInput.snapshot());
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/camera/output-config") {
+      res.setHeader("Cache-Control", "no-store");
+      sendJson(res, 200, outputCamera.config(req));
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/camera/frame") {
+      const { code, error } = await outputCamera.upload(req, readRawBody);
+      if (res.destroyed) return;
+      if (error) {
+        req.resume();
+        sendJson(res, code, { error });
+      } else {
+        res.writeHead(204).end();
+      }
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/camera/latest.jpg") {
+      res.setHeader("Cache-Control", "no-store");
+      const localHost = /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host ?? "");
+      const proxied = req.headers.forwarded || req.headers["x-forwarded-for"] || req.headers["x-forwarded-host"];
+      if (!localHost || proxied || !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress)) {
+        sendJson(res, 403, { error: "Camera frames are only available on the server" });
+        return;
+      }
+      const frame = cameraInput.latestFrame();
+      if (!frame) {
+        sendJson(res, 503, { error: "No recent camera frame" });
+        return;
+      }
+      res.writeHead(200, {
+        "Content-Type": "image/jpeg",
+        "Content-Length": frame.jpeg.length,
+        "X-Camera-Sequence": frame.sequence,
+      }).end(frame.jpeg);
       return;
     }
 
@@ -5588,7 +5630,7 @@ try {
 
 server.on("close", () => { void cameraReceiver.stop(); });
 server.listen(PORT, HOST, () => {
-  cameraReceiver.start();
+  if (!outputCamera.enabled) cameraReceiver.start();
   logSessionEvent("server-start", {
     host: HOST,
     port: PORT,

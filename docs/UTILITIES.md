@@ -86,14 +86,54 @@ default; use the second argument to override.
 
 ## Board camera
 
-The optional camera receiver runs in the TT-Beamer server on the PC. The Pi
-continues to open TT-Beamer's `/output/` page to display the projection. A
-separate process on the Pi publishes the camera's existing MJPEG frames. The PC
-opens one HTTP connection to it. A browser on either machine is unnecessary
-for camera reception. The current receiver exposes diagnostics and makes the
-newest usable JPEG available in memory. It does not trigger effects or save images.
+### Capture from `/output/` in Chromium
 
-### Capture on the Pi
+Set `TT_BEAMER_OUTPUT_CAMERA_IP` to the Pi's LAN IPv4 address before starting TT-Beamer.
+On Windows PowerShell, start the launcher from the same window.
+
+~~~powershell
+$env:TT_BEAMER_OUTPUT_CAMERA_IP = "192.168.0.29"
+.\start.bat
+~~~
+
+On Linux use `TT_BEAMER_OUTPUT_CAMERA_IP=192.168.0.29 ./start.sh`.
+Reserve the Pi's address in the router. The server enables browser capture for
+that address and accepts uploads from it on the same origin. If both camera
+settings are present, browser capture takes priority over the native receiver.
+
+For a direct HTTP connection on a trusted LAN, launch Chromium with the exact
+TT-Beamer origin as an exception. Open `/output/` on the Pi and allow camera
+access when prompted. Replace
+`192.168.0.80:4173` with the address and port you use to open the actual output.
+
+~~~bash
+chromium --disable-features=WebRtcPipeWireCamera \
+  --unsafely-treat-insecure-origin-as-secure=http://192.168.0.80:4173 \
+  http://192.168.0.80:4173/output/
+~~~
+
+The first flag selects the direct V4L2 camera path on Raspberry Pi OS. Use
+the graphical session on the Pi to create and remember the site permission.
+Exit the existing Chromium process before changing its launch arguments. If
+permission was previously blocked, use Chromium's site settings to allow it
+and then press **Retry camera**. The browser requests up to 3840×2160 and
+uploads up to five JPEGs per second while the projection continues over WebRTC.
+Closing `/output/` releases the camera. Use a single output tab on the Pi.
+
+Open `http://127.0.0.1:4173/api/camera/status` on the PC to check that the camera
+is `streaming` and inspect the received resolution, sequence and frame rate.
+The PC can retrieve the latest fresh JPEG at `/api/camera/latest.jpg` over
+loopback. TT-Beamer keeps the latest frame in memory for diagnostics and
+future vision processing. If you put TT-Beamer behind a reverse proxy, block
+access to `/api/camera/latest.jpg` at the proxy. Browser capture requires the
+TT-Beamer server to see the Pi's address directly.
+
+### Alternative capture with µStreamer
+
+As an alternative, run a separate process on the Pi to publish the camera's
+native MJPEG frames. The PC opens one HTTP connection to that process.
+
+#### Start µStreamer on the Pi
 
 Install `ustreamer` and `v4l-utils` from the Raspberry Pi OS repositories.
 Connect the camera to a USB 3 port and find its V4L2 capture device. Prefer the
@@ -125,7 +165,7 @@ an offered lower frame rate fixes a bandwidth problem. Once capture is proven,
 run the command as a Pi service that restarts on failure.
 [µStreamer manual](https://github.com/pikvm/ustreamer/blob/master/man/ustreamer.1).
 
-### Connect the PC
+#### Connect the PC
 
 Set the stream URL in the environment before starting TT-Beamer. On Windows
 PowerShell, start the launcher from the same window.
