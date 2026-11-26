@@ -129,38 +129,104 @@ function observeOutline(frame, dark, anchor, grid, projector) {
   return { anchor, source, error, delta: { x: correction.x / step, y: correction.y / step } };
 }
 
-export async function refineRoomOutlines({ measured, board, projector, reference, dark, rooms, size, capture }) {
+function addIndicatorLines(grid, matches) {
+  const srcXs = [...grid.srcXs];
+  const srcYs = [...grid.srcYs];
+  for (const { source, error } of matches.toSorted((a, b) => b.error - a.error)) {
+    if (error < 0.8) break;
+    for (const [coordinate, lines] of [[source.x, srcXs], [source.y, srcYs]]) {
+      if (lines.length < 16 && lines.every(line => Math.abs(line - coordinate) >= 0.016)) {
+        lines.push(coordinate);
+      }
+    }
+  }
+  srcXs.sort((a, b) => a - b);
+  srcYs.sort((a, b) => a - b);
+  return { srcXs, srcYs, points: srcYs.map(y => srcXs.map(x => gridPoint(grid, x, y))) };
+}
+
+function observeIndicators(grid, indicators, detected, projector) {
+  const remaining = new Set(detected);
+  return indicators.flatMap(anchor => {
+    let best;
+    let error = 14;
+    for (const dot of remaining) {
+      const d = distance(anchor.target, dot);
+      if (d < error) { best = dot; error = d; }
+    }
+    if (!best) return [];
+    remaining.delete(best);
+    const { source, target } = anchor;
+    const delta = projector.correction(gridPoint(grid, source.x, source.y), target, best);
+    const limit = Math.max(1, Math.hypot(delta.x, delta.y) / 7);
+    return [{ anchor, source, error, delta: { x: delta.x / limit, y: delta.y / limit }, weight: 18, radius: 0.052 }];
+  });
+}
+
+function compare(before, after, minimum) {
+  if (!before.length) return { gain: 0, p90: 0, worst: 0 };
+  const previous = new Map(before.map(match => [match.anchor, match.error]));
+  const paired = after.filter(match => previous.has(match.anchor));
+  if (paired.length < Math.min(minimum, before.length) || paired.length < before.length * 0.85) return null;
+  const errors = paired.map(match => match.error);
+  const changes = paired.map(match => previous.get(match.anchor) - match.error);
+  return {
+    gain: changes.reduce((sum, change) => sum + change, 0) / changes.length,
+    p90: percentile(paired.map(match => previous.get(match.anchor)), 0.90) - percentile(errors, 0.90),
+    worst: Math.min(...changes),
+  };
+}
+
+function summary(matches) {
+  return matches.length ? { count: matches.length, error: percentile(matches.map(match => match.error), 0.90) } : null;
+}
+
+export async function refineRoomOutlines({ measured, board, projector, reference, dark, rooms, indicators = [],
+  size, capture, captureIndicators }) {
   const polygons = roomPolygons(rooms, board, reference, dark);
-  if (!polygons.length) return { ...measured, outline: null };
   const anchors = polygons.flatMap((polygon, room) => polygon.anchors.map(anchor => ({ ...anchor, room })));
   async function measure(grid, pass) {
-    const paths = polygons.map(({ path }) => path.map(({ x, y }) => {
+    const project = ({ x, y }) => {
       const point = gridPoint(grid, x, y);
       return { x: point.x / size.width, y: point.y / size.height };
-    }));
-    const frame = await capture(paths, pass);
-    return anchors.map(anchor => observeOutline(frame, dark, anchor, grid, projector)).filter(Boolean);
+    };
+    let outlines = [];
+    let markers = [];
+    if (polygons.length) {
+      const paths = polygons.map(({ path }) => path.map(project));
+      const frame = await capture(paths, pass);
+      outlines = anchors.map(anchor => observeOutline(frame, dark, anchor, grid, projector)).filter(Boolean);
+      if (outlines.length < 12 || new Set(outlines.map(({ anchor }) => anchor.room)).size < 3) outlines = [];
+    }
+    if (indicators.length && captureIndicators) {
+      const dots = await captureIndicators(indicators.map(({ source }) => project(source)));
+      markers = observeIndicators(grid, indicators, dots, projector);
+    }
+    return { grid, outlines, markers };
   }
 
-  const initial = await measure(measured.grid, 1);
-  if (initial.length < 12 || new Set(initial.map(({ anchor }) => anchor.room)).size < 3) {
-    return { ...measured, outline: null };
+  let best = await measure(measured.grid, 1);
+  for (let pass = 2; pass <= 3; pass++) {
+    const { outlines, markers } = best;
+    const upper = outlines.filter(match => match.source.y <= 0.25);
+    if ((summary(outlines)?.error ?? 0) < 0.9 && (summary(markers)?.error ?? 0) < 0.7) break;
+    const sculpted = addIndicatorLines(best.grid, markers);
+    const weighted = outlines.map(match => ({ ...match, weight: match.source.y <= 0.25 ? 1.75 : 1 }));
+    const candidate = updateGrid(sculpted, { matches: [...weighted, ...markers] }, { lockEdges: true });
+    try {
+      normalizeGrid(candidate, size);
+    } catch {
+      break;
+    }
+    const next = await measure(candidate, pass);
+    const overall = compare(outlines, next.outlines, 12);
+    const top = compare(upper, next.outlines, 8);
+    const lights = compare(markers, next.markers, 1);
+    if (!overall || !top || !lights || overall.p90 < -0.20 || top.p90 < -0.22 ||
+        lights.gain < -0.12 || lights.worst < -0.85) break;
+    if (!(overall.p90 >= 0.15 && overall.gain >= 0.06) &&
+        !(top.p90 >= 0.20 && top.gain >= 0.06) && !(lights.gain >= 0.25)) break;
+    best = next;
   }
-  const initialError = percentile(initial.map(match => match.error), 0.90);
-  const verified = { ...measured, outline: { count: initial.length, error: initialError } };
-  if (initialError < 0.9) return verified;
-  const candidate = updateGrid(measured.grid, { matches: initial }, { lockEdges: true });
-  try {
-    normalizeGrid(candidate, size);
-  } catch {
-    return verified;
-  }
-  const expected = new Map(initial.map(match => [match.anchor, match.error]));
-  const next = (await measure(candidate, 2)).filter(match => expected.has(match.anchor));
-  if (next.length < initial.length * 0.85) return verified;
-  const improved = percentile(next.map(match => match.error), 0.90);
-  const before = percentile(next.map(match => expected.get(match.anchor)), 0.90);
-  const gain = next.reduce((total, match) => total + expected.get(match.anchor) - match.error, 0) / next.length;
-  if (improved > before - 0.15 || gain < 0.06) return verified;
-  return { ...verified, grid: candidate, outline: { count: next.length, error: improved } };
+  return { ...measured, grid: best.grid, outline: summary(best.outlines), indicators: summary(best.markers) };
 }

@@ -160,7 +160,7 @@ function findEdge(read, span, search) {
   };
 }
 
-export function refinePrintedBoard(cv, reference, camera, inverse) {
+export function refinePrintedBoard(cv, reference, camera, inverse, contacts = {}) {
   const width = reference.cols - 1;
   const height = reference.rows - 1;
   const shorter = Math.min(width, height);
@@ -202,8 +202,19 @@ export function refinePrintedBoard(cv, reference, camera, inverse) {
     const samples = patchOffsets(cv, referenceFeatures, cameraFeatures, radius, search, margin, searchNearEdge);
     const edgeFade = shorter * 0.048;
     // Projector focus and video filtering spread bright pixels at the last
-    // row of the picture. Leave a narrow inset at confirmed physical edges.
+    // row of the picture. Effects authored to touch the edge use a smaller
+    // inset just at the contact, leaving the rest of the edge protected.
     const edgeInset = shorter * 0.012;
+    const contactInset = shorter * 0.002;
+    function inset(side, t) {
+      let contact = 0;
+      for (const [lo, hi] of contacts[side] ?? []) {
+        const distance = Math.max(lo - t, t - hi, 0);
+        const fraction = 1 - Math.min(1, distance / 0.065);
+        contact = Math.max(contact, fraction * fraction * (3 - 2 * fraction));
+      }
+      return edgeInset - contact * (edgeInset - contactInset);
+    }
     function blend(distance, coordinate, target) {
       if (!Number.isFinite(target) || distance >= edgeFade) return coordinate;
       const t = Math.max(0, distance) / edgeFade;
@@ -216,11 +227,11 @@ export function refinePrintedBoard(cv, reference, camera, inverse) {
       at(point) {
         const { x, y } = point;
         const adjusted = textureOffset(samples, point, radius * 1.8);
-        const horizontal = blend(x, adjusted.x, x + left?.(y / height) + edgeInset);
-        const vertical = blend(y, adjusted.y, y + top?.(x / width) + edgeInset);
+        const horizontal = blend(x, adjusted.x, x + left?.(y / height) + inset("left", y / height));
+        const vertical = blend(y, adjusted.y, y + top?.(x / width) + inset("top", x / width));
         return {
-          x: blend(width - x, horizontal, x - right?.(y / height) - edgeInset),
-          y: blend(height - y, vertical, y - bottom?.(x / width) - edgeInset),
+          x: blend(width - x, horizontal, x - right?.(y / height) - inset("right", y / height)),
+          y: blend(height - y, vertical, y - bottom?.(x / width) - inset("bottom", x / width)),
         };
       },
     };

@@ -3,6 +3,7 @@ import {
   detectDots, measureGrid, refineProjectionGrid, normalizeGrid,
 } from "./calibration-math.js";
 import { refineRoomOutlines } from "./calibration-room-outlines.js";
+import { edgeContacts, printedIndicators } from "./calibration-targets.js";
 
 let cvReady;
 
@@ -46,7 +47,7 @@ async function jsonRequest(path, body, signal) {
   return result;
 }
 
-async function grayscale(blob) {
+async function readImage(blob, keepColor = false) {
   const bitmap = await createImageBitmap(blob);
   try {
     const width = Math.min(1920, bitmap.width);
@@ -59,13 +60,13 @@ async function grayscale(blob) {
     for (let i = 0, j = 0; i < pixels.length; i++, j += 4) {
       pixels[i] = (77 * rgba[j] + 150 * rgba[j+1] + 29 * rgba[j+2]) >> 8;
     }
-    return { width, height, pixels };
+    return { width, height, pixels, ...(keepColor && { rgba }) };
   } finally {
     bitmap.close();
   }
 }
 
-async function capture(id, pattern, signal) {
+async function capture(id, pattern, signal, keepColor = false) {
   const { step } = await jsonRequest("/api/calibration", { action: "pattern", id, ...pattern }, signal);
   const timeout = AbortSignal.timeout(9500);
   const combined = AbortSignal.any([signal, timeout]);
@@ -76,7 +77,7 @@ async function capture(id, pattern, signal) {
     if (response.status === 200) {
       const blob = await response.blob();
       return {
-        gray: await grayscale(blob),
+        gray: await readImage(blob, keepColor),
         size: { width: Number(response.headers.get("X-Projector-Width")), height: Number(response.headers.get("X-Projector-Height")) },
       };
     }
@@ -104,11 +105,13 @@ async function runCalibration(signal, progress) {
     if (url.origin !== location.origin) throw new Error("Import the board reference image into TT-Beamer first.");
     const image = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) });
     if (!image.ok) throw new Error("The selected board's reference image is unavailable.");
-    const reference = await grayscale(await image.blob());
+    const reference = await readImage(await image.blob(), true);
+    const rooms = board.roomCatalog ?? [];
 
     progress("Finding the printed board in the camera image…");
-    const unlit = await capture(session.id, { points: [] }, signal);
-    const registeredBoard = registerBoard(cv, reference, unlit.gray);
+    const unlit = await capture(session.id, { points: [] }, signal, true);
+    const registeredBoard = registerBoard(cv, reference, unlit.gray, edgeContacts(rooms));
+    const indicators = printedIndicators(rooms, registeredBoard, reference, unlit.gray);
     const dark = localContrast(cv, unlit.gray);
     const lit = localContrast(cv, (await capture(session.id, { points: projectorDots }, signal)).gray);
     const bits = [];
@@ -123,7 +126,7 @@ async function runCalibration(signal, progress) {
       board: registeredBoard,
       projector: registeredProjector,
       size: unlit.size,
-      rooms: board.roomCatalog ?? [],
+      rooms,
       async verify(probes, { level, pass, index, groups }) {
         progress(`Refining the ${level} × ${level} grid · pass ${pass} · pattern ${index + 1} of ${groups}`);
         const points = probes.map(({ projector }) => ({
@@ -136,11 +139,16 @@ async function runCalibration(signal, progress) {
     });
     const refined = await refineRoomOutlines({
       measured, board: registeredBoard, projector: registeredProjector, reference, dark: unlit.gray,
-      rooms: board.roomCatalog ?? [], size: unlit.size,
+      rooms, indicators, size: unlit.size,
       async capture(paths, pass) {
         progress(pass === 1 ? "Checking projected room outlines against the printed board…"
           : "Verifying the room outline correction…");
         return (await capture(session.id, { paths }, signal)).gray;
+      },
+      async captureIndicators(points) {
+        progress("Measuring the small printed indicators…");
+        const photo = await capture(session.id, { points }, signal);
+        return detectDots(cv, dark, localContrast(cv, photo.gray));
       },
     });
     signal.throwIfAborted();
@@ -151,7 +159,8 @@ async function runCalibration(signal, progress) {
     if (profiles?.getCurrentBoardId() === session.boardId) {
       profiles.applyAndCaptureSnapshot(grid, profileId, { broadcast: false, remember: true });
     }
-    return { profileId, grid, error: measured.error, verified: measured.matches.length, outline: refined.outline };
+    return { profileId, grid, error: measured.error, verified: measured.matches.length,
+      outline: refined.outline, indicators: refined.indicators };
   } finally {
     await jsonRequest("/api/calibration", { action: "stop", id: session.id }).catch(() => {});
   }
@@ -175,7 +184,8 @@ export function bindAutoCalibration({ dialog, pausePreview, resumePreview }) {
       });
       const dots = `${result.verified} points checked · ${result.error.toFixed(1)} px at P90`;
       const outlines = result.outline ? ` · ${result.outline.count} outline samples · ${result.outline.error.toFixed(1)} px at P90` : "";
-      status.textContent = `${result.profileId} active · ${result.grid.srcXs.length} × ${result.grid.srcYs.length} grid · ${dots}${outlines}.`;
+      const marks = result.indicators ? ` · ${result.indicators.count} printed indicators · ${result.indicators.error.toFixed(1)} px at P90` : "";
+      status.textContent = `${result.profileId} active · ${result.grid.srcXs.length} × ${result.grid.srcYs.length} grid · ${dots}${outlines}${marks}.`;
     } catch (error) {
       status.textContent = operation.signal.aborted ? "Calibration cancelled." : error.message;
     } finally {

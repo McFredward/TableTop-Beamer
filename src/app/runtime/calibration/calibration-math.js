@@ -79,7 +79,7 @@ function fitMap(cv, pairs, tolerance, minimum, radius) {
   }
 }
 
-export function registerBoard(cv, reference, camera) {
+export function registerBoard(cv, reference, camera, contacts) {
   const a = cv.matFromArray(reference.height, reference.width, cv.CV_8UC1, reference.pixels);
   const b = cv.matFromArray(camera.height, camera.width, cv.CV_8UC1, camera.pixels);
   const orb = new cv.ORB(8000, 1.2, 8, 31, 0, 2, cv.ORB_HARRIS_SCORE, 31, 10);
@@ -112,7 +112,7 @@ export function registerBoard(cv, reference, camera) {
     if (spread.x < reference.width * 0.35 || spread.y < reference.height * 0.35) {
       throw new Error("Too little of the printed board could be matched.");
     }
-    const detail = refinePrintedBoard(cv, a, b, fit.inverse);
+    const detail = refinePrintedBoard(cv, a, b, fit.inverse, contacts);
     const at = point => {
       const pixel = { x: point.x * (reference.width - 1), y: point.y * (reference.height - 1) };
       return detail.count || detail.edges ? projectPoint(fit.matrix, detail.at(pixel)) : fit.at(pixel);
@@ -332,9 +332,9 @@ export function updateGrid(grid, measured, { lockEdges = false } = {}) {
     let dx = 0;
     let dy = 0;
     for (const match of measured.matches) {
-      const d = distance({ x, y }, match.source);
-      if (d > 1.5 * radius) continue;
-      const w = Math.exp(-4 * (d / radius) ** 2);
+      const ratio = distance({ x, y }, match.source) / (match.radius ?? radius);
+      if (ratio > 1.5) continue;
+      const w = Math.exp(-4 * ratio ** 2) * (match.weight ?? 1);
       weight += w;
       dx += w * match.delta.x;
       dy += w * match.delta.y;

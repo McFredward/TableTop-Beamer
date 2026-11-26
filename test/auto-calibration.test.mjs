@@ -7,6 +7,7 @@ import {
 } from "../src/app/runtime/calibration/calibration-math.js";
 import { refinePrintedBoard } from "../src/app/runtime/calibration/printed-board-detail.js";
 import { refineRoomOutlines } from "../src/app/runtime/calibration/calibration-room-outlines.js";
+import { edgeContacts, printedIndicators } from "../src/app/runtime/calibration/calibration-targets.js";
 
 test("a pattern requires a matching projector acknowledgement and fresh frames from the same camera", () => {
   const state = createCalibrationSession();
@@ -109,6 +110,11 @@ test("printed detail and physical edges correct different parts of a coarse boar
     const middle = detail.at({ x: 336, y: 215 });
     assert.ok(left.x > -3 && left.x < 0 && right.x > width - 1 && right.x < width + 3);
     assert.ok(middle.y > 222 && middle.y < 226);
+    const contacts = edgeContacts([{ polygon: [[0.90, 0.39], [1, 0.39], [1, 0.54], [0.9, 0.54]] }]);
+    assert.deepEqual(contacts.right, [[0.39, 0.54]]);
+    const engine = refinePrintedBoard(cv, reference, camera, [1, 0, -border, 0, 1, -border, 0, 0, 1], contacts);
+    assert.ok(engine.at({ x: width - 1, y: 215 }).x > right.x + 4);
+    assert.deepEqual(engine.at({ x: width - 1, y: 65 }), detail.at({ x: width - 1, y: 65 }));
 
     // The reference artwork can extend past the printed edge on one side.
     cv.rectangle(scene, new cv.Point(border, border), new cv.Point(border + 28, border + height - 1),
@@ -176,4 +182,33 @@ test("the room-outline pass verifies a mesh correction and preserves its outside
   assert.equal(rejected.grid, grid);
   assert.deepEqual(improved.grid.points[0], grid.points[0]);
   assert.deepEqual(improved.grid.points.at(-1), grid.points.at(-1));
+});
+
+test("small coloured indicators can anchor a local mesh correction independently of room outlines", async () => {
+  const size = { width: 480, height: 400 };
+  const board = { at: ({ x, y }) => ({ x: 40 + 400 * x, y: 40 + 320 * y }) };
+  const projector = {
+    cameraToProjector: point => point,
+    correction: (_, target, observed) => ({ x: target.x - observed.x, y: target.y - observed.y }),
+  };
+  const rooms = [{ id: "light", polygon: [[0.461, 0.052], [0.479, 0.052], [0.479, 0.068], [0.461, 0.068]] }];
+  function frame(width, height, x, y) {
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    for (let row = y - 2; row <= y + 2; row++) {
+      for (let col = x - 2; col <= x + 2; col++) rgba[4 * (row * width + col)] = 160;
+    }
+    return { width, height, rgba };
+  }
+  const reference = frame(401, 321, 188, 19);
+  const dark = frame(480, 400, 233, 58);
+  const indicators = printedIndicators(rooms, board, reference, dark);
+  assert.deepEqual(indicators[0]?.target, { x: 233, y: 58 });
+  const grid = initialGrid(board, projector);
+  const result = await refineRoomOutlines({
+    measured: { grid }, board, projector, reference, dark, rooms, indicators, size,
+    captureIndicators: points => points.map(point => ({ x: point.x * size.width, y: point.y * size.height })),
+  });
+  assert.ok(result.indicators.error < 0.9);
+  assert.deepEqual(result.grid.points[0][0], grid.points[0][0]);
+  assert.deepEqual(result.grid.points.at(-1).at(-1), grid.points.at(-1).at(-1));
 });
