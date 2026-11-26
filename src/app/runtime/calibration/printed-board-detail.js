@@ -106,57 +106,100 @@ function textureOffset(samples, { x, y }, radius) {
     y: y + dy / Math.max(weight, 0.00001) * confidence };
 }
 
-// Look for a consistent brightness step along each side in the black
-// projection frame. Reject isolated features and fit a gently curving edge.
-function findEdge(read, span, search) {
-  const observations = [];
-  for (let index = 1; index < 20; index++) {
-    const t = index / 20;
+// Table objects can make stronger gradients than the board edge. Keep
+// several peaks per strip and find the continuous edge across clear strips.
+function edgeScans(read, span, search) {
+  const scans = [];
+  for (let index = 1; index < 30; index++) {
+    const t = index / 30;
     const at = Math.round(t * span);
-    function contrast(offset) {
-      let inside = 0;
-      let outside = 0;
+    const values = [];
+    for (let offset = -search; offset <= search; offset++) {
+      let contrast = 0;
       for (let across = 2; across <= 7; across++) {
         for (let along = -5; along <= 5; along += 2) {
-          inside += read(at + along, offset + across);
-          outside += read(at + along, offset - across);
+          contrast += read(at + along, offset - across) - read(at + along, offset + across);
         }
       }
-      return (outside - inside) / 36;
+      values.push(contrast / 36);
     }
-    let peak = { value: 0, offset: 0 };
-    for (let offset = -search; offset <= search; offset++) {
-      const value = contrast(offset);
-      if (Math.abs(value) > Math.abs(peak.value)) peak = { value, offset };
+    const peaks = [];
+    for (let i = 2; i < values.length - 2; i++) {
+      const strength = Math.abs(values[i]);
+      if (!(strength >= 13 && strength >= Math.abs(values[i - 1]) && strength > Math.abs(values[i + 1]))) continue;
+      const sign = Math.sign(values[i]);
+      const offset = i - search + subpixel(sign * values[i - 1], strength, sign * values[i + 1]);
+      const close = peaks.findIndex(peak => peak.sign === sign && Math.abs(peak.offset - offset) <= 5);
+      const peak = { t, offset, sign, strength };
+      if (close < 0) peaks.push(peak);
+      else if (peaks[close].strength < strength) peaks[close] = peak;
     }
-    if (Math.abs(peak.value) < 13 || Math.abs(peak.offset) >= search - 2) continue;
-    const sign = Math.sign(peak.value);
-    observations.push({ t, sign, offset: peak.offset + subpixel(
-      contrast(peak.offset - 1) * sign, peak.value * sign, contrast(peak.offset + 1) * sign,
-    ) });
+    scans.push({ t, peaks: peaks.sort((a, b) => b.strength - a.strength).slice(0, 5) });
   }
-  const sign = Math.sign(observations.reduce((sum, point) => sum + point.sign, 0));
-  const agreed = observations.filter(point => point.sign === sign);
-  // Remove isolated peaks before using nearby samples to interpolate an edge.
-  const edge = agreed.filter(point => agreed.some(other => other !== point &&
-    Math.abs(other.t - point.t) < 0.12 && Math.abs(other.offset - point.offset) < 6));
-  if (edge.length < 12 || edge[0].t > 0.20 || edge.at(-1).t < 0.80) return null;
-  return t => {
-    let sum = 0;
-    let value = 0;
-    let position = 0;
-    let variance = 0;
-    let covariance = 0;
-    for (const point of edge) {
-      const offset = point.t - t;
-      const weight = Math.exp(-((offset / 0.12) ** 2));
-      sum += weight;
-      value += weight * point.offset;
-      position += weight * offset;
-      variance += weight * offset ** 2;
-      covariance += weight * offset * point.offset;
+  return scans;
+}
+
+function edgeCandidates(scans, targets) {
+  const selected = new Set();
+  for (const t of targets) {
+    const scan = scans.filter(scan => scan.peaks.length && Math.abs(scan.t - t) <= 0.12)
+      .sort((a, b) => Math.abs(a.t - t) - Math.abs(b.t - t))[0];
+    if (scan) selected.add(scan);
+  }
+  return [...selected].flatMap(scan => scan.peaks);
+}
+
+function findEdge(read, span, search) {
+  const scans = edgeScans(read, span, search);
+  const start = edgeCandidates(scans, [0.07, 0.13, 0.20, 0.27]);
+  const middle = edgeCandidates(scans, [0.36, 0.43, 0.50, 0.57, 0.64]);
+  const end = edgeCandidates(scans, [0.73, 0.80, 0.87, 0.93]);
+  let best;
+  for (const a of start) {
+    for (const b of middle) {
+      if (b.sign !== a.sign || b.t - a.t < 0.19) continue;
+      const slope = (b.offset - a.offset) / (b.t - a.t);
+      for (const c of end) {
+        if (c.sign !== a.sign || c.t - b.t < 0.19) continue;
+        const bend = ((c.offset - b.offset) / (c.t - b.t) - slope) / (c.t - a.t);
+        if (Math.abs(bend) > 7 * search) continue;
+        const predict = t => a.offset + (t - a.t) * (slope + bend * (t - b.t));
+        if ([0, 1].some(t => Math.abs(predict(t)) > search * 1.18)) continue;
+        const edge = [];
+        let score = -Math.abs(predict(0.5)) / search * 2.5 - 0.004 * Math.abs(bend);
+        for (const scan of scans) {
+          const expected = predict(scan.t);
+          let distance = 4.75;
+          let nearest;
+          for (const peak of scan.peaks) {
+            const residual = Math.abs(peak.offset - expected);
+            if (peak.sign === a.sign && residual < distance) {
+              nearest = peak;
+              distance = residual;
+            }
+          }
+          if (nearest) {
+            edge.push(nearest);
+            score += 1 - distance * 0.08 + Math.min(nearest.strength, 60) * 0.0015;
+          }
+        }
+        if (edge.length < 13 || edge[0].t > 0.23 || edge.at(-1).t < 0.77) continue;
+        if (!best || score > best.score) best = { edge, predict, score };
+      }
     }
-    return (variance * value - position * covariance) / (sum * variance - position ** 2);
+  }
+  if (!best) return null;
+  return t => {
+    // Fit remaining local residuals, with the supported curve as a prior
+    // around corners or spans with no direct observations.
+    let sum = 0.75;
+    let change = 0;
+    for (const point of best.edge) {
+      const weight = Math.exp(-(((point.t - t) / 0.13) ** 2));
+      sum += weight;
+      change += weight * (point.offset - best.predict(point.t));
+    }
+    return best.predict(t) + change / sum;
   };
 }
 

@@ -20,13 +20,14 @@ export function edgeContacts(rooms) {
   return sides;
 }
 
-function colorPeak(frame, point, radius, channel, minimum) {
+function colorPeak(frame, point, radius, channel, minimum, contains) {
   let strongest;
   const samples = [];
   for (let y = Math.round(point.y - radius); y <= Math.round(point.y + radius); y++) {
     for (let x = Math.round(point.x - radius); x <= Math.round(point.x + radius); x++) {
       const distance = Math.hypot(x - point.x, y - point.y);
       if (distance > radius || x < 0 || y < 0 || x >= frame.width || y >= frame.height) continue;
+      if (contains && !contains({ x, y })) continue;
       const pixel = 4 * (y * frame.width + x);
       const chroma = frame.rgba[pixel + channel] - Math.max(
         frame.rgba[pixel + (channel + 1) % 3], frame.rgba[pixel + (channel + 2) % 3],
@@ -76,7 +77,7 @@ export function printedIndicators(rooms, board, reference, camera) {
     // The local artwork match predicts the printed spot, which can be a few
     // pixels from the authored centre of the animation.
     const prediction = board.at({ x: peak.x / (reference.width - 1), y: peak.y / (reference.height - 1) });
-    const target = colorPeak(camera, prediction, 8, channel, 10);
+    const target = colorPeak(camera, prediction, 8, channel, 10, board.contains);
     if (!target || Math.hypot(target.x - prediction.x, target.y - prediction.y) >= 6.5) return [];
     return [{ id: room.id, source, target: { x: target.x, y: target.y } }];
   }).slice(0, 60);

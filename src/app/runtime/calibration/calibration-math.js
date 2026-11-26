@@ -79,6 +79,27 @@ function fitMap(cv, pairs, tolerance, minimum, radius) {
   }
 }
 
+export function boardRegion(at) {
+  const steps = Array.from({ length: 12 }, (_, i) => i / 12);
+  const outline = [
+    ...steps.map(t => ({ x: t, y: 0 })), ...steps.map(t => ({ x: 1, y: t })),
+    ...steps.map(t => ({ x: 1 - t, y: 1 })), ...steps.map(t => ({ x: 0, y: 1 - t })),
+  ].map(at);
+  return ({ x, y }, margin = 0) => {
+    let inside = false;
+    for (const [i, a] of outline.entries()) {
+      const b = outline[(i + 1) % outline.length];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      if ((a.y > y) !== (b.y > y) && x < a.x + (y - a.y) * dx / dy) inside = !inside;
+      if (margin <= 0) continue;
+      const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy)));
+      if (Math.hypot(x - a.x - t * dx, y - a.y - t * dy) <= margin) return true;
+    }
+    return inside;
+  };
+}
+
 export function registerBoard(cv, reference, camera, contacts) {
   const a = cv.matFromArray(reference.height, reference.width, cv.CV_8UC1, reference.pixels);
   const b = cv.matFromArray(camera.height, camera.width, cv.CV_8UC1, camera.pixels);
@@ -109,7 +130,9 @@ export function registerBoard(cv, reference, camera, contacts) {
     }
     const fit = fitMap(cv, pairs, 4, 20, Math.min(reference.width, reference.height) * 0.16);
     const spread = span(fit.inliers.map(pair => pair.src));
-    if (spread.x < reference.width * 0.35 || spread.y < reference.height * 0.35) {
+    const occupied = new Set(fit.inliers.map(({ src }) =>
+      Math.floor(4 * src.x / reference.width) + 4 * Math.floor(4 * src.y / reference.height)));
+    if (spread.x < reference.width * 0.35 || spread.y < reference.height * 0.35 || occupied.size < 5) {
       throw new Error("Too little of the printed board could be matched.");
     }
     const detail = refinePrintedBoard(cv, a, b, fit.inverse, contacts);
@@ -125,10 +148,7 @@ export function registerBoard(cv, reference, camera, contacts) {
     }
     return {
       at,
-      estimateBoardPoint(position) {
-        const point = projectPoint(fit.inverse, position);
-        return { x: point.x / (reference.width - 1), y: point.y / (reference.height - 1) };
-      },
+      contains: boardRegion(at),
       count: fit.inliers.length,
       detailCount: detail.count,
       edges: detail.edges,
@@ -165,7 +185,7 @@ function patchMean(frame, point) {
   return sum / count;
 }
 
-export function detectDots(cv, dark, lit) {
+export function detectDots(cv, dark, lit, contains) {
   if (dark.width !== lit.width || dark.height !== lit.height) throw new Error("Camera size changed during calibration.");
   const mask = new cv.Mat(lit.height, lit.width, cv.CV_8UC1);
   const labels = new cv.Mat();
@@ -196,6 +216,7 @@ export function detectDots(cv, dark, lit) {
         }
       }
       const point = { x: x / weight, y: y / weight };
+      if (contains && !contains(point)) continue;
       const off = patchMean(dark, point);
       const contrast = patchMean(lit, point) - off;
       if (contrast >= DOT_THRESHOLD) result.push({ ...point, off, contrast });
@@ -240,9 +261,7 @@ export function registerProjector(cv, board, dark, lit, bitFrames, size) {
     throw new Error("Camera size changed during calibration.");
   }
   const decoded = new Map();
-  for (const dot of detectDots(cv, dark, lit)) {
-    const boardPoint = board.estimateBoardPoint(dot);
-    if (boardPoint.x < -0.13 || boardPoint.x > 1.13 || boardPoint.y < -0.13 || boardPoint.y > 1.13) continue;
+  for (const dot of detectDots(cv, dark, lit, board.contains)) {
     const scores = bitFrames.map(frame => (patchMean(frame, dot) - dot.off) / dot.contrast);
     if (scores.some(score => Math.abs(score - 0.5) < 0.1)) continue;
     const id = scores.reduce((sum, value, bit) => sum + (value > 0.5 ? 2 ** bit : 0), 0);

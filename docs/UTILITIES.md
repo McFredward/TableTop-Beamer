@@ -142,7 +142,10 @@ the live camera is visible. Keep the projector's Output window in the foreground
 
 The projector shows a black frame and then coded white dots. TT-Beamer matches
 the printed board to its reference artwork, refines the fit against local
-details, and measures any visible physical edges. An effect whose polygon ends
+details, and measures any visible physical edges. Items beside the board may
+stay on the table. Light spots outside the detected board are excluded from
+the projector fit, and visible sections of a board edge can support the fit
+across a short obstruction. An effect whose polygon ends
 at the artwork boundary uses a smaller inset along that part of the physical
 edge. The projector measures and adjusts grids of 5×5, 9×9 and 13×13. It then
 compares projected room outlines and small coloured indicators with the print.
@@ -159,7 +162,8 @@ available outline and indicator samples in camera pixels at a 1920-pixel
 analysis width.
 When you edit that grid by hand, **Save** asks for
 a new profile name. **Cancel calibration** returns to the live camera. If the
-board moves, repeat Auto calibrate with a clear camera view.
+board moves, repeat Auto calibrate with enough of the print visible to identify
+the board and verify the result.
 
 ### Alternative capture with µStreamer
 

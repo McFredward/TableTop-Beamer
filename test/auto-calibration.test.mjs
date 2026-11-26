@@ -3,7 +3,7 @@ import test from "node:test";
 import cvModule from "@techstark/opencv-js";
 import { createCalibrationSession } from "../src/server/calibration-session.mjs";
 import {
-  gridPoint, initialGrid, measureGrid, normalizeGrid, refineProjectionGrid,
+  boardRegion, detectDots, gridPoint, initialGrid, localContrast, measureGrid, normalizeGrid, refineProjectionGrid,
 } from "../src/app/runtime/calibration/calibration-math.js";
 import { refinePrintedBoard } from "../src/app/runtime/calibration/printed-board-detail.js";
 import { refineRoomOutlines } from "../src/app/runtime/calibration/calibration-room-outlines.js";
@@ -116,6 +116,21 @@ test("printed detail and physical edges correct different parts of a coarse boar
     assert.ok(engine.at({ x: width - 1, y: 215 }).x > right.x + 4);
     assert.deepEqual(engine.at({ x: width - 1, y: 65 }), detail.at({ x: width - 1, y: 65 }));
 
+    // A bright object obscures part of the left edge, while a second object
+    // alongside the top casts a competing straight edge on the table.
+    const covered = scene.clone();
+    try {
+      cv.rectangle(covered, new cv.Point(border - 19, border + 112), new cv.Point(border + 22, border + 267),
+        new cv.Scalar(245), -1);
+      cv.rectangle(covered, new cv.Point(border + 120, border - 20), new cv.Point(border + 475, border - 4),
+        new cv.Scalar(220), -1);
+      cv.remap(covered, camera, mapX, mapY, cv.INTER_LINEAR);
+      const recovered = refinePrintedBoard(cv, reference, camera, [1, 0, -border, 0, 1, -border, 0, 0, 1]);
+      assert.equal(recovered.edges, 4);
+      assert.ok(Math.abs(recovered.at({ x: 0, y: 215 }).x - left.x) < 2.75);
+      assert.ok(Math.abs(recovered.at({ x: 315, y: 0 }).y - detail.at({ x: 315, y: 0 }).y) < 2.75);
+    } finally { covered.delete(); }
+
     // The reference artwork can extend past the printed edge on one side.
     cv.rectangle(scene, new cv.Point(border, border), new cv.Point(border + 28, border + height - 1),
       new cv.Scalar(130), -1);
@@ -126,6 +141,27 @@ test("printed detail and physical edges correct different parts of a coarse boar
   } finally {
     for (const mat of [reference, scene, camera, mapX, mapY]) mat.delete();
   }
+});
+
+test("projected flashes on objects outside the board are rejected", async () => {
+  const { cv } = await new Promise(resolve => {
+    if (cvModule.Mat) resolve({ cv: cvModule });
+    else cvModule.onRuntimeInitialized = () => resolve({ cv: cvModule });
+  });
+  const shape = { width: 160, height: 120 };
+  const contains = boardRegion(({ x, y }) => ({ x: 35 + 78 * x + 9 * y, y: 20 + 79 * y - 5 * x }));
+  const pixels = new Uint8Array(shape.width * shape.height);
+  const dark = localContrast(cv, { ...shape, pixels });
+  for (const [x, y, intensity] of [[70, 51, 190], [130, 49, 255]]) {
+    for (let row = y - 3; row <= y + 3; row++) {
+      for (let col = x - 3; col <= x + 3; col++) pixels[row * shape.width + col] = intensity;
+    }
+  }
+  const lit = localContrast(cv, { ...shape, pixels });
+  assert.equal(detectDots(cv, dark, lit).length, 2);
+  const dots = detectDots(cv, dark, lit, contains);
+  assert.equal(dots.length, 1);
+  assert.ok(Math.abs(dots[0].x - 70) < 0.2);
 });
 
 test("the room-outline pass verifies a mesh correction and preserves its outside edges", async () => {

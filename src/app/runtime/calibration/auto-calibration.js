@@ -111,6 +111,7 @@ async function runCalibration(signal, progress) {
     progress("Finding the printed board in the camera image…");
     const unlit = await capture(session.id, { points: [] }, signal, true);
     const registeredBoard = registerBoard(cv, reference, unlit.gray, edgeContacts(rooms));
+    const nearBoard = point => registeredBoard.contains(point, 6);
     const indicators = printedIndicators(rooms, registeredBoard, reference, unlit.gray);
     const dark = localContrast(cv, unlit.gray);
     const lit = localContrast(cv, (await capture(session.id, { points: projectorDots }, signal)).gray);
@@ -133,7 +134,7 @@ async function runCalibration(signal, progress) {
           x: projector.x / unlit.size.width, y: projector.y / unlit.size.height,
         }));
         const photo = await capture(session.id, { points }, signal);
-        const dots = detectDots(cv, dark, localContrast(cv, photo.gray));
+        const dots = detectDots(cv, dark, localContrast(cv, photo.gray), nearBoard);
         return measureGrid(probes, dots, registeredProjector);
       },
     });
@@ -148,7 +149,7 @@ async function runCalibration(signal, progress) {
       async captureIndicators(points) {
         progress("Measuring the small printed indicators…");
         const photo = await capture(session.id, { points }, signal);
-        return detectDots(cv, dark, localContrast(cv, photo.gray));
+        return detectDots(cv, dark, localContrast(cv, photo.gray), nearBoard);
       },
     });
     signal.throwIfAborted();
