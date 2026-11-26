@@ -150,6 +150,11 @@ TT-Beamer is running.
   Output view (open on the Pi):      http://192.168.x.x:4173/output/
 ```
 
+To set up a Pi with a USB camera, open **Camera → Set up Raspberry Pi** in
+the dashboard on the server PC and copy the command to the Pi desktop terminal.
+Grant Chromium camera access once. The starter opens the projection fullscreen
+and installs **TT-Beamer Output** in the Pi's application menu.
+
 Full walkthrough, manual setup, and troubleshooting: [**docs/INSTALL.md**](docs/INSTALL.md).
 
 ---

@@ -251,6 +251,10 @@ export function getRouter() {
   return activeRouter;
 }
 
+export function getAnnouncedIp() {
+  return activeAnnouncedIp;
+}
+
 /**
  * @returns {import('mediasoup').types.Worker | null}
  */

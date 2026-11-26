@@ -1034,6 +1034,17 @@
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="raw" aria-pressed="false">Live camera</button>
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="vision" aria-pressed="true">Detections</button>
     </div>
+    <details id="camera-setup" class="camera-setup">
+      <summary>Set up Raspberry Pi</summary>
+      <p>Connect the USB camera to the Pi and open a terminal on the Pi desktop.</p>
+      <div id="camera-setup-command-row" hidden>
+        <label for="camera-setup-command">Command to run on the Pi</label>
+        <textarea id="camera-setup-command" rows="2" readonly spellcheck="false"></textarea>
+        <button id="camera-setup-copy" class="rd-btn rd-btn-ghost" type="button">Copy command</button>
+        <button id="camera-setup-renew" class="rd-btn rd-btn-ghost" type="button">Get a fresh command</button>
+      </div>
+      <p id="camera-setup-status" role="status"></p>
+    </details>
     <div class="camera-preview-frame">
       <canvas id="camera-preview-image" role="img" aria-label="Latest board camera frame" hidden></canvas>
     </div>

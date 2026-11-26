@@ -2,7 +2,9 @@ import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
+import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
+import { isIPv4 } from "node:net";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -16,7 +18,7 @@ import {
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
 import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost, getActiveSsrRenderHost } from "./src/server/ssr-render-host.mjs";
-import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker, setOnRouterRecreated } from "./src/server/ssr-mediasoup-router.mjs";
+import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker, setOnRouterRecreated, getAnnouncedIp } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
@@ -47,14 +49,18 @@ let signalingState = null;
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
+const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const PAIRED_CAMERA_PATH = path.join(ROOT_DIR, "config", "runtime-output-camera.json");
 const nativeCameraUrl = process.env.TT_BEAMER_CAMERA_URL;
+const fixedCameraAddress = process.env.TT_BEAMER_OUTPUT_CAMERA_IP;
+const cameraSetupAvailable = fixedCameraAddress === undefined && !nativeCameraUrl;
 const cameraReceiver = createCameraReceiver({ sourceUrl: nativeCameraUrl });
 const outputCamera = createOutputCameraUpload({
-  address: process.env.TT_BEAMER_OUTPUT_CAMERA_IP ?? (nativeCameraUrl ? undefined : outputCameraDefaults.piAddress),
+  address: cameraSetupAvailable ? readPairedCameraAddress(PAIRED_CAMERA_PATH) ?? outputCameraDefaults.piAddress : fixedCameraAddress,
 });
-const cameraInput = outputCamera.enabled ? outputCamera : cameraReceiver;
-const cameraVision = createCameraVision(cameraInput);
-const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
+const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
+const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
@@ -4412,7 +4418,48 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && routePath === "/api/camera/status") {
       res.setHeader("Cache-Control", "no-store");
-      sendJson(res, 200, cameraInput.snapshot());
+      sendJson(res, 200, cameraInput().snapshot());
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/camera/setup") {
+      res.setHeader("Cache-Control", "no-store");
+      const host = req.headers.host;
+      if (!isLocalCameraRequest(req) || !host || req.headers.origin !== "http://" + host) {
+        sendJson(res, 403, { error: "Open Camera setup on the TT-Beamer PC using localhost." });
+        return;
+      }
+      if (!cameraSetupAvailable) {
+        sendJson(res, 409, { error: "Camera setup is controlled by a server environment variable." });
+        return;
+      }
+      const address = getAnnouncedIp();
+      if (!isIPv4(address) || address.startsWith("127.")) {
+        sendJson(res, 503, { error: "Connect the TT-Beamer PC to the Pi's network and try again." });
+        return;
+      }
+      const origin = `http://${address}:${server.address().port}`;
+      sendJson(res, 200, { origin, ...cameraPairing.issue() });
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/camera/pair") {
+      res.setHeader("Cache-Control", "no-store");
+      if (!cameraSetupAvailable || req.headers["content-type"] !== "application/json") {
+        req.resume();
+        sendJson(res, 403, { error: "Camera pairing is unavailable." });
+        return;
+      }
+      let token;
+      try {
+        ({ token } = JSON.parse(await readRawBody(req, { maxBytes: 256 })));
+      } catch {
+        if (!res.destroyed) sendJson(res, 400, { error: "Invalid pairing request." });
+        return;
+      }
+      const code = await cameraPairing.accept(req.socket.remoteAddress, token);
+      if (code === 204) res.writeHead(204).end();
+      else sendJson(res, code, { error: "Camera pairing failed. Get a new setup command from the dashboard." });
       return;
     }
 
@@ -4450,7 +4497,7 @@ const server = createServer(async (req, res) => {
         }
         return;
       }
-      const input = routePath === "/api/camera/vision.jpg" ? cameraVision : cameraInput;
+      const input = routePath === "/api/camera/vision.jpg" ? cameraVision : cameraInput();
       const frame = input.latestFrame();
       if (!frame) {
         sendJson(res, 503, { error: "No recent camera frame" });

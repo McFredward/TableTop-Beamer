@@ -29,8 +29,8 @@ export function jpegDimensions(jpeg) {
 }
 
 export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
-  const ipv4 = address?.trim();
-  const enabled = isIP(ipv4) === 4;
+  let ipv4;
+  let addressRevision = 0;
   let frame = null;
   let framesReceived = 0;
   let generation = 0;
@@ -40,9 +40,20 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
   let intervalFrames = 0;
   let intervalBytes = 0;
 
+  function setAddress(value) {
+    const next = value?.trim();
+    const valid = isIP(next) === 4 ? next : null;
+    if (ipv4 === valid) return;
+    ipv4 = valid;
+    addressRevision++;
+    frame = null;
+    rate = null;
+  }
+  setAddress(address);
+
   function isAllowed(req) {
     const peer = req.socket.remoteAddress?.replace(/^::ffff:/i, "");
-    return enabled && ipv4 === peer;
+    return ipv4 !== null && ipv4 === peer;
   }
 
   function latestFrame() {
@@ -65,10 +76,12 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
     if (pending) return { code: 429, error: "A camera frame is being received" };
 
     pending = true;
+    const revision = addressRevision;
     const timeout = setTimeout(() => req.destroy(), staleMs);
     timeout.unref();
     try {
       const jpeg = await readRawBody(req, { maxBytes: MAX_BYTES });
+      if (revision !== addressRevision) return { code: 403, error: "Camera connection changed" };
       const dimensions = jpegDimensions(jpeg);
       if (jpeg.length !== length || !dimensions) return { code: 400, error: "Invalid camera JPEG" };
       const arrival = performance.now();
@@ -103,7 +116,8 @@ export function createOutputCameraUpload({ address, staleMs = 3000 } = {}) {
   }
 
   return {
-    enabled,
+    get enabled() { return ipv4 !== null; },
+    setAddress,
     config(req) {
       return isAllowed(req) ? { enabled: true, fps: FRAMES_PER_SECOND } : { enabled: false };
     },

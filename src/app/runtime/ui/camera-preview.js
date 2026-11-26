@@ -1,3 +1,54 @@
+function bindCameraSetup() {
+  const details = document.getElementById("camera-setup");
+  const row = document.getElementById("camera-setup-command-row");
+  const command = document.getElementById("camera-setup-command");
+  const status = document.getElementById("camera-setup-status");
+  const copy = document.getElementById("camera-setup-copy");
+  const renew = document.getElementById("camera-setup-renew");
+  let expiresAt = 0;
+  let loading = false;
+
+  async function loadCommand() {
+    if (loading) return;
+    loading = true;
+    row.hidden = true;
+    status.textContent = "Preparing a setup command…";
+    try {
+      const response = await fetch("/api/camera/setup", { method: "POST", signal: AbortSignal.timeout(4000) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      const { origin, token } = data;
+      const installer = '"$HOME/tt-beamer-pi-setup.sh"';
+      command.value = `curl -fsS '${origin}/scripts/setup-pi-output.sh' -o ${installer} && bash ${installer} '${origin}' '${token}'`;
+      expiresAt = data.expiresAt;
+      row.hidden = false;
+      status.textContent = "Run the command within five minutes. In Chromium, choose Allow while visiting the site. Output opens in fullscreen when the first image arrives.";
+    } catch (error) {
+      expiresAt = 0;
+      status.textContent = error.message || "Camera setup is unavailable. Close and reopen the setup to try again.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  details.addEventListener("toggle", () => {
+    if (details.open && Date.now() >= expiresAt) void loadCommand();
+  });
+  renew.addEventListener("click", loadCommand);
+  copy.addEventListener("click", async () => {
+    if (Date.now() >= expiresAt) await loadCommand();
+    if (row.hidden) return;
+    try {
+      await navigator.clipboard.writeText(command.value);
+      status.textContent = "Copied. Paste the command into the Pi terminal and allow camera access in Chromium.";
+    } catch {
+      command.focus();
+      command.select();
+      status.textContent = "The command is selected. Copy it and paste it into the Pi terminal.";
+    }
+  });
+}
+
 function bootCameraPreview() {
   if (location.pathname.replace(/\/$/, "") === "/ssr" || document.body.dataset.outputRole === "final-output") return;
 
@@ -116,6 +167,7 @@ function bootCameraPreview() {
       start();
     });
   }
+  bindCameraSetup();
   trigger.hidden = false;
 }
 

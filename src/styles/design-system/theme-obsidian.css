@@ -1870,6 +1870,22 @@ body[data-output-role="final-output"] .cluster-pads {
   background: var(--c-accent, #32d3a3);
   color: var(--c-on-accent, #071c16);
 }
+.camera-setup { margin-bottom: 12px; font-size: .85rem; }
+.camera-setup summary { width: fit-content; cursor: pointer; }
+.camera-setup p { margin: 8px 0; }
+.camera-setup textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 8px;
+  border: 1px solid var(--c-border-str);
+  border-radius: var(--rd-r-sm);
+  background: var(--c-surface);
+  color: inherit;
+  font: .8rem var(--rd-font-mono);
+  resize: vertical;
+}
 .camera-preview-frame {
   display: grid;
   place-items: center;

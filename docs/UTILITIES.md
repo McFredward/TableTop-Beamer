@@ -88,10 +88,18 @@ default; use the second argument to override.
 
 ### Capture from `/output/` in Chromium
 
-The development checkout enables camera capture for the Pi at `192.168.0.29`
-on a normal start. If the Pi's address changes, update `config/output-camera.json`
-or set `TT_BEAMER_OUTPUT_CAMERA_IP` to the new LAN IPv4 before starting.
-The server accepts uploads from that address on the same origin.
+1. Start TT-Beamer on the PC, plug the USB camera into the Pi and connect both devices to the same network.
+2. On the server PC, open **Camera → Set up Raspberry Pi** in the local dashboard. Copy the command into a terminal on the Pi desktop within five minutes.
+3. In Chromium, choose **Allow while visiting the site**. When TT-Beamer receives the first image, the starter switches the Pi to fullscreen. Check **Camera → Live camera** on the PC.
+
+For later sessions, open **TT-Beamer Output** from the Pi's application menu.
+The Pi remembers the server address and Chromium keeps the site permission.
+If either device's LAN address changes, close the projection window and run a fresh setup command.
+Router address reservations keep the saved setup usable after a reboot.
+
+For manual installations, the development checkout defaults to `192.168.0.29` until a Pi is paired.
+Set `TT_BEAMER_OUTPUT_CAMERA_IP` to use a fixed LAN IPv4 address instead.
+The server accepts camera uploads from the configured address on the same origin.
 
 Setting `TT_BEAMER_CAMERA_URL` selects µStreamer in place of the checked-in
 default. An explicit IPv4 in `TT_BEAMER_OUTPUT_CAMERA_IP` takes priority over

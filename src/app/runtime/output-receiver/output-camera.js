@@ -112,6 +112,12 @@ export async function bootOutputCamera() {
                 return;
               }
               const { bytes, status, error } = await sendFrame(worker, frame, signal);
+              if (status === 403) {
+                controller.abort();
+                active = null;
+                show("");
+                return;
+              }
               delay = Math.max(delay, (bytes || 0) / JPEG_BYTES_PER_MS);
               if (error) {
                 if (status === 400 && usePhoto) usePhoto = false;
