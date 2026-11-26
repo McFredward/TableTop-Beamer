@@ -79,7 +79,10 @@ export function detectTrackBeads(frame, slots) {
   for (const slot of slots) {
     const fit = intensityFit(frame, slot);
     if (slot.track === "self-destruct") destructionReads.push(fit);
-    if (!fit || fit.correlation > 0.65 || fit.highlights < 24) continue;
+    if (!fit || fit.correlation > 0.65) continue;
+    // A visibly distorted digit requires fewer independent highlights.
+    const requiredHighlights = fit.correlation <= 0.52 && slot.value > 0 ? 12 : 24;
+    if (fit.highlights < requiredHighlights) continue;
     const score = 1 - fit.correlation + Math.min(fit.highlights / slot.samples.length, 0.2) * 1.6;
     const proposals = ranked.get(slot.track) ?? [];
     proposals.push({ slot, score });

@@ -13,6 +13,7 @@ const board = {
     { id: "other", name: "015", polygon: polygon(0.48, 0.10, 0.30, 0.30) },
     { id: "corridor", name: "005-015", polygon: polygon(0.39, 0.28, 0.09, 0.07) },
     { id: "special-cryoschlaf", name: "011", polygon: polygon(0.47, 0.52, 0.28, 0.24) },
+    { id: "technical-corridor", name: "TC", polygon: polygon(0.12, 0.58, 0.08, 0.08) },
   ],
   roomFx: { animations: [
     { id: "feuer", name: "Fire", assetRef: "/resources/animations/fire.gif" },
@@ -59,6 +60,14 @@ test("partial model coverage cannot clear a previously observed effect", () => {
   observe([item("fire", 0.2, 0.17)]);
   observe([item("fire", 0.2, 0.17)]);
   for (let round = 0; round < 4; round++) assert.equal(observe([], ["fire"], [0.47, 0, 0.5, 1]).effects[0].active, true);
+});
+
+test("only noise starts an effect at the technical corridor symbol", () => {
+  const observe = newRun();
+  const objects = [item("noise", 0.16, 0.62), item("alien", 0.17, 0.62), item("fire", 0.18, 0.62)];
+  observe(objects);
+  assert.deepEqual(observe(objects).effects.map(effect => [effect.effect.id, effect.roomId, effect.active]),
+    [["lichtflackern", "technical-corridor", true]]);
 });
 
 test("the blue section starts scanning in the cryochamber and self-destruct 3 alarms the ship", () => {

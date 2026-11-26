@@ -51,7 +51,9 @@ export function detectFireTokens(cv, frame, { rooms, mask, scale }) {
         continue;
       }
       const r = input[i * 4], g = input[i * 4 + 1], b = input[i * 4 + 2];
-      output[i] = r >= 52 && r - g >= 12 && g - b >= 4 && r - b >= 24 ? 255 : 0;
+      const orange = r - g >= 12 && g - b >= 4 && r - b >= 24;
+      const blueLitOrange = r - g >= 19 && r - b >= 14 && g - b >= -22;
+      output[i] = r >= 52 && (orange || blueLitOrange) ? 255 : 0;
     }
     const count = cv.connectedComponentsWithStats(image, labels, stats, centers, 8, cv.CV_32S);
     const found = new Map();

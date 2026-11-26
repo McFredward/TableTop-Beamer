@@ -34,6 +34,14 @@ test("fire recognition assigns a real-size orange component to a playable room",
   const hits = detectFireTokens(cv, image, geometry);
   assert.deepEqual([...hits.keys()], ["a-02"]);
   assert.deepEqual(hits.get("a-02").box, { x: 370, y: 270, w: 18, h: 22 });
+
+  const lit = frame();
+  fill(lit, { x: 360, y: 260, w: 55, h: 45 }, [65, 69, 120, 255]);
+  fill(lit, { x: 370, y: 270, w: 18, h: 22 }, [102, 68, 86, 255]);
+  fill(lit, { x: 435, y: 270, w: 22, h: 20 }, [90, 63, 83, 255]);
+  const litHits = detectFireTokens(cv, lit, geometry);
+  assert.deepEqual([...litHits.keys()], ["a-02"]);
+  assert.deepEqual(litHits.get("a-02").box, { x: 370, y: 270, w: 18, h: 22 });
 });
 
 test("an occlusion keeps fire active until the clear location is seen in three fresh frames", () => {

@@ -40,8 +40,8 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
     return { x: point.x / width, y: point.y / height };
   };
   const zones = definition.roomCatalog.filter(({ name, polygon }) =>
-    /^(\d{3})(-\d{3})?$/.test(name) && polygon?.length >= 3).map(({ id, name, polygon }) =>
-    ({ id, name, corridor: name.includes("-"), polygon: polygon.map(at) }));
+    (name === "TC" || /^\d{3}(-\d{3})?$/.test(name)) && polygon?.length >= 3).map(({ id, name, polygon }) =>
+    ({ id, name, corridor: name === "TC" || name.includes("-"), polygon: polygon.map(at) }));
   const effects = Object.fromEntries(Object.entries(rules).map(([kind, rule]) => {
     const bank = kind === "self-destruct" ? definition.insideFx : definition.roomFx;
     const effect = bank?.animations?.find(animation => animation.assetRef === rule.asset)
