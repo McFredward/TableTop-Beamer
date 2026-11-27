@@ -38,11 +38,11 @@ export function createFireReview() {
       fetch(url, init).then(response => {
         if (!response.ok) throw new Error("The board reference artwork is unavailable.");
         return response.blob();
-      }).then(readImage),
+      }).then(blob => readImage(blob, true)),
       loadOpenCV(),
     ]);
     signal.throwIfAborted();
-    geometry = makeFireGeometry(registerBoard(cv, reference, frame), board.roomCatalog, frame.width, frame.height);
+    geometry = makeFireGeometry(registerBoard(cv, reference, frame), board.roomCatalog, frame.width, frame.height, reference);
     tracker = createFireTracker();
     selection = { id, generation, width: frame.width, height: frame.height, cv };
   }
@@ -58,7 +58,7 @@ export function createFireReview() {
     }
     signal.throwIfAborted();
     const hits = detectFireTokens(selection.cv, frame, geometry);
-    const records = tracker.observe(frame, hits, id, Number(time));
+    const records = tracker.observe(frame, hits, id, Number(time)).filter(item => item.active || item.state === "removed");
     current = { blob, id, records, geometry, selection };
     save.disabled = false;
     const summary = records.length
@@ -71,8 +71,8 @@ export function createFireReview() {
     context.scale(sx, sy);
     context.font = "bold 14px system-ui";
     context.lineWidth = 2;
-    for (const { room, box, state } of records) {
-      if (state === "removed") continue;
+    for (const { room, box, state, active } of records) {
+      if (!active) continue;
       const color = state === "visible" ? "#ffc359" : "#8be2ff";
       const label = `${room.name} · ${states[state]}`;
       const labelY = Math.max(18, box.y - 4);

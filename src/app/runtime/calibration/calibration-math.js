@@ -140,6 +140,17 @@ export function registerBoard(cv, reference, camera, contacts) {
       const pixel = { x: point.x * (reference.width - 1), y: point.y * (reference.height - 1) };
       return detail.count || detail.edges ? projectPoint(fit.matrix, detail.at(pixel)) : fit.at(pixel);
     };
+    const normalize = ({ x, y }) => ({ x: x / (reference.width - 1), y: y / (reference.height - 1) });
+    const referenceAt = point => {
+      const target = projectPoint(fit.inverse, point);
+      let guess = target;
+      // Invert the small local correction as well as the coarse perspective.
+      for (let i = 0; i < 3; i++) {
+        const predicted = projectPoint(fit.inverse, at(normalize(guess)));
+        guess = { x: guess.x + target.x - predicted.x, y: guess.y + target.y - predicted.y };
+      }
+      return normalize(guess);
+    };
     for (const point of [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]) {
       const position = at(point);
       if (!(position.x >= 0 && position.x < camera.width && position.y >= 0 && position.y < camera.height)) {
@@ -148,6 +159,7 @@ export function registerBoard(cv, reference, camera, contacts) {
     }
     return {
       at,
+      referenceAt,
       contains: boardRegion(at),
       count: fit.inliers.length,
       detailCount: detail.count,

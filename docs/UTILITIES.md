@@ -332,9 +332,11 @@ This prototype matches the live camera image to the board artwork when the
 view opens. Reopen the view after moving the board. It uses the orange plastic
 token's colour and shape to test the room assignment and tracking behaviour.
 
-The panel proposes **Fire on** after two fresh detections in a room, **Keep
-fire** while the location may be covered, and **Fire off** after three fresh
-images of the clear location. This view displays proposals for testing.
+The panel compares orange regions with the registered printed artwork and
+proposes **Fire on** after three recent detections at the same position. It
+proposes **Keep fire** while the location may be covered and **Fire off**
+after three fresh images of the clear location. The preview shows confirmed
+markers and the last known positions during temporary occlusion.
 **Save board sample** downloads the board crop at camera resolution and the
 current proposals in a JSON file for later review and labelling.
 

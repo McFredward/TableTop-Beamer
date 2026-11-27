@@ -57,13 +57,14 @@ export function createGameReview() {
     if (url.origin !== location.origin) throw new Error("The board artwork must be stored in TT-Beamer.");
     const response = await fetch(url, init);
     if (!response.ok) throw new Error("The board reference artwork is unavailable.");
-    const reference = await readImage(await response.blob());
+    const classic = isClassicNemesisBoard(id);
+    const reference = await readImage(await response.blob(), classic);
     signal.throwIfAborted();
     const registration = registerBoard(cv, reference, frame);
     const layout = makeGameLayout(board, registration, frame.width, frame.height);
     setup = {
       id, generation, width: frame.width, height: frame.height, cv,
-      geometry: isClassicNemesisBoard(id) ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height) : null,
+      geometry: classic ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height, reference) : null,
       beads: prepareTrackBeads(layout.slots, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
@@ -91,7 +92,8 @@ export function createGameReview() {
     const beads = detectTrackBeads(frame, setup.beads);
     const hits = setup.geometry && setup.fireEffect && !model?.classes.includes("fire")
       ? detectFireTokens(setup.cv, frame, setup.geometry) : null;
-    const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0])) : [];
+    const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0]))
+      .filter(item => item.active || item.state === "removed") : [];
     const native = setup.native.observe({ frameId: id, ...beads, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
     const trained = model ? setup.trained.observe(model) : null;
     const proposed = native.effects.concat(trained?.effects ?? []);
@@ -110,10 +112,11 @@ export function createGameReview() {
     const markerBoxes = beads.objects.map(({ track, value, box }) => ({
       box, label: `${track === "round" ? "Round" : "Self-destruct"} ${value}`, color: "#7ee6ff",
     }));
-    const fireBoxes = hits ? [...hits.values()].map(({ room, box: { x, y, w, h } }) => ({
+    const fireBoxes = fallback.filter(item => item.active).map(({ room, state, box: { x, y, w, h } }) => ({
       box: [x / frame.width, y / frame.height, w / frame.width, h / frame.height],
-      label: `Fire · ${room.name}`, color: "#ffc359",
-    })) : [];
+      label: `${state === "visible" ? "Fire" : "Last seen fire"} · ${room.name}`,
+      color: state === "visible" ? "#ffc359" : "#8be2ff",
+    }));
     const modelBoxes = !annotated && model?.frameId === id ? model.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
       .map(({ kind, confidence, box }) => ({ box, label: `${kind} ${Math.round(confidence * 100)}%`, color: "#7be4b5" })) : [];
