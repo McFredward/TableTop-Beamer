@@ -15,6 +15,16 @@ from urllib.request import Request, urlopen
 from board_vision import add_tile_option, parse_roi, predict_tiled, resize_detections
 
 
+def identify_checkpoint(checkpoint, model_id=None):
+    with checkpoint.open("rb") as source:
+        digest = hashlib.file_digest(source, "sha256").hexdigest()
+    presets = json.loads((Path(__file__).resolve().parents[1] / "config" / "camera-models.json").read_text(encoding="utf-8"))
+    preset = next((entry for entry in presets["models"] if entry["checkpointSha256"] == digest), {})
+    identity = {"modelId": model_id or preset.get("id", "checkpoint-" + digest[:20]),
+                "modelName": model_id or preset.get("name", checkpoint.stem[:120])}
+    return identity, preset.get("variant")
+
+
 def board_objects(frame_id, classes, detections, size, original_size, roi, np):
     width, height = size
     original_width, original_height = original_size
@@ -96,10 +106,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=4173, help="Local TT-Beamer port")
     parser.add_argument("--model", choices=("seg-2xlarge", "seg-large", "seg-nano", "large"),
-                        default="seg-2xlarge")
+                        help="RF-DETR variant. Uses the registered checkpoint variant or seg-2xlarge by default.")
     parser.add_argument("--checkpoint", type=Path, help="Trusted local checkpoint for the selected model")
     parser.add_argument("--game", action="store_true", help="Publish checkpoint classes to Game observation")
-    parser.add_argument("--model-id", help="Stable name used by animation bindings. Defaults to a checkpoint hash.")
+    parser.add_argument("--model-id", help="Stable name used by animation bindings. Defaults to the registered ID or a checkpoint hash.")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--threshold", type=float, default=0.45)
     parser.add_argument("--max-fps", type=float, default=3)
@@ -115,6 +125,8 @@ def main():
     if args.model_id and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", args.model_id):
         parser.error("Model ID must use up to 80 letters, numbers, periods, underscores or hyphens")
 
+    model_identity, variant = identify_checkpoint(args.checkpoint, args.model_id) if args.game else ({}, None)
+    model_name = args.model or variant or "seg-2xlarge"
     try:
         import numpy as np
         from PIL import Image
@@ -131,13 +143,12 @@ def main():
     model_type = {
         "seg-2xlarge": RFDETRSeg2XLarge, "seg-large": RFDETRSegLarge,
         "seg-nano": RFDETRSegNano, "large": RFDETRLarge,
-    }[args.model]
+    }[model_name]
     weights = {"pretrain_weights": str(args.checkpoint.resolve())} if args.checkpoint else {}
-    print(f"Loading RF-DETR {args.model} on {device}…", flush=True)
+    print(f"Loading RF-DETR {model_name} on {device}…", flush=True)
     model = model_type(device=device, **weights)
     predictor = model.inference(compile=False)
     classes = set()
-    model_identity = {}
     if args.game:
         names = model.class_names
         classes = {name for name in (names.values() if hasattr(names, "values") else names)
@@ -146,12 +157,7 @@ def main():
             parser.error("The checkpoint does not define any usable classes")
         if len(classes) > 128:
             parser.error("Game observation supports up to 128 published classes per detector")
-        model_id = args.model_id
-        if not model_id:
-            with args.checkpoint.open("rb") as source:
-                model_id = "checkpoint-" + hashlib.file_digest(source, "sha256").hexdigest()[:20]
-        model_identity = {"modelId": model_id, "modelName": args.model_id or args.checkpoint.stem[:120]}
-        print(f"Publishing detector {model_id}", flush=True)
+        print(f"Publishing detector {model_identity['modelId']}", flush=True)
     annotations = (
         sv.MaskAnnotator(opacity=0.42),
         sv.BoxAnnotator(thickness=2),
@@ -217,7 +223,7 @@ def main():
             request = Request(url + "/api/camera/vision.jpg", method="POST", data=result, headers={
                 "Content-Type": "image/jpeg",
                 "X-Camera-Frame-Id": last_frame,
-                "X-Vision-Model": args.model,
+                "X-Vision-Model": model_name,
                 "X-Vision-Weights": "checkpoint" if weights else "pretrained",
                 "X-Vision-Device": device,
                 "X-Vision-Count": str(len(annotated)),

@@ -372,14 +372,18 @@ while at least one alien remains. These built-in proposals appear for review.
 ### Link a trained detector to an animation
 
 In **Animations**, select the board and a Room, Inside, or Outside animation.
-Under **Camera trigger**, enter the trained model ID, a class published by the
-model, and the minimum confidence. The fields suggest online detectors and
-their classes on the TT-Beamer PC. Select **Apply** to save the binding with the
-animation. Clearing the model or class removes the binding.
+Under **Camera trigger**, select a trained model and a class from its
+dropdown, then set the minimum confidence. The editor lists registered
+checkpoints and detectors currently publishing results. Select **Apply** to save
+the binding with the animation. Select **None** to remove the binding.
 
-Give a worker the same stable ID with `--game --checkpoint path/to/weights.pth
---model-id my-detector`. Without `--model-id`, the worker prints a stable ID
-derived from the checkpoint. Custom class names are supported.
+Start the worker with `--game --checkpoint path/to/weights.pth`. Registered
+checkpoints supply their model ID and RF-DETR variant. For custom checkpoints,
+use `--model-id my-detector` to give the worker a stable ID of your choice.
+
+Nemesis A and B already pair the seven-class Nemesis detector with Fire,
+Malfunction, Light Flicker and the room Alarm. Fire uses a verification opacity
+of 0.42. These bindings are editable like any other animation setting.
 
 While **Camera → Game observation** runs with the trained worker, a confirmed
 presence starts the linked animation. Room animations use the detected position.

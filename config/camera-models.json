@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "id": "nemesis",
+      "name": "Nemesis (7 classes)",
+      "variant": "large",
+      "checkpointSha256": "3e3337105f3b59720ec4f760f8834b39daab836e12821c4958cff157a324e2ed",
+      "classes": ["alien", "character", "dice", "fire", "malfunction", "noise", "track-marker"]
+    },
+    {
+      "id": "nemesis-fire-pilot",
+      "name": "Nemesis (Fire pilot)",
+      "variant": "large",
+      "checkpointSha256": "658f8f9a07a1f11a87965202d22f826f567b36ded5959abec9b18bce5126e8d4",
+      "classes": ["fire"]
+    }
+  ]
+}

@@ -143,60 +143,73 @@
     card.append(summary);
     const binding = def.cameraTrigger;
 
-    function field(label, type, value, attributes = {}) {
+    function field(label, control) {
       const row = document.createElement("label");
       row.className = "anim-editor-field-label";
       const caption = document.createElement("span");
       caption.textContent = label;
-      const input = document.createElement("input");
-      input.type = type;
-      input.value = value ?? "";
-      for (const [name, val] of Object.entries(attributes)) input.setAttribute(name, val);
-      row.append(caption, input);
+      row.append(caption, control);
       card.append(row);
-      return input;
+      return control;
     }
 
-    const model = field("Trained model ID", "text", binding?.modelId, { maxlength: 80, list: "animation-camera-models", autocomplete: "off" });
-    const kind = field("Detected class", "text", binding?.className, { maxlength: 80, list: "animation-camera-classes", autocomplete: "off" });
-    const confidence = field("Minimum confidence", "number", binding?.minConfidence ?? 0.62, { min: 0.25, max: 1, step: 0.01 });
-    const opacity = scope === "room" ? field("Verification opacity (optional)", "number", binding?.verificationOpacity,
-      { min: 0.1, max: 1, step: 0.01, placeholder: "Keep animation opacity" }) : null;
-    const models = document.createElement("datalist");
-    models.id = "animation-camera-models";
-    const classes = document.createElement("datalist");
-    classes.id = "animation-camera-classes";
-    card.append(models, classes);
-    let available = [];
+    function numberField(label, value, attributes) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.value = value ?? "";
+      for (const [name, val] of Object.entries(attributes)) input.setAttribute(name, val);
+      return field(label, input);
+    }
 
-    function updateClasses() {
-      classes.replaceChildren(...(available.find(detector => detector.id === model.value.trim())?.classes ?? [])
-        .map(name => new Option(name, name)));
+    const model = field("Trained model", document.createElement("select"));
+    const kind = field("Detected class", document.createElement("select"));
+    model.name = "modelId";
+    kind.name = "className";
+    const confidence = numberField("Minimum confidence", binding?.minConfidence ?? 0.62, { min: 0.25, max: 1, step: 0.01 });
+    const opacity = scope === "room" ? numberField("Verification opacity (optional)", binding?.verificationOpacity,
+      { min: 0.1, max: 1, step: 0.01, placeholder: "Keep animation opacity" }) : null;
+    let available = new Map();
+
+    function updateClasses(selectedClass = "") {
+      const classes = available.get(model.value)?.classes ?? [];
+      kind.replaceChildren(new Option("Select a class", ""), ...classes.map(name => new Option(name, name)));
+      if (selectedClass && !classes.includes(selectedClass)) kind.add(new Option(`${selectedClass} (saved)`, selectedClass));
+      kind.value = selectedClass;
+      kind.disabled = !model.value;
+    }
+
+    function showModels(models, selectedModel, selectedClass) {
+      available = new Map(models.map(detector => [detector.id, detector]));
+      model.replaceChildren(new Option("None", ""), ...models.map(detector => new Option(detector.name, detector.id)));
+      if (selectedModel && !available.has(selectedModel)) model.add(new Option(`${selectedModel} (saved)`, selectedModel));
+      model.value = selectedModel;
+      updateClasses(selectedClass);
     }
 
     function save() {
-      const modelId = model.value.trim();
-      const className = kind.value.trim();
-      const validId = !modelId || /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(modelId);
-      model.setCustomValidity(validId ? "" : "Use letters, numbers, periods, underscores or hyphens.");
-      if (!model.reportValidity() || !confidence.reportValidity() || (opacity && !opacity.reportValidity())) return;
+      const modelId = model.value;
+      const className = kind.value;
+      if (!confidence.reportValidity() || (opacity && !opacity.reportValidity())) return;
       patchAnimation(scope, boardId, def.id, { cameraTrigger: modelId && className ? {
         modelId, className, minConfidence: confidence.valueAsNumber || 0.62,
         verificationOpacity: opacity?.value ? opacity.valueAsNumber : null,
       } : null });
     }
 
-    model.addEventListener("input", updateClasses);
-    for (const input of [model, kind, confidence, opacity].filter(Boolean)) input.addEventListener("change", save);
+    showModels([], binding?.modelId ?? "", binding?.className ?? "");
+    model.addEventListener("change", () => {
+      updateClasses();
+      save();
+    });
+    for (const input of [kind, confidence, opacity].filter(Boolean)) input.addEventListener("change", save);
     card.addEventListener("toggle", async () => {
       if (!card.open) return;
       try {
         const response = await fetch("/api/camera/models", { cache: "no-store", signal: AbortSignal.timeout(2000) });
         if (!response.ok) return;
-        available = (await response.json()).models;
-        models.replaceChildren(...available.map(detector => new Option(detector.name, detector.id)));
-        updateClasses();
-      } catch { /* A saved detector can be entered while it is offline. */ }
+        const { models } = await response.json();
+        if (card.isConnected) showModels(models, model.value, kind.value);
+      } catch { /* Keep the saved selection if the catalog is temporarily unavailable. */ }
     });
     return card;
   }

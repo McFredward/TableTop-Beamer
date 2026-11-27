@@ -6,6 +6,7 @@ import { createCameraPairing, readPairedCameraAddress } from "./src/server/camer
 import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
+import cameraModelPresets from "./config/camera-models.json" with { type: "json" };
 import { isIPv4 } from "node:net";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync, readdirSync } from "node:fs";
@@ -4725,8 +4726,11 @@ const server = createServer(async (req, res) => {
 
     if (routePath === "/api/camera/models" && req.method === "GET") {
       res.setHeader("Cache-Control", "no-store");
-      if (!isLocalCameraRequest(req)) res.writeHead(403).end();
-      else sendJson(res, 200, { models: cameraVision.models() });
+      const models = new Map(cameraModelPresets.models.map(({ id, name, classes }) => [id, { id, name, classes }]));
+      for (const model of cameraVision.models()) {
+        models.set(model.id, { ...model, name: models.get(model.id)?.name ?? model.name });
+      }
+      sendJson(res, 200, { models: [...models.values()] });
       return;
     }
 

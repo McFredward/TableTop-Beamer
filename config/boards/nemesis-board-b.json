@@ -7828,6 +7828,11 @@
         {
           "id": "lichtflackern",
           "name": "Light Flicker",
+          "cameraTrigger": {
+            "modelId": "nemesis",
+            "className": "noise",
+            "minConfidence": 0.62
+          },
           "assetType": "coded",
           "assetRef": "hull-flicker",
           "soundAssetRef": "none",
@@ -7874,6 +7879,11 @@
         {
           "id": "alarm",
           "name": "Alarm",
+          "cameraTrigger": {
+            "modelId": "nemesis",
+            "className": "alien",
+            "minConfidence": 0.62
+          },
           "assetType": "coded",
           "assetRef": "intruder-alert",
           "soundAssetRef": "none",
@@ -7920,6 +7930,11 @@
         {
           "id": "kaputt",
           "name": "Malfunction",
+          "cameraTrigger": {
+            "modelId": "nemesis",
+            "className": "malfunction",
+            "minConfidence": 0.62
+          },
           "assetType": "gif",
           "assetRef": "/resources/animations/malfunction.gif",
           "soundAssetRef": "none",
@@ -7966,6 +7981,12 @@
         {
           "id": "feuer",
           "name": "Fire",
+          "cameraTrigger": {
+            "modelId": "nemesis",
+            "className": "fire",
+            "minConfidence": 0.62,
+            "verificationOpacity": 0.42
+          },
           "assetType": "gif",
           "assetRef": "/resources/animations/fire.gif",
           "soundAssetRef": "none",
