@@ -4707,7 +4707,7 @@ const server = createServer(async (req, res) => {
         sendJson(res, 503, { error: "No recent camera frame" });
         return;
       }
-      if (raw && !id) cameraVision.rememberSource(frame);
+      if (raw && !id) cameraVision.rememberSource(frame, { inference: options.get("purpose") === "inference" });
       sendCameraFrame(res, frame, options.get("after"));
       return;
     }

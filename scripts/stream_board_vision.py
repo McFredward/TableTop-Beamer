@@ -75,9 +75,11 @@ def annotate(image, detections, annotators, np):
 
 
 def get_frame(url, last_frame):
-    query = "?" + urlencode({"after": last_frame}) if last_frame else ""
+    query = {"purpose": "inference"}
+    if last_frame:
+        query["after"] = last_frame
     try:
-        with urlopen(url + "/api/camera/latest.jpg" + query, timeout=2) as response:
+        with urlopen(url + "/api/camera/latest.jpg?" + urlencode(query), timeout=2) as response:
             if response.status == 204:
                 return None
             return response.headers["X-Camera-Frame-Id"], response.read()

@@ -84,3 +84,20 @@ test("original frames can be recovered by id for exact preview overlays", () => 
   source = cameraFrame(3, 2);
   assert.equal(vision.sourceFor(cameraFrameId(original)), null);
 });
+
+test("camera previews do not evict a frame still needed by inference", () => {
+  let source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const original = source;
+  vision.rememberSource(original, { inference: true });
+  for (let sequence = 2; sequence <= 10; sequence++) {
+    source = cameraFrame(sequence);
+    vision.rememberSource(source);
+  }
+  assert.equal(vision.sourceFor(cameraFrameId(cameraFrame(2))), null);
+  assert.equal(vision.publishObjects({ frameId: cameraFrameId(original), classes: ["fire"],
+    coverage: [0, 0, 1, 1], objects: [] }), 204);
+  assert.equal(vision.sourceFor(cameraFrameId(original)), original);
+  source = cameraFrame(1, 2);
+  assert.equal(vision.sourceFor(cameraFrameId(original)), null);
+});

@@ -35,6 +35,7 @@ export function createCameraVision(cameraInput) {
   let pending = false;
   const objectFrames = new Map();
   const sourceFrames = new Map();
+  const inferenceFrames = new Map();
 
   function freshFrame(id) {
     const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
@@ -52,15 +53,17 @@ export function createCameraVision(cameraInput) {
   }
 
   return {
-    rememberSource(frame) {
-      sourceFrames.set(cameraFrameId(frame), frame);
-      if (sourceFrames.size > 4) sourceFrames.delete(sourceFrames.keys().next().value);
+    rememberSource(frame, { inference = false } = {}) {
+      // The dashboard polls independently while the worker processes a frame.
+      const frames = inference ? inferenceFrames : sourceFrames;
+      frames.set(cameraFrameId(frame), frame);
+      if (frames.size > 4) frames.delete(frames.keys().next().value);
     },
 
     sourceFor(id) {
       if (!freshFrame(id)) return null;
       const latest = cameraInput.latestFrame();
-      return sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
+      return inferenceFrames.get(id) ?? sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
     },
 
     objectsFor(id) {
