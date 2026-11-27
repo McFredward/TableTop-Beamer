@@ -135,6 +135,7 @@ browser_args=(
   --no-first-run
   --no-default-browser-check
   --disable-features=WebRtcPipeWireCamera
+  --autoplay-policy=no-user-gesture-required
   --test-type
 )
 if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
@@ -157,7 +158,9 @@ if [[ $mode == remote ]]; then
   enable_hdmi
   printf 'Host: %s\n' "$(hostname -s)"
   if [[ -n $token ]]; then pair_camera; fi
-  if [[ -z $token && -n $profile_pid && $profile_command == *"--kiosk "*"$origin/output/"* ]] && camera_permission check; then
+  if [[ -z $token && -n $profile_pid && $profile_command == *"--kiosk "*"$origin/output/"* &&
+    $profile_command == *"--password-store=basic"* && $profile_command == *"--autoplay-policy=no-user-gesture-required"* ]] &&
+    camera_permission check; then
     exit 0
   fi
   if [[ -n $profile_pid ]]; then
@@ -170,7 +173,7 @@ if [[ $mode == remote ]]; then
   fi
   camera_permission allow || fail "Could not grant the TT-Beamer site camera access in its Chromium profile."
   mkdir -p "$data_dir"
-  nohup "$browser" "${browser_args[@]}" --autoplay-policy=no-user-gesture-required \
+  nohup "$browser" "${browser_args[@]}" \
     --kiosk "$origin/output/" </dev/null >"$data_dir/browser.log" 2>&1 &
   browser_pid=$!
   sleep 1
