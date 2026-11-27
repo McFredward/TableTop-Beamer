@@ -1883,6 +1883,12 @@ body[data-output-role="final-output"] .cluster-pads {
   color: var(--c-text, #f1f3f7);
 }
 .camera-preview::backdrop { background: rgba(5, 8, 14, 0.72); }
+#camera-preview {
+  box-sizing: border-box;
+  height: min(750px, calc(100dvh - 24px));
+  overflow: hidden;
+}
+#camera-preview[open] { display: flex; flex-direction: column; }
 .pi-output-dialog { width: min(540px, calc(100vw - 24px)); }
 .camera-preview-header,
 .camera-preview-controls {
@@ -1949,11 +1955,16 @@ body[data-output-role="final-output"] .cluster-pads {
 .camera-preview-metrics { margin: 8px 0 0; font-size: .8rem; }
 .camera-preview-status:empty,
 .camera-preview-metrics:empty { display: none; }
-.camera-preview-content { min-width: 0; }
+.camera-preview-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
 .camera-preview-content:has(.game-review:not([hidden])) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(245px, 285px);
-  align-items: start;
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
 }
 .game-review:not([hidden]), .game-review-tracks {
@@ -1962,6 +1973,8 @@ body[data-output-role="final-output"] .cluster-pads {
 }
 .game-review-tracks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .game-review-tracks:empty { display: none; }
+.game-review { grid-template-rows: auto auto minmax(0, 1fr); min-height: 0; }
+.game-review-effects-card { grid-row: 3; display: flex; flex-direction: column; min-height: 0; }
 .game-review-card {
   min-width: 0;
   padding: 10px 12px;
@@ -1977,12 +1990,15 @@ body[data-output-role="final-output"] .cluster-pads {
 .game-review-value { display: block; font-size: 1.36rem; font-variant-numeric: tabular-nums; }
 .game-review-effects {
   display: grid;
+  flex: 1;
+  align-content: start;
   gap: 0;
   padding: 0;
   margin: 5px 0 0;
   list-style: none;
-  max-height: min(42dvh, 340px);
+  min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .game-review-effects:empty { display: none; }
 .game-review-effects li {
@@ -1999,5 +2015,10 @@ body[data-output-role="final-output"] .cluster-pads {
 .game-review-effects .game-review-meta { grid-column: 1 / -1; }
 .game-review-effects [data-active="true"] .game-review-state { color: var(--c-accent, #32d3a3); }
 @media (max-width: 760px) {
-  .camera-preview-content:has(.game-review:not([hidden])) { grid-template-columns: minmax(0, 1fr); }
+  .camera-preview-content:has(.game-review:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: start;
+  }
+  .game-review-effects-card { height: min(40dvh, 290px); }
 }

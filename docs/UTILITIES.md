@@ -413,10 +413,13 @@ On setups without server rendering, keep the dashboard open on the server PC
 to run the camera observer.
 **Camera → Game observation** shows the readings for review.
 
-A confirmed presence starts the linked animation. Room animations use the
-detected position. Two fresh, clear readings of the last known positions stop
-the camera-started instance. Occlusion, glare or incomplete coverage keep the
-prior reading while the camera checks. Room animations also offer an optional
+A strong, unambiguous detection starts the linked animation on the first model
+frame. Fire also needs an independent local image check for an immediate start.
+Other readings wait for confirmation in **Game observation**. Two fresh, clear
+readings of the last known positions normally stop the camera-started instance.
+A confident reclassification can stop an effect caused by a mistaken label
+on the first frame. Occlusion, glare or incomplete coverage keep the prior
+reading while the camera checks. Room animations also offer an optional
 **Verification opacity**. When the last position is hard to read, the renderer
 briefly uses that opacity so the camera can check the room again.
 

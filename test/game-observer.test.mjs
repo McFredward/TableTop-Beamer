@@ -111,6 +111,17 @@ test("a confirmed reclassification clears the false marker without treating the 
   assert.equal(final.effects.find(value => value.kind === "alien").active, true);
 });
 
+test("a strong, explicit correction updates the old and new effects on the same frame", () => {
+  const observer = createGameObserver(layout, { startOnStrongReading: true });
+  const wrong = { ...item("malfunction", 0.2, 0.17), confidence: 0.98 };
+  const corrected = { ...item("alien", 0.2, 0.17), confidence: 0.98,
+    reclassifiedFrom: { kind: wrong.kind, box: wrong.box } };
+  const frame = { classes: ["alien", "malfunction"], coverage: [0, 0, 1, 1] };
+  observer.observe({ ...frame, frameId: "1795740000000-1-1", objects: [wrong] });
+  const reading = observer.observe({ ...frame, frameId: "1795740003100-1-2", objects: [corrected] });
+  assert.deepEqual(reading.effects.map(effect => [effect.kind, effect.active]), [["malfunction", false], ["alien", true]]);
+});
+
 test("dice trigger no effects and can temporarily cover a confirmed marker", () => {
   const run = newRun();
   const observe = (objects) => run(objects, ["fire", "dice"]);

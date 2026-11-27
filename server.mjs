@@ -4846,6 +4846,7 @@ const server = createServer(async (req, res) => {
       const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token };
       cameraAnimationCommands.add(payload);
       const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
+      if (!ack?.applied && !cameraVision.objectsFor(frameId, modelId)) res.setHeader("X-Camera-Reading-Expired", "1");
       res.writeHead(ack?.applied ? 204 : 409).end();
       return;
     }

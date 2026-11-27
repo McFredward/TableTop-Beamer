@@ -17,7 +17,9 @@ function updateRows(container, rows, createRow) {
   const signature = JSON.stringify(rows);
   if (container.dataset.rows === signature) return;
   container.dataset.rows = signature;
+  const scrollTop = container.scrollTop;
   container.replaceChildren(...rows.map(createRow));
+  if (scrollTop) container.scrollTop = scrollTop;
 }
 
 export function paintBoxes(context, boxes) {
@@ -104,12 +106,12 @@ export function createGameReview() {
     const rows = proposed.map(({ zone, effect, active, status, kind, count }) => ({
       zone, name: effect.name, active, status: kind === "alien" && active ? `${status} · ${count} seen` : status,
     })).concat(fallback.map(item => ({ zone: item.room.name, name: "Fire", active: item.active, status: `local check · ${item.state}` })));
-    rows.sort((a, b) => Number(b.active) - Number(a.active) || a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name));
+    rows.sort((a, b) => a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name));
     effectsEmpty.hidden = rows.length > 0;
     updateRows(effects, rows, ({ zone, name, active, status }) => {
       const row = document.createElement("li");
       row.dataset.active = String(Boolean(active));
-      row.append(textNode("strong", name), textNode("span", active ? "On" : "Off", "game-review-state"),
+      row.append(textNode("strong", name), textNode("span", active ? "On" : status === "checking" ? "Confirming" : "Off", "game-review-state"),
         textNode("span", `${/^\d{3}$/.test(zone) ? `Room ${zone}` : zone} · ${status}`, "game-review-meta"));
       return row;
     });
@@ -125,12 +127,13 @@ export function createGameReview() {
 
   async function observeBindings(model, frame, id, generation, signal) {
     const current = setup;
-    return (await Promise.all(current.bindings.modelIds.map(async modelId => {
+    await Promise.all(current.bindings.modelIds.map(async modelId => {
       const feed = model && (model.modelId ?? "default") === modelId ? model : await readBoardObjects(signal, modelId).catch(() => null);
-      if (feed?.frameId.split("-")[1] !== generation) return [];
+      if (feed?.frameId.split("-")[1] !== generation) return;
       const reading = await checkCameraReading(feed, current, signal, frame, id);
-      return current.bindings.observe(modelId, reading).effects;
-    }))).flat();
+      current.bindings.observe(modelId, reading);
+    }));
+    return current.bindings.snapshots();
   }
 
   async function observe(bitmap, id, signal, { annotated = false } = {}) {
@@ -151,10 +154,10 @@ export function createGameReview() {
     const native = setup.native.observe({ frameId: id, ...beads, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
     const checkedModel = model ? await checkCameraReading(model, setup, signal, frame, id) : null;
     signal.throwIfAborted();
-    const trained = checkedModel ? setup.trained.observe(checkedModel) : null;
+    const trained = checkedModel ? setup.trained.observe(checkedModel) : setup.trained.snapshot();
     const linked = await observeBindings(model, frame, id, generation, signal);
     signal.throwIfAborted();
-    const proposed = native.effects.concat(linked, (trained?.effects ?? []).filter(item =>
+    const proposed = native.effects.concat(linked, trained.effects.filter(item =>
       !linked.some(binding => binding.roomId === item.roomId && binding.effect.id === item.effect.id)));
     if (!panel.hidden) renderReadings(native, proposed, fallback, view);
 

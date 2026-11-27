@@ -2,6 +2,7 @@ import { jpegDimensions } from "./output-camera-upload.mjs";
 
 const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
 const MAX_ANNOTATION_AGE_MS = 6000;
+const MAX_INFERENCE_AGE_MS = 8000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MAX_MODELS = 16;
 const DEFAULT_MODEL_ID = "default";
@@ -44,14 +45,15 @@ export function createCameraVision(cameraInput, now = Date.now) {
   const inferenceFrames = new Map();
   const modelActivity = new Map();
 
-  function freshFrame(id) {
+  function isFreshFrame(id) {
     const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
-    if (!parts) return null;
+    if (!parts) return false;
     const [sourceTime, generation, sequence] = parts.slice(1).map(Number);
     const source = cameraInput.latestFrame();
-    if (!source || source.generation !== generation || now() - sourceTime > MAX_ANNOTATION_AGE_MS ||
-        sourceTime > Date.parse(source.receivedAt) || sequence < 1 || sequence > source.sequence) return null;
-    return { generation, sequence };
+    // A frame reserved explicitly for inference can outlast a slow CPU pass.
+    const maxAge = inferenceFrames.has(id) ? MAX_INFERENCE_AGE_MS : MAX_ANNOTATION_AGE_MS;
+    return Boolean(source && source.generation === generation && now() - sourceTime <= maxAge &&
+      sourceTime <= Date.parse(source.receivedAt) && sequence >= 1 && sequence <= source.sequence);
   }
 
   function rect(value) {
@@ -68,16 +70,16 @@ export function createCameraVision(cameraInput, now = Date.now) {
     },
 
     sourceFor(id) {
-      if (!freshFrame(id)) return null;
+      if (!isFreshFrame(id)) return null;
       const latest = cameraInput.latestFrame();
       return inferenceFrames.get(id) ?? sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
     },
 
     objectsFor(id, modelId) {
-      if (id && !freshFrame(id)) return null;
+      if (id && !isFreshFrame(id)) return null;
       const feeds = modelId ? [objectFrames.get(modelId)] : [...objectFrames.values()].reverse();
       for (const feed of feeds) {
-        const reading = id ? feed?.get(id) : [...(feed?.values() ?? [])].reverse().find(item => freshFrame(item.frameId));
+        const reading = id ? feed?.get(id) : [...(feed?.values() ?? [])].reverse().find(item => isFreshFrame(item.frameId));
         if (reading) return reading;
       }
       return null;
@@ -129,7 +131,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
             (item.reclassifiedFrom !== undefined && (!classes.includes(item.reclassifiedFrom?.kind) ||
               item.reclassifiedFrom.kind === item.kind || !rect(item.reclassifiedFrom.box))))) return 400;
       const feed = objectFrames.get(modelId) ?? new Map();
-      if (!freshFrame(frameId) || feed.has(frameId)) return 409;
+      if (!isFreshFrame(frameId) || feed.has(frameId)) return 409;
       feed.set(frameId, { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
         objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom }) => ({ kind, confidence, box, anchor,
           ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) });
@@ -141,12 +143,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
     },
 
     latestFrame() {
-      const source = cameraInput.latestFrame();
-      if (!preview || !source || source.generation !== preview.generation ||
-          now() - preview.sourceTime > MAX_ANNOTATION_AGE_MS) {
-        return null;
-      }
-      return preview;
+      return preview && isFreshFrame(preview.id) ? preview : null;
     },
 
     async publish(req, readRawBody) {
@@ -156,7 +153,6 @@ export function createCameraVision(cameraInput, now = Date.now) {
       if (!Number.isSafeInteger(size) || size < 16 || size > MAX_PREVIEW_BYTES) return 413;
       const id = req.headers["x-camera-frame-id"];
       const parts = /^(\d{13})-(\d+)-(\d+)$/.exec(id ?? "");
-      const sourceTime = Number(parts?.[1]);
       const generation = Number(parts?.[2]);
       const sequence = Number(parts?.[3]);
       const model = req.headers["x-vision-model"];
@@ -179,12 +175,9 @@ export function createCameraVision(cameraInput, now = Date.now) {
       try {
         const jpeg = await readRawBody(req, { maxBytes: MAX_PREVIEW_BYTES });
         if (jpeg.length !== size || !jpegDimensions(jpeg)) return 400;
-        const source = cameraInput.latestFrame();
-        if (!source || source.generation !== generation || Date.now() - sourceTime > MAX_ANNOTATION_AGE_MS ||
-            sourceTime > Date.parse(source.receivedAt) || sequence > source.sequence ||
-            (preview && sequence <= preview.sequence)) return 409;
+        if (!isFreshFrame(id) || (preview?.generation === generation && sequence <= preview.sequence)) return 409;
         preview = {
-          id, sequence, sourceTime, generation, jpeg,
+          id, sequence, generation, jpeg,
           headers: {
             "X-Vision-Count": count, "X-Vision-Masks": masks, "X-Vision-MS": elapsed,
             "X-Vision-Model": model, "X-Vision-Weights": weights, "X-Vision-Device": device,

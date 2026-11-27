@@ -57,6 +57,7 @@ function samePosition(a, b) {
 const miniatureKinds = new Set(["alien", "character"]);
 const occluders = new Set([...miniatureKinds, "hand", "dice"]);
 const uncertainThreshold = 0.25;
+const MAX_CONFIRMATION_GAP_MS = 8000;
 
 function recordFireSighting(state, boxes, figures, frameNumber) {
   // A projected flash can weaken a reading for one frame. For a gap,
@@ -71,7 +72,7 @@ function recordFireSighting(state, boxes, figures, frameNumber) {
 }
 
 function coversPosition(state, box, item) {
-  if (item.reclassifiedFrom?.kind === state.kind && samePosition(box, item.reclassifiedFrom.box)) return false;
+  if (reclassifies(state, box, item)) return false;
   const area = overlap(box, item.box);
   if (area <= 0.25) return false;
   if (state.kind !== "fire" || !miniatureKinds.has(item.kind)) return true;
@@ -80,6 +81,10 @@ function coversPosition(state, box, item) {
   return !state.fireSightings.some(sighting =>
     sighting.boxes.some(previous => samePosition(box, previous)) &&
     sighting.figures.some(previous => samePosition(item.box, previous) && overlap(box, previous) + 0.15 >= area));
+}
+
+function reclassifies(state, box, item) {
+  return item.reclassifiedFrom?.kind === state.kind && samePosition(box, item.reclassifiedFrom.box);
 }
 
 function smallAlienRoom(zones, [x, y, width, height]) {
@@ -136,10 +141,12 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
 
 export function createGameObserver(layout, {
   kinds = ["noise", "fire", "malfunction", "alien"], minConfidence = 0.62, checkVisibility = false, allZones = false,
+  startOnStrongReading = false,
 } = {}) {
   const current = new Map();
   const tracks = new Map();
   const detectionThreshold = minConfidence;
+  const strongConfidence = Math.max(0.90, minConfidence + 0.12);
   let lastId, lastTime, lastGeneration, lastSequence;
   let frameNumber = 0;
   const activity = new Set(kinds);
@@ -161,7 +168,7 @@ export function createGameObserver(layout, {
     if (frame.frameId === lastId) return view();
     const [timestamp, generation, sequence] = frame.frameId.split("-").map(Number);
     if (lastId && generation === lastGeneration && sequence <= lastSequence) return view();
-    if (lastId && (timestamp - lastTime > 6000 || generation !== lastGeneration)) {
+    if (lastId && (timestamp - lastTime > MAX_CONFIRMATION_GAP_MS || generation !== lastGeneration)) {
       for (const state of current.values()) {
         state.pending = state.clear = 0;
         if (!state.active) state.fireSightings = [];
@@ -187,8 +194,15 @@ export function createGameObserver(layout, {
       const zone = pieceZone(layout.zones, item, allZones);
       if (!zone) continue;
       const key = item.kind + ":" + zone.id;
-      const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [] };
+      const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [], strong: false };
       entry.boxes.push(item.box);
+      if (startOnStrongReading && !entry.strong && item.confidence >= strongConfidence && !current.get(key)?.active &&
+          !possibleOccluders.some(other => other.kind !== item.kind && occluders.has(other.kind) &&
+            other.confidence >= detectionThreshold && samePosition(item.box, other.box)) &&
+          (item.kind !== "fire" || frame.confirmFire?.(item.box)) &&
+          ((item.kind !== "fire" && !checkVisibility) || !frame.fireOverexposed?.(item.box))) {
+        entry.strong = true;
+      }
       hits.set(key, entry);
     }
 
@@ -199,7 +213,7 @@ export function createGameObserver(layout, {
       state.pending++;
       state.clear = 0;
       const confirmed = state.kind === "fire" ? recordFireSighting(state, hit.boxes, figures, frameNumber) : state.pending >= 2;
-      state.active ||= confirmed;
+      state.active ||= confirmed || hit.strong;
       state.status = state.active ? "visible" : "checking";
       state.confirmed ||= state.active;
     }
@@ -218,7 +232,9 @@ export function createGameObserver(layout, {
       const blocked = missingCoverage || covered || overexposed;
       state.pending = 0;
       state.clear = blocked || weakFireReading ? 0 : state.clear + 1;
-      if (state.clear >= 2) state.active = false;
+      const corrected = startOnStrongReading && !blocked && state.boxes.every(box => possibleOccluders.some(item =>
+        item.confidence >= strongConfidence && reclassifies(state, box, item)));
+      if (state.clear >= 2 || corrected) state.active = false;
       state.status = overexposed ? "overexposed" : blocked ? "occluded"
         : state.active || weakFireReading ? "checking" : "removed";
       if (!state.active) state.count = 0;
@@ -262,5 +278,5 @@ export function createGameObserver(layout, {
     }
     return view();
   }
-  return { observe };
+  return { observe, snapshot: view };
 }

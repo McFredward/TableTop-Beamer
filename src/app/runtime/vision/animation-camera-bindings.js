@@ -19,7 +19,7 @@ export function createAnimationCameraBindings(board, registration, width, height
         zones: scope === "room" ? roomZones : [boardZone],
         effects: { [className]: { id, name } }, slots: [],
       }, { kinds: [className], minConfidence: Number.isFinite(minConfidence) ? Math.max(0.25, Math.min(1, minConfidence)) : 0.62,
-        checkVisibility: scope === "room" && Number.isFinite(verificationOpacity), allZones: true });
+        checkVisibility: scope === "room" && Number.isFinite(verificationOpacity), allZones: true, startOnStrongReading: true });
       const feed = feeds.get(modelId) ?? [];
       feed.push({ id, scope, className, verificationOpacity, state, targeted: new Set(), lastCheck: new Map() });
       feeds.set(modelId, feed);
@@ -30,7 +30,8 @@ export function createAnimationCameraBindings(board, registration, width, height
     const effects = [], actions = [];
     const timestamp = Number(reading.frameId.split("-")[0]);
     for (const binding of feeds.get(modelId) ?? []) {
-      if (!reading.classes.includes(binding.className)) continue;
+      if (!reading.classes.includes(binding.className) || (reading.verificationUnavailable && binding.scope === "room" &&
+          Number.isFinite(binding.verificationOpacity))) continue;
       for (const effect of binding.state.observe(reading).effects) {
         effects.push({ ...effect, scope: binding.scope });
         const roomId = effect.roomId;
@@ -56,5 +57,14 @@ export function createAnimationCameraBindings(board, registration, width, height
 
   const needsVisibility = id => feeds.get(id)?.some(binding => binding.scope === "room" &&
     Number.isFinite(binding.verificationOpacity)) ?? false;
-  return { modelIds: [...feeds.keys()], needsVisibility, observe };
+  const snapshots = () => [...feeds.values()].flatMap(bindings => bindings.flatMap(({ scope, state }) =>
+    state.snapshot().effects.map(effect => ({ ...effect, scope }))));
+  function retry(modelId, { scope, animationId, roomId, action }) {
+    const binding = feeds.get(modelId)?.find(entry => entry.scope === scope && entry.id === animationId);
+    if (!binding) return;
+    if (action === "start") binding.targeted.delete(roomId);
+    if (action === "stop") binding.targeted.add(roomId);
+    if (action === "verify") binding.lastCheck.delete(roomId);
+  }
+  return { modelIds: [...feeds.keys()], needsVisibility, observe, snapshots, retry };
 }

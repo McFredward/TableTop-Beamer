@@ -149,3 +149,22 @@ test("camera previews do not evict a frame still needed by inference", () => {
   source = cameraFrame(1, 2);
   assert.equal(vision.sourceFor(cameraFrameId(original)), null);
 });
+
+test("a reserved inference frame has time for a slow CPU pass and still expires", async () => {
+  let now = Date.parse(receivedAt);
+  const original = cameraFrame(1);
+  const source = cameraFrame(2);
+  const vision = createCameraVision({ latestFrame: () => source }, () => now);
+  vision.rememberSource(original, { inference: true });
+  const detection = { frameId: cameraFrameId(original), classes: ["fire"], coverage: [0, 0, 1, 1], objects: [] };
+  now += 6500;
+  assert.equal(vision.publishObjects({ ...detection, frameId: cameraFrameId(source) }), 409);
+  assert.equal(vision.publishObjects(detection), 204);
+  assert.equal(await vision.publish(prediction(original), async () => jpeg), 204);
+  assert.deepEqual(vision.objectsFor(), detection);
+  assert.equal(vision.sourceFor(detection.frameId), original);
+  now += 1501;
+  assert.equal(vision.objectsFor(), null);
+  assert.equal(vision.latestFrame(), null);
+  assert.equal(vision.sourceFor(detection.frameId), null);
+});

@@ -1,6 +1,6 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
-import { checkTrainedFireShapes, firePositionIsOverexposed, makeFireGeometry } from "./fire-observer.js";
+import { checkTrainedFireShapes, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "./fire-observer.js";
 import { isClassicNemesisBoard } from "./game-observer.js";
 
 export async function readCameraBitmap(id, signal) {
@@ -52,11 +52,20 @@ export async function checkCameraReading(model, setup, signal, currentFrame, cur
       bitmap?.close();
     }
   }
-  const checked = frame?.width === setup.width && frame.height === setup.height
+  let localFire;
+  const checked = frame && frame.width === setup.width && frame.height === setup.height
     ? { ...(checksFire ? checkTrainedFireShapes(frame, setup.geometry, model) : model),
-      fireOverexposed: box => firePositionIsOverexposed(frame, box) }
-    : { ...model, classes: checksVisibility ? [] : model.classes.filter(kind => kind !== "fire"),
-      objects: checksVisibility ? [] : model.objects.filter(item => item.kind !== "fire") };
+      fireOverexposed: box => firePositionIsOverexposed(frame, box),
+      ...(checksFire && setup.cv && { confirmFire: ([x, y, w, h]) => {
+        localFire ??= detectFireTokens(setup.cv, frame, setup.geometry);
+        return [...localFire.values()].some(({ box }) => {
+          const cx = (box.x + box.w / 2) / frame.width, cy = (box.y + box.h / 2) / frame.height;
+          return cx >= x && cx <= x + w && cy >= y && cy <= y + h;
+        });
+      } }) }
+    : { ...model, verificationUnavailable: true,
+      ...(checksFire && { classes: model.classes.filter(kind => kind !== "fire"),
+        objects: model.objects.filter(item => item.kind !== "fire") }) };
   setup.checkedModels.set(modelId, checked);
   if (setup.checkedModels.size > 2) setup.checkedModels.delete(setup.checkedModels.keys().next().value);
   return checked;

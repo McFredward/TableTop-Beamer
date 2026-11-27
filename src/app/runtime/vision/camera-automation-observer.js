@@ -56,9 +56,9 @@ export async function runCameraAutomation() {
       let frame;
       try { frame = readBitmap(bitmap, true); }
       finally { bitmap.close(); }
-      const { registration, geometry, width, height } = await registerCameraBoard(selection.board, frame, signal);
+      const { cv, registration, geometry, width, height } = await registerCameraBoard(selection.board, frame, signal);
       const bindings = createAnimationCameraBindings(selection.board, registration, width, height);
-      setup = { key, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map() };
+      setup = { key, cv, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map() };
     }
 
     if (!setup.modelIds.length) { phase = "bindings"; return; }
@@ -72,9 +72,15 @@ export async function runCameraAutomation() {
       setup.last.set(modelId, model.frameId);
       const { actions } = setup.bindings.observe(modelId, reading);
       await Promise.all(actions.map(async action => {
-        const result = await post("/api/camera/animation", { ...action, boardId: lease.boardId, token: lease.token,
-          frameId: model.frameId, modelId });
-        if (!result.ok && result.status !== 409) throw new Error(`Camera animation returned ${result.status}`);
+        try {
+          const result = await post("/api/camera/animation", { ...action, boardId: lease.boardId, token: lease.token,
+            frameId: model.frameId, modelId });
+          if (result.headers.get("X-Camera-Reading-Expired")) setup.bindings.retry(modelId, action);
+          if (!result.ok && result.status !== 409) throw new Error(`Camera animation returned ${result.status}`);
+        } catch (error) {
+          setup.bindings.retry(modelId, action);
+          throw error;
+        }
       }));
       return true;
     }));
@@ -84,6 +90,7 @@ export async function runCameraAutomation() {
   while (true) {
     try { await observe(); }
     catch { phase = "error"; }
-    await new Promise(resolve => setTimeout(resolve, phase === "active" ? 250 : phase === "error" ? 2500 : 1100));
+    const tracking = phase === "active" || (phase === "model" && setup?.last.size > 0);
+    await new Promise(resolve => setTimeout(resolve, tracking ? 250 : phase === "error" ? 2500 : 1100));
   }
 }
