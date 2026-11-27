@@ -1,3 +1,5 @@
+import { looksLikeDie } from "./fire-dice-shape.js";
+
 // First-pass detector for the translucent orange Nemesis fire token. The
 // room and frame-state logic can also consume a trained detector's boxes.
 export function makeFireGeometry(board, roomCatalog, width, height, reference) {
@@ -141,6 +143,30 @@ export function detectFireTokens(cv, frame, geometry) {
     const output = image.data;
     const input = frame.rgba;
     const redLight = boardUnderRedLight(mask, input);
+    const found = new Map();
+    const oversizedRooms = new Set();
+
+    function readComponents(allowCoreCheck) {
+      const count = cv.connectedComponentsWithStats(image, labels, stats, centers, 8, cv.CV_32S);
+      const components = labels.data32S;
+      for (let i = 1; i < count; i++) {
+        const [x, y, w, h, area] = stats.intPtr(i);
+        if (area < 138 * scale ** 2 || Math.min(w, h) < 12 * scale) continue;
+        const [cx, cy] = centers.doublePtr(i);
+        const roomIndex = mask[Math.round(cy) * frame.width + Math.round(cx)];
+        const room = rooms[roomIndex - 1];
+        if (!room) continue;
+        if (area > 920 * scale ** 2 || Math.max(w, h) > 41 * scale) {
+          if (allowCoreCheck && area <= 2400 * scale ** 2 && Math.max(w, h) <= 82 * scale) oversizedRooms.add(roomIndex);
+          continue;
+        }
+        if (w / h < 0.52 || w / h > 1.55 || area < w * h * 0.38 || found.get(room.id)?.area > area) continue;
+        const box = { x, y, w, h };
+        if (matchesPrintedColor(frame, geometry, box, components, i, redLight) || looksLikeDie(frame, box, redLight)) continue;
+        found.set(room.id, { room, box, area });
+      }
+    }
+
     for (let i = 0; i < output.length; i++) {
       if (!mask[i]) {
         output[i] = 0;
@@ -154,20 +180,20 @@ export function detectFireTokens(cv, frame, geometry) {
       const saturatedOrange = r - g >= 64 && r - b >= 54;
       output[i] = r >= 52 && (redLight ? saturatedOrange : orange || blueLitOrange) ? 255 : 0;
     }
-    const count = cv.connectedComponentsWithStats(image, labels, stats, centers, 8, cv.CV_32S);
-    const components = labels.data32S;
-    const found = new Map();
-    for (let i = 1; i < count; i++) {
-      const [x, y, w, h, area] = stats.intPtr(i);
-      if (area < 138 * scale ** 2 || area > 920 * scale ** 2 ||
-          Math.min(w, h) < 12 * scale || Math.max(w, h) > 41 * scale ||
-          w / h < 0.52 || w / h > 1.55 || area < w * h * 0.38) continue;
-      const [cx, cy] = centers.doublePtr(i);
-      const room = rooms[mask[Math.round(cy) * frame.width + Math.round(cx)] - 1];
-      if (!room || found.get(room.id)?.area > area) continue;
-      const box = { x, y, w, h };
-      if (matchesPrintedColor(frame, geometry, box, components, i, redLight)) continue;
-      found.set(room.id, { room, box, area });
+    readComponents(!redLight);
+    if (oversizedRooms.size) {
+      // A translucent marker can merge into a warm printed tile. Read the
+      // saturated core only in rooms where that happened.
+      const core = image.data;
+      for (let i = 0; i < core.length; i++) {
+        if (!oversizedRooms.has(mask[i])) {
+          core[i] = 0;
+          continue;
+        }
+        const r = input[i * 4], g = input[i * 4 + 1], b = input[i * 4 + 2];
+        core[i] = r >= 52 && r - g >= 32 && r - b >= 30 ? 255 : 0;
+      }
+      readComponents(false);
     }
     return found;
   } finally {

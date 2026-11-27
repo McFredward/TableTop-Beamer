@@ -79,6 +79,16 @@ test("a red alarm keeps the saturated token separate from neutral printed detail
   assert.deepEqual(detectFireTokens(cv, image, geometry).get(room.id)?.box, token);
 });
 
+test("a warm halo connected to a marker does not replace its compact core", async () => {
+  const { cv } = await openCV;
+  const image = frame();
+  const geometry = makeFireGeometry(board, [room], frameWidth, frameHeight);
+  const token = { x: 371, y: 268, w: 23, h: 28 };
+  fill(image, { x: 354, y: 263, w: 60, h: 38 }, [142, 118, 96, 255]);
+  fill(image, token, [194, 91, 59, 255]);
+  assert.deepEqual(detectFireTokens(cv, image, geometry).get(room.id)?.box, token);
+});
+
 test("moving points of projected fire are not combined into a stationary marker", () => {
   const tracker = createFireTracker();
   const image = frame();
