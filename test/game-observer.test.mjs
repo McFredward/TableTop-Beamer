@@ -63,6 +63,25 @@ test("partial model coverage cannot clear a previously observed effect", () => {
   for (let round = 0; round < 4; round++) assert.equal(observe([], ["fire"], [0.47, 0, 0.5, 1]).effects[0].active, true);
 });
 
+test("dice trigger no effects and can temporarily cover a confirmed marker", () => {
+  const run = newRun();
+  const observe = (objects) => run(objects, ["fire", "dice"]);
+  const die = item("dice", 0.2, 0.17);
+  const fire = item("fire", 0.2, 0.17);
+  assert.deepEqual(observe([die]).effects, []);
+  assert.deepEqual(observe([die]).effects, []);
+  observe([fire]);
+  assert.equal(observe([fire]).effects[0].active, true);
+  for (let i = 0; i < 4; i++) {
+    const [state] = observe([die]).effects;
+    assert.equal(state.status, "occluded");
+    assert.equal(state.active, true);
+  }
+  assert.equal(observe([]).effects[0].active, true);
+  assert.equal(observe([]).effects[0].active, true);
+  assert.equal(observe([]).effects[0].active, false);
+});
+
 test("only noise starts an effect at the technical corridor symbol", () => {
   const observe = newRun();
   const objects = [item("noise", 0.16, 0.62), item("alien", 0.17, 0.62), item("fire", 0.18, 0.62)];

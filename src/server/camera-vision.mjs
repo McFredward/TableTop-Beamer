@@ -3,7 +3,7 @@ import { jpegDimensions } from "./output-camera-upload.mjs";
 const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
 const MAX_ANNOTATION_AGE_MS = 6000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-const BOARD_CLASSES = new Set(["noise", "fire", "malfunction", "alien", "character", "hand", "track-marker"]);
+const BOARD_CLASSES = new Set(["noise", "fire", "malfunction", "alien", "character", "hand", "dice", "track-marker"]);
 
 export function isLocalCameraRequest(req) {
   const { host, forwarded, "x-forwarded-for": forwardedFor, "x-forwarded-host": forwardedHost } = req.headers;

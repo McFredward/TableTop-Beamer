@@ -89,7 +89,7 @@ export function createGameObserver(layout) {
   const current = new Map();
   const tracks = new Map();
   let lastId, lastTime, lastGeneration, lastSequence;
-  const figure = new Set(["alien", "character", "hand"]);
+  const occluders = new Set(["alien", "character", "hand", "dice"]);
   const activity = new Set(["noise", "fire", "malfunction", "alien"]);
   const stateFor = (key, init) => {
     if (!current.has(key)) current.set(key, { ...init, pending: 0, clear: 0, active: false });
@@ -147,7 +147,7 @@ export function createGameObserver(layout) {
       const missingCoverage = !frame.classes.includes(state.kind)
         || !state.zone.polygon.every(point => rectContains(frame.coverage, point));
       const covered = state.boxes.some(box => frame.objects.some(item =>
-        (figure.has(item.kind) || item.kind === state.kind) && item.confidence >= 0.25 && overlap(box, item.box) > 0.25));
+        (occluders.has(item.kind) || item.kind === state.kind) && item.confidence >= 0.25 && overlap(box, item.box) > 0.25));
       updateBinary(state, false, missingCoverage || covered);
       if (!state.active) state.count = 0;
     }

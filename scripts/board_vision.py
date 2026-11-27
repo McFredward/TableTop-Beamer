@@ -2,7 +2,7 @@
 
 import argparse
 
-BOARD_CLASSES = {"noise", "fire", "malfunction", "alien", "character", "hand", "track-marker"}
+BOARD_CLASSES = {"noise", "fire", "malfunction", "alien", "character", "hand", "dice", "track-marker"}
 
 
 def parse_roi(value):

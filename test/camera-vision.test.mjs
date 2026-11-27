@@ -61,8 +61,9 @@ test("only direct loopback clients can view the preview and a browser cannot pub
 test("structured game detections stay attached to a recent camera frame and reject invalid anchors", () => {
   let source = cameraFrame(10);
   const vision = createCameraVision({ latestFrame: () => source });
-  const shape = { frameId: cameraFrameId(source), classes: ["fire", "character", "alien"], coverage: [0, 0, 1, 1],
-    objects: [{ kind: "alien", confidence: 0.8, box: [0.1, 0.2, 0.3, 0.3], anchor: [0.2, 0.42] }] };
+  const shape = { frameId: cameraFrameId(source), classes: ["fire", "character", "alien", "dice"], coverage: [0, 0, 1, 1],
+    objects: [{ kind: "alien", confidence: 0.8, box: [0.1, 0.2, 0.3, 0.3], anchor: [0.2, 0.42] },
+      { kind: "dice", confidence: 0.9, box: [0.6, 0.3, 0.03, 0.04], anchor: [0.615, 0.32] }] };
   assert.equal(vision.publishObjects(shape), 204);
   assert.deepEqual(vision.objectsFor(shape.frameId), shape);
   assert.deepEqual(vision.objectsFor(), shape);
