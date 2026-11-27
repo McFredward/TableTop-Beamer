@@ -1,6 +1,6 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
-import { checkTrainedFireShapes, createFireTracker, detectFireTokens, makeFireGeometry } from "../vision/fire-observer.js";
+import { checkTrainedFireShapes, createFireTracker, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "../vision/fire-observer.js";
 import { createGameObserver, isClassicNemesisBoard, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 
@@ -78,7 +78,7 @@ export function createGameReview(getSourceFrame) {
 
   async function modelForObservation(model, frame, id, signal) {
     const current = setup;
-    if (!current.geometry || !model.classes.includes("fire") || !model.objects.some(item => item.kind === "fire")) {
+    if (!current.geometry || !model.classes.includes("fire")) {
       return model;
     }
     if (current.checkedModel?.frameId === model.frameId) return current.checkedModel;
@@ -94,7 +94,8 @@ export function createGameReview(getSourceFrame) {
       }
     }
     current.checkedModel = matchingFrame?.width === current.width && matchingFrame.height === current.height
-      ? checkTrainedFireShapes(matchingFrame, current.geometry, model)
+      ? { ...checkTrainedFireShapes(matchingFrame, current.geometry, model),
+        fireOverexposed: box => firePositionIsOverexposed(matchingFrame, box) }
       // With no paired source image, retain existing fire state as uncertain.
       : { ...model, classes: model.classes.filter(kind => kind !== "fire"),
         objects: model.objects.filter(item => item.kind !== "fire") };

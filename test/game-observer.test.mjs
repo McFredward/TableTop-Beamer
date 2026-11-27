@@ -129,6 +129,33 @@ test("a stationary figure near a fire marker does not mask removal", () => {
   assert.equal(removed.active, false);
 });
 
+test("overexposure only holds an established fire until the position is readable", () => {
+  const observer = createGameObserver(layout);
+  const fire = item("fire", 0.20, 0.17);
+  let i = 0;
+  const observe = (objects, fireOverexposed) => observer.observe({
+    frameId: `${1795718000000 + i * 700}-1-${++i}`, classes: ["fire"], coverage: [0, 0, 1, 1],
+    objects, fireOverexposed,
+  }).effects[0];
+  const glare = box => {
+    assert.deepEqual(box, fire.box);
+    return true;
+  };
+  assert.equal(observe([], glare), undefined);
+  observe([fire]);
+  assert.equal(observe([fire]).active, true);
+  assert.equal(observe([]).active, true);
+  for (let j = 0; j < 4; j++) {
+    const state = observe([], glare);
+    assert.equal(state.status, "overexposed");
+    assert.equal(state.active, true);
+  }
+  assert.equal(observe([]).active, true);
+  assert.equal(observe([]).active, true);
+  assert.equal(observe([]).status, "removed");
+  assert.equal(observe([], glare).active, false);
+});
+
 test("a confident die prevents a duplicate fire proposal without suppressing a nearby marker", () => {
   const observe = newRun();
   const dice = item("dice", 0.20, 0.17);

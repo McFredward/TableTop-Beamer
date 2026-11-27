@@ -133,7 +133,27 @@ function boardUnderRedLight(mask, pixels) {
   return samples > 0 && redSamples / samples >= 0.16;
 }
 
+export function firePositionIsOverexposed(frame, [x, y, w, h]) {
+  const left = Math.max(0, Math.floor(x * frame.width));
+  const top = Math.max(0, Math.floor(y * frame.height));
+  const right = Math.min(frame.width, Math.ceil((x + w) * frame.width));
+  const bottom = Math.min(frame.height, Math.ceil((y + h) * frame.height));
+  const step = Math.max(1, Math.floor(Math.min(right - left, bottom - top) / 16));
+  let clipped = 0, total = 0;
+  for (let row = top; row < bottom; row += step) {
+    for (let col = left; col < right; col += step) {
+      const pixel = (row * frame.width + col) * 4;
+      // An orange token can clip red alone. Bright green as well indicates
+      // the white or yellow core of a wash rather than a saturated red token.
+      if (frame.rgba[pixel] >= 247 && frame.rgba[pixel + 1] >= 240) clipped++;
+      total++;
+    }
+  }
+  return total > 0 && clipped / total >= 0.24;
+}
+
 export function checkTrainedFireShapes(frame, geometry, model) {
+  if (!model.objects.some(item => item.kind === "fire")) return model;
   const redLight = boardUnderRedLight(geometry.mask, frame.rgba);
   let foundDie = false;
   const objects = model.objects.map(item => {

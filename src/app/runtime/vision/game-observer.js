@@ -205,12 +205,15 @@ export function createGameObserver(layout) {
         state.boxes.some(box => samePosition(box, item.box)));
       const covered = state.boxes.some(box => possibleOccluders.some(item =>
         (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) && coversPosition(state, box, item)));
+      const overexposed = state.kind === "fire" && state.active && !missingCoverage &&
+        state.boxes.some(box => frame.fireOverexposed?.(box));
       if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];
-      const blocked = missingCoverage || covered;
+      const blocked = missingCoverage || covered || overexposed;
       state.pending = 0;
       state.clear = blocked || weakFireReading ? 0 : state.clear + 1;
       if (state.clear >= 3) state.active = false;
-      state.status = blocked ? "occluded" : state.active || weakFireReading ? "checking" : "removed";
+      state.status = overexposed ? "overexposed" : blocked ? "occluded"
+        : state.active || weakFireReading ? "checking" : "removed";
       if (!state.active) state.count = 0;
     }
 

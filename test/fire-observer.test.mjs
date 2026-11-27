@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import cvModule from "@techstark/opencv-js";
-import { checkTrainedFireShapes, createFireTracker, detectFireTokens, makeFireGeometry } from "../src/app/runtime/vision/fire-observer.js";
+import { checkTrainedFireShapes, createFireTracker, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "../src/app/runtime/vision/fire-observer.js";
 
 const room = { id: "a-02", name: "005", polygon: [[0.17, 0.2], [0.52, 0.2], [0.52, 0.65], [0.17, 0.65]] };
 const frameWidth = 1200;
@@ -106,6 +106,19 @@ test("a dice-like model box becomes an occluder while the original detections st
   assert.deepEqual(checked.classes, ["fire", "dice"]);
   assert.deepEqual(checked.objects, [{ ...dice, kind: "dice", confidence: 0.5 }, flame]);
   assert.equal(model.objects[0].kind, "fire");
+});
+
+test("a broad wash over a fire position differs from saturated red and small highlights", () => {
+  const image = frame();
+  const token = { x: 370, y: 270, w: 30, h: 30 };
+  const box = [token.x / frameWidth, token.y / frameHeight, token.w / frameWidth, token.h / frameHeight];
+  fill(image, token, [255, 123, 42, 255]);
+  fill(image, { ...token, w: 3 }, [255, 249, 246, 255]);
+  fill(image, { ...token, x: token.x + token.w, w: 30 }, [255, 255, 255, 255]);
+  assert.equal(firePositionIsOverexposed(image, box), false);
+
+  fill(image, { ...token, w: 11 }, [255, 245, 218, 255]);
+  assert.equal(firePositionIsOverexposed(image, box), true);
 });
 
 test("moving points of projected fire are not combined into a stationary marker", () => {
