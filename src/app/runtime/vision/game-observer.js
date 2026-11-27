@@ -46,6 +46,33 @@ function overlap([x, y, w, h], [a, b, c, d]) {
   return width > 0 && height > 0 ? width * height / (w * h) : 0;
 }
 
+function smallAlienRoom(zones, [x, y, width, height]) {
+  const footprint = [0.3, 0.5, 0.7].map(fraction => ({ x: x + fraction * width, y: y + 0.7 * height }));
+  const rooms = zones.filter(zone => !zone.corridor &&
+    footprint.every(point => polygonContains(zone.polygon, point)));
+  if (rooms.length !== 1) return null;
+  const room = rooms[0];
+  const xs = room.polygon.map(point => point.x);
+  const ys = room.polygon.map(point => point.y);
+  // A loose box can extend past the base of a short miniature. Require
+  // a small footprint well within a single room before using it.
+  return width * 2 <= Math.max(...xs) - Math.min(...xs) &&
+    height * 2 <= Math.max(...ys) - Math.min(...ys) ? room : null;
+}
+
+function pieceZone(zones, item) {
+  const point = { x: item.anchor[0], y: item.anchor[1] };
+  const containing = zones.filter(zone => (item.kind === "noise" || !zone.corridor) &&
+    polygonContains(zone.polygon, point));
+  const corridors = containing.filter(zone => zone.corridor);
+  const candidates = corridors.length ? corridors : containing;
+  if (candidates.length === 1) return candidates[0];
+  if (item.kind === "alien" && !candidates.length && !zones.some(zone => zone.corridor && polygonContains(zone.polygon, point))) {
+    return smallAlienRoom(zones, item.box);
+  }
+  return null;
+}
+
 export function makeGameLayout(definition, cameraBoard, width, height) {
   const at = ([x, y]) => {
     const point = cameraBoard.at({ x, y });
@@ -88,6 +115,7 @@ function updateBinary(track, seen, covered) {
 export function createGameObserver(layout) {
   const current = new Map();
   const tracks = new Map();
+  const detectionThreshold = 0.62;
   let lastId, lastTime, lastGeneration, lastSequence;
   const occluders = new Set(["alien", "character", "hand", "dice"]);
   const activity = new Set(["noise", "fire", "malfunction", "alien"]);
@@ -119,16 +147,15 @@ export function createGameObserver(layout) {
     lastSequence = sequence;
 
     const hits = new Map();
+    const dice = frame.classes.includes("dice") ? frame.objects.filter(item =>
+      item.kind === "dice" && item.confidence >= detectionThreshold) : [];
     for (const item of frame.objects) {
-      if (!activity.has(item.kind) || !frame.classes.includes(item.kind) || item.confidence < 0.62 ||
+      if (!activity.has(item.kind) || !frame.classes.includes(item.kind) || item.confidence < detectionThreshold ||
           !layout.effects[item.kind]) continue;
-      const point = { x: item.anchor[0], y: item.anchor[1] };
-      const containing = layout.zones.filter(zone => (item.kind === "noise" || !zone.corridor) &&
-        polygonContains(zone.polygon, point));
-      const corridors = containing.filter(zone => zone.corridor);
-      const candidates = corridors.length ? corridors : containing;
-      if (candidates.length !== 1) continue;
-      const [zone] = candidates;
+      if (item.kind === "fire" && dice.some(die =>
+        overlap(item.box, die.box) >= 2 / 3 && overlap(die.box, item.box) >= 2 / 3)) continue;
+      const zone = pieceZone(layout.zones, item);
+      if (!zone) continue;
       const key = item.kind + ":" + zone.id;
       const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [] };
       entry.boxes.push(item.box);
@@ -158,7 +185,7 @@ export function createGameObserver(layout) {
       if (!slots.length || !zone || !layout.effects[kind]) continue;
       const matching = [];
       for (const object of frame.objects) {
-        if (object.kind !== "track-marker" || object.confidence < 0.62 || !frame.classes.includes(object.kind)) continue;
+        if (object.kind !== "track-marker" || object.confidence < detectionThreshold || !frame.classes.includes(object.kind)) continue;
         const point = { x: object.anchor[0], y: object.anchor[1] };
         const slot = slots.find(slot => polygonContains(slot.polygon, point));
         if (slot) matching.push(slot);

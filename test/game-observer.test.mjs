@@ -82,6 +82,37 @@ test("dice trigger no effects and can temporarily cover a confirmed marker", () 
   assert.equal(observe([]).effects[0].active, false);
 });
 
+test("a confident die prevents a duplicate fire proposal without suppressing a nearby marker", () => {
+  const observe = newRun();
+  const dice = item("dice", 0.20, 0.17);
+  const duplicate = item("fire", 0.201, 0.17);
+  const realFire = item("fire", 0.23, 0.17);
+  const classes = ["dice", "fire"];
+  assert.deepEqual(observe([dice, duplicate], classes).effects, []);
+  assert.deepEqual(observe([duplicate, dice], classes).effects, []);
+  observe([realFire, duplicate, dice], classes);
+  const [fire] = observe([realFire, duplicate, dice], classes).effects;
+  assert.equal(fire.active, true);
+  assert.equal(fire.count, 1);
+});
+
+test("a short miniature is assigned by its lower footprint when its base anchor overshoots the room", () => {
+  const observe = newRun();
+  const larva = { ...item("alien", 0.27, 0.406), box: [0.22, 0.35, 0.10, 0.061] };
+  observe([larva]);
+  const [alarm] = observe([larva]).effects;
+  assert.equal(alarm.roomId, "room");
+  assert.equal(alarm.active, true);
+});
+
+test("a tall miniature or an anchor on a corridor does not use the small-footprint fallback", () => {
+  const observe = newRun();
+  const tall = { ...item("alien", 0.27, 0.410), box: [0.22, 0.26, 0.10, 0.163] };
+  const corridor = { ...item("alien", 0.402, 0.334), box: [0.33, 0.27, 0.08, 0.07] };
+  assert.deepEqual(observe([tall, corridor]).effects, []);
+  assert.deepEqual(observe([tall, corridor]).effects, []);
+});
+
 test("only noise starts an effect at the technical corridor symbol", () => {
   const observe = newRun();
   const objects = [item("noise", 0.16, 0.62), item("alien", 0.17, 0.62), item("fire", 0.18, 0.62)];
