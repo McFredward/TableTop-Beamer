@@ -595,6 +595,8 @@
     const isExplicitRemoveMutation =
       mutationType === "clear-all"
       || mutationType === "stop-animation";
+    // Camera stop IDs travel with snapshots so polling and reconnects also apply the stop immediately.
+    const stoppedCameraIds = new Set(Array.isArray(runtime.stoppedCameraAnimationIds) ? runtime.stoppedCameraAnimationIds : []);
     let preMergeAnimations = boardBoundRunningAnimations;
     if (isExplicitRemoveMutation) {
       // Explicit stop-animation / clear-all must remove immediately;
@@ -638,6 +640,10 @@
               absentMs: Math.round(nowEpochMs - Number(absentSinceMsById.get(id))),
             }));
           }
+          absentSinceMsById.delete(id);
+          continue;
+        }
+        if (stoppedCameraIds.has(id)) {
           absentSinceMsById.delete(id);
           continue;
         }

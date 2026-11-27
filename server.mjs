@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { cameraFrameId, createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
-import { createCameraAutomation, removeCameraAnimations } from "./src/server/camera-automation.mjs";
+import { createCameraAutomation, rememberCameraStops, removeCameraAnimations } from "./src/server/camera-automation.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
@@ -624,10 +624,11 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
   }
   if (action === "stop") {
     if (!existing || existing.cameraTriggerObservedAt > observedAt) return null;
-    return scope === "room"
+    const patch = scope === "room"
       ? applyRoomMutationPatch("stop-animation", { boardId, animationId: existing.id })
       : applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "stop",
         animationId: existing.id, outsideHint: scope === "outside" });
+    return { ...patch, runtime: rememberCameraStops(patch.runtime, [existing.id]) };
   }
 
   if (action === "verify") {

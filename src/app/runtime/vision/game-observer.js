@@ -30,6 +30,10 @@ function rectContains([x, y, w, h], point) {
   return point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h;
 }
 
+function rectCovers(rect, [x, y, w, h]) {
+  return rectContains(rect, { x, y }) && rectContains(rect, { x: x + w, y: y + h });
+}
+
 function polygonContains(polygon, point) {
   let inside = false;
   for (const [i, a] of polygon.entries()) {
@@ -156,7 +160,7 @@ export function createGameObserver(layout, {
     if (frame.frameId === lastId) return view();
     const [timestamp, generation, sequence] = frame.frameId.split("-").map(Number);
     if (lastId && generation === lastGeneration && sequence <= lastSequence) return view();
-    if (lastId && (timestamp - lastTime > 3500 || generation !== lastGeneration)) {
+    if (lastId && (timestamp - lastTime > 6000 || generation !== lastGeneration)) {
       for (const state of current.values()) {
         state.pending = state.clear = 0;
         if (!state.active) state.fireSightings = [];
@@ -201,7 +205,7 @@ export function createGameObserver(layout, {
     for (const [key, state] of current) {
       if (hits.has(key) || !activity.has(state.kind) || state.status === "removed") continue;
       const missingCoverage = !frame.classes.includes(state.kind)
-        || !state.zone.polygon.every(point => rectContains(frame.coverage, point));
+        || !state.boxes.every(box => rectCovers(frame.coverage, box));
       const weakFireReading = state.kind === "fire" && possibleOccluders.some(item =>
         item.kind === "fire" && item.confidence < detectionThreshold &&
         state.boxes.some(box => samePosition(box, item.box)));
@@ -213,7 +217,7 @@ export function createGameObserver(layout, {
       const blocked = missingCoverage || covered || overexposed;
       state.pending = 0;
       state.clear = blocked || weakFireReading ? 0 : state.clear + 1;
-      if (state.clear >= 3) state.active = false;
+      if (state.clear >= 2) state.active = false;
       state.status = overexposed ? "overexposed" : blocked ? "occluded"
         : state.active || weakFireReading ? "checking" : "removed";
       if (!state.active) state.count = 0;

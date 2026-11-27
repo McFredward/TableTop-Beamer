@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 const LEASE_MS = 15_000;
 const phases = new Set(["board", "bindings", "camera", "model", "registering", "active", "paused", "error"]);
+const CAMERA_STOP_HISTORY = 64;
 
 export function createCameraAutomation(now = Date.now) {
   let enabled = false;
@@ -39,6 +40,11 @@ export function createCameraAutomation(now = Date.now) {
   };
 }
 
+export function rememberCameraStops(runtime, ids) {
+  const recent = Array.isArray(runtime.stoppedCameraAnimationIds) ? runtime.stoppedCameraAnimationIds : [];
+  return { ...runtime, stoppedCameraAnimationIds: [...recent, ...ids].slice(-CAMERA_STOP_HISTORY) };
+}
+
 export function removeCameraAnimations(runtime, outsideFxByBoard) {
   const running = runtime.runningAnimations ?? [];
   const isOwned = animation => typeof animation.cameraTriggerOwner === "string" && animation.cameraTriggerOwner.length > 0;
@@ -52,7 +58,8 @@ export function removeCameraAnimations(runtime, outsideFxByBoard) {
     }
   }
   return {
-    runtime: { ...runtime, runningAnimations: running.filter(animation => !isOwned(animation)), outsideFxByBoard },
+    runtime: rememberCameraStops({ ...runtime, runningAnimations: running.filter(animation => !isOwned(animation)), outsideFxByBoard },
+      owned.map(animation => animation.id)),
     outsideFxByBoard,
   };
 }

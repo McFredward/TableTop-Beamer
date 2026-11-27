@@ -70,7 +70,6 @@ test("noise, malfunction, fire and alien alarm can coexist and characters alone 
   const occluded = room.concat(item("character", 0.309, 0.29));
   for (let j = 0; j < 4; j++) assert.equal(alarm(observe(occluded)).status, "occluded");
   assert.equal(alarm(observe(room)).active, true);
-  assert.equal(alarm(observe(room)).active, true);
   assert.equal(alarm(observe(room)).active, false);
 });
 
@@ -79,6 +78,22 @@ test("partial model coverage cannot clear a previously observed effect", () => {
   observe([item("fire", 0.2, 0.17)]);
   observe([item("fire", 0.2, 0.17)]);
   for (let round = 0; round < 4; round++) assert.equal(observe([], ["fire"], [0.47, 0, 0.5, 1]).effects[0].active, true);
+});
+
+test("removal needs two separate readings covering the marker's last position", () => {
+  const fire = item("fire", 0.20, 0.17);
+  const observer = createGameObserver(layout);
+  const read = (sequence, objects, coverage = [0, 0, 1, 1]) => observer.observe({
+    frameId: `${1795718000000 + sequence * 700}-1-${sequence}`, classes: ["fire"], objects, coverage,
+  }).effects[0];
+  read(1, [fire]);
+  assert.equal(read(2, [fire]).active, true);
+  const markerCrop = [0.17, 0.14, 0.08, 0.08];
+  assert.equal(read(3, [], markerCrop).status, "checking");
+  assert.equal(read(3, [], markerCrop).active, true);
+  assert.equal(read(4, [], [0.205, 0.14, 0.08, 0.08]).status, "occluded");
+  assert.equal(read(5, [], markerCrop).active, true);
+  assert.equal(read(6, [], markerCrop).status, "removed");
 });
 
 test("dice trigger no effects and can temporarily cover a confirmed marker", () => {
@@ -96,7 +111,6 @@ test("dice trigger no effects and can temporarily cover a confirmed marker", () 
     assert.equal(state.active, true);
   }
   assert.equal(observe([]).effects[0].active, true);
-  assert.equal(observe([]).effects[0].active, true);
   assert.equal(observe([]).effects[0].active, false);
 });
 
@@ -109,7 +123,6 @@ test("a fire marker can be confirmed when projected light alternates strong and 
   }
   assert.equal(observe([fire]).effects[0].active, true);
   assert.equal(observe([washedOut]).effects[0].active, true);
-  assert.equal(observe([]).effects[0].active, true);
   assert.equal(observe([]).effects[0].active, true);
   assert.equal(observe([]).effects[0].active, false);
 });
@@ -141,8 +154,7 @@ test("a stationary figure near a fire marker does not mask removal", () => {
 
   assert.equal(state([fire, nearby]).status, "visible");
   assert.equal(state([widerBox]).active, true);
-  assert.equal(state([nearby]).active, true);
-  const removed = state([widerBox]);
+  const removed = state([nearby]);
   assert.equal(removed.status, "removed");
   assert.equal(removed.active, false);
 });
@@ -168,7 +180,6 @@ test("overexposure only holds an established fire until the position is readable
     assert.equal(state.status, "overexposed");
     assert.equal(state.active, true);
   }
-  assert.equal(observe([]).active, true);
   assert.equal(observe([]).active, true);
   assert.equal(observe([]).status, "removed");
   assert.equal(observe([], glare).active, false);

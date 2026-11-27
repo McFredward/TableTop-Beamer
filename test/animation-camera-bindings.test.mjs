@@ -29,7 +29,6 @@ test("a saved model and class control an arbitrary room animation through glare 
   assert.deepEqual(advance("custom", [], true).actions, [room("verify")]);
   assert.equal(advance("custom", [], true).effects[0].active, true);
   assert.deepEqual(advance("custom").actions, []);
-  assert.deepEqual(advance("custom").actions, []);
   assert.deepEqual(advance("custom").actions, [room("stop")]);
   assert.deepEqual(advance("custom").actions, []);
 });

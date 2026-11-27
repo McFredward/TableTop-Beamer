@@ -81,6 +81,6 @@ export async function runCameraAutomation() {
   while (true) {
     try { await observe(); }
     catch { phase = "error"; }
-    await new Promise(resolve => setTimeout(resolve, phase === "active" ? 650 : phase === "error" ? 2500 : 1100));
+    await new Promise(resolve => setTimeout(resolve, phase === "active" ? 250 : phase === "error" ? 2500 : 1100));
   }
 }

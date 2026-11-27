@@ -183,6 +183,20 @@ function snapshot(runningAnimations) {
   return { runtime: { boardId: "board", runningAnimations } };
 }
 
+test("a confirmed camera stop takes effect in the first snapshot, including after reconnect", () => {
+  const { core } = loadCore();
+  const ctx = makeCtx("final");
+  core.init(ctx);
+  const manual = frozenInsideGif();
+  const camera = { ...frozenInsideMp4(), id: "camera-alarm", cameraTriggerOwner: '["inside","alarm",null]' };
+  ctx.state.runningAnimations = [manual, camera];
+  const next = snapshot([]);
+  next.runtime.stoppedCameraAnimationIds = [camera.id];
+  core.applyLiveRuntimeSnapshot(next, { version: 1 });
+  assert.equal(ctx.state.runningAnimations.length, 1);
+  assert.equal(ctx.state.runningAnimations[0].id, manual.id);
+});
+
 let __version = 1;
 function applyUnrelated(core, ctx, mutationType, extraRoomAnim) {
   // Re-emit both inside instances (server view) + an unrelated room animation.

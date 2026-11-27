@@ -37,6 +37,7 @@ test("disabling camera effects stops only its instances, including the associate
   const profiles = { [boardId]: { enabled: true, selectedAnimationId: "sandstorm" }, other: { enabled: true } };
   const stopped = removeCameraAnimations({ boardId, runningAnimations: [cameraFire, cameraWeather, alarm] }, profiles);
   assert.deepEqual(stopped.runtime.runningAnimations, [alarm]);
+  assert.deepEqual(stopped.runtime.stoppedCameraAnimationIds, [cameraFire.id, cameraWeather.id]);
   assert.deepEqual(stopped.outsideFxByBoard, {
     [boardId]: { enabled: false, selectedAnimationId: "sandstorm" }, other: { enabled: true },
   });
