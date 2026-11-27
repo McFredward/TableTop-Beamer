@@ -38,6 +38,7 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
     sx, sy = roi_width / width / original_width, roi_height / height / original_height
     left, top = x / original_width, y / original_height
     objects = []
+    corrections = detections.data.get("reclassified_malfunction")
     for i, (label, score, box) in enumerate(zip(detections.data.get("class_name", []), detections.confidence,
                                                  detections.xyxy, strict=True)):
         if label not in classes:
@@ -60,11 +61,17 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
                 if base.any():
                     cx = min(x1, max(x0, float(np.median(xs[base]))))
                     cy = min(y1, float(np.median(ys[base])))
-        objects.append({
+        item = {
             "kind": label, "confidence": float(score),
             "box": [left + x0 * sx, top + y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy],
             "anchor": [left + cx * sx, top + cy * sy],
-        })
+        }
+        if corrections is not None and np.isfinite(corrections[i]).all():
+            a, b, c, d = corrections[i].tolist()
+            a, b, c, d = max(0, a), max(0, b), min(width, c), min(height, d)
+            if c > a and d > b:
+                item["reclassifiedFrom"] = {"kind": "malfunction", "box": [left + a * sx, top + b * sy, (c - a) * sx, (d - b) * sy]}
+        objects.append(item)
     return {
         "frameId": frame_id, "classes": sorted(classes),
         "objects": sorted(objects, key=lambda item: -item["confidence"])[:256],
@@ -149,6 +156,33 @@ class WorkerFailure(Exception):
     def __init__(self, code, message):
         super().__init__(message)
         self.code = code
+
+
+class DetailDetector:
+    """Use fine-tuned logits on close crops with the board detector unchanged."""
+
+    def __init__(self, model, adapter, torch):
+        head = model.model.model.class_embed
+        weights = torch.zeros_like(head.weight)
+        bias = torch.zeros_like(head.bias)
+        for name, row in adapter["classes"].items():
+            index = list(model.class_names).index(name)
+            weights[index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
+            bias[index] = row["bias"]
+        head.register_buffer("detail_weights", weights, persistent=False)
+        head.register_buffer("detail_bias", bias, persistent=False)
+
+        def correct(layer, args, output):
+            return output + torch.nn.functional.linear(args[0], layer.detail_weights, layer.detail_bias)
+
+        hook = head.register_forward_hook(correct)
+        try:
+            self.predictor = model.inference(compile=False)
+        finally:
+            hook.remove()
+
+    def predict(self, *args, **options):
+        return self.predictor.predict(*args, antialias=True, **options)
 
 
 class ModelProgress:
@@ -260,6 +294,10 @@ def run_detector(args, url, model_identity, preset, progress):
     model = model_type(device=device, **weights)
     progress.show("preparing")
     predictor = model.inference(compile=False)
+    detail = None
+    if small_objects and preset.get("detailAdapter"):
+        adapter_path = Path(__file__).resolve().parents[1] / "config" / preset["detailAdapter"]
+        detail = DetailDetector(model, json.loads(adapter_path.read_text(encoding="utf-8")), torch)
     classes = set()
     if args.game:
         names = model.class_names
@@ -270,6 +308,7 @@ def run_detector(args, url, model_identity, preset, progress):
         if len(classes) > 128:
             raise WorkerFailure("checkpoint", "Game observation supports up to 128 published classes per detector")
         print(f"Publishing detector {model_identity['modelId']}", flush=True)
+    del model
     annotations = (
         sv.MaskAnnotator(opacity=0.42),
         sv.BoxAnnotator(thickness=2),
@@ -329,7 +368,8 @@ def run_detector(args, url, model_identity, preset, progress):
                     refinement_key, recent_small_objects = current_key, []
                 reduced = reduce_projection(image, last_frame, previous_frames, original_size, args.roi, np)
                 detections, recent_small_objects = refine_small_objects(
-                    predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
+                    detail or predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
+                    review_malfunctions=detail is not None, deadline=started + 4.4,
                 )
                 analysis = image
             elapsed = (time.monotonic() - inference_start) * 1000

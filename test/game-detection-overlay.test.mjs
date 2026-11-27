@@ -27,3 +27,12 @@ test("one missed detection keeps a confident box until the next result", () => {
   overlay(read("4-1-4", [alien, fire]));
   assert.deepEqual(overlay(read("5-1-5", [fire], "different")).objects, [fire]);
 });
+
+test("a reclassified piece immediately replaces its obsolete label", () => {
+  const overlay = createGameDetectionOverlay(() => 0);
+  const wrong = { ...alien, kind: "malfunction" };
+  const corrected = { ...alien, reclassifiedFrom: { kind: "malfunction", box: wrong.box } };
+  const update = (seq, object) => overlay({ ...read(seq, [object]), classes: ["alien", "malfunction"] });
+  update("1-1-1", wrong);
+  assert.deepEqual(update("2-1-2", corrected).objects, [corrected]);
+});

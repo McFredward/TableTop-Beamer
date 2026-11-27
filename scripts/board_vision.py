@@ -2,6 +2,7 @@
 
 import argparse
 from itertools import chain
+from time import monotonic
 
 BOARD_CLASSES = {"noise", "fire", "malfunction", "alien", "character", "hand", "dice", "track-marker"}
 SMALL_PROPOSAL_THRESHOLD = 0.04
@@ -49,7 +50,8 @@ def predict_tiled(predictor, image, threshold, tile_size):
     return slicer(image)
 
 
-def refine_small_objects(predictor, image, detections, classes, threshold, recent=(), reduced_projection=None):
+def refine_small_objects(predictor, image, detections, classes, threshold, recent=(), reduced_projection=None,
+                         review_malfunctions=False, deadline=None):
     """Rerun the detector at native resolution around uncertain, compact pieces."""
     import numpy as np
     import supervision as sv
@@ -68,6 +70,7 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     relevant = np.isin(labels, classes)
     candidates = np.flatnonzero(small & relevant & (scores < confidence))
     character_boxes = detections.xyxy[(labels == "character") & (scores >= 0.15)]
+    confirmed_characters = detections.xyxy[(labels == "character") & (scores >= 0.40)]
     new_proposals = []
     for index in sorted(candidates, key=lambda i: -scores[i]):
         label, box = labels[index], detections.xyxy[index]
@@ -82,7 +85,17 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
         if len(possible_figures) and len(malfunction_boxes):
             conflicts = sv.box_iou_batch(malfunction_boxes, possible_figures).max(axis=1) >= 0.65
             new_proposals[:0] = (("alien", box, None) for box in malfunction_boxes[conflicts])
+    if review_malfunctions and "alien" in classes:
+        doubtful = np.flatnonzero(small & (labels == "malfunction") & (scores >= threshold) & (scores <= 0.82))
+        reviews = []
+        for index in sorted(doubtful, key=lambda i: abs(scores[i] - confidence)):
+            box = detections.xyxy[index]
+            if len(character_boxes) and (sv.box_iou_batch(box[None, :], character_boxes) >= 0.55).any():
+                continue
+            reviews.append(("alien", box, None))
+        new_proposals[:0] = reviews[:2]
     accepted = []
+    accepted_from = []
     centers = []
     next_recent = []
     width, height = min(size, image.width), min(size, image.height)
@@ -99,6 +112,10 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
         center = (box[:2] + box[2:]) / 2
         if any(np.linalg.norm(center - previous) < size / 12 for previous in centers):
             continue
+        if deadline is not None and monotonic() >= deadline:
+            if not next_recent:
+                next_recent.extend(recent)
+            break
         left = max(0, min(image.width - width, round(float(center[0]) - width / 2)))
         top = max(0, min(image.height - height, round(float(center[1]) - height / 2)))
         bounds = (left, top, left + width, top + height)
@@ -114,11 +131,18 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
         confirmed = False
         if len(zoom):
             zoom.xyxy += (left, top, left, top)
-            matches = (zoom.data["class_name"] == label) & (sv.box_iou_batch(box[None, :], zoom.xyxy)[0] >= 0.30)
+            close = sv.box_iou_batch(box[None, :], zoom.xyxy)[0] >= 0.30
+            matches = (zoom.data["class_name"] == label) & close
+            if review_malfunctions and label == "alien":
+                competing = zoom.confidence[close & np.isin(zoom.data["class_name"], ["malfunction", "character"])]
+                matches &= zoom.confidence >= max(0.72, competing.max(initial=0) + 0.12)
+                if len(confirmed_characters):
+                    matches &= sv.box_iou_batch(zoom.xyxy, confirmed_characters).max(axis=1) < 0.4
             if matches.any():
                 choices = zoom[matches]
                 best = int(np.argmax(choices.confidence))
                 accepted.append(choices[best:best + 1])
+                accepted_from.append(box)
                 next_recent.append((label, choices.xyxy[best], 0))
                 confirmed = True
         # A confirmed crop gets another look if projection temporarily hides it.
@@ -131,12 +155,26 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     if not accepted:
         return baseline, next_recent[:2]
     refined = sv.Detections.merge(accepted)
-    aliens = refined.xyxy[refined.data["class_name"] == "alien"]
-    if len(aliens) and len(baseline):
-        rival = baseline.data["class_name"] == "malfunction"
-        matches = sv.box_iou_batch(baseline.xyxy, aliens).max(axis=1) >= 0.53
-        baseline = baseline[~(rival & matches)]
+    displaced = []
+    if len(baseline):
+        removed = np.zeros(len(baseline), dtype=bool)
+        for label, candidate, actual in zip(refined.data["class_name"], accepted_from, refined.xyxy, strict=True):
+            if label != "alien":
+                continue
+            overlap = sv.box_iou_batch(np.array([candidate, actual]), baseline.xyxy)
+            matches = (baseline.data["class_name"] == "malfunction") & ((overlap[0] >= 0.70) | (overlap[1] >= 0.53))
+            if matches.any():
+                replaced = baseline.xyxy[int(np.argmax(np.where(matches, overlap.max(axis=0), 0)))]
+                displaced.append((actual, replaced))
+                removed |= matches
+        baseline = baseline[~removed]
     merged = sv.Detections.merge([baseline, refined]).with_nms(threshold=0.5)
+    if displaced:
+        corrections = np.full(merged.xyxy.shape, np.nan)
+        for actual, replaced in displaced:
+            matches = (merged.data["class_name"] == "alien") & (sv.box_iou_batch(actual[None, :], merged.xyxy)[0] >= 0.7)
+            corrections[matches] = replaced
+        merged.data["reclassified_malfunction"] = corrections
     return merged, next_recent[:2]
 
 

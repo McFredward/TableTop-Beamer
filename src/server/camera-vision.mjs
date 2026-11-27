@@ -125,11 +125,14 @@ export function createCameraVision(cameraInput, now = Date.now) {
             !item || !classes.includes(item.kind) || !Number.isFinite(item.confidence) ||
             item.confidence < 0 || item.confidence > 1 || !rect(item.box) || !Array.isArray(item.anchor) ||
             item.anchor.length !== 2 || !item.anchor.every((v, i) => Number.isFinite(v) &&
-              v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6))) return 400;
+              v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6) ||
+            (item.reclassifiedFrom !== undefined && (!classes.includes(item.reclassifiedFrom?.kind) ||
+              item.reclassifiedFrom.kind === item.kind || !rect(item.reclassifiedFrom.box))))) return 400;
       const feed = objectFrames.get(modelId) ?? new Map();
       if (!freshFrame(frameId) || feed.has(frameId)) return 409;
       feed.set(frameId, { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
-        objects: objects.map(({ kind, confidence, box, anchor }) => ({ kind, confidence, box, anchor })) });
+        objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom }) => ({ kind, confidence, box, anchor,
+          ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) });
       if (feed.size > 4) feed.delete(feed.keys().next().value);
       objectFrames.delete(modelId);
       objectFrames.set(modelId, feed);

@@ -96,6 +96,21 @@ test("removal needs two separate readings covering the marker's last position", 
   assert.equal(read(6, [], markerCrop).status, "removed");
 });
 
+test("a confirmed reclassification clears the false marker without treating the miniature as an occluder", () => {
+  const observe = newRun();
+  const wrong = item("malfunction", 0.20, 0.17);
+  const alien = item("alien", 0.20, 0.17);
+  const confirmed = { ...alien, reclassifiedFrom: { kind: wrong.kind, box: wrong.box } };
+  const effect = result => result.effects.find(value => value.kind === "malfunction");
+  observe([wrong]);
+  assert.equal(effect(observe([wrong])).active, true);
+  assert.equal(effect(observe([alien])).status, "occluded");
+  assert.equal(effect(observe([confirmed])).status, "checking");
+  const final = observe([confirmed]);
+  assert.equal(effect(final).status, "removed");
+  assert.equal(final.effects.find(value => value.kind === "alien").active, true);
+});
+
 test("dice trigger no effects and can temporarily cover a confirmed marker", () => {
   const run = newRun();
   const observe = (objects) => run(objects, ["fire", "dice"]);

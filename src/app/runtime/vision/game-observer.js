@@ -71,6 +71,7 @@ function recordFireSighting(state, boxes, figures, frameNumber) {
 }
 
 function coversPosition(state, box, item) {
+  if (item.reclassifiedFrom?.kind === state.kind && samePosition(box, item.reclassifiedFrom.box)) return false;
   const area = overlap(box, item.box);
   if (area <= 0.25) return false;
   if (state.kind !== "fire" || !miniatureKinds.has(item.kind)) return true;

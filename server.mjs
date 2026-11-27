@@ -78,7 +78,8 @@ const cameraVision = createCameraVision({ latestFrame: () => cameraInput().lates
 const cameraAutomation = createCameraAutomation();
 const managedVision = createManagedVision({ root: ROOT_DIR, vision: cameraVision,
   python: process.env.TT_BEAMER_VISION_PYTHON, checkpoint: process.env.TT_BEAMER_VISION_CHECKPOINT,
-  modelId: process.env.TT_BEAMER_VISION_MODEL_ID, device: process.env.TT_BEAMER_VISION_DEVICE });
+  modelId: process.env.TT_BEAMER_VISION_MODEL_ID, device: process.env.TT_BEAMER_VISION_DEVICE,
+  roi: process.env.TT_BEAMER_VISION_ROI, tileSize: process.env.TT_BEAMER_VISION_TILE_SIZE });
 process.on("exit", () => managedVision.stop());
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
 const piOutput = createPiOutput({

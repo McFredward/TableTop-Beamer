@@ -331,7 +331,9 @@ The registered Nemesis checkpoint rechecks up to three uncertain compact
 alien candidates on crops at camera resolution. When projected light changes
 over a crop, the detector can use the darkest values from recent camera frames
 to reduce the overlay. Confirmed positions get checked again in later frames.
-Only a matching, confident detection is added to the game readings.
+A fine-tuned classification head for these crops distinguishes larvae from
+defect markers. Only a matching, confident detection is added to the game
+readings.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
@@ -403,7 +405,8 @@ TT-Beamer starts the configured worker when **Camera effects** needs its
 model. The managed worker defaults to the `nemesis` model ID, CPU inference
 and one analyzed frame per second. `TT_BEAMER_VISION_MODEL_ID` selects another
 binding ID. Set `TT_BEAMER_VISION_DEVICE=cuda` to use a configured CUDA
-environment. For separate terminal use, pass `--model-id nemesis` to report
+environment. `TT_BEAMER_VISION_ROI` and `TT_BEAMER_VISION_TILE_SIZE` use the
+same syntax as `--roi` and `--tile-size`. For separate terminal use, pass `--model-id nemesis` to report
 checkpoint errors under that ID even before the weights can be loaded.
 
 On setups without server rendering, keep the dashboard open on the server PC

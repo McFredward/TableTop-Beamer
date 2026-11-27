@@ -22,7 +22,9 @@ export function createGameDetectionOverlay(now = () => performance.now()) {
     if (model.frameId !== last?.frameId || model.modelId !== last?.modelId) {
       const previous = last && model.modelId === last.modelId && time - receivedAt <= MODEL_GAP_MS ? objects : [];
       const held = previous.filter(item => !item.held && item.confidence >= HOLD_CONFIDENCE &&
-        model.classes.includes(item.kind) && !model.objects.some(current => current.kind === item.kind && overlaps(current.box, item.box)));
+        model.classes.includes(item.kind) && !model.objects.some(current =>
+          (current.kind === item.kind && overlaps(current.box, item.box)) ||
+          (current.reclassifiedFrom?.kind === item.kind && overlaps(current.reclassifiedFrom.box, item.box))));
       objects = model.objects.concat(held.map(item => ({ ...item, held: true })));
       last = model;
       receivedAt = time;

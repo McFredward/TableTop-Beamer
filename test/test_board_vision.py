@@ -107,6 +107,9 @@ class SmallObjectRefinementTest(unittest.TestCase):
                                               reduced_projection=reduced)
         self.assertEqual(result.data["class_name"].tolist(), ["alien"])
         np.testing.assert_array_equal(result.xyxy, [box])
+        payload = board_objects("frame", {"alien", "malfunction"}, result, image.size, image.size, None, np)
+        self.assertEqual(payload["objects"][0]["reclassifiedFrom"]["kind"], "malfunction")
+        np.testing.assert_allclose(payload["objects"][0]["reclassifiedFrom"]["box"], [350/800, 310/720, 100/800, 80/720])
         again, _ = refine_small_objects(LarvaOnClearCrop(), image, sv.Detections.empty(), ["alien"], 0.25,
                                         recent, reduced)
         self.assertEqual(again.data["class_name"].tolist(), ["alien"])

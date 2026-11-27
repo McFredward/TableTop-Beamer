@@ -73,6 +73,19 @@ test("structured game detections stay attached to a recent camera frame and reje
   assert.equal(vision.objectsFor(shape.frameId), null);
 });
 
+test("validated reclassifications keep the discarded marker location", () => {
+  const source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const reclassifiedFrom = { kind: "malfunction", box: [0.2, 0.3, 0.14, 0.1] };
+  const reading = { frameId: cameraFrameId(source), classes: ["alien", "malfunction"], coverage: [0, 0, 1, 1],
+    objects: [{ kind: "alien", confidence: 0.9, box: [0.2, 0.34, 0.07, 0.06], anchor: [0.23, 0.39], reclassifiedFrom }] };
+  assert.equal(vision.publishObjects(reading), 204);
+  assert.deepEqual(vision.objectsFor().objects[0].reclassifiedFrom, reclassifiedFrom);
+  const invalid = { ...reading, modelId: "another", objects: [{ ...reading.objects[0],
+    reclassifiedFrom: { kind: "malfunction", box: [0.9, 0.3, 0.3, 0.1] } }] };
+  assert.equal(vision.publishObjects(invalid), 400);
+});
+
 test("separate detectors can report arbitrary trained classes on the same frame", () => {
   const source = cameraFrame(1);
   const vision = createCameraVision({ latestFrame: () => source });

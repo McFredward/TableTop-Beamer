@@ -6,7 +6,7 @@ function isFile(path) {
   return Boolean(path && statSync(path, { throwIfNoEntry: false })?.isFile());
 }
 
-export function createManagedVision({ root, python, checkpoint, modelId = "nemesis", device = "cpu", vision,
+export function createManagedVision({ root, python, checkpoint, modelId = "nemesis", device = "cpu", roi, tileSize, vision,
   start = spawn, now = Date.now }) {
   const configured = Boolean(python || checkpoint);
   const executable = python && resolve(root, python);
@@ -46,7 +46,8 @@ export function createManagedVision({ root, python, checkpoint, modelId = "nemes
       if (!isFile(weights)) { retry("checkpoint"); return; }
       if (!["cpu", "cuda"].includes(device)) { retry("device"); return; }
       const worker = start(executable, [resolve(root, "scripts/stream_board_vision.py"), "--port", String(port),
-        "--game", "--checkpoint", weights, "--model-id", modelId, "--device", device, "--max-fps", "1"],
+        "--game", "--checkpoint", weights, "--model-id", modelId, "--device", device, "--max-fps", "1",
+        ...(roi ? ["--roi", roi] : []), ...(tileSize ? ["--tile-size", tileSize] : [])],
       { cwd: root, windowsHide: true, stdio: ["ignore", "inherit", "inherit"] });
       child = worker;
       phase = "starting";
