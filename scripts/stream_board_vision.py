@@ -7,12 +7,17 @@ import json
 import re
 import sys
 import time
+from collections import deque
 from pathlib import Path
+from threading import Thread
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from board_vision import add_tile_option, parse_roi, predict_tiled, resize_detections
+from board_vision import (
+    SMALL_OBJECT_CROP_SIZE, SMALL_PROPOSAL_THRESHOLD, add_tile_option, parse_roi,
+    predict_tiled, refine_small_objects, resize_detections,
+)
 
 
 def identify_checkpoint(checkpoint, model_id=None):
@@ -22,7 +27,7 @@ def identify_checkpoint(checkpoint, model_id=None):
     preset = next((entry for entry in presets["models"] if entry["checkpointSha256"] == digest), {})
     identity = {"modelId": model_id or preset.get("id", "checkpoint-" + digest[:20]),
                 "modelName": model_id or preset.get("name", checkpoint.stem[:120])}
-    return identity, preset.get("variant")
+    return identity, preset
 
 
 def board_objects(frame_id, classes, detections, size, original_size, roi, np):
@@ -87,8 +92,8 @@ def annotate(image, detections, annotators, np):
     return jpeg.getvalue()
 
 
-def get_frame(url, last_frame):
-    query = {"purpose": "inference"}
+def get_frame(url, last_frame, *, inference=True):
+    query = {"purpose": "inference"} if inference else {}
     if last_frame:
         query["after"] = last_frame
     try:
@@ -100,6 +105,43 @@ def get_frame(url, last_frame):
         if error.code == 503:
             return None
         raise
+
+
+def collect_projection_samples(url, samples):
+    last_id = None
+    while True:
+        try:
+            frame = get_frame(url, last_id, inference=False)
+            if frame:
+                last_id = frame[0]
+                samples.append(frame)
+        except (URLError, TimeoutError):
+            pass
+        time.sleep(0.25)
+
+
+def reduce_projection(image, frame_id, samples, original_size, roi, np):
+    """Reduce changing projector highlights using a short history with no inference wait."""
+    from PIL import Image
+
+    timestamp, generation, _ = map(int, frame_id.split("-"))
+    prior = [jpeg for identity, jpeg in samples if (parts := list(map(int, identity.split("-"))))[1] == generation
+             and 0 < timestamp - parts[0] <= 3700]
+    if len(prior) < 2:
+        return None
+    minimum = np.array(image)
+    for jpeg in prior:
+        try:
+            with Image.open(io.BytesIO(jpeg)) as source:
+                if source.size != original_size:
+                    continue
+                if roi:
+                    x, y, width, height = roi
+                    source = source.crop((x, y, x + width, y + height))
+                np.minimum(minimum, np.asarray(source.convert("RGB")), out=minimum)
+        except OSError:
+            continue
+    return Image.fromarray(minimum)
 
 
 def main():
@@ -125,8 +167,9 @@ def main():
     if args.model_id and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", args.model_id):
         parser.error("Model ID must use up to 80 letters, numbers, periods, underscores or hyphens")
 
-    model_identity, variant = identify_checkpoint(args.checkpoint, args.model_id) if args.game else ({}, None)
-    model_name = args.model or variant or "seg-2xlarge"
+    model_identity, preset = identify_checkpoint(args.checkpoint, args.model_id) if args.game else ({}, {})
+    model_name = args.model or preset.get("variant") or "seg-2xlarge"
+    small_objects = preset.get("smallObjectClasses", []) if model_name == "large" else []
     try:
         import numpy as np
         from PIL import Image
@@ -165,7 +208,12 @@ def main():
     )
     url = f"http://127.0.0.1:{args.port}"
     print(f"Reading camera frames from {url}", flush=True)
+    projection_samples = deque(maxlen=5)
+    if small_objects:
+        Thread(target=collect_projection_samples, args=(url, projection_samples), daemon=True).start()
     last_frame = None
+    refinement_key = None
+    recent_small_objects = []
     shown_connection_error = False
     detection_threshold = min(args.threshold, 0.25) if args.game else args.threshold
     while True:
@@ -187,17 +235,32 @@ def main():
                 if x + width > image.width or y + height > image.height:
                     parser.error("The ROI must fit inside the live camera image")
                 image = image.crop((x, y, x + width, y + height))
-            if not args.tile_size:
-                image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            refine = small_objects and (args.tile_size or max(image.size)) > SMALL_OBJECT_CROP_SIZE
+            previous_frames = projection_samples.copy() if refine else ()
+            analysis = image
+            if not args.tile_size and max(image.size) > 1600:
+                analysis = image.copy() if refine else image
+                analysis.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            threshold = min(detection_threshold, SMALL_PROPOSAL_THRESHOLD) if refine else detection_threshold
 
             inference_start = time.monotonic()
             if args.tile_size:
-                detections = predict_tiled(predictor, image, detection_threshold, args.tile_size)
+                detections = predict_tiled(predictor, analysis, threshold, args.tile_size)
             else:
-                detections = predictor.predict(image, threshold=detection_threshold, include_source_image=False)
+                detections = predictor.predict(analysis, threshold=threshold, include_source_image=False)
+            if refine:
+                detections = resize_detections(detections, analysis.size, image.size)
+                current_key = (last_frame.split("-")[1], image.size)
+                if current_key != refinement_key:
+                    refinement_key, recent_small_objects = current_key, []
+                reduced = reduce_projection(image, last_frame, previous_frames, original_size, args.roi, np)
+                detections, recent_small_objects = refine_small_objects(
+                    predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
+                )
+                analysis = image
             elapsed = (time.monotonic() - inference_start) * 1000
             if classes:
-                payload = board_objects(last_frame, classes, detections, image.size, original_size, args.roi, np)
+                payload = board_objects(last_frame, classes, detections, analysis.size, original_size, args.roi, np)
                 payload.update(model_identity)
                 request = Request(url + "/api/camera/board-objects", method="POST",
                                   data=json.dumps(payload, allow_nan=False).encode("utf-8"),
@@ -212,11 +275,10 @@ def main():
             if args.game and len(annotated):
                 included = (np.asarray(annotated.data["class_name"]) != "track-marker") & (annotated.confidence >= args.threshold)
                 annotated = annotated[included]
-            if args.tile_size:
-                prediction_size = image.size
-                image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-                annotated = resize_detections(annotated, prediction_size, image.size)
-            result = annotate(image, annotated, annotations, np)
+            prediction_size = analysis.size
+            analysis.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            annotated = resize_detections(annotated, prediction_size, analysis.size)
+            result = annotate(analysis, annotated, annotations, np)
             original_width, original_height = original_size
             x, y, width, height = args.roi or (0, 0, original_width, original_height)
             coverage = [x / original_width, y / original_height, width / original_width, height / original_height]

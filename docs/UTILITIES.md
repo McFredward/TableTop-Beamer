@@ -327,6 +327,11 @@ preview. Check projection smoothness and inference time before increasing
 the inference rate. Add `--checkpoint path\to\weights.pt` and choose the
 matching `--model` to test trained Nemesis classes. The dashboard identifies
 whether the result uses COCO weights or a custom checkpoint.
+The registered Nemesis checkpoint rechecks up to three uncertain compact
+alien candidates on crops at camera resolution. When projected light changes
+over a crop, the detector can use the darkest values from recent camera frames
+to reduce the overlay. Confirmed positions get checked again in later frames.
+Only a matching, confident detection is added to the game readings.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
@@ -385,10 +390,11 @@ to run the camera observer.
 **Camera → Game observation** shows the readings for review.
 
 A confirmed presence starts the linked animation. Room animations use the
-detected position. Removal stops the camera-started instance. Room animations
-also offer an optional **Verification opacity**. When the last position is hard
-to read, the renderer briefly uses that opacity so the camera can check the
-room again.
+detected position. Two fresh, clear readings of the last known positions stop
+the camera-started instance. Occlusion, glare or incomplete coverage keep the
+prior reading while the camera checks. Room animations also offer an optional
+**Verification opacity**. When the last position is hard to read, the renderer
+briefly uses that opacity so the camera can check the room again.
 
 ---
 
