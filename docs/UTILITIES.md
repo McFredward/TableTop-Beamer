@@ -361,6 +361,9 @@ Run the vision worker with `--game --checkpoint path/to/weights.pth` to
 publish model detections for pieces. The expected labels are `noise`,
 `fire`, `malfunction`, `alien`, `character` and optionally `hand` and `dice`.
 Dice are visible in Detections and protect a covered marker's last confirmed state.
+On Nemesis A and B, Game observation checks model Fire boxes against the matching
+camera image. Boxes with a clear dice shape are treated as possible occluders.
+If that source image has expired, the previous Fire state stays in place.
 The worker uses the base of an alien or character to assign it to a room.
 Noise in a mapped corridor proposes **Light Flicker** there. Fire and
 malfunction have independent room effects. A room gets an **Alarm** proposal

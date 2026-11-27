@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import cvModule from "@techstark/opencv-js";
-import { createFireTracker, detectFireTokens, makeFireGeometry } from "../src/app/runtime/vision/fire-observer.js";
+import { checkTrainedFireShapes, createFireTracker, detectFireTokens, makeFireGeometry } from "../src/app/runtime/vision/fire-observer.js";
 
 const room = { id: "a-02", name: "005", polygon: [[0.17, 0.2], [0.52, 0.2], [0.52, 0.65], [0.17, 0.65]] };
 const frameWidth = 1200;
@@ -87,6 +87,25 @@ test("a warm halo connected to a marker does not replace its compact core", asyn
   fill(image, { x: 354, y: 263, w: 60, h: 38 }, [142, 118, 96, 255]);
   fill(image, token, [194, 91, 59, 255]);
   assert.deepEqual(detectFireTokens(cv, image, geometry).get(room.id)?.box, token);
+});
+
+test("a dice-like model box becomes an occluder while the original detections stay available", () => {
+  const image = frame();
+  const geometry = makeFireGeometry(board, [room], frameWidth, frameHeight);
+  for (let col = 0; col < 16; col++) {
+    fill(image, { x: 367 + col, y: 272, w: 1, h: 16 }, [210 - col * 2, 56, 46, 255]);
+  }
+  fill(image, { x: 421, y: 301, w: 18, h: 22 }, [175, 72, 29, 255]);
+  const makeObject = (x, y, w, h) => ({ kind: "fire", confidence: 0.92,
+    box: [x / frameWidth, y / frameHeight, w / frameWidth, h / frameHeight] });
+  const dice = makeObject(360, 265, 30, 30);
+  const flame = makeObject(421, 301, 18, 22);
+  const model = { classes: ["fire"], objects: [dice, flame] };
+
+  const checked = checkTrainedFireShapes(image, geometry, model);
+  assert.deepEqual(checked.classes, ["fire", "dice"]);
+  assert.deepEqual(checked.objects, [{ ...dice, kind: "dice", confidence: 0.5 }, flame]);
+  assert.equal(model.objects[0].kind, "fire");
 });
 
 test("moving points of projected fire are not combined into a stationary marker", () => {

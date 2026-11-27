@@ -1,6 +1,6 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
-import { createFireTracker, detectFireTokens, makeFireGeometry } from "../vision/fire-observer.js";
+import { checkTrainedFireShapes, createFireTracker, detectFireTokens, makeFireGeometry } from "../vision/fire-observer.js";
 import { createGameObserver, isClassicNemesisBoard, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 
@@ -24,7 +24,7 @@ function paintBoxes(context, boxes) {
   context.restore();
 }
 
-export function createGameReview() {
+export function createGameReview(getSourceFrame) {
   const panel = document.getElementById("game-review");
   const tracks = document.getElementById("game-review-tracks");
   const effects = document.getElementById("game-review-effects");
@@ -76,6 +76,31 @@ export function createGameReview() {
     if (element.textContent !== value) element.textContent = value;
   }
 
+  async function modelForObservation(model, frame, id, signal) {
+    const current = setup;
+    if (!current.geometry || !model.classes.includes("fire") || !model.objects.some(item => item.kind === "fire")) {
+      return model;
+    }
+    if (current.checkedModel?.frameId === model.frameId) return current.checkedModel;
+
+    let matchingFrame = frame;
+    if (id !== model.frameId) {
+      const bitmap = await getSourceFrame(model.frameId, signal).catch(() => null);
+      try {
+        signal.throwIfAborted();
+        matchingFrame = bitmap ? readBitmap(bitmap, true) : null;
+      } finally {
+        bitmap?.close();
+      }
+    }
+    current.checkedModel = matchingFrame?.width === current.width && matchingFrame.height === current.height
+      ? checkTrainedFireShapes(matchingFrame, current.geometry, model)
+      // With no paired source image, retain existing fire state as uncertain.
+      : { ...model, classes: model.classes.filter(kind => kind !== "fire"),
+        objects: model.objects.filter(item => item.kind !== "fire") };
+    return current.checkedModel;
+  }
+
   async function observe(bitmap, id, context, signal, { annotated = false } = {}) {
     const frame = readBitmap(bitmap, true);
     const [, generation] = id.split("-");
@@ -95,7 +120,9 @@ export function createGameReview() {
     const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0]))
       .filter(item => item.active || item.state === "removed") : [];
     const native = setup.native.observe({ frameId: id, ...beads, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
-    const trained = model ? setup.trained.observe(model) : null;
+    const checkedModel = model ? await modelForObservation(model, frame, id, signal) : null;
+    signal.throwIfAborted();
+    const trained = checkedModel ? setup.trained.observe(checkedModel) : null;
     const proposed = native.effects.concat(trained?.effects ?? []);
     render(tracks, native.tracks.map(track => {
       const label = track.kind === "round" ? "Round" : "Self-destruct";

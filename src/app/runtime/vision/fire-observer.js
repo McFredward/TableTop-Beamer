@@ -1,4 +1,4 @@
-import { looksLikeDie } from "./fire-dice-shape.js";
+import { looksLikeDie, modelBoxLooksLikeDie } from "./fire-dice-shape.js";
 
 // First-pass detector for the translucent orange Nemesis fire token. The
 // room and frame-state logic can also consume a trained detector's boxes.
@@ -131,6 +131,21 @@ function boardUnderRedLight(mask, pixels) {
     if (pixels[i * 4] - pixels[i * 4 + 1] >= 18) redSamples++;
   }
   return samples > 0 && redSamples / samples >= 0.16;
+}
+
+export function checkTrainedFireShapes(frame, geometry, model) {
+  const redLight = boardUnderRedLight(geometry.mask, frame.rgba);
+  let foundDie = false;
+  const objects = model.objects.map(item => {
+    if (item.kind !== "fire") return item;
+    const [x, y, w, h] = item.box.map((value, axis) => value * (axis % 2 ? frame.height : frame.width));
+    if (!modelBoxLooksLikeDie(frame, { x, y, w, h }, redLight)) return item;
+    foundDie = true;
+    // Keep it as an occluder for a previously confirmed marker.
+    return { ...item, kind: "dice", confidence: Math.min(item.confidence, 0.5) };
+  });
+  const classes = foundDie && !model.classes.includes("dice") ? [...model.classes, "dice"] : model.classes;
+  return { ...model, objects, classes };
 }
 
 export function detectFireTokens(cv, frame, geometry) {

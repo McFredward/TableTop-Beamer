@@ -65,7 +65,7 @@ function bootCameraPreview() {
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
   const fire = createFireReview();
-  const game = createGameReview();
+  const game = createGameReview(sameCameraFrame);
   let mode = "vision";
   let active;
 

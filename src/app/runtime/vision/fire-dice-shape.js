@@ -59,9 +59,24 @@ function pieceGradientFeatures(frame, box) {
   return Array.from(features, value => value / norm);
 }
 
-export function looksLikeDie(frame, box, redLight) {
+function diceShapeScore(frame, box) {
   const features = pieceGradientFeatures(frame, box);
-  const score = features.reduce((sum, value, i) => sum + value * diceWeights[i], diceBias);
+  return features.reduce((sum, value, i) => sum + value * diceWeights[i], diceBias);
+}
+
+export function looksLikeDie(frame, box, redLight) {
   // Strong projected light also changes contours. Require clearer evidence then.
-  return score >= (redLight ? 1.15 : 0.4);
+  return diceShapeScore(frame, box) >= (redLight ? 1.15 : 0.4);
+}
+
+export function modelBoxLooksLikeDie(frame, box, redLight) {
+  if (diceShapeScore(frame, box) < (redLight ? 1.15 : 0.85)) return false;
+  // A model box can include a wide margin of room artwork. A second
+  // crop must support the decision before discarding its fire label.
+  return [0.88, 1.12].some(scale => diceShapeScore(frame, {
+    x: box.x + (1 - scale) * box.w / 2,
+    y: box.y + (1 - scale) * box.h / 2,
+    w: box.w * scale,
+    h: box.h * scale,
+  }) >= 0.9);
 }
