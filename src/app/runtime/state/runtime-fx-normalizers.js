@@ -196,6 +196,16 @@
     return trimmed || fallback;
   }
 
+  function normalizeCameraTrigger(binding) {
+    const modelId = typeof binding?.modelId === "string" ? binding.modelId.trim() : "";
+    const className = typeof binding?.className === "string" ? binding.className.trim() : "";
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(modelId) || !className || className.length > 80) return null;
+    const minConfidence = Number.isFinite(binding.minConfidence) ? Math.max(0.25, Math.min(1, binding.minConfidence)) : 0.62;
+    const verificationOpacity = Number.isFinite(binding.verificationOpacity)
+      ? Math.max(0.1, Math.min(1, binding.verificationOpacity)) : null;
+    return { modelId, className, minConfidence, verificationOpacity };
+  }
+
   function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
     const fallbackDefaults = ctx.createDefaultInsideAnimationDefinitions()[0] ?? {
       id: `inside-${fallbackIndex + 1}`,
@@ -226,6 +236,7 @@
       name,
       assetType,
       assetRef,
+      ...(definition?.cameraTrigger ? { cameraTrigger: normalizeCameraTrigger(definition.cameraTrigger) } : {}),
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
@@ -399,6 +410,7 @@
       name,
       assetType,
       assetRef,
+      ...(definition?.cameraTrigger ? { cameraTrigger: normalizeCameraTrigger(definition.cameraTrigger) } : {}),
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       mode: ctx.normalizeOutsideMode(definition?.mode),
@@ -628,6 +640,7 @@
       name,
       assetType,
       assetRef,
+      ...(definition?.cameraTrigger ? { cameraTrigger: normalizeCameraTrigger(definition.cameraTrigger) } : {}),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),

@@ -272,11 +272,14 @@ const liveClients = new Map();
 const processedMutations = new Map();
 const lastClientSequenceById = new Map();
 const lastBroadcastVersionByClient = new Map();
+const cameraAnimationCommands = new WeakSet();
+const cameraAnimationReadings = new Map();
 const MAX_PROCESSED_MUTATIONS = 4000;
 const LIVE_MUTATION_TYPES = new Set([
   "trigger-global",
   "trigger-room",
   "edit-room",
+  "camera-animation",
   "stop-animation",
   "clear-all",
   "align-toggle",
@@ -298,6 +301,7 @@ const NON_COALESCING_MUTATIONS = new Set([
   "trigger-global",
   "trigger-room",
   "edit-room",
+  "camera-animation",
   "stop-animation",
   "clear-all",
   "align-toggle",
@@ -587,6 +591,65 @@ function isBoardContextSuppressedReason(reason) {
 
 function readRuntimeSnapshot() {
   return isPlainObject(liveSessionState.snapshot.runtime) ? cloneJson(liveSessionState.snapshot.runtime) : {};
+}
+
+function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition }) {
+  if (boardId !== liveSessionState.snapshot.selectedBoard || !definition) return null;
+  const reading = cameraVision.objectsFor(frameId, modelId);
+  if (!reading?.classes.includes(definition.cameraTrigger?.className)) return null;
+
+  const runtime = readRuntimeSnapshot();
+  const animations = runtime.runningAnimations ?? [];
+  const runtimeScope = scope === "room" ? "room" : "global";
+  const owner = JSON.stringify([scope, definition.id, roomId]);
+  const existing = animations.find(item => item.boardId === boardId && item.cameraTriggerOwner === owner);
+  const [observedAt, generation, sequence] = frameId.split("-").map(Number);
+  if (action !== "verify") {
+    const key = `${boardId}:${owner}`;
+    const previous = cameraAnimationReadings.get(key);
+    if (previous?.generation === generation && previous.sequence >= sequence) return null;
+    cameraAnimationReadings.delete(key);
+    cameraAnimationReadings.set(key, { generation, sequence });
+    if (cameraAnimationReadings.size > 1024) cameraAnimationReadings.delete(cameraAnimationReadings.keys().next().value);
+  }
+  if (action === "stop") {
+    if (!existing || existing.cameraTriggerObservedAt > observedAt) return null;
+    return scope === "room"
+      ? applyRoomMutationPatch("stop-animation", { boardId, animationId: existing.id })
+      : applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "stop",
+        animationId: existing.id, outsideHint: scope === "outside" });
+  }
+
+  if (action === "verify") {
+    const opacity = definition.cameraTrigger.verificationOpacity;
+    const now = Date.now();
+    if (scope !== "room" || !existing || !Number.isFinite(opacity) || opacity < 0.1 || opacity > 1 ||
+        existing.cameraVisibilityCheck?.until > now + 5500) return null;
+    const from = existing.cameraVisibilityCheck?.until > now ? existing.cameraVisibilityCheck.from : now;
+    existing.cameraVisibilityCheck = { opacity, from, until: now + 11_000 };
+    return { runtime };
+  }
+
+  if (action !== "start" || existing || animations.some(item => item.boardId === boardId &&
+      item.scope === runtimeScope && item.type === definition.id && (scope !== "room" || item.roomId === roomId))) return null;
+
+  const animation = { ...definition, id: `camera-${randomUUID()}`, boardId, scope: runtimeScope, roomId,
+    type: definition.id, animationName: definition.name, hold: true, startedAtEpochMs: Date.now(),
+    roomAssetType: definition.assetType, roomAssetRef: definition.assetRef,
+    cameraTriggerOwner: owner, cameraTriggerObservedAt: observedAt };
+  if (scope === "room") return applyRoomMutationPatch("trigger-room", { boardId, animation });
+
+  const patch = applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "start", animation,
+    outsideHint: scope === "outside", loopUntilStopped: scope === "outside" || Boolean(definition.loopUntilStopped),
+    playSound: scope === "outside" ? definition.soundEnabled : definition.soundAssetRef !== "none" });
+  const started = patch.runtime.runningAnimations.find(item => item.scope === "global" &&
+    item.boardId === boardId && item.type === definition.id);
+  if (started) {
+    started.cameraTriggerOwner = owner;
+    started.cameraTriggerObservedAt = observedAt;
+    started.playbackDirection = definition.playbackDirection;
+  }
+  return patch;
 }
 
 function readOutsideFxByBoard() {
@@ -1497,6 +1560,9 @@ function applyLiveMutation({
     nextSnapshotPatch = applyOutsideUpdatePatch(payload);
   } else if (mutationType === "trigger-global") {
     nextSnapshotPatch = applyGlobalMutationPatch(payload);
+  } else if (mutationType === "camera-animation") {
+    nextSnapshotPatch = cameraAnimationCommands.has(payload) ? applyCameraAnimationPatch(payload) : null;
+    if (!nextSnapshotPatch) return { applied: false, version: liveSessionState.version };
   } else if (mutationType === "context-update") {
     const prevBoardForCodec = liveSessionState.snapshot?.selectedBoard ?? null;
     nextSnapshotPatch = applyContextUpdatePatch(payload);
@@ -4657,6 +4723,44 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (routePath === "/api/camera/models" && req.method === "GET") {
+      res.setHeader("Cache-Control", "no-store");
+      if (!isLocalCameraRequest(req)) res.writeHead(403).end();
+      else sendJson(res, 200, { models: cameraVision.models() });
+      return;
+    }
+
+    if (routePath === "/api/camera/animation" && req.method === "POST") {
+      if (!isLocalCameraRequest(req) || req.headers.origin !== "http://" + req.headers.host) {
+        req.resume();
+        res.writeHead(403).end();
+        return;
+      }
+      let command;
+      try { command = await parseJsonBody(req, { maxBytes: 2048 }); }
+      catch { res.writeHead(400).end(); return; }
+      const { boardId, modelId, frameId, scope, animationId, roomId, action } = command ?? {};
+      if (!["room", "inside", "outside"].includes(scope) || !["start", "stop", "verify"].includes(action) ||
+          typeof modelId !== "string" || typeof frameId !== "string" || typeof animationId !== "string" ||
+          (scope === "room" ? typeof roomId !== "string" : roomId !== null)) {
+        res.writeHead(400).end();
+        return;
+      }
+      const { boards } = await loadBoardCatalog();
+      const board = boards.find(candidate => candidate.boardId === boardId);
+      const definition = board?.[scope + "Fx"]?.animations?.find(candidate => candidate.id === animationId);
+      if (boardId !== liveSessionState.snapshot.selectedBoard || definition?.cameraTrigger?.modelId !== modelId ||
+          (scope === "room" && !board?.roomCatalog.some(room => room.id === roomId))) {
+        res.writeHead(409).end();
+        return;
+      }
+      const payload = { boardId, modelId, frameId, scope, roomId, action, definition };
+      cameraAnimationCommands.add(payload);
+      const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
+      res.writeHead(ack?.applied ? 204 : 409).end();
+      return;
+    }
+
     if (routePath === "/api/camera/board-objects" && ["GET", "POST"].includes(req.method)) {
       res.setHeader("Cache-Control", "no-store");
       if (!isLocalCameraRequest(req) || (req.method === "POST" && req.headers.origin !== undefined)) {
@@ -4665,8 +4769,8 @@ const server = createServer(async (req, res) => {
         return;
       }
       if (req.method === "GET") {
-        const id = new URL(req.url, "http://localhost").searchParams.get("frameId");
-        const objects = cameraVision.objectsFor(id);
+        const query = new URL(req.url, "http://localhost").searchParams;
+        const objects = cameraVision.objectsFor(query.get("frameId"), query.get("modelId"));
         if (!objects) res.writeHead(204).end();
         else sendJson(res, 200, objects);
       } else {
@@ -4828,6 +4932,10 @@ const server = createServer(async (req, res) => {
           error: "invalid mutationType",
           code: "LIVE_COMMAND_INVALID_TYPE",
         });
+        return;
+      }
+      if (mutationType === "camera-animation") {
+        res.writeHead(403).end();
         return;
       }
       const payload = isPlainObject(parsed?.payload) ? parsed.payload : {};

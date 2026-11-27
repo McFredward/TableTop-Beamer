@@ -91,9 +91,9 @@ function smallAlienRoom(zones, [x, y, width, height]) {
     height * 2 <= Math.max(...ys) - Math.min(...ys) ? room : null;
 }
 
-function pieceZone(zones, item) {
+function pieceZone(zones, item, allZones) {
   const point = { x: item.anchor[0], y: item.anchor[1] };
-  const containing = zones.filter(zone => (item.kind === "noise" || !zone.corridor) &&
+  const containing = zones.filter(zone => (allZones || item.kind === "noise" || !zone.corridor) &&
     polygonContains(zone.polygon, point));
   const corridors = containing.filter(zone => zone.corridor);
   const candidates = corridors.length ? corridors : containing;
@@ -129,13 +129,15 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
   return { zones, effects, slots, cryo: zones.find(zone => zone.id === "special-cryoschlaf") };
 }
 
-export function createGameObserver(layout) {
+export function createGameObserver(layout, {
+  kinds = ["noise", "fire", "malfunction", "alien"], minConfidence = 0.62, checkVisibility = false, allZones = false,
+} = {}) {
   const current = new Map();
   const tracks = new Map();
-  const detectionThreshold = 0.62;
+  const detectionThreshold = minConfidence;
   let lastId, lastTime, lastGeneration, lastSequence;
   let frameNumber = 0;
-  const activity = new Set(["noise", "fire", "malfunction", "alien"]);
+  const activity = new Set(kinds);
   const stateFor = (key, init) => {
     if (!current.has(key)) current.set(key, { ...init, pending: 0, clear: 0, active: false });
     return current.get(key);
@@ -177,7 +179,7 @@ export function createGameObserver(layout) {
           !layout.effects[item.kind]) continue;
       if (item.kind === "fire" && dice.some(die =>
         overlap(item.box, die.box) >= 2 / 3 && overlap(die.box, item.box) >= 2 / 3)) continue;
-      const zone = pieceZone(layout.zones, item);
+      const zone = pieceZone(layout.zones, item, allZones);
       if (!zone) continue;
       const key = item.kind + ":" + zone.id;
       const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [] };
@@ -205,7 +207,7 @@ export function createGameObserver(layout) {
         state.boxes.some(box => samePosition(box, item.box)));
       const covered = state.boxes.some(box => possibleOccluders.some(item =>
         (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) && coversPosition(state, box, item)));
-      const overexposed = state.kind === "fire" && state.active && !missingCoverage &&
+      const overexposed = (checkVisibility || state.kind === "fire") && state.active && !missingCoverage &&
         state.boxes.some(box => frame.fireOverexposed?.(box));
       if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];
       const blocked = missingCoverage || covered || overexposed;

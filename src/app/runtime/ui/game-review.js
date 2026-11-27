@@ -3,6 +3,7 @@ import { registerBoard } from "../calibration/calibration-math.js";
 import { checkTrainedFireShapes, createFireTracker, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "../vision/fire-observer.js";
 import { createGameObserver, isClassicNemesisBoard, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
+import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
 
 function paintBoxes(context, boxes) {
   const { width, height } = context.canvas;
@@ -52,7 +53,7 @@ export function createGameReview(getSourceFrame) {
     ]);
     const id = live.session?.snapshot?.selectedBoard;
     const board = catalog.boards.find(candidate => candidate.boardId === id);
-    if (!board?.metadata?.imageSrc || !id.startsWith("nemesis-")) throw new Error("Select a Nemesis board first.");
+    if (!board?.metadata?.imageSrc) throw new Error("Select a board with a reference image first.");
     const url = new URL(board.metadata.imageSrc, location.origin);
     if (url.origin !== location.origin) throw new Error("The board artwork must be stored in TT-Beamer.");
     const response = await fetch(url, init);
@@ -68,6 +69,8 @@ export function createGameReview(getSourceFrame) {
       beads: prepareTrackBeads(layout.slots, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
+      bindings: createAnimationCameraBindings(board, registration, frame.width, frame.height),
+      checkedModels: new Map(),
     };
   }
 
@@ -78,10 +81,12 @@ export function createGameReview(getSourceFrame) {
 
   async function modelForObservation(model, frame, id, signal) {
     const current = setup;
-    if (!current.geometry || !model.classes.includes("fire")) {
-      return model;
-    }
-    if (current.checkedModel?.frameId === model.frameId) return current.checkedModel;
+    const modelId = model.modelId ?? "default";
+    const needsFireChecks = current.geometry && model.classes.includes("fire");
+    const needsVisibility = current.bindings.needsVisibility(modelId);
+    if (!needsFireChecks && !needsVisibility) return model;
+    const cached = current.checkedModels.get(modelId);
+    if (cached?.frameId === model.frameId) return cached;
 
     let matchingFrame = frame;
     if (id !== model.frameId) {
@@ -93,13 +98,41 @@ export function createGameReview(getSourceFrame) {
         bitmap?.close();
       }
     }
-    current.checkedModel = matchingFrame?.width === current.width && matchingFrame.height === current.height
-      ? { ...checkTrainedFireShapes(matchingFrame, current.geometry, model),
+    const checked = matchingFrame?.width === current.width && matchingFrame.height === current.height
+      ? { ...(needsFireChecks ? checkTrainedFireShapes(matchingFrame, current.geometry, model) : model),
         fireOverexposed: box => firePositionIsOverexposed(matchingFrame, box) }
-      // With no paired source image, retain existing fire state as uncertain.
-      : { ...model, classes: model.classes.filter(kind => kind !== "fire"),
-        objects: model.objects.filter(item => item.kind !== "fire") };
-    return current.checkedModel;
+      // With no paired source image, hold state for bindings that verify visibility.
+      : { ...model, classes: needsVisibility ? [] : model.classes.filter(kind => kind !== "fire"),
+        objects: needsVisibility ? [] : model.objects.filter(item => item.kind !== "fire") };
+    current.checkedModels.set(modelId, checked);
+    if (current.checkedModels.size > 2) current.checkedModels.delete(current.checkedModels.keys().next().value);
+    return checked;
+  }
+
+  async function readModel(signal, modelId) {
+    const query = modelId ? "?" + new URLSearchParams({ modelId }) : "";
+    const response = await fetch("/api/camera/board-objects" + query, {
+      cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1400)]),
+    });
+    return response.status === 200 ? response.json() : null;
+  }
+
+  async function observeBindings(model, frame, id, generation, signal) {
+    const current = setup;
+    return (await Promise.all(current.bindings.modelIds.map(async modelId => {
+      const feed = model && (model.modelId ?? "default") === modelId ? model : await readModel(signal, modelId).catch(() => null);
+      if (feed?.frameId.split("-")[1] !== generation) return [];
+      const reading = await modelForObservation(feed, frame, id, signal);
+      const { actions, effects } = current.bindings.observe(modelId, reading);
+      for (const action of actions) {
+        void fetch("/api/camera/animation", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...action, boardId: current.id, modelId, frameId: reading.frameId }),
+          signal: AbortSignal.any([signal, AbortSignal.timeout(3500)]),
+        }).catch(() => {});
+      }
+      return effects;
+    }))).flat();
   }
 
   async function observe(bitmap, id, context, signal, { annotated = false } = {}) {
@@ -108,11 +141,7 @@ export function createGameReview(getSourceFrame) {
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
     if (!setup || generation !== setup.generation || frame.width !== setup.width || frame.height !== setup.height ||
         (boardId && boardId !== setup.id)) await register(frame, generation, signal);
-    const sampleModel = await fetch("/api/camera/board-objects", {
-      cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1400)]),
-    });
-    signal.throwIfAborted();
-    const candidate = sampleModel.status === 200 ? await sampleModel.json() : null;
+    const candidate = await readModel(signal);
     signal.throwIfAborted();
     const model = candidate?.frameId.split("-")[1] === generation ? candidate : null;
     const beads = detectTrackBeads(frame, setup.beads);
@@ -124,7 +153,10 @@ export function createGameReview(getSourceFrame) {
     const checkedModel = model ? await modelForObservation(model, frame, id, signal) : null;
     signal.throwIfAborted();
     const trained = checkedModel ? setup.trained.observe(checkedModel) : null;
-    const proposed = native.effects.concat(trained?.effects ?? []);
+    const linked = await observeBindings(model, frame, id, generation, signal);
+    signal.throwIfAborted();
+    const proposed = native.effects.concat(linked, (trained?.effects ?? []).filter(item =>
+      !linked.some(binding => binding.roomId === item.roomId && binding.effect.id === item.effect.id)));
     render(tracks, native.tracks.map(track => {
       const label = track.kind === "round" ? "Round" : "Self-destruct";
       return track.status === "inactive" ? `${label} · inactive`

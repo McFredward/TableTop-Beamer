@@ -73,6 +73,22 @@ test("structured game detections stay attached to a recent camera frame and reje
   assert.equal(vision.objectsFor(shape.frameId), null);
 });
 
+test("separate detectors can report arbitrary trained classes on the same frame", () => {
+  const source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const base = { frameId: cameraFrameId(source), coverage: [0, 0, 1, 1], objects: [] };
+  assert.equal(vision.publishObjects({ ...base, modelId: "nemesis", modelName: "Nemesis", classes: ["fire"] }), 204);
+  assert.equal(vision.publishObjects({ ...base, modelId: "custom", classes: ["Gold idol", "Alien Queen"] }), 204);
+  assert.equal(vision.publishObjects({ ...base, modelId: "custom", classes: ["duplicate"] }), 409);
+  assert.deepEqual(vision.objectsFor(base.frameId, "nemesis").classes, ["fire"]);
+  assert.deepEqual(vision.objectsFor(undefined, "custom").classes, ["Gold idol", "Alien Queen"]);
+  assert.equal(vision.objectsFor(undefined, "unknown"), null);
+  assert.deepEqual(vision.models(), [
+    { id: "nemesis", name: "Nemesis", classes: ["fire"] },
+    { id: "custom", name: "custom", classes: ["Gold idol", "Alien Queen"] },
+  ]);
+});
+
 test("original frames can be recovered by id for exact preview overlays", () => {
   let source = cameraFrame(1);
   const vision = createCameraVision({ latestFrame: () => source });

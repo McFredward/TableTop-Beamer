@@ -358,7 +358,7 @@ self-destruct track is inactive. A counter beside the numbers is outside the
 track. Uncertain or covered slots retain the last confirmed reading.
 
 Run the vision worker with `--game --checkpoint path/to/weights.pth` to
-publish model detections for pieces. The expected labels are `noise`,
+publish model detections for pieces. The built-in Nemesis proposals use `noise`,
 `fire`, `malfunction`, `alien`, `character` and optionally `hand` and `dice`.
 Dice are visible in Detections and protect a covered marker's last confirmed state.
 On Nemesis A and B, Game observation checks model Fire boxes against the matching
@@ -367,8 +367,26 @@ If that source image has expired, the previous Fire state stays in place.
 The worker uses the base of an alien or character to assign it to a room.
 Noise in a mapped corridor proposes **Light Flicker** there. Fire and
 malfunction have independent room effects. A room gets an **Alarm** proposal
-while at least one alien remains. The view shows proposals and leaves the
-animation controls with the operator.
+while at least one alien remains. These built-in proposals appear for review.
+
+### Link a trained detector to an animation
+
+In **Animations**, select the board and a Room, Inside, or Outside animation.
+Under **Camera trigger**, enter the trained model ID, a class published by the
+model, and the minimum confidence. The fields suggest online detectors and
+their classes on the TT-Beamer PC. Select **Apply** to save the binding with the
+animation. Clearing the model or class removes the binding.
+
+Give a worker the same stable ID with `--game --checkpoint path/to/weights.pth
+--model-id my-detector`. Without `--model-id`, the worker prints a stable ID
+derived from the checkpoint. Custom class names are supported.
+
+While **Camera → Game observation** runs with the trained worker, a confirmed
+presence starts the linked animation. Room animations use the detected position.
+Removal stops the camera-started instance. Room animations also offer an
+optional **Verification opacity**. When the last position is hard to read, the
+renderer briefly uses that opacity for the linked instance so the camera can
+check the room again.
 
 ---
 

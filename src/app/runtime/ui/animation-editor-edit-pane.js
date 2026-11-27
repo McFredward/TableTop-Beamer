@@ -87,7 +87,7 @@
     const boardId = getEditorBoardId();
     const sel = getSelection();
     const def = findDefinition(sel.scope, sel.id, boardId);
-    const paneKey = def ? `${sel.scope}:${def.id}` : null;
+    const paneKey = def ? `${boardId}:${sel.scope}:${def.id}` : null;
     if (paneKey === currentPaneKey) {
       updatePaneDynamicBits(def);
       return;
@@ -122,6 +122,7 @@
     const colorCard = buildColorCard(sel.scope, def, boardId);
     if (colorCard) pane.append(colorCard);
     pane.append(buildDefaultsCard(sel.scope, def, boardId));
+    pane.append(buildCameraTriggerCard(sel.scope, def, boardId));
     // Phase 50 (2026-05-22): collapsible Transform card per animation
     // (rotation / stretch / scale / offset). Mirrors the live-editor's
     // transform sliders, but persists to the definition directly so
@@ -131,6 +132,73 @@
     const transformCard = buildTransformCard(sel.scope, def, boardId);
     if (transformCard) pane.append(transformCard);
     pane.append(buildSoundCard(sel.scope, def, boardId));
+  }
+
+  function buildCameraTriggerCard(scope, def, boardId) {
+    const card = document.createElement("details");
+    card.className = "anim-editor-card anim-editor-card-collapsible";
+    const summary = document.createElement("summary");
+    summary.className = "anim-editor-card-summary";
+    summary.textContent = "Camera trigger";
+    card.append(summary);
+    const binding = def.cameraTrigger;
+
+    function field(label, type, value, attributes = {}) {
+      const row = document.createElement("label");
+      row.className = "anim-editor-field-label";
+      const caption = document.createElement("span");
+      caption.textContent = label;
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value ?? "";
+      for (const [name, val] of Object.entries(attributes)) input.setAttribute(name, val);
+      row.append(caption, input);
+      card.append(row);
+      return input;
+    }
+
+    const model = field("Trained model ID", "text", binding?.modelId, { maxlength: 80, list: "animation-camera-models", autocomplete: "off" });
+    const kind = field("Detected class", "text", binding?.className, { maxlength: 80, list: "animation-camera-classes", autocomplete: "off" });
+    const confidence = field("Minimum confidence", "number", binding?.minConfidence ?? 0.62, { min: 0.25, max: 1, step: 0.01 });
+    const opacity = scope === "room" ? field("Verification opacity (optional)", "number", binding?.verificationOpacity,
+      { min: 0.1, max: 1, step: 0.01, placeholder: "Keep animation opacity" }) : null;
+    const models = document.createElement("datalist");
+    models.id = "animation-camera-models";
+    const classes = document.createElement("datalist");
+    classes.id = "animation-camera-classes";
+    card.append(models, classes);
+    let available = [];
+
+    function updateClasses() {
+      classes.replaceChildren(...(available.find(detector => detector.id === model.value.trim())?.classes ?? [])
+        .map(name => new Option(name, name)));
+    }
+
+    function save() {
+      const modelId = model.value.trim();
+      const className = kind.value.trim();
+      const validId = !modelId || /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(modelId);
+      model.setCustomValidity(validId ? "" : "Use letters, numbers, periods, underscores or hyphens.");
+      if (!model.reportValidity() || !confidence.reportValidity() || (opacity && !opacity.reportValidity())) return;
+      patchAnimation(scope, boardId, def.id, { cameraTrigger: modelId && className ? {
+        modelId, className, minConfidence: confidence.valueAsNumber || 0.62,
+        verificationOpacity: opacity?.value ? opacity.valueAsNumber : null,
+      } : null });
+    }
+
+    model.addEventListener("input", updateClasses);
+    for (const input of [model, kind, confidence, opacity].filter(Boolean)) input.addEventListener("change", save);
+    card.addEventListener("toggle", async () => {
+      if (!card.open) return;
+      try {
+        const response = await fetch("/api/camera/models", { cache: "no-store", signal: AbortSignal.timeout(2000) });
+        if (!response.ok) return;
+        available = (await response.json()).models;
+        models.replaceChildren(...available.map(detector => new Option(detector.name, detector.id)));
+        updateClasses();
+      } catch { /* A saved detector can be entered while it is offline. */ }
+    });
+    return card;
   }
 
   // Phase 50: per-animation Transform card. Same fields/clamps as the

@@ -94,6 +94,13 @@
     const qualityScale = ctx.getRuntimeQualityScale();
     const assetType = ctx.normalizeRoomAssetType(animation.roomAssetType);
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, animation.roomAssetRef, "");
+    let opacity = ctx.clampRoomOpacity(animation.opacity);
+    const check = animation.cameraVisibilityCheck;
+    if (Number.isFinite(check?.opacity) && Number.isFinite(check?.from) && Number.isFinite(check?.until)) {
+      const now = Date.now();
+      const blend = Math.max(0, Math.min(1, (now - check.from) / 300, (check.until - now) / 300));
+      opacity -= Math.max(0, opacity - ctx.clampRoomOpacity(check.opacity)) * blend;
+    }
     if (assetType === "gif") {
       const roomGifSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
       // Phase 58 Wave 3.7p: room-gif playback phases. play-then-freeze
@@ -114,7 +121,7 @@
         gifAssetPath: assetRef,
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: roomGifSpeed,
-        opacity: ctx.clampRoomOpacity(animation.opacity),
+        opacity,
         // Phase 58: room-gif honors per-animation playback mode + direction.
         playbackMode: animation.playbackMode || "loop",
         playbackDirection: animation.playbackDirection || "forward",
@@ -236,7 +243,7 @@
           const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
           c.save();
           // Phase 58-w3.9h: global fade multiplier on top of the mp4 opacity.
-          c.globalAlpha = ctx.clampRoomOpacity(animation.opacity) * fadeMul;
+          c.globalAlpha = opacity * fadeMul;
           const isSeeking = video.seeking === true;
           const haveLiveFrame =
             !isSeeking
@@ -476,7 +483,7 @@
         densityFactor: qualityScale,
         // Phase 58-w3.9h: global fade multiplier folded into the coded
         // effect's opacity (city-workers composes via its overall knob).
-        opacity: ctx.clampRoomOpacity(animation.opacity) * fadeMul,
+        opacity: opacity * fadeMul,
         gifAssetPath: assetRef || ctx.ROOM_GIF_ANIMATION_ASSETS[animation.type],
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: playbackSpeed,

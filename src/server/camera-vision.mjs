@@ -3,7 +3,9 @@ import { jpegDimensions } from "./output-camera-upload.mjs";
 const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
 const MAX_ANNOTATION_AGE_MS = 6000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-const BOARD_CLASSES = new Set(["noise", "fire", "malfunction", "alien", "character", "hand", "dice", "track-marker"]);
+const MAX_MODELS = 16;
+const DEFAULT_MODEL_ID = "default";
+const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/;
 
 export function isLocalCameraRequest(req) {
   const { host, forwarded, "x-forwarded-for": forwardedFor, "x-forwarded-host": forwardedHost } = req.headers;
@@ -66,24 +68,43 @@ export function createCameraVision(cameraInput) {
       return inferenceFrames.get(id) ?? sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
     },
 
-    objectsFor(id) {
-      id ??= [...objectFrames.keys()].reverse().find(key => freshFrame(key));
-      return freshFrame(id) ? objectFrames.get(id) ?? null : null;
+    objectsFor(id, modelId) {
+      if (id && !freshFrame(id)) return null;
+      const feeds = modelId ? [objectFrames.get(modelId)] : [...objectFrames.values()].reverse();
+      for (const feed of feeds) {
+        const reading = id ? feed?.get(id) : [...(feed?.values() ?? [])].reverse().find(item => freshFrame(item.frameId));
+        if (reading) return reading;
+      }
+      return null;
+    },
+
+    models() {
+      return [...objectFrames.keys()].flatMap(id => {
+        const latest = this.objectsFor(undefined, id);
+        return latest ? [{ id, name: latest.modelName ?? id, classes: latest.classes }] : [];
+      });
     },
 
     publishObjects(payload) {
-      const { frameId, classes, objects, coverage } = payload ?? {};
-      if (typeof frameId !== "string" || !Array.isArray(classes) || !classes.length || classes.length > BOARD_CLASSES.size ||
-          new Set(classes).size !== classes.length || !classes.every(kind => BOARD_CLASSES.has(kind)) ||
+      const { frameId, classes, objects, coverage, modelId = DEFAULT_MODEL_ID, modelName } = payload ?? {};
+      if (typeof frameId !== "string" || typeof modelId !== "string" || !MODEL_ID.test(modelId) ||
+          (modelName !== undefined && (typeof modelName !== "string" || modelName.length > 120)) ||
+          !Array.isArray(classes) || !classes.length || classes.length > 128 ||
+          new Set(classes).size !== classes.length || !classes.every(kind => typeof kind === "string" && kind.trim() === kind &&
+            kind.length > 0 && kind.length <= 80 && !/[\u0000-\u001f]/.test(kind)) ||
           !rect(coverage) || !Array.isArray(objects) || objects.length > 256 || objects.some(item =>
             !item || !classes.includes(item.kind) || !Number.isFinite(item.confidence) ||
             item.confidence < 0 || item.confidence > 1 || !rect(item.box) || !Array.isArray(item.anchor) ||
             item.anchor.length !== 2 || !item.anchor.every((v, i) => Number.isFinite(v) &&
               v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6))) return 400;
-      if (!freshFrame(frameId) || objectFrames.has(frameId)) return 409;
-      objectFrames.set(frameId, { frameId, classes, coverage, objects: objects.map(({ kind, confidence, box, anchor }) =>
-        ({ kind, confidence, box, anchor })) });
-      if (objectFrames.size > 4) objectFrames.delete(objectFrames.keys().next().value);
+      const feed = objectFrames.get(modelId) ?? new Map();
+      if (!freshFrame(frameId) || feed.has(frameId)) return 409;
+      feed.set(frameId, { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
+        objects: objects.map(({ kind, confidence, box, anchor }) => ({ kind, confidence, box, anchor })) });
+      if (feed.size > 4) feed.delete(feed.keys().next().value);
+      objectFrames.delete(modelId);
+      objectFrames.set(modelId, feed);
+      if (objectFrames.size > MAX_MODELS) objectFrames.delete(objectFrames.keys().next().value);
       return 204;
     },
 

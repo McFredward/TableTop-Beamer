@@ -1,8 +1,10 @@
 """Run local RF-DETR inference on the latest TT-Beamer camera frames."""
 
 import argparse
+import hashlib
 import io
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -10,7 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from board_vision import BOARD_CLASSES, add_tile_option, parse_roi, predict_tiled, resize_detections
+from board_vision import add_tile_option, parse_roi, predict_tiled, resize_detections
 
 
 def board_objects(frame_id, classes, detections, size, original_size, roi, np):
@@ -48,7 +50,8 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
             "anchor": [left + cx * sx, top + cy * sy],
         })
     return {
-        "frameId": frame_id, "classes": sorted(classes), "objects": objects[:256],
+        "frameId": frame_id, "classes": sorted(classes),
+        "objects": sorted(objects, key=lambda item: -item["confidence"])[:256],
         "coverage": [left, top, roi_width / original_width, roi_height / original_height],
     }
 
@@ -95,7 +98,8 @@ def main():
     parser.add_argument("--model", choices=("seg-2xlarge", "seg-large", "seg-nano", "large"),
                         default="seg-2xlarge")
     parser.add_argument("--checkpoint", type=Path, help="Trusted local checkpoint for the selected model")
-    parser.add_argument("--game", action="store_true", help="Publish trained Nemesis classes to Game observation")
+    parser.add_argument("--game", action="store_true", help="Publish checkpoint classes to Game observation")
+    parser.add_argument("--model-id", help="Stable name used by animation bindings. Defaults to a checkpoint hash.")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--threshold", type=float, default=0.45)
     parser.add_argument("--max-fps", type=float, default=3)
@@ -108,6 +112,8 @@ def main():
         parser.error(f"Checkpoint not found: {args.checkpoint}")
     if args.game and not args.checkpoint:
         parser.error("--game needs a checkpoint trained on the board-game classes")
+    if args.model_id and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", args.model_id):
+        parser.error("Model ID must use up to 80 letters, numbers, periods, underscores or hyphens")
 
     try:
         import numpy as np
@@ -131,11 +137,21 @@ def main():
     model = model_type(device=device, **weights)
     predictor = model.inference(compile=False)
     classes = set()
+    model_identity = {}
     if args.game:
         names = model.class_names
-        classes = BOARD_CLASSES.intersection(names.values() if hasattr(names, "values") else names)
+        classes = {name for name in (names.values() if hasattr(names, "values") else names)
+                   if isinstance(name, str) and name and name == name.strip() and len(name) <= 80}
         if not classes:
-            parser.error("The checkpoint does not define any board-game classes")
+            parser.error("The checkpoint does not define any usable classes")
+        if len(classes) > 128:
+            parser.error("Game observation supports up to 128 published classes per detector")
+        model_id = args.model_id
+        if not model_id:
+            with args.checkpoint.open("rb") as source:
+                model_id = "checkpoint-" + hashlib.file_digest(source, "sha256").hexdigest()[:20]
+        model_identity = {"modelId": model_id, "modelName": args.model_id or args.checkpoint.stem[:120]}
+        print(f"Publishing detector {model_id}", flush=True)
     annotations = (
         sv.MaskAnnotator(opacity=0.42),
         sv.BoxAnnotator(thickness=2),
@@ -145,6 +161,7 @@ def main():
     print(f"Reading camera frames from {url}", flush=True)
     last_frame = None
     shown_connection_error = False
+    detection_threshold = min(args.threshold, 0.25) if args.game else args.threshold
     while True:
         started = time.monotonic()
         try:
@@ -169,12 +186,13 @@ def main():
 
             inference_start = time.monotonic()
             if args.tile_size:
-                detections = predict_tiled(predictor, image, args.threshold, args.tile_size)
+                detections = predict_tiled(predictor, image, detection_threshold, args.tile_size)
             else:
-                detections = predictor.predict(image, threshold=args.threshold, include_source_image=False)
+                detections = predictor.predict(image, threshold=detection_threshold, include_source_image=False)
             elapsed = (time.monotonic() - inference_start) * 1000
             if classes:
                 payload = board_objects(last_frame, classes, detections, image.size, original_size, args.roi, np)
+                payload.update(model_identity)
                 request = Request(url + "/api/camera/board-objects", method="POST",
                                   data=json.dumps(payload, allow_nan=False).encode("utf-8"),
                                   headers={"Content-Type": "application/json"})
@@ -186,7 +204,8 @@ def main():
                         raise
             annotated = detections
             if args.game and len(annotated):
-                annotated = annotated[np.asarray(annotated.data["class_name"]) != "track-marker"]
+                included = (np.asarray(annotated.data["class_name"]) != "track-marker") & (annotated.confidence >= args.threshold)
+                annotated = annotated[included]
             if args.tile_size:
                 prediction_size = image.size
                 image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
@@ -201,8 +220,8 @@ def main():
                 "X-Vision-Model": args.model,
                 "X-Vision-Weights": "checkpoint" if weights else "pretrained",
                 "X-Vision-Device": device,
-                "X-Vision-Count": str(len(detections)),
-                "X-Vision-Masks": str(len(detections) if detections.mask is not None else 0),
+                "X-Vision-Count": str(len(annotated)),
+                "X-Vision-Masks": str(len(annotated) if annotated.mask is not None else 0),
                 "X-Vision-MS": f"{elapsed:.1f}",
                 "X-Vision-Coverage": ",".join(str(value) for value in coverage),
             })

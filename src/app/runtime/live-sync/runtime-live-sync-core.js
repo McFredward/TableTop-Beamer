@@ -1308,6 +1308,7 @@
               mutationType === ctx.STOP_ANIMATION_MUTATION_TYPE
               || mutationType === "clear-all"
               || mutationType === "edit-room"
+              || mutationType === "camera-animation"
               || mutationType === "trigger-room"
               // align mutations apply ONLY on the SSR renderer tab.
               || (isAlignMutation && isFinalRole)
