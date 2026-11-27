@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { readFile, writeFile } from "node:fs/promises";
 import { createConnection, isIPv4 } from "node:net";
-import { networkInterfaces } from "node:os";
+import { networkInterfaces, userInfo } from "node:os";
 import { Client } from "ssh2";
 
 const FINGERPRINT = /^SHA256:[A-Za-z0-9+/]{43}$/;
+const USERNAME = /^[a-z0-9_][a-z0-9_.-]{0,31}$/i;
+const HOSTNAME = /^[a-z0-9][a-z0-9-]{0,62}$/i;
 const ipv4Number = (address) => address.split(".").reduce((n, byte) => n * 256 + Number(byte), 0);
 const fingerprintOf = (key) => "SHA256:" + createHash("sha256").update(key).digest("base64").replace(/=+$/, "");
 
@@ -16,15 +18,14 @@ class PiError extends Error {
   }
 }
 
-function localNetwork(address) {
-  const adapter = Object.values(networkInterfaces()).flat().find(entry =>
-    entry.family === "IPv4" && !entry.internal && entry.address === address);
-  if (!adapter) throw new PiError(503, "Connect the TT-Beamer PC to the Pi’s network and try again.");
+function adapterNetwork(adapter) {
+  const { address } = adapter;
   const ip = ipv4Number(address);
   const mask = ipv4Number(adapter.netmask);
   const network = (ip & mask) >>> 0;
   const broadcast = (network | ~mask) >>> 0;
   return {
+    address,
     includes(candidate) {
       if (!isIPv4(candidate)) return false;
       const value = ipv4Number(candidate);
@@ -34,16 +35,34 @@ function localNetwork(address) {
   };
 }
 
-async function defaultPiAddress() {
+function localNetworks(preferredAddress) {
+  const networks = Object.values(networkInterfaces()).flat()
+    .filter(entry => entry.family === "IPv4" && !entry.internal)
+    .sort((a, b) => Number(b.address === preferredAddress) - Number(a.address === preferredAddress))
+    .map(adapterNetwork);
+  if (!networks.length) throw new PiError(503, "Connect the TT-Beamer PC to the Pi’s network and try again.");
+  return networks;
+}
+
+async function resolvePiAddress(hostname) {
   let timeout;
   try {
     const result = await Promise.race([
-      lookup("raspberrypi.local", { family: 4 }).catch(() => null),
+      lookup(`${hostname}.local`, { family: 4 }).catch(() => null),
       new Promise(resolve => { timeout = setTimeout(resolve, 800, null); }),
     ]);
     return result?.address;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function suggestedUsername() {
+  try {
+    const username = userInfo().username.toLowerCase();
+    return USERNAME.test(username) ? username : null;
+  } catch {
+    return null;
   }
 }
 
@@ -115,11 +134,13 @@ function startThroughSsh({ address, username, password, fingerprint, origin, scr
         channel.once("close", (code) => {
           const display = /^Display: (HDMI[-A0-9]+|none)$/m.exec(stdout)?.[1];
           if (code !== 0 || !display) {
-            const message = /^TT-Beamer: (.+)$/m.exec(stderr)?.[1] ?? "The Pi could not start Chromium in fullscreen.";
+            const message = /^TT-Beamer: (.+)$/m.exec(stderr)?.[1] ??
+              (stderr.trim().split("\n").at(-1) || "The Pi could not start Chromium in fullscreen.");
             finish(new PiError(502, message));
             return;
           }
-          finish(null, { display: display === "none" ? null : display });
+          const hostname = /^Host: ([a-z0-9-]+)$/im.exec(stdout)?.[1];
+          finish(null, { display: display === "none" ? null : display, ...(hostname && { hostname }) });
         });
         channel.end(script);
       });
@@ -144,35 +165,55 @@ export function createPiOutput({ stateFile, launcherFile, configuredAddress, iss
   }
 
   async function dispatch(body, serverAddress, port) {
-    const network = localNetwork(serverAddress);
+    const networks = localNetworks(serverAddress);
+    const networkFor = address => networks.find(network => network.includes(address));
     const saved = await remembered();
+    const paired = configuredAddress();
     if (body?.action === "find") {
       if (searching) throw new PiError(409, "A Pi search is already running.");
       searching = true;
       try {
-        const preferred = [...new Set([saved?.address, configuredAddress(), await defaultPiAddress()])].filter(network.includes);
+        const hostnames = [...new Set([saved?.hostname, "raspberrypi"].filter(hostname =>
+          typeof hostname === "string" && HOSTNAME.test(hostname)))];
+        const named = await Promise.all(hostnames.map(resolvePiAddress));
+        const preferred = [...new Set([saved?.address, paired, ...named])].filter(address => networkFor(address));
         const reachable = await Promise.all(preferred.map(hasSsh));
         const devices = preferred.filter((_, i) => reachable[i]);
-        if (devices.length) return { devices, preferred: devices[0] };
+        if (saved?.fingerprint) {
+          const trusted = await Promise.all(devices.map(address => inspectHost(address).catch(() => null)));
+          const match = devices[trusted.indexOf(saved.fingerprint)];
+          if (match) return { devices, preferred: match };
+        } else if (devices.length) {
+          return { devices, preferred: devices[0] };
+        }
+        const network = networkFor(saved?.address) ?? networkFor(paired) ?? networks[0];
         const nearby = network.nearby.filter(address => network.includes(address) && !preferred.includes(address));
         for (let i = 0; i < nearby.length; i += 40) {
           const batch = nearby.slice(i, i + 40);
           const results = await Promise.all(batch.map(hasSsh));
           devices.push(...batch.filter((_, j) => results[j]));
         }
-        return { devices };
+        if (saved?.fingerprint) {
+          const discovered = devices.filter(address => !preferred.includes(address));
+          const fingerprints = await Promise.all(discovered.map(address => inspectHost(address).catch(() => null)));
+          const match = discovered[fingerprints.indexOf(saved.fingerprint)];
+          if (match) return { devices, preferred: match };
+        }
+        return { devices, ...(devices.length === 1 && { preferred: devices[0] }) };
       } finally {
         searching = false;
       }
     }
 
     const { action, address, username, password, fingerprint } = body ?? {};
-    if (!network.includes(address)) throw new PiError(400, "Enter the Pi’s IPv4 address on the same network as this PC.");
+    const network = networkFor(address);
+    if (!network) throw new PiError(400, "Enter the Pi’s IPv4 address on the same network as this PC.");
     if (action === "identify") {
       const found = await inspectHost(address);
-      return { fingerprint: found, username: found === saved?.fingerprint ? saved.username : null };
+      const trusted = found === saved?.fingerprint;
+      return { fingerprint: found, trusted, username: (trusted ? saved.username : null) ?? suggestedUsername() };
     }
-    if (action !== "start" || typeof username !== "string" || !/^[a-z0-9_][a-z0-9_.-]{0,31}$/i.test(username) ||
+    if (action !== "start" || typeof username !== "string" || !USERNAME.test(username) ||
         typeof password !== "string" || !password || password.length > 256 ||
         typeof fingerprint !== "string" || !FINGERPRINT.test(fingerprint)) {
       throw new PiError(400, "Enter the Pi user name and password after selecting its SSH identity.");
@@ -182,8 +223,8 @@ export function createPiOutput({ stateFile, launcherFile, configuredAddress, iss
     try {
       const script = await readFile(launcherFile);
       const result = await startThroughSsh({ address, username, password, fingerprint, issueToken, script,
-        origin: `http://${serverAddress}:${port}` });
-      await writeFile(stateFile, JSON.stringify({ address, username, fingerprint }) + "\n", { mode: 0o600 })
+        origin: `http://${network.address}:${port}` });
+      await writeFile(stateFile, JSON.stringify({ address, username, fingerprint, hostname: result.hostname ?? saved?.hostname }) + "\n", { mode: 0o600 })
         .catch(() => {});
       return { ...result, address };
     } finally {

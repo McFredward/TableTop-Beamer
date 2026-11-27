@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createGameObserver, makeGameLayout } from "../src/app/runtime/vision/game-observer.js";
+import { prepareTrackBeads } from "../src/app/runtime/vision/track-beads.js";
 
 function polygon(x, y, w, h) {
   return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
@@ -26,6 +27,23 @@ const board = {
   insideFx: { animations: [{ id: "intruder-alert", name: "Intruder Alert", assetRef: "intruder-alert" }] },
 };
 const layout = makeGameLayout(board, { at: ({ x, y }) => ({ x: x * 1920, y: y * 1080 }) }, 1920, 1080);
+
+test("track analysis samples the slot heights of both Nemesis sides", () => {
+  const frame = { width: 960, height: 540, pixels: new Uint8Array(960 * 540) };
+  const registration = { at: ({ x, y }) => ({ x: x * frame.width, y: y * frame.height }) };
+  for (const [side, centerY] of [["a", 0.9514], ["b", 0.9632]]) {
+    const definition = { ...board, boardId: `nemesis-board-${side}` };
+    const { slots } = makeGameLayout(definition, registration, frame.width, frame.height);
+    const beads = prepareTrackBeads(slots, registration, frame, frame);
+    assert.ok(beads.some(slot => slot.track === "round"));
+    assert.ok(beads.some(slot => slot.track === "self-destruct"));
+    for (const bead of beads) {
+      assert.ok(Math.abs(bead.anchor[1] - centerY) < 1e-9);
+      const center = bead.samples[Math.floor(bead.samples.length / 2)];
+      assert.equal(center.y, centerY * frame.height);
+    }
+  }
+});
 
 function item(kind, x, y) {
   return { kind, confidence: 0.91, anchor: [x, y], box: [x - 0.008, y - 0.008, 0.016, 0.016] };

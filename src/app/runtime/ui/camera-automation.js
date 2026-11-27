@@ -34,7 +34,7 @@ function show(state) {
   }
   if (!button) return;
   const text = descriptions[state.phase] ?? descriptions.host;
-  const label = enabled ? "On" : "Off";
+  const label = !enabled ? "Off" : state.phase === "model" ? "Waiting for model" : state.phase === "camera" ? "Waiting for camera" : "On";
   button.setAttribute("aria-checked", String(enabled));
   if (indicator.textContent !== label) indicator.textContent = label;
   button.classList.toggle("rd-btn-primary", enabled);

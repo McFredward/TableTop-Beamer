@@ -5,7 +5,7 @@ import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
 import { checkCameraReading, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
 
-function paintBoxes(context, boxes) {
+export function paintBoxes(context, boxes) {
   const { width, height } = context.canvas;
   const unit = width / 960;
   context.save();
@@ -79,7 +79,7 @@ export function createGameReview() {
     }))).flat();
   }
 
-  async function observe(bitmap, id, context, signal, { annotated = false } = {}) {
+  async function observe(bitmap, id, signal, { annotated = false } = {}) {
     const frame = readBitmap(bitmap, true);
     const [, generation] = id.split("-");
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
@@ -113,7 +113,11 @@ export function createGameReview() {
     render(source, model ? [`Trained classes: ${model.classes.join(", ")}`] : [],
       "Local prototype checks Fire and track counters. Other pieces need a trained detector.");
 
-    const markerBoxes = beads.objects.map(({ track, value, box }) => ({
+    const seenSlots = native.tracks.map(reading => {
+      const previous = setup.beads.find(slot => slot.track === reading.kind && slot.value === reading.value);
+      return previous ?? beads.objects.find(item => item.track === reading.kind);
+    }).filter(Boolean);
+    const markerBoxes = seenSlots.map(({ track, value, box }) => ({
       box, label: `${track === "round" ? "Round" : "Self-destruct"} ${value}`, color: "#7ee6ff",
     }));
     const fireBoxes = fallback.filter(item => item.active).map(({ room, state, box: { x, y, w, h } }) => ({
@@ -121,10 +125,10 @@ export function createGameReview() {
       label: `${state === "visible" ? "Fire" : "Last seen fire"} · ${room.name}`,
       color: state === "visible" ? "#ffc359" : "#8be2ff",
     }));
-    const modelBoxes = !annotated && model?.frameId === id ? model.objects
+    const modelBoxes = !annotated && model ? model.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
       .map(({ kind, confidence, box }) => ({ box, label: `${kind} ${Math.round(confidence * 100)}%`, color: "#7be4b5" })) : [];
-    paintBoxes(context, [...markerBoxes, ...fireBoxes, ...modelBoxes]);
+    return [...markerBoxes, ...fireBoxes, ...modelBoxes];
   }
 
   return { reset, observe, unavailable };

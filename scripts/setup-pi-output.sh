@@ -85,7 +85,7 @@ PY
 }
 
 if [[ ${1:-} == --start && $# -eq 1 ]]; then
-  [[ -r $saved_origin_file ]] || fail "Set up this Pi from Camera in the TT-Beamer dashboard first."
+  [[ -r $saved_origin_file ]] || fail "Set up this Pi from Pi output in the TT-Beamer dashboard first."
   origin=$(<"$saved_origin_file")
   mode=kiosk
 elif [[ ${1:-} == --remote && ( $# -eq 2 || $# -eq 3 ) ]]; then
@@ -99,7 +99,7 @@ elif [[ $# -eq 2 ]]; then
   [[ $token =~ ^[0-9a-f]{32}$ ]] || fail "Use a fresh setup command from the TT-Beamer dashboard."
   mode=setup
 else
-  fail "Open Camera → Set up Raspberry Pi on the TT-Beamer PC and copy the setup command."
+  fail "Open Pi output on the TT-Beamer PC and copy the manual setup command."
 fi
 
 [[ $origin =~ ^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] || fail "Use the TT-Beamer server address from the dashboard."
@@ -155,6 +155,7 @@ pair_camera() {
 
 if [[ $mode == remote ]]; then
   enable_hdmi
+  printf 'Host: %s\n' "$(hostname -s)"
   if [[ -n $token ]]; then pair_camera; fi
   if [[ -z $token && -n $profile_pid && $profile_command == *"--kiosk "*"$origin/output/"* ]] && camera_permission check; then
     exit 0

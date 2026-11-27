@@ -1857,6 +1857,7 @@ body[data-output-role="final-output"] .cluster-pads {
   color: var(--c-text, #f1f3f7);
 }
 .camera-preview::backdrop { background: rgba(5, 8, 14, 0.72); }
+.pi-output-dialog { width: min(540px, calc(100vw - 24px)); }
 .camera-preview-header,
 .camera-preview-controls {
   display: flex;

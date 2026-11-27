@@ -89,11 +89,12 @@ default; use the second argument to override.
 ### Capture from `/output/` in Chromium
 
 1. Start TT-Beamer on the PC, plug the USB camera into the Pi and connect both devices to the same network.
-2. On the server PC, open `http://localhost:4173/` and choose **Camera → Set up Raspberry Pi → Find Raspberry Pi**. The Pi needs SSH enabled and a desktop session signed in with the same account.
-3. Confirm the Pi’s SSH identity on first use and enter its user name and password. TT-Beamer enables the detected HDMI output, pairs the camera when the server manages pairing, and starts its dedicated Chromium profile in fullscreen. The password is used for that SSH connection. Check **Camera → Live camera** on the PC.
+2. On the server PC, open `http://localhost:4173/` and choose **Pi output** in the dashboard. The dialog searches for the Pi as it opens. The Pi needs SSH enabled and a desktop session signed in with the same account.
+3. Check the suggested user name, confirm the Pi’s SSH identity on first use, and enter the password. Press Enter or choose **Start fullscreen**. TT-Beamer enables the detected HDMI output, pairs the camera when the server manages pairing, and starts its dedicated Chromium profile in fullscreen. The password is used for that SSH connection. Check **Camera → Live camera** on the PC.
 
-For later sessions, use the same button. If several SSH devices are found,
-select the Pi’s address. If the Pi was started before the projector, turn on
+For later sessions, use the same button. TT-Beamer remembers the Pi’s host name,
+SSH identity and user name. If discovery needs help, open **Find again or enter
+address**. If the Pi was started before the projector, turn on
 the projector and run the button again to enable HDMI.
 
 **Manual setup command** remains available for a Pi without SSH. Copy the
@@ -331,36 +332,24 @@ The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
 offline the preview clears, and inference waits for fresh frames.
 
-### Observe fire tokens on Nemesis boards A and B
-
-On the server PC, select the matching Nemesis board side and open **Camera → Fire observation**.
-This prototype matches the live camera image to the board artwork when the
-view opens. Reopen the view after moving the board. It uses the orange plastic
-token's colour and shape to test the room assignment and tracking behaviour.
-
-The panel compares orange regions with the registered printed artwork and
-uses a grayscale shape classifier to screen out dice, including unmarked
-faces. It proposes **Fire on** after three recent detections at the same
-position, **Keep fire** while the location may be covered, and **Fire off**
-after three fresh images of the clear location. The preview shows confirmed
-markers and the last known positions during temporary occlusion.
-**Save board sample** downloads the board crop at camera resolution and the
-current proposals in a JSON file for later review and labelling.
-
 ### Observe Nemesis game state
 
 Open **Camera → Game observation** on the server PC. On Nemesis boards A and B,
-the view compares the printed track fields with the camera image to locate
-the transparent counters. Two matching frames confirm the slot. Round
-positions 8–1 propose **Scanning** in the cryochamber (011 on A, 008 on B). Self-destruct positions 3
+the view matches the camera image to the selected board artwork. Reopen the
+view after moving the board. It compares the printed track fields with the
+camera image and can use fainter round counter highlights when local contrast
+is low. Two matching frames confirm the slot. Round positions 8–1 propose
+**Scanning** in the cryochamber (011 on A, 008 on B). Self-destruct positions 3
 and below propose **Intruder Alert** in the ship interior. A readable, empty
 self-destruct track is inactive. A counter beside the numbers is outside the
 track. Uncertain or covered slots retain the last confirmed reading.
 
 Run the vision worker with `--game --checkpoint path/to/weights.pth` to
-publish model detections for pieces. The built-in Nemesis proposals use `noise`,
-`fire`, `malfunction`, `alien`, `character` and optionally `hand` and `dice`.
-Dice are visible in Detections and protect a covered marker's last confirmed state.
+publish model detections for pieces. Bounding boxes remain visible between
+model updates. The built-in Nemesis proposals use `noise`, `fire`, `malfunction`,
+`alien`, `character` and optionally `hand` and `dice`. Dice get a bounding box
+and protect a covered marker's last confirmed state. The local fire check can
+provide observations while the trained model starts.
 On Nemesis A and B, Game observation checks model Fire boxes against the matching
 camera image. Boxes with a clear dice shape are treated as possible occluders.
 If that source image has expired, the previous Fire state stays in place.
@@ -389,6 +378,8 @@ Turn on **Camera effects** in the dashboard once the board camera and trained
 model worker are running. The server applies bindings in the background,
 including while the camera dialog is closed. The switch starts off on each
 server launch. Turning it off stops the instances started by the camera.
+**Waiting for model** means the server has yet to receive fresh detections for
+the model linked to the selected board's animations.
 On setups without server rendering, keep the dashboard open on the server PC
 to run the camera observer.
 **Camera → Game observation** shows the readings for review.

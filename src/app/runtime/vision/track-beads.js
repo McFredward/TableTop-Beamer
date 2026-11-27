@@ -12,7 +12,7 @@ function gray(frame, x, y) {
 
 export function prepareTrackBeads(slots, board, reference, frameSize) {
   return slots.map(slot => {
-    const x = slot.x / 1600, y = 0.9514;
+    const x = slot.x / 1600, y = slot.y;
     const center = board.at({ x, y });
     const vx = board.at({ x: x + 0.001, y });
     const vy = board.at({ x, y: y + 0.001 });
@@ -59,15 +59,22 @@ function intensityFit(frame, slot) {
         product += value * sample.value;
       }
       const adjustment = product * n - sum * total;
-      const correlation = adjustment / Math.sqrt(variance * (square * n - total * total));
+      const observedVariance = square * n - total * total;
+      const correlation = adjustment / Math.sqrt(variance * observedVariance);
       if (!Number.isFinite(correlation) || (best && correlation <= best.correlation)) continue;
       const gain = adjustment / variance;
       const bias = (total - gain * sum) / n;
-      let highlights = 0;
+      // A dim round field can still have a distorted digit with faint highlights.
+      const contrast = Math.sqrt(observedVariance) / n;
+      const faintThreshold = Math.max(20, Math.min(36, contrast * 0.82));
+      let highlights = 0, faintHighlights = 0;
       for (const [i, sample] of samples.entries()) {
-        if (sample.dark && values[i] - (gain * sample.value + bias) > 36) highlights++;
+        if (!sample.dark) continue;
+        const residual = values[i] - (gain * sample.value + bias);
+        if (residual > 36) highlights++;
+        if (residual > faintThreshold) faintHighlights++;
       }
-      best = { correlation, highlights };
+      best = { correlation, highlights, faintHighlights };
     }
   }
   return best;
@@ -75,6 +82,7 @@ function intensityFit(frame, slot) {
 
 export function detectTrackBeads(frame, slots) {
   const ranked = new Map();
+  const faintRounds = [];
   const destructionReads = [];
   for (const slot of slots) {
     const fit = intensityFit(frame, slot);
@@ -82,12 +90,16 @@ export function detectTrackBeads(frame, slots) {
     if (!fit || fit.correlation > 0.65) continue;
     // A visibly distorted digit requires fewer independent highlights.
     const requiredHighlights = fit.correlation <= 0.52 && slot.value > 0 ? 12 : 24;
-    if (fit.highlights < requiredHighlights) continue;
-    const score = 1 - fit.correlation + Math.min(fit.highlights / slot.samples.length, 0.2) * 1.6;
-    const proposals = ranked.get(slot.track) ?? [];
-    proposals.push({ slot, score });
-    ranked.set(slot.track, proposals);
+    const score = count => 1 - fit.correlation + Math.min(count / slot.samples.length, 0.2) * 1.6;
+    if (fit.highlights >= requiredHighlights) {
+      const proposals = ranked.get(slot.track) ?? [];
+      proposals.push({ slot, score: score(fit.highlights) });
+      ranked.set(slot.track, proposals);
+    } else if (slot.track === "round" && fit.faintHighlights >= requiredHighlights) {
+      faintRounds.push({ slot, score: score(fit.faintHighlights) });
+    }
   }
+  if (!ranked.has("round") && faintRounds.length) ranked.set("round", faintRounds);
   const objects = [...ranked.values()].flatMap(proposals => {
     proposals.sort((a, b) => b.score - a.score);
     const [first, next] = proposals;

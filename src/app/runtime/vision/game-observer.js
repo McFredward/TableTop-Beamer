@@ -123,7 +123,7 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
   const destructionSlots = tracks?.destruction.map((x, i) => ({ x, value: 6 - i, enabled: i >= 3, track: "self-destruct" })) ?? [];
   const slots = [...roundSlots, ...destructionSlots].map(slot => {
     const x = slot.x / 1600, y = tracks.y;
-    return { ...slot, polygon: [[x - 0.0116, y - 0.017], [x + 0.0116, y - 0.017],
+    return { ...slot, y, polygon: [[x - 0.0116, y - 0.017], [x + 0.0116, y - 0.017],
       [x + 0.0116, y + 0.017], [x - 0.0116, y + 0.017]].map(at) };
   });
   return { zones, effects, slots, cryo: zones.find(zone => zone.id === "special-cryoschlaf") };
