@@ -53,7 +53,41 @@ def audit(manifest, image_root):
     }, files
 
 
-def export_splits(manifest, files, report, output, validation, test):
+def add_grayscale_miniatures(folder, images, annotations, manifest):
+    try:
+        from PIL import Image, ImageOps
+    except ImportError as error:
+        raise ValueError("Install Pillow in the vision Python environment to export grayscale training views") from error
+
+    miniature_classes = {category["id"] for category in manifest["categories"] if category["name"] in {"alien", "character"}}
+    by_image = defaultdict(list)
+    for annotation in annotations:
+        by_image[annotation["image_id"]].append(annotation)
+    miniature_frames = Counter()
+    image_id = max(image["id"] for image in manifest["images"]) + 1
+    annotation_id = max((annotation["id"] for annotation in manifest["annotations"]), default=0) + 1
+    for image in list(images):
+        labels = by_image[image["id"]]
+        if not any(label["category_id"] in miniature_classes for label in labels):
+            continue
+        scene = image["scene_group"]
+        miniature_frames[scene] += 1
+        if (miniature_frames[scene] - 1) % 4:
+            continue
+        name = "gray-" + Path(image["file_name"]).stem + ".jpg"
+        with Image.open(folder / image["file_name"]) as source:
+            if source.size != (image["width"], image["height"]):
+                raise ValueError(f"Image dimensions disagree with the annotations: {image['file_name']}")
+            ImageOps.grayscale(source).convert("RGB").save(folder / name, quality=95)
+        images.append({**image, "id": image_id, "file_name": name, "appearance": "grayscale",
+                       "augmented_from": image["id"]})
+        for label in labels:
+            annotations.append({**label, "id": annotation_id, "image_id": image_id})
+            annotation_id += 1
+        image_id += 1
+
+
+def export_splits(manifest, files, report, output, validation, test, grayscale_miniatures=False):
     scenes = set(report["scene_groups"])
     if validation & test or not (validation | test) <= scenes:
         raise ValueError("Validation and test must use different, existing scene groups")
@@ -87,6 +121,8 @@ def export_splits(manifest, files, report, output, validation, test):
                 images.append({**image, "file_name": name})
             annotations = [annotation for annotation in manifest["annotations"]
                            if split_by_image[annotation["image_id"]] == split]
+            if split == "train" and grayscale_miniatures:
+                add_grayscale_miniatures(folder, images, annotations, manifest)
             subset = {**manifest, "images": images, "annotations": annotations}
             (folder / "_annotations.coco.json").write_text(json.dumps(subset, indent=2) + "\n", encoding="utf-8")
             counts[split] = len(images)
@@ -102,13 +138,17 @@ def main():
     parser.add_argument("--output", type=Path, help="Export for RF-DETR, otherwise print only the audit")
     parser.add_argument("--valid-scene", action="append", default=[], help="Validation scene group, repeatable")
     parser.add_argument("--test-scene", action="append", default=[], help="Test scene group, repeatable")
+    parser.add_argument("--grayscale-miniatures", action="store_true",
+                        help="Add shape-focused grayscale training views for alien and character examples")
     args = parser.parse_args()
+    if args.grayscale_miniatures and not args.output:
+        parser.error("--grayscale-miniatures requires --output")
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         report, files = audit(manifest, (args.image_root or args.manifest.parent).resolve())
         if args.output:
             report["exported_frames"] = export_splits(manifest, files, report, args.output,
-                                                       set(args.valid_scene), set(args.test_scene))
+                                                       set(args.valid_scene), set(args.test_scene), args.grayscale_miniatures)
     except (ValueError, TypeError, KeyError, OSError) as error:
         parser.error(str(error))
     print(json.dumps(report, indent=2, sort_keys=True))

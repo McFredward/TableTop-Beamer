@@ -289,6 +289,12 @@ The export keeps each group in one split and checks for identical images
 across splits. Bounding boxes support box-detector training. Segmentation
 training also needs mask annotations.
 
+For miniatures with different paint schemes, add `--grayscale-miniatures`
+when exporting. It keeps the RGB originals and adds a grayscale view for
+every fourth training image that contains an alien or character within each
+scene. These views encourage the model to use shape and texture. Validate on
+independent captures with different paint schemes and unpainted pieces.
+
 ### Live detections in the dashboard
 
 With the camera and TT-Beamer running, open `http://127.0.0.1:4173/` on the PC
