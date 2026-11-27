@@ -4,6 +4,21 @@ import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
 import { checkCameraReading, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
+import { createGameDetectionOverlay } from "./game-detection-overlay.js";
+
+function textNode(tag, text, className) {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function updateRows(container, rows, createRow) {
+  const signature = JSON.stringify(rows);
+  if (container.dataset.rows === signature) return;
+  container.dataset.rows = signature;
+  container.replaceChildren(...rows.map(createRow));
+}
 
 export function paintBoxes(context, boxes) {
   const { width, height } = context.canvas;
@@ -11,11 +26,12 @@ export function paintBoxes(context, boxes) {
   context.save();
   context.lineWidth = Math.max(2, unit * 1.5);
   context.font = `bold ${12 * unit}px system-ui`;
-  for (const { box, label, color } of boxes) {
+  for (const { box, label, color, held } of boxes) {
     const [x, y, w, h] = box.map((value, i) => value * (i % 2 === 0 ? width : height));
     const textX = Math.min(x, width - context.measureText(label).width - 6 * unit);
     const textY = Math.max(17 * unit, y - 2 * unit);
     context.strokeStyle = color;
+    context.setLineDash(held ? [5 * unit, 4 * unit] : []);
     context.strokeRect(x, y, w, h);
     context.fillStyle = "#10151e";
     context.fillRect(textX, textY - 14 * unit, context.measureText(label).width + 6 * unit, 16 * unit);
@@ -29,7 +45,9 @@ export function createGameReview() {
   const panel = document.getElementById("game-review");
   const tracks = document.getElementById("game-review-tracks");
   const effects = document.getElementById("game-review-effects");
+  const effectsEmpty = document.getElementById("game-review-effects-empty");
   const source = document.getElementById("game-review-source");
+  const sourceClasses = document.getElementById("game-review-classes");
   let setup;
 
   function reset(visible) {
@@ -37,11 +55,17 @@ export function createGameReview() {
     setup = null;
     tracks.textContent = "";
     effects.textContent = "";
+    delete tracks.dataset.rows;
+    delete effects.dataset.rows;
+    effectsEmpty.hidden = false;
+    sourceClasses.textContent = "";
+    delete source.dataset.state;
     source.textContent = visible ? "Locating the printed board…" : "";
   }
 
   function unavailable(message) {
     source.textContent = message;
+    delete source.dataset.state;
   }
 
   async function register(frame, generation, signal) {
@@ -60,13 +84,43 @@ export function createGameReview() {
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
       bindings: createAnimationCameraBindings(board, registration, frame.width, frame.height),
+      overlay: createGameDetectionOverlay(),
       checkedModels: new Map(),
     };
   }
 
-  function render(element, lines, fallback) {
-    const value = lines.join(" / ") || fallback;
-    if (element.textContent !== value) element.textContent = value;
+  function renderReadings(native, proposed, fallback, view) {
+    const trackCards = setup.beads.length ? ["round", "self-destruct"].map(kind => ({
+      label: kind === "round" ? "Round" : "Self-destruct",
+      ...native.tracks.find(track => track.kind === kind),
+    })) : [];
+    updateRows(tracks, trackCards, ({ label, status, value }) => {
+      const card = textNode("section", "", "game-review-card");
+      card.append(textNode("h3", label), textNode("strong", status === "inactive" ? "Off" : value ?? "—", "game-review-value"),
+        textNode("p", status ?? "Waiting for counter", "game-review-meta"));
+      return card;
+    });
+
+    const rows = proposed.map(({ zone, effect, active, status, kind, count }) => ({
+      zone, name: effect.name, active, status: kind === "alien" && active ? `${status} · ${count} seen` : status,
+    })).concat(fallback.map(item => ({ zone: item.room.name, name: "Fire", active: item.active, status: `local check · ${item.state}` })));
+    rows.sort((a, b) => Number(b.active) - Number(a.active) || a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name));
+    effectsEmpty.hidden = rows.length > 0;
+    updateRows(effects, rows, ({ zone, name, active, status }) => {
+      const row = document.createElement("li");
+      row.dataset.active = String(Boolean(active));
+      row.append(textNode("strong", name), textNode("span", active ? "On" : "Off", "game-review-state"),
+        textNode("span", `${/^\d{3}$/.test(zone) ? `Room ${zone}` : zone} · ${status}`, "game-review-meta"));
+      return row;
+    });
+
+    const label = view.delayed ? "Showing last model frame" : view.classes.length ? "Trained model live" : "Local image checks";
+    if (source.textContent !== label) source.textContent = label;
+    source.dataset.state = view.classes.length && !view.delayed ? "live" : "waiting";
+    const detail = view.classes.length ? view.classes.join(" · ")
+      : setup.beads.length || setup.fireEffect ? "Fire and counters are available while the trained model is offline."
+        : "Waiting for a trained model.";
+    if (sourceClasses.textContent !== detail) sourceClasses.textContent = detail;
   }
 
   async function observeBindings(model, frame, id, generation, signal) {
@@ -85,11 +139,12 @@ export function createGameReview() {
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
     if (!setup || generation !== setup.generation || frame.width !== setup.width || frame.height !== setup.height ||
         (boardId && boardId !== setup.id)) await register(frame, generation, signal);
-    const candidate = await readBoardObjects(signal);
+    const candidate = await readBoardObjects(signal).catch(() => null);
     signal.throwIfAborted();
     const model = candidate?.frameId.split("-")[1] === generation ? candidate : null;
+    const view = setup.overlay(model);
     const beads = detectTrackBeads(frame, setup.beads);
-    const hits = setup.geometry && setup.fireEffect && !model?.classes.includes("fire")
+    const hits = setup.geometry && setup.fireEffect && !view.classes.includes("fire")
       ? detectFireTokens(setup.cv, frame, setup.geometry) : null;
     const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0]))
       .filter(item => item.active || item.state === "removed") : [];
@@ -101,17 +156,7 @@ export function createGameReview() {
     signal.throwIfAborted();
     const proposed = native.effects.concat(linked, (trained?.effects ?? []).filter(item =>
       !linked.some(binding => binding.roomId === item.roomId && binding.effect.id === item.effect.id)));
-    render(tracks, native.tracks.map(track => {
-      const label = track.kind === "round" ? "Round" : "Self-destruct";
-      return track.status === "inactive" ? `${label} · inactive`
-        : `${label} ${track.value ?? "—"} · ${track.status}`;
-    }), setup.beads.length ? "Looking for the transparent track counters…" : "Track slots are mapped on Nemesis Board A and B.");
-    render(effects, proposed.map(item =>
-      `${item.zone} · ${item.effect.name} ${item.active ? "on" : "off"} · ${item.status}${item.kind === "alien" ? ` (${item.count} seen)` : ""}`)
-      .concat(fallback.map(item => `${item.room.name} · ${item.proposal} · ${item.state}`)),
-    "Waiting for confirmed positions.");
-    render(source, model ? [`Trained classes: ${model.classes.join(", ")}`] : [],
-      "Local prototype checks Fire and track counters. Other pieces need a trained detector.");
+    if (!panel.hidden) renderReadings(native, proposed, fallback, view);
 
     const seenSlots = native.tracks.map(reading => {
       const previous = setup.beads.find(slot => slot.track === reading.kind && slot.value === reading.value);
@@ -122,12 +167,13 @@ export function createGameReview() {
     }));
     const fireBoxes = fallback.filter(item => item.active).map(({ room, state, box: { x, y, w, h } }) => ({
       box: [x / frame.width, y / frame.height, w / frame.width, h / frame.height],
-      label: `${state === "visible" ? "Fire" : "Last seen fire"} · ${room.name}`,
+      label: `${state === "visible" ? "Local fire check" : "Last seen fire"} · ${room.name}`,
       color: state === "visible" ? "#ffc359" : "#8be2ff",
     }));
-    const modelBoxes = !annotated && model ? model.objects
+    const modelBoxes = !annotated ? view.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
-      .map(({ kind, confidence, box }) => ({ box, label: `${kind} ${Math.round(confidence * 100)}%`, color: "#7be4b5" })) : [];
+      .map(({ kind, confidence, box, held }) => ({ box, label: held ? `${kind} · last seen` : `${kind} ${Math.round(confidence * 100)}%`,
+        color: "#7be4b5", held })) : [];
     return [...markerBoxes, ...fireBoxes, ...modelBoxes];
   }
 

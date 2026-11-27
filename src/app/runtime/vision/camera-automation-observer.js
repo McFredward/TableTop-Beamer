@@ -13,9 +13,12 @@ export async function runCameraAutomation() {
   const owner = crypto.randomUUID();
   let phase = "board";
   let setup;
+  let selection;
+
+  const heartbeat = () => post("/api/camera/automation/lease", { owner, phase, ...selection?.targets });
 
   async function observe() {
-    const response = await post("/api/camera/automation/lease", { owner, phase });
+    const response = await heartbeat();
     if (response.status === 204) {
       setup = undefined;
       return;
@@ -27,34 +30,34 @@ export async function runCameraAutomation() {
       phase = "paused";
       return;
     }
-    if (!lease.boardId) { phase = "board"; return; }
-    if (!lease.frameId) { phase = "camera"; return; }
+    if (!lease.boardId) { selection = undefined; phase = "board"; return; }
 
-    const generation = lease.frameId.split("-")[1];
-    const key = `${lease.token}:${lease.boardId}:${generation}`;
+    const boardKey = `${lease.token}:${lease.boardId}`;
     const signal = AbortSignal.timeout(18_000);
-    if (setup?.key !== key) {
+    if (selection?.key !== boardKey) {
       const catalog = await fetch("/api/boards", { cache: "no-store", signal });
       if (!catalog.ok) throw new Error("The board catalog is unavailable");
       const board = (await catalog.json()).boards.find(entry => entry.boardId === lease.boardId);
       if (!board) { phase = "board"; return; }
-      const hasBindings = ["roomFx", "insideFx", "outsideFx"].some(scope =>
-        board[scope]?.animations?.some(animation => animation.cameraTrigger?.modelId));
-      if (!hasBindings) {
-        setup = { key, modelIds: [] };
-        phase = "bindings";
-        return;
-      }
+      const modelIds = [...new Set(["roomFx", "insideFx", "outsideFx"].flatMap(scope =>
+        (board[scope]?.animations ?? []).map(animation => animation.cameraTrigger?.modelId).filter(Boolean)))];
+      selection = { key: boardKey, board, targets: { boardId: lease.boardId, modelIds } };
+    }
+    if (!selection.targets.modelIds.length) { phase = "bindings"; return; }
+    if (!lease.frameId) { phase = "camera"; return; }
 
+    const generation = lease.frameId.split("-")[1];
+    const key = `${boardKey}:${generation}`;
+    if (setup?.key !== key) {
       phase = "registering";
-      await post("/api/camera/automation/lease", { owner, phase });
+      await heartbeat();
       const bitmap = await readCameraBitmap(lease.frameId, signal);
       if (!bitmap) { phase = "camera"; return; }
       let frame;
       try { frame = readBitmap(bitmap, true); }
       finally { bitmap.close(); }
-      const { registration, geometry, width, height } = await registerCameraBoard(board, frame, signal);
-      const bindings = createAnimationCameraBindings(board, registration, width, height);
+      const { registration, geometry, width, height } = await registerCameraBoard(selection.board, frame, signal);
+      const bindings = createAnimationCameraBindings(selection.board, registration, width, height);
       setup = { key, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map() };
     }
 

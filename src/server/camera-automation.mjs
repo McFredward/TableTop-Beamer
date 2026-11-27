@@ -26,13 +26,17 @@ export function createCameraAutomation(now = Date.now) {
       if (!enabled) return { enabled, phase: "off" };
       return { enabled, phase: lease?.expiresAt > now() ? lease.phase : "host" };
     },
-    heartbeat(owner, phase) {
+    heartbeat(owner, phase, targets) {
       const time = now();
       if (!enabled || (lease?.expiresAt > time && lease.owner !== owner)) return null;
       if (!(lease?.expiresAt > time)) lease = { owner, token: randomUUID(), phase: "board" };
       lease.expiresAt = time + LEASE_MS;
       if (phases.has(phase)) lease.phase = phase;
+      if (targets) lease.targets = targets;
       return { token: lease.token, since };
+    },
+    modelIds(boardId) {
+      return lease?.expiresAt > now() && lease.targets?.boardId === boardId ? lease.targets.modelIds : [];
     },
     accepts(token, observedAt) {
       return enabled && Boolean(lease && lease.token === token && lease.expiresAt > now() && observedAt >= since);

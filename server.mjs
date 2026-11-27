@@ -3,6 +3,7 @@ import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { cameraFrameId, createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { createCameraAutomation, rememberCameraStops, removeCameraAnimations } from "./src/server/camera-automation.mjs";
+import { createManagedVision } from "./src/server/managed-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
@@ -75,6 +76,10 @@ const outputCamera = createOutputCameraUpload({
 const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
 const cameraAutomation = createCameraAutomation();
+const managedVision = createManagedVision({ root: ROOT_DIR, vision: cameraVision,
+  python: process.env.TT_BEAMER_VISION_PYTHON, checkpoint: process.env.TT_BEAMER_VISION_CHECKPOINT,
+  modelId: process.env.TT_BEAMER_VISION_MODEL_ID, device: process.env.TT_BEAMER_VISION_DEVICE });
+process.on("exit", () => managedVision.stop());
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
 const piOutput = createPiOutput({
   stateFile: path.join(ROOT_DIR, "config", "runtime-output-pi.json"),
@@ -4771,7 +4776,13 @@ const server = createServer(async (req, res) => {
         cameraAnimationCommands.add(payload);
         await acceptCommandMutation({ mutationType: "camera-automation", role: "camera-observer", payload });
       }
-      sendJson(res, 200, cameraAutomation.status());
+      const state = cameraAutomation.status();
+      const modelProgress = cameraAutomation.modelIds(liveSessionState.snapshot.selectedBoard).map(id => {
+        const report = cameraVision.modelStatus(id);
+        return { ...report, id, name: cameraModelPresets.models.find(model => model.id === id)?.name ?? report.name ?? id,
+          managed: managedVision.manages(id) };
+      });
+      sendJson(res, 200, { ...state, modelProgress });
       return;
     }
 
@@ -4783,17 +4794,22 @@ const server = createServer(async (req, res) => {
         return;
       }
       let request;
-      try { request = await parseJsonBody(req, { maxBytes: 512 }); }
+      try { request = await parseJsonBody(req, { maxBytes: 2048 }); }
       catch { res.writeHead(400).end(); return; }
       if (typeof request?.owner !== "string" || !/^[a-zA-Z0-9-]{1,80}$/.test(request.owner)) {
         res.writeHead(400).end();
         return;
       }
-      const lease = cameraAutomation.heartbeat(request.owner, request.phase);
+      const boardId = liveSessionState.snapshot.selectedBoard;
+      const targets = request.boardId === boardId && Array.isArray(request.modelIds) && request.modelIds.length <= 16 &&
+        request.modelIds.every(id => typeof id === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(id))
+        ? { boardId, modelIds: [...new Set(request.modelIds)] } : undefined;
+      const lease = cameraAutomation.heartbeat(request.owner, request.phase, targets);
       if (!lease) { res.writeHead(204).end(); return; }
       const frame = cameraInput().latestFrame();
       if (frame) cameraVision.rememberSource(frame);
-      sendJson(res, 200, { ...lease, paused: cameraAutomationPaused(), boardId: liveSessionState.snapshot.selectedBoard,
+      managedVision.ensure(cameraAutomation.modelIds(boardId), Boolean(frame), server.address().port);
+      sendJson(res, 200, { ...lease, paused: cameraAutomationPaused(), boardId,
         frameId: frame ? cameraFrameId(frame) : null });
       return;
     }
@@ -4830,6 +4846,24 @@ const server = createServer(async (req, res) => {
       cameraAnimationCommands.add(payload);
       const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
       res.writeHead(ack?.applied ? 204 : 409).end();
+      return;
+    }
+
+    if (routePath === "/api/camera/model-status" && req.method === "POST") {
+      if (!isLocalCameraRequest(req) || req.headers.origin !== undefined) {
+        req.resume();
+        res.writeHead(403).end();
+        return;
+      }
+      if (req.headers["content-type"] !== "application/json") {
+        req.resume();
+        res.writeHead(415).end();
+        return;
+      }
+      let payload;
+      try { payload = await parseJsonBody(req, { maxBytes: 512 }); }
+      catch { res.writeHead(400).end(); return; }
+      res.writeHead(cameraVision.reportModelStatus(payload ?? {})).end();
       return;
     }
 

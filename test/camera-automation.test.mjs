@@ -42,3 +42,16 @@ test("disabling camera effects stops only its instances, including the associate
     [boardId]: { enabled: false, selectedAnimationId: "sandstorm" }, other: { enabled: true },
   });
 });
+
+test("model progress follows the selected board and the current observer lease", () => {
+  let now = 1000;
+  const automation = createCameraAutomation(() => now);
+  automation.setEnabled(true);
+  automation.heartbeat("first", "registering", { boardId: "a", modelIds: ["nemesis"] });
+  assert.deepEqual(automation.modelIds("a"), ["nemesis"]);
+  assert.deepEqual(automation.modelIds("b"), []);
+  assert.equal(automation.heartbeat("second", "model", { boardId: "a", modelIds: ["other"] }), null);
+  assert.deepEqual(automation.modelIds("a"), ["nemesis"]);
+  now += 15_001;
+  assert.deepEqual(automation.modelIds("a"), []);
+});

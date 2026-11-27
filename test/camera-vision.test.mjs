@@ -89,6 +89,25 @@ test("separate detectors can report arbitrary trained classes on the same frame"
   ]);
 });
 
+test("model progress tracks real startup and requires a fresh result to show ready", () => {
+  let now = Date.parse(receivedAt);
+  const source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source }, () => now);
+  assert.deepEqual(vision.modelStatus("nemesis"), { phase: "not-connected" });
+  assert.equal(vision.reportModelStatus({ modelId: "nemesis", phase: "loading" }), 204);
+  assert.deepEqual(vision.modelStatus("nemesis"), { phase: "loading" });
+  assert.equal(vision.reportModelStatus({ modelId: "nemesis", phase: "ready" }), 400);
+  assert.equal(vision.reportModelStatus({ modelId: "nemesis", phase: "running" }), 204);
+  assert.deepEqual(vision.modelStatus("nemesis"), { phase: "stalled" });
+  assert.equal(vision.publishObjects({ modelId: "nemesis", frameId: cameraFrameId(source),
+    classes: ["fire"], objects: [], coverage: [0, 0, 1, 1] }), 204);
+  assert.equal(vision.modelStatus("nemesis").phase, "ready");
+  now += 12_001;
+  assert.equal(vision.modelStatus("nemesis").phase, "disconnected");
+  assert.equal(vision.reportModelStatus({ modelId: "nemesis", phase: "error", error: "checkpoint" }), 204);
+  assert.deepEqual(vision.modelStatus("nemesis"), { phase: "error", error: "checkpoint" });
+});
+
 test("original frames can be recovered by id for exact preview overlays", () => {
   let source = cameraFrame(1);
   const vision = createCameraVision({ latestFrame: () => source });

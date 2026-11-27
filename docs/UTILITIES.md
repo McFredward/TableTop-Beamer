@@ -384,7 +384,28 @@ model worker are running. The server applies bindings in the background,
 including while the camera dialog is closed. The switch starts off on each
 server launch. Turning it off stops the instances started by the camera.
 **Waiting for model** means the server has yet to receive fresh detections for
-the model linked to the selected board's animations.
+the model linked to the selected board's animations. The progress bar shows
+the stages reported by the detector and completes when TT-Beamer receives a
+fresh result. The local Fire and track checks can already show bounding boxes
+while the trained detector is offline. An independently launched detector
+automatically reconnects to TT-Beamer after a server restart.
+
+To let TT-Beamer start and restart an installed detector itself, set these
+environment variables in the PowerShell window that launches the server.
+
+```powershell
+$env:TT_BEAMER_VISION_PYTHON = $visionPython
+$env:TT_BEAMER_VISION_CHECKPOINT = (Resolve-Path 'path\to\checkpoint_best_ema.pth').Path
+.\start.bat
+```
+
+TT-Beamer starts the configured worker when **Camera effects** needs its
+model. The managed worker defaults to the `nemesis` model ID, CPU inference
+and one analyzed frame per second. `TT_BEAMER_VISION_MODEL_ID` selects another
+binding ID. Set `TT_BEAMER_VISION_DEVICE=cuda` to use a configured CUDA
+environment. For separate terminal use, pass `--model-id nemesis` to report
+checkpoint errors under that ID even before the weights can be loaded.
+
 On setups without server rendering, keep the dashboard open on the server PC
 to run the camera observer.
 **Camera → Game observation** shows the readings for review.

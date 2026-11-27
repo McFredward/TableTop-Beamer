@@ -6,6 +6,10 @@ const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MAX_MODELS = 16;
 const DEFAULT_MODEL_ID = "default";
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/;
+const MODEL_HEARTBEAT_MS = 12_000;
+const MODEL_ERROR_MS = 300_000;
+const modelPhases = new Set(["starting", "loading", "preparing", "waiting-camera", "inference", "running", "reconnecting", "error", "stopped"]);
+const modelErrors = new Set(["checkpoint", "dependencies", "device", "frame-size", "server", "worker"]);
 
 export function isLocalCameraRequest(req) {
   const { host, forwarded, "x-forwarded-for": forwardedFor, "x-forwarded-host": forwardedHost } = req.headers;
@@ -32,19 +36,20 @@ export function sendCameraFrame(res, frame, after) {
   }).end(frame.jpeg);
 }
 
-export function createCameraVision(cameraInput) {
+export function createCameraVision(cameraInput, now = Date.now) {
   let preview;
   let pending = false;
   const objectFrames = new Map();
   const sourceFrames = new Map();
   const inferenceFrames = new Map();
+  const modelActivity = new Map();
 
   function freshFrame(id) {
     const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
     if (!parts) return null;
     const [sourceTime, generation, sequence] = parts.slice(1).map(Number);
     const source = cameraInput.latestFrame();
-    if (!source || source.generation !== generation || Date.now() - sourceTime > MAX_ANNOTATION_AGE_MS ||
+    if (!source || source.generation !== generation || now() - sourceTime > MAX_ANNOTATION_AGE_MS ||
         sourceTime > Date.parse(source.receivedAt) || sequence < 1 || sequence > source.sequence) return null;
     return { generation, sequence };
   }
@@ -85,6 +90,30 @@ export function createCameraVision(cameraInput) {
       });
     },
 
+    reportModelStatus({ modelId, phase, error } = {}) {
+      if (typeof modelId !== "string" || !MODEL_ID.test(modelId) || !modelPhases.has(phase) ||
+          (error !== undefined && (phase !== "error" || !modelErrors.has(error)))) return 400;
+      modelActivity.delete(modelId);
+      modelActivity.set(modelId, { phase, ...(error && { error }), at: now() });
+      if (modelActivity.size > MAX_MODELS) modelActivity.delete(modelActivity.keys().next().value);
+      return 204;
+    },
+
+    modelStatus(id) {
+      const reading = this.objectsFor(undefined, id);
+      if (reading) return { phase: "ready", ...(reading.modelName && { name: reading.modelName }) };
+      const activity = modelActivity.get(id);
+      if (!activity) {
+        const previous = [...(objectFrames.get(id)?.values() ?? [])].at(-1);
+        if (!previous) return { phase: "not-connected" };
+        return { phase: now() - Number(previous.frameId.split("-")[0]) > MODEL_HEARTBEAT_MS ? "disconnected" : "stalled" };
+      }
+      const age = now() - activity.at;
+      if (activity.phase === "error" && age < MODEL_ERROR_MS) return { phase: "error", error: activity.error };
+      if (age > MODEL_HEARTBEAT_MS || activity.phase === "stopped") return { phase: "disconnected" };
+      return { phase: activity.phase === "running" ? "stalled" : activity.phase };
+    },
+
     publishObjects(payload) {
       const { frameId, classes, objects, coverage, modelId = DEFAULT_MODEL_ID, modelName } = payload ?? {};
       if (typeof frameId !== "string" || typeof modelId !== "string" || !MODEL_ID.test(modelId) ||
@@ -111,7 +140,7 @@ export function createCameraVision(cameraInput) {
     latestFrame() {
       const source = cameraInput.latestFrame();
       if (!preview || !source || source.generation !== preview.generation ||
-          Date.now() - preview.sourceTime > MAX_ANNOTATION_AGE_MS) {
+          now() - preview.sourceTime > MAX_ANNOTATION_AGE_MS) {
         return null;
       }
       return preview;

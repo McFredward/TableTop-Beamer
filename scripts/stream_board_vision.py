@@ -8,9 +8,10 @@ import re
 import sys
 import time
 from collections import deque
+from http.client import HTTPException
 from pathlib import Path
-from threading import Thread
-from urllib.error import HTTPError, URLError
+from threading import Event, Thread
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -115,7 +116,7 @@ def collect_projection_samples(url, samples):
             if frame:
                 last_id = frame[0]
                 samples.append(frame)
-        except (URLError, TimeoutError):
+        except (OSError, HTTPException):
             pass
         time.sleep(0.25)
 
@@ -144,6 +145,53 @@ def reduce_projection(image, frame_id, samples, original_size, roi, np):
     return Image.fromarray(minimum)
 
 
+class WorkerFailure(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+class ModelProgress:
+    def __init__(self, url, model_id):
+        self.url = url + "/api/camera/model-status"
+        self.model_id = model_id
+        self.current = {"phase": "starting"}
+        self.changed = Event()
+        self.closed = Event()
+        self.worker = None
+        if model_id:
+            self.worker = Thread(target=self.heartbeat, daemon=True)
+            self.worker.start()
+
+    def show(self, phase):
+        if self.current["phase"] != phase:
+            self.current = {"phase": phase}
+            self.changed.set()
+
+    def publish(self, status):
+        request = Request(self.url, data=json.dumps({"modelId": self.model_id, **status}).encode(),
+                          headers={"Content-Type": "application/json"})
+        try:
+            with urlopen(request, timeout=1):
+                pass
+        except (OSError, HTTPException):
+            # Progress is optional when reconnecting or talking to an older TT-Beamer.
+            pass
+
+    def heartbeat(self):
+        while not self.closed.is_set():
+            self.changed.clear()
+            self.publish(self.current)
+            self.changed.wait(3)
+
+    def finish(self, phase, error=None):
+        if self.worker:
+            self.closed.set()
+            self.changed.set()
+            self.worker.join()
+            self.publish({"phase": phase, **({"error": error} if error else {})})
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=4173, help="Local TT-Beamer port")
@@ -160,14 +208,33 @@ def main():
     args = parser.parse_args()
     if not 0 <= args.threshold <= 1 or not 0 < args.max_fps <= 5 or not 0 < args.port <= 65535:
         parser.error("Use a threshold from 0 to 1, an FPS limit above 0 and at most 5, and a valid port")
-    if args.checkpoint and not args.checkpoint.is_file():
-        parser.error(f"Checkpoint not found: {args.checkpoint}")
-    if args.game and not args.checkpoint:
-        parser.error("--game needs a checkpoint trained on the board-game classes")
     if args.model_id and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", args.model_id):
         parser.error("Model ID must use up to 80 letters, numbers, periods, underscores or hyphens")
+    url = f"http://127.0.0.1:{args.port}"
+    progress = ModelProgress(url, args.model_id if args.game else None)
+    try:
+        if args.game and not args.checkpoint:
+            raise WorkerFailure("checkpoint", "--game needs a checkpoint trained on the board-game classes")
+        if args.checkpoint and not args.checkpoint.is_file():
+            raise WorkerFailure("checkpoint", f"Checkpoint not found: {args.checkpoint}")
+        try:
+            model_identity, preset = identify_checkpoint(args.checkpoint, args.model_id) if args.game else ({}, {})
+        except OSError as error:
+            raise WorkerFailure("checkpoint", str(error)) from error
+        if args.game and not progress.model_id:
+            progress = ModelProgress(url, model_identity["modelId"])
+        run_detector(args, url, model_identity, preset, progress)
+    except WorkerFailure as error:
+        progress.finish("error", error.code)
+        parser.error(str(error))
+    except KeyboardInterrupt:
+        progress.finish("stopped")
+    except Exception:
+        progress.finish("error", "worker")
+        raise
 
-    model_identity, preset = identify_checkpoint(args.checkpoint, args.model_id) if args.game else ({}, {})
+
+def run_detector(args, url, model_identity, preset, progress):
     model_name = args.model or preset.get("variant") or "seg-2xlarge"
     small_objects = preset.get("smallObjectClasses", []) if model_name == "large" else []
     try:
@@ -176,12 +243,12 @@ def main():
         import supervision as sv
         import torch
         from rfdetr import RFDETRLarge, RFDETRSeg2XLarge, RFDETRSegLarge, RFDETRSegNano
-    except ImportError:
-        parser.error("Install PyTorch and RF-DETR as described in docs/UTILITIES.md")
+    except ImportError as error:
+        raise WorkerFailure("dependencies", "Install PyTorch and RF-DETR as described in docs/UTILITIES.md") from error
 
     has_cuda = torch.cuda.is_available()
     if args.device == "cuda" and not has_cuda:
-        parser.error("CUDA requested but unavailable in this PyTorch environment")
+        raise WorkerFailure("device", "CUDA requested but unavailable in this PyTorch environment")
     device = ("cuda" if has_cuda else "cpu") if args.device == "auto" else args.device
     model_type = {
         "seg-2xlarge": RFDETRSeg2XLarge, "seg-large": RFDETRSegLarge,
@@ -189,7 +256,9 @@ def main():
     }[model_name]
     weights = {"pretrain_weights": str(args.checkpoint.resolve())} if args.checkpoint else {}
     print(f"Loading RF-DETR {model_name} on {device}…", flush=True)
+    progress.show("loading")
     model = model_type(device=device, **weights)
+    progress.show("preparing")
     predictor = model.inference(compile=False)
     classes = set()
     if args.game:
@@ -197,17 +266,17 @@ def main():
         classes = {name for name in (names.values() if hasattr(names, "values") else names)
                    if isinstance(name, str) and name and name == name.strip() and len(name) <= 80}
         if not classes:
-            parser.error("The checkpoint does not define any usable classes")
+            raise WorkerFailure("checkpoint", "The checkpoint does not define any usable classes")
         if len(classes) > 128:
-            parser.error("Game observation supports up to 128 published classes per detector")
+            raise WorkerFailure("checkpoint", "Game observation supports up to 128 published classes per detector")
         print(f"Publishing detector {model_identity['modelId']}", flush=True)
     annotations = (
         sv.MaskAnnotator(opacity=0.42),
         sv.BoxAnnotator(thickness=2),
         sv.LabelAnnotator(text_scale=0.7, text_padding=5, smart_position=True),
     )
-    url = f"http://127.0.0.1:{args.port}"
     print(f"Reading camera frames from {url}", flush=True)
+    progress.show("waiting-camera")
     projection_samples = deque(maxlen=5)
     if small_objects:
         Thread(target=collect_projection_samples, args=(url, projection_samples), daemon=True).start()
@@ -215,12 +284,15 @@ def main():
     refinement_key = None
     recent_small_objects = []
     shown_connection_error = False
+    published = False
     detection_threshold = min(args.threshold, 0.25) if args.game else args.threshold
     while True:
         started = time.monotonic()
         try:
             capture = get_frame(url, last_frame)
             if not capture:
+                if not published and not last_frame:
+                    progress.show("waiting-camera")
                 time.sleep(0.2)
                 continue
             last_frame, jpeg = capture
@@ -233,7 +305,7 @@ def main():
             if args.roi:
                 x, y, width, height = args.roi
                 if x + width > image.width or y + height > image.height:
-                    parser.error("The ROI must fit inside the live camera image")
+                    raise WorkerFailure("frame-size", "The ROI must fit inside the live camera image")
                 image = image.crop((x, y, x + width, y + height))
             refine = small_objects and (args.tile_size or max(image.size)) > SMALL_OBJECT_CROP_SIZE
             previous_frames = projection_samples.copy() if refine else ()
@@ -243,6 +315,8 @@ def main():
                 analysis.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
             threshold = min(detection_threshold, SMALL_PROPOSAL_THRESHOLD) if refine else detection_threshold
 
+            if not published:
+                progress.show("inference")
             inference_start = time.monotonic()
             if args.tile_size:
                 detections = predict_tiled(predictor, analysis, threshold, args.tile_size)
@@ -267,7 +341,8 @@ def main():
                                   headers={"Content-Type": "application/json"})
                 try:
                     with urlopen(request, timeout=2):
-                        pass
+                        published = True
+                        progress.show("running")
                 except HTTPError as error:
                     if error.code not in (404, 409):
                         raise
@@ -300,7 +375,12 @@ def main():
                 if error.code != 409:
                     raise
             shown_connection_error = False
-        except (URLError, TimeoutError) as error:
+        except (OSError, HTTPException) as error:
+            if isinstance(error, HTTPError) and 400 <= error.code < 500:
+                raise WorkerFailure("server", f"TT-Beamer rejected the detector request with HTTP {error.code}") from error
+            published = False
+            last_frame = None
+            progress.show("reconnecting")
             if not shown_connection_error:
                 print(f"Waiting for TT-Beamer: {error}", file=sys.stderr, flush=True)
                 shown_connection_error = True
