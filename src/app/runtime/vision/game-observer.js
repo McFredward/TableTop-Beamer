@@ -46,6 +46,37 @@ function overlap([x, y, w, h], [a, b, c, d]) {
   return width > 0 && height > 0 ? width * height / (w * h) : 0;
 }
 
+function samePosition(a, b) {
+  return overlap(a, b) >= 0.6 && overlap(b, a) >= 0.6;
+}
+
+const miniatureKinds = new Set(["alien", "character"]);
+const occluders = new Set([...miniatureKinds, "hand", "dice"]);
+const uncertainThreshold = 0.25;
+
+function recordFireSighting(state, boxes, figures, frameNumber) {
+  // A projected flash can weaken a reading for one frame. For a gap,
+  // require three strong sightings of the same marker within five frames.
+  const recent = (state.fireSightings ?? []).filter(sighting => frameNumber - sighting.frameNumber <= 4);
+  const confirmed = boxes.some(box => {
+    const matching = recent.filter(sighting => sighting.boxes.some(previous => samePosition(box, previous)));
+    return matching.length >= 2 || matching.at(-1)?.frameNumber === frameNumber - 1;
+  });
+  state.fireSightings = [...recent, { frameNumber, boxes, figures }];
+  return confirmed;
+}
+
+function coversPosition(state, box, item) {
+  const area = overlap(box, item.box);
+  if (area <= 0.25) return false;
+  if (state.kind !== "fire" || !miniatureKinds.has(item.kind)) return true;
+  // Nearby figures can have boxes that extend into the marker even when
+  // it is visible. Check for movement beyond the usual box jitter.
+  return !state.fireSightings.some(sighting =>
+    sighting.boxes.some(previous => samePosition(box, previous)) &&
+    sighting.figures.some(previous => samePosition(item.box, previous) && overlap(box, previous) + 0.15 >= area));
+}
+
 function smallAlienRoom(zones, [x, y, width, height]) {
   const footprint = [0.3, 0.5, 0.7].map(fraction => ({ x: x + fraction * width, y: y + 0.7 * height }));
   const rooms = zones.filter(zone => !zone.corridor &&
@@ -98,26 +129,12 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
   return { zones, effects, slots, cryo: zones.find(zone => zone.id === "special-cryoschlaf") };
 }
 
-function updateBinary(track, seen, covered) {
-  if (seen) {
-    track.pending++;
-    track.clear = 0;
-    if (track.pending >= 2) track.active = true;
-    track.status = track.active ? "visible" : "checking";
-  } else {
-    track.pending = 0;
-    track.clear = covered ? 0 : track.clear + 1;
-    if (track.clear >= 3) track.active = false;
-    track.status = covered ? "occluded" : track.active ? "checking" : "removed";
-  }
-}
-
 export function createGameObserver(layout) {
   const current = new Map();
   const tracks = new Map();
   const detectionThreshold = 0.62;
   let lastId, lastTime, lastGeneration, lastSequence;
-  const occluders = new Set(["alien", "character", "hand", "dice"]);
+  let frameNumber = 0;
   const activity = new Set(["noise", "fire", "malfunction", "alien"]);
   const stateFor = (key, init) => {
     if (!current.has(key)) current.set(key, { ...init, pending: 0, clear: 0, active: false });
@@ -138,15 +155,21 @@ export function createGameObserver(layout) {
     const [timestamp, generation, sequence] = frame.frameId.split("-").map(Number);
     if (lastId && generation === lastGeneration && sequence <= lastSequence) return view();
     if (lastId && (timestamp - lastTime > 3500 || generation !== lastGeneration)) {
-      for (const state of current.values()) state.pending = state.clear = 0;
+      for (const state of current.values()) {
+        state.pending = state.clear = 0;
+        if (!state.active) state.fireSightings = [];
+      }
       for (const track of tracks.values()) track.pending = 0;
     }
     lastId = frame.frameId;
     lastTime = timestamp;
     lastGeneration = generation;
     lastSequence = sequence;
+    frameNumber++;
 
     const hits = new Map();
+    const possibleOccluders = frame.objects.filter(item => item.confidence >= uncertainThreshold);
+    const figures = possibleOccluders.filter(item => miniatureKinds.has(item.kind)).map(item => item.box);
     const dice = frame.classes.includes("dice") ? frame.objects.filter(item =>
       item.kind === "dice" && item.confidence >= detectionThreshold) : [];
     for (const item of frame.objects) {
@@ -166,16 +189,28 @@ export function createGameObserver(layout) {
       const state = stateFor(key, { kind: hit.kind, zone: hit.zone });
       state.boxes = hit.boxes;
       state.count = hit.boxes.length;
-      updateBinary(state, true, false);
+      state.pending++;
+      state.clear = 0;
+      const confirmed = state.kind === "fire" ? recordFireSighting(state, hit.boxes, figures, frameNumber) : state.pending >= 2;
+      state.active ||= confirmed;
+      state.status = state.active ? "visible" : "checking";
       state.confirmed ||= state.active;
     }
     for (const [key, state] of current) {
       if (hits.has(key) || !activity.has(state.kind) || state.status === "removed") continue;
       const missingCoverage = !frame.classes.includes(state.kind)
         || !state.zone.polygon.every(point => rectContains(frame.coverage, point));
-      const covered = state.boxes.some(box => frame.objects.some(item =>
-        (occluders.has(item.kind) || item.kind === state.kind) && item.confidence >= 0.25 && overlap(box, item.box) > 0.25));
-      updateBinary(state, false, missingCoverage || covered);
+      const weakFireReading = state.kind === "fire" && possibleOccluders.some(item =>
+        item.kind === "fire" && item.confidence < detectionThreshold &&
+        state.boxes.some(box => samePosition(box, item.box)));
+      const covered = state.boxes.some(box => possibleOccluders.some(item =>
+        (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) && coversPosition(state, box, item)));
+      if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];
+      const blocked = missingCoverage || covered;
+      state.pending = 0;
+      state.clear = blocked || weakFireReading ? 0 : state.clear + 1;
+      if (state.clear >= 3) state.active = false;
+      state.status = blocked ? "occluded" : state.active || weakFireReading ? "checking" : "removed";
       if (!state.active) state.count = 0;
     }
 

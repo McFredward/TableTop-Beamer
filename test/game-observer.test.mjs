@@ -82,6 +82,53 @@ test("dice trigger no effects and can temporarily cover a confirmed marker", () 
   assert.equal(observe([]).effects[0].active, false);
 });
 
+test("a fire marker can be confirmed when projected light alternates strong and weak readings", () => {
+  const observe = newRun();
+  const fire = item("fire", 0.20, 0.17);
+  const washedOut = { ...item("fire", 0.201, 0.17), confidence: 0.48 };
+  for (const reading of [fire, washedOut, fire, washedOut]) {
+    assert.equal(observe([reading]).effects[0].active, false);
+  }
+  assert.equal(observe([fire]).effects[0].active, true);
+  assert.equal(observe([washedOut]).effects[0].active, true);
+  assert.equal(observe([]).effects[0].active, true);
+  assert.equal(observe([]).effects[0].active, true);
+  assert.equal(observe([]).effects[0].active, false);
+});
+
+test("fire confirmation requires repeated sightings of the same marker", () => {
+  const observe = newRun();
+  const fire = item("fire", 0.20, 0.17);
+  const other = item("fire", 0.25, 0.19);
+  for (const objects of [[fire], [other], [], [fire], [], [fire], [], [fire]]) {
+    assert.ok(observe(objects).effects.every(effect => !effect.active));
+  }
+});
+
+test("a stationary figure near a fire marker does not mask removal", () => {
+  const observe = newRun();
+  const fire = item("fire", 0.20, 0.17);
+  const nearby = { ...item("character", 0.185, 0.18), box: [0.173, 0.160, 0.025, 0.040] };
+  const widerBox = { ...nearby, box: [0.173, 0.160, 0.027, 0.040] };
+  const overMarker = { ...nearby, box: [0.187, 0.160, 0.025, 0.040] };
+  const state = (objects) => observe(objects).effects[0];
+
+  state([fire, nearby]);
+  assert.equal(state([fire, nearby]).active, true);
+  for (let i = 0; i < 4; i++) {
+    const hidden = state([overMarker]);
+    assert.equal(hidden.status, "occluded");
+    assert.equal(hidden.active, true);
+  }
+
+  assert.equal(state([fire, nearby]).status, "visible");
+  assert.equal(state([widerBox]).active, true);
+  assert.equal(state([nearby]).active, true);
+  const removed = state([widerBox]);
+  assert.equal(removed.status, "removed");
+  assert.equal(removed.active, false);
+});
+
 test("a confident die prevents a duplicate fire proposal without suppressing a nearby marker", () => {
   const observe = newRun();
   const dice = item("dice", 0.20, 0.17);
