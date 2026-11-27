@@ -89,13 +89,17 @@ default; use the second argument to override.
 ### Capture from `/output/` in Chromium
 
 1. Start TT-Beamer on the PC, plug the USB camera into the Pi and connect both devices to the same network.
-2. On the server PC, open **Camera → Set up Raspberry Pi** in the local dashboard. Copy the command into a terminal on the Pi desktop within five minutes.
-3. In Chromium, choose **Allow while visiting the site**. When TT-Beamer receives the first image, the starter switches the Pi to fullscreen. Check **Camera → Live camera** on the PC.
+2. On the server PC, open `http://localhost:4173/` and choose **Camera → Set up Raspberry Pi → Find Raspberry Pi**. The Pi needs SSH enabled and a desktop session signed in with the same account.
+3. Confirm the Pi’s SSH identity on first use and enter its user name and password. TT-Beamer enables the detected HDMI output, pairs the camera when the server manages pairing, and starts its dedicated Chromium profile in fullscreen. The password is used for that SSH connection. Check **Camera → Live camera** on the PC.
 
-For later sessions, open **TT-Beamer Output** from the Pi's application menu.
-The Pi remembers the server address and Chromium keeps the site permission.
-If either device's LAN address changes, close the projection window and run a fresh setup command.
-Router address reservations keep the saved setup usable after a reboot.
+For later sessions, use the same button. If several SSH devices are found,
+select the Pi’s address. If the Pi was started before the projector, turn on
+the projector and run the button again to enable HDMI.
+
+**Manual setup command** remains available for a Pi without SSH. Copy the
+command into a terminal on the Pi desktop within five minutes. In Chromium,
+choose **Allow while visiting the site**. The manual setup adds a **TT-Beamer
+Output** shortcut to the Pi’s application menu for later sessions.
 
 For manual installations, the development checkout defaults to `192.168.0.29` until a Pi is paired.
 Set `TT_BEAMER_OUTPUT_CAMERA_IP` to use a fixed LAN IPv4 address instead.
@@ -290,7 +294,7 @@ training also needs mask annotations.
 With the camera and TT-Beamer running, open `http://127.0.0.1:4173/` on the PC
 and choose **Camera** in the dashboard. **Live camera** shows the full incoming
 frame. **Detections** shows segmentation masks, boxes, labels and confidence
-scores on the exact frame used for inference. On Nemesis Board A it also
+scores on the exact frame used for inference. On Nemesis boards A and B it also
 draws boxes and the confirmed artwork numbers for the transparent counters.
 It shows the local detections while
 waiting for a result from the Python process.
@@ -321,9 +325,9 @@ The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
 offline the preview clears, and inference waits for fresh frames.
 
-### Observe fire tokens on Nemesis Board A
+### Observe fire tokens on Nemesis boards A and B
 
-On the server PC, select Nemesis Board A and open **Camera → Fire observation**.
+On the server PC, select the matching Nemesis board side and open **Camera → Fire observation**.
 This prototype matches the live camera image to the board artwork when the
 view opens. Reopen the view after moving the board. It uses the orange plastic
 token's colour and shape to test the room assignment and tracking behaviour.
@@ -336,10 +340,10 @@ current proposals in a JSON file for later review and labelling.
 
 ### Observe Nemesis game state
 
-Open **Camera → Game observation** on the server PC. On Nemesis Board A,
+Open **Camera → Game observation** on the server PC. On Nemesis boards A and B,
 the view compares the printed track fields with the camera image to locate
 the transparent counters. Two matching frames confirm the slot. Round
-positions 8–1 propose **Scanning** in room 011. Self-destruct positions 3
+positions 8–1 propose **Scanning** in the cryochamber (011 on A, 008 on B). Self-destruct positions 3
 and below propose **Intruder Alert** in the ship interior. A readable, empty
 self-destruct track is inactive. A counter beside the numbers is outside the
 track. Uncertain or covered slots retain the last confirmed reading.

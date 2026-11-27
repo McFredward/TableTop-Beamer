@@ -1,9 +1,10 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
 import { createFireReview } from "./fire-review.js";
 import { createGameReview } from "./game-review.js";
+import { bindPiOutput } from "./pi-output.js";
 
 function bindCameraSetup() {
-  const details = document.getElementById("camera-setup");
+  const details = document.getElementById("camera-setup-manual");
   const row = document.getElementById("camera-setup-command-row");
   const command = document.getElementById("camera-setup-command");
   const status = document.getElementById("camera-setup-status");
@@ -236,6 +237,7 @@ function bootCameraPreview() {
     });
   }
   bindCameraSetup();
+  bindPiOutput(dialog);
   bindAutoCalibration({
     dialog,
     pausePreview() {

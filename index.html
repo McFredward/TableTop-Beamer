@@ -1041,14 +1041,37 @@
     <p id="auto-calibration-status" class="camera-preview-status" role="status"></p>
     <details id="camera-setup" class="camera-setup">
       <summary>Set up Raspberry Pi</summary>
-      <p>Connect the USB camera to the Pi and open a terminal on the Pi desktop.</p>
-      <div id="camera-setup-command-row" hidden>
-        <label for="camera-setup-command">Command to run on the Pi</label>
-        <textarea id="camera-setup-command" rows="2" readonly spellcheck="false"></textarea>
-        <button id="camera-setup-copy" class="rd-btn rd-btn-ghost" type="button">Copy command</button>
-        <button id="camera-setup-renew" class="rd-btn rd-btn-ghost" type="button">Get a fresh command</button>
+      <div class="pi-output-controls">
+        <button id="pi-output-find" class="rd-btn rd-btn-ghost" type="button">Find Raspberry Pi</button>
+        <form id="pi-output-device" hidden>
+          <label for="pi-output-address">Pi address</label>
+          <input id="pi-output-address" required list="pi-output-addresses" inputmode="decimal" spellcheck="false">
+          <datalist id="pi-output-addresses"></datalist>
+          <button class="rd-btn rd-btn-ghost" type="submit">Continue</button>
+        </form>
+        <form id="pi-output-login" hidden>
+          <p id="pi-output-identity"></p>
+          <div class="pi-output-fields">
+            <label for="pi-output-user">Pi user name</label>
+            <input id="pi-output-user" required maxlength="32" autocomplete="off" spellcheck="false">
+            <label for="pi-output-password">SSH password</label>
+            <input id="pi-output-password" required type="password" maxlength="256" autocomplete="off">
+            <button id="pi-output-submit" class="rd-btn rd-btn-ghost" type="submit">Start Pi output</button>
+          </div>
+        </form>
+        <p id="pi-output-status" role="status"></p>
       </div>
-      <p id="camera-setup-status" role="status"></p>
+      <details id="camera-setup-manual">
+        <summary>Manual setup command</summary>
+        <p>Connect the USB camera to the Pi and open a terminal on the Pi desktop.</p>
+        <div id="camera-setup-command-row" hidden>
+          <label for="camera-setup-command">Command to run on the Pi</label>
+          <textarea id="camera-setup-command" rows="2" readonly spellcheck="false"></textarea>
+          <button id="camera-setup-copy" class="rd-btn rd-btn-ghost" type="button">Copy command</button>
+          <button id="camera-setup-renew" class="rd-btn rd-btn-ghost" type="button">Get a fresh command</button>
+        </div>
+        <p id="camera-setup-status" role="status"></p>
+      </details>
     </details>
     <div class="camera-preview-frame">
       <canvas id="camera-preview-image" role="img" aria-label="Latest board camera frame" hidden></canvas>

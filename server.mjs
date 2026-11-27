@@ -3,6 +3,7 @@ import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
+import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
 import { isIPv4 } from "node:net";
@@ -72,6 +73,13 @@ const outputCamera = createOutputCameraUpload({
 const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
+const piOutput = createPiOutput({
+  stateFile: path.join(ROOT_DIR, "config", "runtime-output-pi.json"),
+  launcherFile: path.join(ROOT_DIR, "scripts", "setup-pi-output.sh"),
+  configuredAddress: () => fixedCameraAddress ?? readPairedCameraAddress(PAIRED_CAMERA_PATH),
+  issueToken: address => cameraSetupAvailable && readPairedCameraAddress(PAIRED_CAMERA_PATH) !== address
+    ? cameraPairing.issue().token : null,
+});
 const calibration = createCalibrationSession();
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
@@ -4572,6 +4580,21 @@ const server = createServer(async (req, res) => {
         return;
       }
       sendJson(res, 400, { error: "Invalid calibration action." });
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/camera/pi-output") {
+      res.setHeader("Cache-Control", "no-store");
+      if (!isLocalCameraRequest(req) || req.headers.origin !== `http://${req.headers.host}`) {
+        req.resume();
+        sendJson(res, 403, { error: "Open TT-Beamer on the server PC using localhost to start the Pi." });
+        return;
+      }
+      let request;
+      try { request = await parseJsonBody(req, { maxBytes: 2048 }); }
+      catch { sendJson(res, 400, { error: "Invalid Pi output request." }); return; }
+      const result = await piOutput(request, getAnnouncedIp(), server.address().port);
+      if (!res.destroyed) sendJson(res, result.code, result.body);
       return;
     }
 
