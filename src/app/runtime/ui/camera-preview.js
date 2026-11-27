@@ -2,6 +2,7 @@ import { bindAutoCalibration } from "../calibration/auto-calibration.js";
 import { createFireReview } from "./fire-review.js";
 import { createGameReview } from "./game-review.js";
 import { bindPiOutput } from "./pi-output.js";
+import { readCameraBitmap } from "../vision/camera-board-readings.js";
 
 function bindCameraSetup() {
   const details = document.getElementById("camera-setup-manual");
@@ -65,7 +66,7 @@ function bootCameraPreview() {
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
   const fire = createFireReview();
-  const game = createGameReview(sameCameraFrame);
+  const game = createGameReview();
   let mode = "vision";
   let active;
 
@@ -76,13 +77,6 @@ function bootCameraPreview() {
       cache: "no-store",
       signal: AbortSignal.any([signal, AbortSignal.timeout(2500)]),
     });
-  }
-
-  async function sameCameraFrame(id, signal) {
-    const response = await fetch("/api/camera/latest.jpg?" + new URLSearchParams({ frameId: id }), {
-      cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1800)]),
-    });
-    return response.ok ? createImageBitmap(await response.blob()) : null;
   }
 
   function setStatus(message) {
@@ -113,7 +107,7 @@ function bootCameraPreview() {
           try {
             if (signal.aborted) return;
             if (source === "vision") {
-              original = await sameCameraFrame(id, signal).catch(() => null);
+              original = await readCameraBitmap(id, signal).catch(() => null);
             }
             if (signal.aborted) return;
             const camera = original ?? bitmap;

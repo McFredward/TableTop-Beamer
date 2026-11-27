@@ -11,6 +11,7 @@ export function createCalibrationSession() {
 
   return {
     current,
+    isActive: () => Boolean(run && !run.output.socket.destroyed && performance.now() < run.deadline),
     start({ boardId, generation, gridAt, output }) {
       if (run && performance.now() < run.deadline) return null;
       run = { id: randomUUID(), deadline: performance.now() + MAX_RUN_MS, boardId, generation, gridAt, output, step: null, size: null };

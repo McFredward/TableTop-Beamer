@@ -3,25 +3,32 @@ let cvReady;
 export function loadOpenCV() {
   if (!cvReady) {
     cvReady = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
       const timer = setTimeout(() => reject(new Error("OpenCV did not load.")), 15000);
-      script.src = "/vendor/calibration-opencv.js";
-      script.onerror = () => {
+      const unavailable = () => {
         clearTimeout(timer);
         reject(new Error("OpenCV is unavailable. Restart TT-Beamer with its current dependencies."));
       };
-      script.onload = () => {
-        const instance = window.cv;
+      function waitForRuntime() {
+        const instance = globalThis.cv;
         const ready = () => {
           clearTimeout(timer);
           resolve({ cv: instance });
         };
-        if (!instance) {
-          clearTimeout(timer);
-          reject(new Error("OpenCV is unavailable."));
-        } else if (instance.Mat) ready();
+        if (!instance) unavailable();
+        else if (instance.Mat) ready();
         else instance.onRuntimeInitialized = ready;
-      };
+      }
+      if (typeof document === "undefined") {
+        try {
+          importScripts("/vendor/calibration-opencv.js");
+          waitForRuntime();
+        } catch { unavailable(); }
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "/vendor/calibration-opencv.js";
+      script.onerror = unavailable;
+      script.onload = waitForRuntime;
       document.head.append(script);
     }).catch(error => { cvReady = undefined; throw error; });
   }

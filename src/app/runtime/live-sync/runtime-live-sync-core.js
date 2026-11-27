@@ -1309,6 +1309,7 @@
               || mutationType === "clear-all"
               || mutationType === "edit-room"
               || mutationType === "camera-animation"
+              || mutationType === "camera-automation"
               || mutationType === "trigger-room"
               // align mutations apply ONLY on the SSR renderer tab.
               || (isAlignMutation && isFinalRole)

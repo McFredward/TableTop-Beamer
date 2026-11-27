@@ -385,12 +385,19 @@ Nemesis A and B already pair the seven-class Nemesis detector with Fire,
 Malfunction, Light Flicker and the room Alarm. Fire uses a verification opacity
 of 0.42. These bindings are editable like any other animation setting.
 
-While **Camera → Game observation** runs with the trained worker, a confirmed
-presence starts the linked animation. Room animations use the detected position.
-Removal stops the camera-started instance. Room animations also offer an
-optional **Verification opacity**. When the last position is hard to read, the
-renderer briefly uses that opacity for the linked instance so the camera can
-check the room again.
+Turn on **Camera effects** in the dashboard once the board camera and trained
+model worker are running. The server applies bindings in the background,
+including while the camera dialog is closed. The switch starts off on each
+server launch. Turning it off stops the instances started by the camera.
+On setups without server rendering, keep the dashboard open on the server PC
+to run the camera observer.
+**Camera → Game observation** shows the readings for review.
+
+A confirmed presence starts the linked animation. Room animations use the
+detected position. Removal stops the camera-started instance. Room animations
+also offer an optional **Verification opacity**. When the last position is hard
+to read, the renderer briefly uses that opacity so the camera can check the
+room again.
 
 ---
 

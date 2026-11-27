@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
-import { createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
+import { cameraFrameId, createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
+import { createCameraAutomation, removeCameraAnimations } from "./src/server/camera-automation.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
@@ -73,6 +74,7 @@ const outputCamera = createOutputCameraUpload({
 });
 const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
+const cameraAutomation = createCameraAutomation();
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
 const piOutput = createPiOutput({
   stateFile: path.join(ROOT_DIR, "config", "runtime-output-pi.json"),
@@ -281,6 +283,7 @@ const LIVE_MUTATION_TYPES = new Set([
   "trigger-room",
   "edit-room",
   "camera-animation",
+  "camera-automation",
   "stop-animation",
   "clear-all",
   "align-toggle",
@@ -303,6 +306,7 @@ const NON_COALESCING_MUTATIONS = new Set([
   "trigger-room",
   "edit-room",
   "camera-animation",
+  "camera-automation",
   "stop-animation",
   "clear-all",
   "align-toggle",
@@ -594,8 +598,14 @@ function readRuntimeSnapshot() {
   return isPlainObject(liveSessionState.snapshot.runtime) ? cloneJson(liveSessionState.snapshot.runtime) : {};
 }
 
-function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition }) {
-  if (boardId !== liveSessionState.snapshot.selectedBoard || !definition) return null;
+function cameraAutomationPaused() {
+  return Boolean(liveSessionState.snapshot.alignMode || liveSessionState.snapshot.runtime?.alignMode || calibration.isActive());
+}
+
+function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token }) {
+  const [observedAt, generation, sequence] = frameId.split("-").map(Number);
+  if (boardId !== liveSessionState.snapshot.selectedBoard || !definition || cameraAutomationPaused() ||
+      !cameraAutomation.accepts(token, observedAt)) return null;
   const reading = cameraVision.objectsFor(frameId, modelId);
   if (!reading?.classes.includes(definition.cameraTrigger?.className)) return null;
 
@@ -604,7 +614,6 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
   const runtimeScope = scope === "room" ? "room" : "global";
   const owner = JSON.stringify([scope, definition.id, roomId]);
   const existing = animations.find(item => item.boardId === boardId && item.cameraTriggerOwner === owner);
-  const [observedAt, generation, sequence] = frameId.split("-").map(Number);
   if (action !== "verify") {
     const key = `${boardId}:${owner}`;
     const previous = cameraAnimationReadings.get(key);
@@ -1564,6 +1573,13 @@ function applyLiveMutation({
   } else if (mutationType === "camera-animation") {
     nextSnapshotPatch = cameraAnimationCommands.has(payload) ? applyCameraAnimationPatch(payload) : null;
     if (!nextSnapshotPatch) return { applied: false, version: liveSessionState.version };
+  } else if (mutationType === "camera-automation") {
+    if (!cameraAnimationCommands.has(payload) || !cameraAutomation.setEnabled(payload.enabled)) {
+      return { applied: false, version: liveSessionState.version };
+    }
+    cameraAnimationReadings.clear();
+    const runtime = readRuntimeSnapshot();
+    nextSnapshotPatch = payload.enabled ? { runtime } : removeCameraAnimations(runtime, readOutsideFxByBoard());
   } else if (mutationType === "context-update") {
     const prevBoardForCodec = liveSessionState.snapshot?.selectedBoard ?? null;
     nextSnapshotPatch = applyContextUpdatePatch(payload);
@@ -1779,6 +1795,7 @@ function applyLiveMutation({
   }
 
   if (typeof payload?.alignMode === "boolean") {
+    if (payload.alignMode !== Boolean(liveSessionState.snapshot.alignMode)) cameraAutomation.reset();
     nextSnapshotPatch.alignMode = payload.alignMode;
     if (isPlainObject(nextSnapshotPatch.runtime)) {
       nextSnapshotPatch.runtime.alignMode = payload.alignMode;
@@ -4164,6 +4181,7 @@ async function handleGlobalDefaultsSave(req, res) {
       console.warn(`[global-defaults] persist board profile ${boardId} failed:`, error?.message || error);
     }
   }
+  if (Object.hasOwn(incomingProfiles, liveSessionState.snapshot.selectedBoard)) cameraAutomation.reset();
 
   // Phase 58 hotfix: a per-board codec edit (Board settings) lands here via
   // the board profile's `videoCodec`. In "board" codec mode this may change
@@ -4642,7 +4660,10 @@ const server = createServer(async (req, res) => {
       }
       if (action === "stop") {
         const output = calibration.stop(id);
-        if (output) sendLiveSocketMessage(output.socket, { type: "calibration-pattern", pattern: null });
+        if (output) {
+          cameraAutomation.reset();
+          sendLiveSocketMessage(output.socket, { type: "calibration-pattern", pattern: null });
+        }
         res.writeHead(204).end();
         return;
       }
@@ -4734,6 +4755,48 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (routePath === "/api/camera/automation" && ["GET", "POST"].includes(req.method)) {
+      res.setHeader("Cache-Control", "no-store");
+      if (req.method === "POST") {
+        if (req.headers.origin !== `http://${req.headers.host}`) {
+          req.resume();
+          res.writeHead(403).end();
+          return;
+        }
+        let payload;
+        try { payload = await parseJsonBody(req, { maxBytes: 256 }); }
+        catch { res.writeHead(400).end(); return; }
+        if (typeof payload?.enabled !== "boolean") { res.writeHead(400).end(); return; }
+        cameraAnimationCommands.add(payload);
+        await acceptCommandMutation({ mutationType: "camera-automation", role: "camera-observer", payload });
+      }
+      sendJson(res, 200, cameraAutomation.status());
+      return;
+    }
+
+    if (routePath === "/api/camera/automation/lease" && req.method === "POST") {
+      res.setHeader("Cache-Control", "no-store");
+      if (!isLocalCameraRequest(req) || req.headers.origin !== `http://${req.headers.host}`) {
+        req.resume();
+        res.writeHead(403).end();
+        return;
+      }
+      let request;
+      try { request = await parseJsonBody(req, { maxBytes: 512 }); }
+      catch { res.writeHead(400).end(); return; }
+      if (typeof request?.owner !== "string" || !/^[a-zA-Z0-9-]{1,80}$/.test(request.owner)) {
+        res.writeHead(400).end();
+        return;
+      }
+      const lease = cameraAutomation.heartbeat(request.owner, request.phase);
+      if (!lease) { res.writeHead(204).end(); return; }
+      const frame = cameraInput().latestFrame();
+      if (frame) cameraVision.rememberSource(frame);
+      sendJson(res, 200, { ...lease, paused: cameraAutomationPaused(), boardId: liveSessionState.snapshot.selectedBoard,
+        frameId: frame ? cameraFrameId(frame) : null });
+      return;
+    }
+
     if (routePath === "/api/camera/animation" && req.method === "POST") {
       if (!isLocalCameraRequest(req) || req.headers.origin !== "http://" + req.headers.host) {
         req.resume();
@@ -4743,11 +4806,15 @@ const server = createServer(async (req, res) => {
       let command;
       try { command = await parseJsonBody(req, { maxBytes: 2048 }); }
       catch { res.writeHead(400).end(); return; }
-      const { boardId, modelId, frameId, scope, animationId, roomId, action } = command ?? {};
+      const { boardId, modelId, frameId, scope, animationId, roomId, action, token } = command ?? {};
       if (!["room", "inside", "outside"].includes(scope) || !["start", "stop", "verify"].includes(action) ||
           typeof modelId !== "string" || typeof frameId !== "string" || typeof animationId !== "string" ||
           (scope === "room" ? typeof roomId !== "string" : roomId !== null)) {
         res.writeHead(400).end();
+        return;
+      }
+      if (!cameraAutomation.accepts(token, Number(frameId.split("-")[0])) || cameraAutomationPaused()) {
+        res.writeHead(409).end();
         return;
       }
       const { boards } = await loadBoardCatalog();
@@ -4758,7 +4825,7 @@ const server = createServer(async (req, res) => {
         res.writeHead(409).end();
         return;
       }
-      const payload = { boardId, modelId, frameId, scope, roomId, action, definition };
+      const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token };
       cameraAnimationCommands.add(payload);
       const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
       res.writeHead(ack?.applied ? 204 : 409).end();
@@ -4938,7 +5005,7 @@ const server = createServer(async (req, res) => {
         });
         return;
       }
-      if (mutationType === "camera-animation") {
+      if (mutationType === "camera-animation" || mutationType === "camera-automation") {
         res.writeHead(403).end();
         return;
       }

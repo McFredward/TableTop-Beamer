@@ -152,6 +152,11 @@
         <div class="rd-topbar-actions">
           <button id="camera-preview-open" class="rd-btn rd-btn-ghost" type="button"
             aria-haspopup="dialog" hidden>Camera</button>
+          <button id="camera-automation-switch" class="rd-btn rd-btn-ghost" type="button" role="switch"
+            aria-checked="false" aria-describedby="camera-automation-status" disabled hidden>
+            Camera effects <span id="camera-automation-indicator" aria-hidden="true">Off</span>
+          </button>
+          <span id="camera-automation-status" class="sr-only" role="status"></span>
           <!-- Phase 22 W2b / W5: running-count chip — split into default
                (auto-restoring) and custom (ad-hoc) animation counts on
                two lines. Each line only renders when its count is >0,
@@ -1089,6 +1094,7 @@
     </div>
   </dialog>
   <script type="module" src="/src/app/runtime/ui/camera-preview.js"></script>
+  <script type="module" src="/src/app/runtime/ui/camera-automation.js"></script>
 
   <!-- Phase 24 W3.1-C4.5: pure self-contained utility IIFE; hoisted to top of
        runtime block so any consumer (e.g. animation-editor-view.js) sees it at

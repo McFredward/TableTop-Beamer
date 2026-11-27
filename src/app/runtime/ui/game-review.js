@@ -1,9 +1,9 @@
-import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
-import { registerBoard } from "../calibration/calibration-math.js";
-import { checkTrainedFireShapes, createFireTracker, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "../vision/fire-observer.js";
-import { createGameObserver, isClassicNemesisBoard, makeGameLayout } from "../vision/game-observer.js";
+import { readBitmap } from "../calibration/calibration-images.js";
+import { createFireTracker, detectFireTokens } from "../vision/fire-observer.js";
+import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
+import { checkCameraReading, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
 
 function paintBoxes(context, boxes) {
   const { width, height } = context.canvas;
@@ -25,7 +25,7 @@ function paintBoxes(context, boxes) {
   context.restore();
 }
 
-export function createGameReview(getSourceFrame) {
+export function createGameReview() {
   const panel = document.getElementById("game-review");
   const tracks = document.getElementById("game-review-tracks");
   const effects = document.getElementById("game-review-effects");
@@ -46,26 +46,16 @@ export function createGameReview(getSourceFrame) {
 
   async function register(frame, generation, signal) {
     const init = { cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(6500)]) };
-    const [live, catalog, { cv }] = await Promise.all([
+    const [live, catalog] = await Promise.all([
       fetch("/api/live/snapshot", init).then(response => response.json()),
       fetch("/api/boards", init).then(response => response.json()),
-      loadOpenCV(),
     ]);
     const id = live.session?.snapshot?.selectedBoard;
     const board = catalog.boards.find(candidate => candidate.boardId === id);
-    if (!board?.metadata?.imageSrc) throw new Error("Select a board with a reference image first.");
-    const url = new URL(board.metadata.imageSrc, location.origin);
-    if (url.origin !== location.origin) throw new Error("The board artwork must be stored in TT-Beamer.");
-    const response = await fetch(url, init);
-    if (!response.ok) throw new Error("The board reference artwork is unavailable.");
-    const classic = isClassicNemesisBoard(id);
-    const reference = await readImage(await response.blob(), classic);
-    signal.throwIfAborted();
-    const registration = registerBoard(cv, reference, frame);
+    const { cv, geometry, registration, reference, width, height } = await registerCameraBoard(board, frame, signal);
     const layout = makeGameLayout(board, registration, frame.width, frame.height);
     setup = {
-      id, generation, width: frame.width, height: frame.height, cv,
-      geometry: classic ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height, reference) : null,
+      cv, geometry, width, height, id, generation,
       beads: prepareTrackBeads(layout.slots, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
@@ -79,59 +69,13 @@ export function createGameReview(getSourceFrame) {
     if (element.textContent !== value) element.textContent = value;
   }
 
-  async function modelForObservation(model, frame, id, signal) {
-    const current = setup;
-    const modelId = model.modelId ?? "default";
-    const needsFireChecks = current.geometry && model.classes.includes("fire");
-    const needsVisibility = current.bindings.needsVisibility(modelId);
-    if (!needsFireChecks && !needsVisibility) return model;
-    const cached = current.checkedModels.get(modelId);
-    if (cached?.frameId === model.frameId) return cached;
-
-    let matchingFrame = frame;
-    if (id !== model.frameId) {
-      const bitmap = await getSourceFrame(model.frameId, signal).catch(() => null);
-      try {
-        signal.throwIfAborted();
-        matchingFrame = bitmap ? readBitmap(bitmap, true) : null;
-      } finally {
-        bitmap?.close();
-      }
-    }
-    const checked = matchingFrame?.width === current.width && matchingFrame.height === current.height
-      ? { ...(needsFireChecks ? checkTrainedFireShapes(matchingFrame, current.geometry, model) : model),
-        fireOverexposed: box => firePositionIsOverexposed(matchingFrame, box) }
-      // With no paired source image, hold state for bindings that verify visibility.
-      : { ...model, classes: needsVisibility ? [] : model.classes.filter(kind => kind !== "fire"),
-        objects: needsVisibility ? [] : model.objects.filter(item => item.kind !== "fire") };
-    current.checkedModels.set(modelId, checked);
-    if (current.checkedModels.size > 2) current.checkedModels.delete(current.checkedModels.keys().next().value);
-    return checked;
-  }
-
-  async function readModel(signal, modelId) {
-    const query = modelId ? "?" + new URLSearchParams({ modelId }) : "";
-    const response = await fetch("/api/camera/board-objects" + query, {
-      cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1400)]),
-    });
-    return response.status === 200 ? response.json() : null;
-  }
-
   async function observeBindings(model, frame, id, generation, signal) {
     const current = setup;
     return (await Promise.all(current.bindings.modelIds.map(async modelId => {
-      const feed = model && (model.modelId ?? "default") === modelId ? model : await readModel(signal, modelId).catch(() => null);
+      const feed = model && (model.modelId ?? "default") === modelId ? model : await readBoardObjects(signal, modelId).catch(() => null);
       if (feed?.frameId.split("-")[1] !== generation) return [];
-      const reading = await modelForObservation(feed, frame, id, signal);
-      const { actions, effects } = current.bindings.observe(modelId, reading);
-      for (const action of actions) {
-        void fetch("/api/camera/animation", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...action, boardId: current.id, modelId, frameId: reading.frameId }),
-          signal: AbortSignal.any([signal, AbortSignal.timeout(3500)]),
-        }).catch(() => {});
-      }
-      return effects;
+      const reading = await checkCameraReading(feed, current, signal, frame, id);
+      return current.bindings.observe(modelId, reading).effects;
     }))).flat();
   }
 
@@ -141,7 +85,7 @@ export function createGameReview(getSourceFrame) {
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
     if (!setup || generation !== setup.generation || frame.width !== setup.width || frame.height !== setup.height ||
         (boardId && boardId !== setup.id)) await register(frame, generation, signal);
-    const candidate = await readModel(signal);
+    const candidate = await readBoardObjects(signal);
     signal.throwIfAborted();
     const model = candidate?.frameId.split("-")[1] === generation ? candidate : null;
     const beads = detectTrackBeads(frame, setup.beads);
@@ -150,7 +94,7 @@ export function createGameReview(getSourceFrame) {
     const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0]))
       .filter(item => item.active || item.state === "removed") : [];
     const native = setup.native.observe({ frameId: id, ...beads, classes: ["track-marker"], coverage: [0, 0, 1, 1] });
-    const checkedModel = model ? await modelForObservation(model, frame, id, signal) : null;
+    const checkedModel = model ? await checkCameraReading(model, setup, signal, frame, id) : null;
     signal.throwIfAborted();
     const trained = checkedModel ? setup.trained.observe(checkedModel) : null;
     const linked = await observeBindings(model, frame, id, generation, signal);
