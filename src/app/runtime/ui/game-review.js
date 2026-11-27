@@ -1,7 +1,7 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
 import { createFireTracker, detectFireTokens, makeFireGeometry } from "../vision/fire-observer.js";
-import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
+import { createGameObserver, isClassicNemesisBoard, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 
 function paintBoxes(context, boxes) {
@@ -63,7 +63,7 @@ export function createGameReview() {
     const layout = makeGameLayout(board, registration, frame.width, frame.height);
     setup = {
       id, generation, width: frame.width, height: frame.height, cv,
-      geometry: id === "nemesis-board-a" ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height) : null,
+      geometry: isClassicNemesisBoard(id) ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height) : null,
       beads: prepareTrackBeads(layout.slots, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
@@ -99,7 +99,7 @@ export function createGameReview() {
       const label = track.kind === "round" ? "Round" : "Self-destruct";
       return track.status === "inactive" ? `${label} · inactive`
         : `${label} ${track.value ?? "—"} · ${track.status}`;
-    }), setup.beads.length ? "Looking for the transparent track counters…" : "Track slots are mapped on Nemesis Board A.");
+    }), setup.beads.length ? "Looking for the transparent track counters…" : "Track slots are mapped on Nemesis Board A and B.");
     render(effects, proposed.map(item =>
       `${item.zone} · ${item.effect.name} ${item.active ? "on" : "off"} · ${item.status}${item.kind === "alien" ? ` (${item.count} seen)` : ""}`)
       .concat(fallback.map(item => `${item.room.name} · ${item.proposal} · ${item.state}`)),

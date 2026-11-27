@@ -1,9 +1,21 @@
-// Slot centres measured in the artwork of Nemesis Board A, in a
-// 1600-pixel-wide reference. They are independent of pose and camera.
-const roundSlots = [895, 934, 973, 1012, 1051, 1090, 1129, 1192, 1231, 1269, 1308, 1347, 1385, 1424, 1462, 1523]
-  .map((x, i) => ({ x, value: 15 - i, enabled: i >= 7 && i <= 14, track: "round" }));
-const destructionSlots = [96, 137, 174, 236, 274, 313, 369]
-  .map((x, i) => ({ x, value: 6 - i, enabled: i >= 3, track: "self-destruct" }));
+// Track positions are measured in each board's printed artwork. X positions
+// use a 1600-pixel-wide reference and Y is normalized to the artwork height.
+const trackLayout = new Map([
+  ["nemesis-board-a", {
+    y: 0.9514,
+    round: [895, 934, 973, 1012, 1051, 1090, 1129, 1192, 1231, 1269, 1308, 1347, 1385, 1424, 1462, 1523],
+    destruction: [96, 137, 174, 236, 274, 313, 369],
+  }],
+  ["nemesis-board-b", {
+    y: 0.9632,
+    round: [895, 934, 972, 1011, 1050, 1089, 1128, 1190, 1229, 1268, 1307, 1346, 1385, 1423, 1462, 1520],
+    destruction: [99, 138, 177, 237, 275, 314, 370],
+  }],
+]);
+
+export function isClassicNemesisBoard(id) {
+  return trackLayout.has(id);
+}
 
 const rules = {
   noise: { label: "Light Flicker", asset: "hull-flicker" },
@@ -40,19 +52,22 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
     return { x: point.x / width, y: point.y / height };
   };
   const zones = definition.roomCatalog.filter(({ name, polygon }) =>
-    (name === "TC" || /^\d{3}(-\d{3})?$/.test(name)) && polygon?.length >= 3).map(({ id, name, polygon }) =>
-    ({ id, name, corridor: name === "TC" || name.includes("-"), polygon: polygon.map(at) }));
+    /^(?:\d{3}(?:-\d{3}(?:-\d+)?)?|TC(?:-\d+)?)$/.test(name) && polygon?.length >= 3)
+    .map(({ id, name, polygon }) => ({ id, name, corridor: !/^\d{3}$/.test(name), polygon: polygon.map(at) }));
   const effects = Object.fromEntries(Object.entries(rules).map(([kind, rule]) => {
     const bank = kind === "self-destruct" ? definition.insideFx : definition.roomFx;
     const effect = bank?.animations?.find(animation => animation.assetRef === rule.asset)
       ?? bank?.animations?.find(animation => animation.name === rule.label);
     return [kind, effect && { id: effect.id, name: effect.name }];
   }));
-  const slots = definition.boardId === "nemesis-board-a" ? [...roundSlots, ...destructionSlots].map(slot => {
-    const x = slot.x / 1600, y = 0.9514;
+  const tracks = trackLayout.get(definition.boardId);
+  const roundSlots = tracks?.round.map((x, i) => ({ x, value: 15 - i, enabled: i >= 7 && i <= 14, track: "round" })) ?? [];
+  const destructionSlots = tracks?.destruction.map((x, i) => ({ x, value: 6 - i, enabled: i >= 3, track: "self-destruct" })) ?? [];
+  const slots = [...roundSlots, ...destructionSlots].map(slot => {
+    const x = slot.x / 1600, y = tracks.y;
     return { ...slot, polygon: [[x - 0.0116, y - 0.017], [x + 0.0116, y - 0.017],
       [x + 0.0116, y + 0.017], [x - 0.0116, y + 0.017]].map(at) };
-  }) : [];
+  });
   return { zones, effects, slots, cryo: zones.find(zone => zone.id === "special-cryoschlaf") };
 }
 

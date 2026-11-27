@@ -1,6 +1,7 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
 import { createFireTracker, detectFireTokens, makeFireGeometry } from "../vision/fire-observer.js";
+import { isClassicNemesisBoard } from "../vision/game-observer.js";
 
 const states = { visible: "Visible", occluded: "Possibly covered", uncertain: "Uncertain", removed: "Removed" };
 
@@ -16,7 +17,7 @@ export function createFireReview() {
   function reset(enabled) {
     panel.hidden = !enabled;
     save.disabled = true;
-    status.textContent = enabled ? "Locating Nemesis Board A…" : "";
+    status.textContent = enabled ? "Locating the printed Nemesis board…" : "";
     selection = null;
     geometry = null;
     tracker = null;
@@ -29,7 +30,7 @@ export function createFireReview() {
       .map(path => fetch(path, init).then(response => response.json())));
     signal.throwIfAborted();
     const id = snapshot.session?.snapshot?.selectedBoard;
-    if (id !== "nemesis-board-a") throw new Error("The fire observer currently supports Nemesis Board A.");
+    if (!isClassicNemesisBoard(id)) throw new Error("Select Nemesis Board A or B to observe fire tokens.");
     const board = catalog.boards.find(entry => entry.boardId === id);
     const url = new URL(board?.metadata?.imageSrc ?? "", location.origin);
     if (!board?.metadata?.imageSrc || url.origin !== location.origin) throw new Error("The board reference artwork is unavailable.");

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createGameObserver, makeGameLayout } from "../src/app/runtime/vision/game-observer.js";
 
@@ -107,4 +108,28 @@ test("a readable empty self-destruct track switches off the alarm and ignores th
   const cleared = advance([outside], true);
   assert.equal(alarm(cleared).active, false);
   assert.equal(cleared.tracks.find(track => track.kind === "self-destruct").status, "inactive");
+});
+
+test("Nemesis Board B reads its own tracks and applies the same piece rules to its rooms", () => {
+  const definition = JSON.parse(readFileSync(new URL("../config/boards/nemesis-board-b.json", import.meta.url), "utf8")).board;
+  const b = makeGameLayout(definition, { at: point => point }, 1, 1);
+  assert.equal(b.cryo.name, "008");
+  assert.equal(b.slots.length, 23);
+  const point = (name) => {
+    const { polygon } = b.zones.find(zone => zone.name === name);
+    return ["x", "y"].map(axis => polygon.reduce((sum, p) => sum + p[axis], 0) / polygon.length);
+  };
+  const objects = [item("track-marker", 1190 / 1600, 0.9632), item("track-marker", 237 / 1600, 0.9632),
+    item("noise", ...point("TC-2")), item("noise", 854 / 1600, 620 / 1094),
+    item("fire", ...point("008")), item("malfunction", ...point("008")), item("alien", ...point("008"))];
+  const game = createGameObserver(b);
+  const frame = { coverage: [0, 0, 1, 1], classes: [...new Set(objects.map(entry => entry.kind))], objects };
+  game.observe({ ...frame, frameId: "1795718100000-1-1" });
+  const result = game.observe({ ...frame, frameId: "1795718100700-1-2" });
+  assert.deepEqual(result.tracks.map(track => [track.kind, track.value]), [["round", 8], ["self-destruct", 3]]);
+  assert.deepEqual(result.effects.map(effect => [effect.effect.name, effect.zone, effect.active]), [
+    ["Light Flicker", "TC-2", true], ["Light Flicker", "011-013-2", true], ["Fire", "008", true],
+    ["Malfunction", "008", true], ["Alarm", "008", true], ["Scanning", "008", true],
+    ["Intruder Alert", "Ship interior", true],
+  ]);
 });
