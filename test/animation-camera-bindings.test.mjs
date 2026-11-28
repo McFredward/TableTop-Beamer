@@ -75,6 +75,37 @@ test("an animation can publish its sound on a confirmed board-wide increase", ()
   assert(!read([item]).some(action => action.action === "announce"));
 });
 
+test("a confirmed room stop rearms its announcement even while another alien is occluded", () => {
+  const board = makeBoard();
+  board.roomCatalog = [...roomCatalog, { id: "other-room", name: "021",
+    polygon: [[0.45, 0.1], [0.85, 0.1], [0.85, 0.4], [0.45, 0.4]] }];
+  board.roomFx.animations[0].soundAssetRef = "/resources/sounds/alert.mp3";
+  board.roomFx.animations[0].cameraTrigger = { ...cameraTrigger, className: "alien", soundRule: "count-increase",
+    verificationOpacity: undefined };
+  const controller = createAnimationCameraBindings(board, { at: point => point }, 1, 1);
+  const first = { ...item, kind: "alien" };
+  const later = { ...first, anchor: [0.55, 0.22], box: [0.51, 0.16, 0.08, 0.08] };
+  const returned = { ...later, anchor: [0.73, 0.24], box: [0.69, 0.18, 0.08, 0.08] };
+  const hand = { ...first, kind: "hand" };
+  let n = 0;
+  const read = objects => controller.observe("custom", {
+    frameId: `${1795740000000 + n * 600}-1-${++n}`, classes: ["alien"], coverage: [0, 0, 1, 1], objects,
+  }).actions;
+
+  read([first, later]);
+  read([first, later]);
+  for (let i = 0; i < 3; i++) assert.deepEqual(read([hand]), []);
+  assert.deepEqual(read([hand, later]), []);
+  for (let i = 0; i < 3; i++) assert.deepEqual(read([hand]), []);
+  assert.deepEqual(read([hand]).map(({ action, roomId }) => [action, roomId]), [["stop", "other-room"]]);
+  assert(!read([hand, returned]).some(({ action }) => action === "announce"));
+  assert(!read([hand, returned]).some(({ action }) => action === "announce"));
+  assert.equal(read([hand, returned]).filter(({ action }) => action === "announce").length, 1);
+  for (let i = 0; i < 4; i++) assert.deepEqual(read([first, returned]), []);
+  for (let i = 0; i < 4; i++) read([first]);
+  for (let i = 0; i < 4; i++) assert(!read([returned]).some(({ action }) => action === "announce"));
+});
+
 test("a visible defect is checked once after its projection starts", () => {
   const board = makeBoard();
   board.roomFx.animations[0].cameraTrigger = { ...cameraTrigger, className: "malfunction", verificationOpacity: 0.12 };

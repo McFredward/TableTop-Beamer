@@ -173,7 +173,7 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
 
 export function createGameObserver(layout, {
   kinds = ["noise", "fire", "malfunction", "alien"], minConfidence = 0.62, checkVisibility = false, allZones = false,
-  startOnStrongReading = false,
+  startOnStrongReading = false, clearConfirmation,
 } = {}) {
   const current = new Map();
   const tracks = new Map();
@@ -217,6 +217,7 @@ export function createGameObserver(layout, {
     frameNumber++;
 
     const hits = new Map();
+    const confirmedRemovals = [];
     const possibleOccluders = frame.objects.filter(item => item.confidence >= uncertainThreshold);
     const figures = possibleOccluders.filter(item => miniatureKinds.has(item.kind));
     const figureBoxes = figures.map(item => item.box);
@@ -292,10 +293,17 @@ export function createGameObserver(layout, {
       if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];
       const blocked = missingCoverage || covered || overexposed;
       state.pending = 0;
+      if (!state.clear) state.clearSince = timestamp;
       state.clear = blocked || weakFireReading ? 0 : state.clear + 1;
       const corrected = startOnStrongReading && !blocked && state.boxes.every(box => possibleOccluders.some(item =>
         item.confidence >= strongConfidence && reclassifies(state, box, item)));
-      if (state.clear >= 2 || corrected) state.active = false;
+      const cleared = clearConfirmation
+        ? state.clear >= clearConfirmation.frames && timestamp - state.clearSince >= clearConfirmation.duration
+        : state.clear >= 2 || corrected;
+      if (cleared) {
+        if (state.active) confirmedRemovals.push({ zoneId: state.zone.id, boxes: state.boxes });
+        state.active = false;
+      }
       state.status = overexposed ? "overexposed" : blocked ? "occluded"
         : state.active || weakFireReading ? "checking" : "removed";
       if (!state.active) {
@@ -346,7 +354,13 @@ export function createGameObserver(layout, {
         state.confirmed = true;
       }
     }
-    return view();
+    const result = view();
+    if (!clearConfirmation) return result;
+    const positions = new Map();
+    for (const { zone, boxes } of hits.values()) {
+      for (const box of boxes) positions.set(box, zone.id);
+    }
+    return { ...result, confirmedRemovals, positions };
   }
   return { observe, snapshot: view };
 }
