@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createGameObserver, makeGameLayout } from "../src/app/runtime/vision/game-observer.js";
+import { createGameObserver, makeGameLayout, trackActivation, trackAnimationBindings } from "../src/app/runtime/vision/game-observer.js";
 import { prepareTrackBeads } from "../src/app/runtime/vision/track-beads.js";
 
 function polygon(x, y, w, h) {
@@ -311,4 +311,18 @@ test("Nemesis Board B reads its own tracks and applies the same piece rules to i
     ["Malfunction", "008", true], ["Alarm", "008", true], ["Scanning", "008", true],
     ["Intruder Alert", "Ship interior", true],
   ]);
+});
+
+test("counter automation uses the selected board's cryochamber and validates both thresholds", () => {
+  for (const [side, roomName] of [["a", "011"], ["b", "008"]]) {
+    const definition = JSON.parse(readFileSync(new URL(`../config/boards/nemesis-board-${side}.json`, import.meta.url), "utf8")).board;
+    const room = definition.roomCatalog.find(room => room.name === roomName);
+    const rules = trackAnimationBindings(definition);
+    assert.deepEqual(rules.map(rule => [rule.track, rule.scope, rule.roomId, rule.definition.id]),
+      [["round", "room", room.id, "scanning"], ["self-destruct", "inside", null, "intruder-alert"]]);
+  }
+  assert.deepEqual([9, 8, 1, 0, null, 16].map(value => trackActivation("round", value)),
+    [false, true, true, false, undefined, undefined]);
+  assert.deepEqual([4, 3, 1, 0, null, -1].map(value => trackActivation("self-destruct", value)),
+    [false, true, true, true, false, undefined]);
 });

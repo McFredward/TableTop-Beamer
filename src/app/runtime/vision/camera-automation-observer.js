@@ -1,6 +1,8 @@
 import { readBitmap } from "../calibration/calibration-images.js";
 import { createAnimationCameraBindings } from "./animation-camera-bindings.js";
 import { checkCameraReading, readBoardObjects, readCameraBitmap, registerCameraBoard } from "./camera-board-readings.js";
+import { createGameObserver, makeGameLayout, trackActivation, trackAnimationBindings } from "./game-observer.js";
+import { detectTrackBeads, prepareTrackBeads } from "./track-beads.js";
 
 function post(path, payload) {
   return fetch(path, {
@@ -16,6 +18,32 @@ export async function runCameraAutomation() {
   let selection;
 
   const heartbeat = () => post("/api/camera/automation/lease", { owner, phase, ...selection?.targets });
+
+  async function observeTracks(lease, signal, frame) {
+    const { frameId, boardId, token, since } = lease;
+    if (!setup.tracks || Number(frameId.split("-")[0]) < since) return;
+    if (setup.lastTrackFrame === frameId) return;
+    if (!frame) {
+      const bitmap = await readCameraBitmap(frameId, signal);
+      if (!bitmap) return;
+      try { frame = readBitmap(bitmap); }
+      finally { bitmap.close(); }
+    }
+    if (frame.width !== setup.width || frame.height !== setup.height) return;
+    setup.lastTrackFrame = frameId;
+    const { tracks } = setup.tracks.observe({ ...detectTrackBeads(frame, setup.beads), frameId,
+      classes: ["track-marker"], coverage: [0, 0, 1, 1] });
+    await Promise.all(setup.trackBindings.map(async ({ track, scope, roomId, definition }) => {
+      const reading = tracks.find(item => item.kind === track);
+      if (!["confirmed", "inactive"].includes(reading?.status)) return;
+      const active = trackActivation(track, reading.value);
+      if (setup.trackTargets.get(track) === active) return;
+      const result = await post("/api/camera/animation", { boardId, token, frameId, scope, roomId,
+        animationId: definition.id, track, value: reading.value, action: active ? "start" : "stop" });
+      if (!result.ok && result.status !== 409) throw new Error(`Camera track returned ${result.status}`);
+      if (result.ok) setup.trackTargets.set(track, active);
+    }));
+  }
 
   async function observe() {
     const response = await heartbeat();
@@ -41,28 +69,34 @@ export async function runCameraAutomation() {
       if (!board) { phase = "board"; return; }
       const modelIds = [...new Set(["roomFx", "insideFx", "outsideFx"].flatMap(scope =>
         (board[scope]?.animations ?? []).map(animation => animation.cameraTrigger?.modelId).filter(Boolean)))];
-      selection = { key: boardKey, board, targets: { boardId: lease.boardId, modelIds } };
+      selection = { key: boardKey, board, trackBindings: trackAnimationBindings(board),
+        targets: { boardId: lease.boardId, modelIds } };
     }
-    if (!selection.targets.modelIds.length) { phase = "bindings"; return; }
+    if (!selection.targets.modelIds.length && !selection.trackBindings.length) { phase = "bindings"; return; }
     if (!lease.frameId) { phase = "camera"; return; }
 
     const generation = lease.frameId.split("-")[1];
     const key = `${boardKey}:${generation}`;
+    let frame;
     if (setup?.key !== key) {
       phase = "registering";
       await heartbeat();
       const bitmap = await readCameraBitmap(lease.frameId, signal);
       if (!bitmap) { phase = "camera"; return; }
-      let frame;
       try { frame = readBitmap(bitmap, true); }
       finally { bitmap.close(); }
-      const { cv, registration, geometry, width, height } = await registerCameraBoard(selection.board, frame, signal);
+      const { cv, registration, geometry, reference, width, height } = await registerCameraBoard(selection.board, frame, signal);
       const bindings = createAnimationCameraBindings(selection.board, registration, width, height);
-      setup = { key, cv, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map() };
+      setup = { key, cv, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map(),
+        trackBindings: selection.trackBindings, trackTargets: new Map() };
+      if (setup.trackBindings.length) {
+        const layout = makeGameLayout(selection.board, registration, width, height);
+        setup.tracks = createGameObserver(layout, { kinds: [] });
+        setup.beads = prepareTrackBeads(layout.slots, registration, reference, frame);
+      }
     }
 
-    if (!setup.modelIds.length) { phase = "bindings"; return; }
-    const reports = await Promise.all(setup.modelIds.map(async modelId => {
+    const modelReports = setup.modelIds.map(async modelId => {
       const model = await readBoardObjects(signal, modelId);
       const [time, modelGeneration] = model?.frameId.split("-") ?? [];
       if (modelGeneration !== generation || Number(time) < lease.since) return false;
@@ -83,14 +117,20 @@ export async function runCameraAutomation() {
         }
       }));
       return true;
-    }));
-    phase = reports.some(Boolean) ? "active" : "model";
+    });
+    const [tracks, ...reports] = await Promise.allSettled([observeTracks(lease, signal, frame), ...modelReports]);
+    if (tracks.status === "rejected") throw tracks.reason;
+    if (reports.some(report => report.status === "fulfilled" && report.value) || (!setup.modelIds.length && setup.tracks)) {
+      phase = "active";
+    } else {
+      phase = reports.every(report => report.status === "rejected") ? "error" : "model";
+    }
   }
 
   while (true) {
     try { await observe(); }
     catch { phase = "error"; }
-    const tracking = phase === "active" || (phase === "model" && setup?.last.size > 0);
+    const tracking = phase === "active" || (phase === "model" && (setup?.last.size > 0 || setup?.tracks));
     await new Promise(resolve => setTimeout(resolve, tracking ? 250 : phase === "error" ? 2500 : 1100));
   }
 }

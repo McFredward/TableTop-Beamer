@@ -72,6 +72,30 @@ class TileCoordinatesTest(unittest.TestCase):
 
 
 class SmallObjectRefinementTest(unittest.TestCase):
+    def test_a_close_view_recovers_a_weak_defect_without_removing_a_nearby_fire_marker(self):
+        image = Image.new("RGB", (800, 720))
+        box = [350, 310, 450, 390]
+        fire = [322, 360, 392, 434]
+        coarse = sv.Detections(xyxy=np.array([box, fire], dtype=np.float32), confidence=np.array([0.19, 0.83]),
+                               class_id=np.array([2, 1]), data={"class_name": np.array(["malfunction", "fire"])})
+
+        class DefectOnCloseCrop:
+            def predict(self, crop, **_):
+                left = 16 if crop.width == 768 else 112
+                top = 0 if crop.height == 720 else 62
+                boxes = np.array([box, [319, 252, 482, 431]], dtype=np.float32) - [left, top, left, top]
+                return sv.Detections(xyxy=boxes,
+                                     confidence=np.array([0.76, 0.92]), class_id=np.array([2, 0]),
+                                     data={"class_name": np.array(["malfunction", "alien"])})
+
+        result, recent = refine_small_objects(DefectOnCloseCrop(), image, coarse, ["alien", "malfunction"], 0.25,
+                                              review_malfunctions=True)
+        self.assertEqual(set(result.data["class_name"]), {"fire", "malfunction"})
+        self.assertEqual(recent[0][0], "malfunction")
+        again, _ = refine_small_objects(DefectOnCloseCrop(), image, sv.Detections.empty(), ["alien", "malfunction"],
+                                        0.25, recent, review_malfunctions=True)
+        self.assertEqual(again.data["class_name"].tolist(), ["malfunction"])
+
     def test_a_matching_character_prevents_amplifying_a_weak_alien_label(self):
         image = Image.new("RGB", (800, 720))
         box = (350, 310, 450, 390)

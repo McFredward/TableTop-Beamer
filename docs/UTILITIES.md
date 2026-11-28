@@ -332,8 +332,9 @@ alien candidates on crops at camera resolution. When projected light changes
 over a crop, the detector can use the darkest values from recent camera frames
 to reduce the overlay. Confirmed positions get checked again in later frames.
 A fine-tuned classification head for these crops distinguishes larvae from
-defect markers. Only a matching, confident detection is added to the game
-readings.
+defect markers. The detector also checks weak malfunction proposals in a
+wider crop, where the marker can be recognized alongside nearby fire. Only
+a matching, confident detection is added to the game readings.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
@@ -345,11 +346,13 @@ Open **Camera → Game observation** on the server PC. On Nemesis boards A and B
 the view matches the camera image to the selected board artwork. Reopen the
 view after moving the board. It compares the printed track fields with the
 camera image and can use fainter round counter highlights when local contrast
-is low. Two matching frames confirm the slot. Round positions 8–1 propose
-**Scanning** in the cryochamber (011 on A, 008 on B). Self-destruct positions 3
-and below propose **Intruder Alert** in the ship interior. A readable, empty
-self-destruct track is inactive. A counter beside the numbers is outside the
-track. Uncertain or covered slots retain the last confirmed reading.
+is low. Two matching frames confirm the slot. With **Camera Effects** enabled,
+round positions 8–1 loop **Scanning** in the cryochamber (011 on A, 008 on B).
+Self-destruct positions 3 and below loop **Intruder Alert** in the ship interior.
+Moving a counter to a confirmed inactive field stops its effect. A readable,
+empty self-destruct track also stops the alarm. A counter beside the numbers is
+outside the track. Uncertain or covered slots retain the last confirmed reading.
+These counters work while the trained piece detector is still loading.
 
 Run the vision worker with `--game --checkpoint path/to/weights.pth` to
 publish model detections for pieces. Bounding boxes remain visible between

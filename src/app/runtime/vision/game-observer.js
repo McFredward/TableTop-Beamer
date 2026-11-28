@@ -26,6 +26,31 @@ const rules = {
   "self-destruct": { label: "Intruder Alert", asset: "intruder-alert" },
 };
 
+export function trackActivation(kind, value) {
+  if (kind === "round" && Number.isInteger(value) && value >= 0 && value <= 15) return value >= 1 && value <= 8;
+  if (kind === "self-destruct" && (value === null || Number.isInteger(value) && value >= 0 && value <= 6)) {
+    return value !== null && value <= 3;
+  }
+}
+
+function animationFor(board, kind) {
+  const bank = kind === "self-destruct" ? board.insideFx : board.roomFx;
+  const rule = rules[kind];
+  return bank?.animations?.find(animation => animation.assetRef === rule.asset)
+    ?? bank?.animations?.find(animation => animation.name === rule.label);
+}
+
+export function trackAnimationBindings(board) {
+  if (!isClassicNemesisBoard(board.boardId)) return [];
+  return ["round", "self-destruct"].flatMap(track => {
+    const definition = animationFor(board, track);
+    const scope = track === "round" ? "room" : "inside";
+    const roomId = scope === "room" ? board.roomCatalog.find(room => room.id === "special-cryoschlaf")?.id : null;
+    if (!definition || definition.cameraTrigger || roomId === undefined) return [];
+    return [{ track, scope, roomId, definition }];
+  });
+}
+
 function rectContains([x, y, w, h], point) {
   return point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h;
 }
@@ -122,18 +147,16 @@ export function makeGameLayout(definition, cameraBoard, width, height) {
   const zones = definition.roomCatalog.filter(({ name, polygon }) =>
     /^(?:\d{3}(?:-\d{3}(?:-\d+)?)?|TC(?:-\d+)?)$/.test(name) && polygon?.length >= 3)
     .map(({ id, name, polygon }) => ({ id, name, corridor: !/^\d{3}$/.test(name), polygon: polygon.map(at) }));
-  const effects = Object.fromEntries(Object.entries(rules).map(([kind, rule]) => {
-    const bank = kind === "self-destruct" ? definition.insideFx : definition.roomFx;
-    const effect = bank?.animations?.find(animation => animation.assetRef === rule.asset)
-      ?? bank?.animations?.find(animation => animation.name === rule.label);
+  const effects = Object.fromEntries(Object.keys(rules).map(kind => {
+    const effect = animationFor(definition, kind);
     return [kind, effect && { id: effect.id, name: effect.name }];
   }));
   const tracks = trackLayout.get(definition.boardId);
-  const roundSlots = tracks?.round.map((x, i) => ({ x, value: 15 - i, enabled: i >= 7 && i <= 14, track: "round" })) ?? [];
-  const destructionSlots = tracks?.destruction.map((x, i) => ({ x, value: 6 - i, enabled: i >= 3, track: "self-destruct" })) ?? [];
+  const roundSlots = tracks?.round.map((x, i) => ({ x, value: 15 - i, track: "round" })) ?? [];
+  const destructionSlots = tracks?.destruction.map((x, i) => ({ x, value: 6 - i, track: "self-destruct" })) ?? [];
   const slots = [...roundSlots, ...destructionSlots].map(slot => {
     const x = slot.x / 1600, y = tracks.y;
-    return { ...slot, y, polygon: [[x - 0.0116, y - 0.017], [x + 0.0116, y - 0.017],
+    return { ...slot, y, enabled: trackActivation(slot.track, slot.value), polygon: [[x - 0.0116, y - 0.017], [x + 0.0116, y - 0.017],
       [x + 0.0116, y + 0.017], [x - 0.0116, y + 0.017]].map(at) };
   });
   return { zones, effects, slots, cryo: zones.find(zone => zone.id === "special-cryoschlaf") };

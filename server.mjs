@@ -3,6 +3,7 @@ import { createCameraReceiver } from "./src/server/camera-receiver.mjs";
 import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs";
 import { cameraFrameId, createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { createCameraAutomation, rememberCameraStops, removeCameraAnimations } from "./src/server/camera-automation.mjs";
+import { trackActivation, trackAnimationBindings } from "./src/app/runtime/vision/game-observer.js";
 import { createManagedVision } from "./src/server/managed-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import { createPiOutput } from "./src/server/pi-output.mjs";
@@ -608,17 +609,21 @@ function cameraAutomationPaused() {
   return Boolean(liveSessionState.snapshot.alignMode || liveSessionState.snapshot.runtime?.alignMode || calibration.isActive());
 }
 
-function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token }) {
+function cameraAnimationOwner(scope, animationId, roomId) {
+  return JSON.stringify([scope, animationId, roomId]);
+}
+
+function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token, track }) {
   const [observedAt, generation, sequence] = frameId.split("-").map(Number);
   if (boardId !== liveSessionState.snapshot.selectedBoard || !definition || cameraAutomationPaused() ||
       !cameraAutomation.accepts(token, observedAt)) return null;
-  const reading = cameraVision.objectsFor(frameId, modelId);
-  if (!reading?.classes.includes(definition.cameraTrigger?.className)) return null;
+  if (track ? !cameraVision.sourceFor(frameId) :
+    !cameraVision.objectsFor(frameId, modelId)?.classes.includes(definition.cameraTrigger?.className)) return null;
 
   const runtime = readRuntimeSnapshot();
   const animations = runtime.runningAnimations ?? [];
   const runtimeScope = scope === "room" ? "room" : "global";
-  const owner = JSON.stringify([scope, definition.id, roomId]);
+  const owner = cameraAnimationOwner(scope, definition.id, roomId);
   const existing = animations.find(item => item.boardId === boardId && item.cameraTriggerOwner === owner);
   if (action !== "verify") {
     const key = `${boardId}:${owner}`;
@@ -652,12 +657,13 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
 
   const animation = { ...definition, id: `camera-${randomUUID()}`, boardId, scope: runtimeScope, roomId,
     type: definition.id, animationName: definition.name, hold: true, startedAtEpochMs: Date.now(),
+    ...(track && { playbackMode: "loop" }),
     roomAssetType: definition.assetType, roomAssetRef: definition.assetRef,
     cameraTriggerOwner: owner, cameraTriggerObservedAt: observedAt };
   if (scope === "room") return applyRoomMutationPatch("trigger-room", { boardId, animation });
 
   const patch = applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "start", animation,
-    outsideHint: scope === "outside", loopUntilStopped: scope === "outside" || Boolean(definition.loopUntilStopped),
+    outsideHint: scope === "outside", loopUntilStopped: Boolean(track) || scope === "outside" || Boolean(definition.loopUntilStopped),
     playSound: scope === "outside" ? definition.soundEnabled : definition.soundAssetRef !== "none" });
   const started = patch.runtime.runningAnimations.find(item => item.scope === "global" &&
     item.boardId === boardId && item.type === definition.id);
@@ -4824,9 +4830,12 @@ const server = createServer(async (req, res) => {
       let command;
       try { command = await parseJsonBody(req, { maxBytes: 2048 }); }
       catch { res.writeHead(400).end(); return; }
-      const { boardId, modelId, frameId, scope, animationId, roomId, action, token } = command ?? {};
+      const { boardId, modelId, frameId, scope, animationId, roomId, action, token, track, value } = command ?? {};
+      const native = track !== undefined;
+      const active = native ? trackActivation(track, value) : undefined;
       if (!["room", "inside", "outside"].includes(scope) || !["start", "stop", "verify"].includes(action) ||
-          typeof modelId !== "string" || typeof frameId !== "string" || typeof animationId !== "string" ||
+          (native ? active === undefined || action !== (active ? "start" : "stop") : typeof modelId !== "string") ||
+          typeof frameId !== "string" || typeof animationId !== "string" ||
           (scope === "room" ? typeof roomId !== "string" : roomId !== null)) {
         res.writeHead(400).end();
         return;
@@ -4837,17 +4846,29 @@ const server = createServer(async (req, res) => {
       }
       const { boards } = await loadBoardCatalog();
       const board = boards.find(candidate => candidate.boardId === boardId);
-      const definition = board?.[scope + "Fx"]?.animations?.find(candidate => candidate.id === animationId);
-      if (boardId !== liveSessionState.snapshot.selectedBoard || definition?.cameraTrigger?.modelId !== modelId ||
+      const definition = native && board
+        ? trackAnimationBindings(board).find(binding => binding.track === track && binding.scope === scope &&
+          binding.roomId === roomId && binding.definition.id === animationId)?.definition
+        : board?.[scope + "Fx"]?.animations?.find(candidate => candidate.id === animationId && candidate.cameraTrigger?.modelId === modelId);
+      if (boardId !== liveSessionState.snapshot.selectedBoard || !definition ||
           (scope === "room" && !board?.roomCatalog.some(room => room.id === roomId))) {
         res.writeHead(409).end();
         return;
       }
-      const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token };
+      const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token, track };
       cameraAnimationCommands.add(payload);
       const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
-      if (!ack?.applied && !cameraVision.objectsFor(frameId, modelId)) res.setHeader("X-Camera-Reading-Expired", "1");
-      res.writeHead(ack?.applied ? 204 : 409).end();
+      if (ack?.applied) { res.writeHead(204).end(); return; }
+      if (!(native ? cameraVision.sourceFor(frameId) : cameraVision.objectsFor(frameId, modelId))) {
+        res.setHeader("X-Camera-Reading-Expired", "1");
+      } else if (native && boardId === liveSessionState.snapshot.selectedBoard && !cameraAutomationPaused() &&
+        cameraAutomation.accepts(token, Number(frameId.split("-")[0]))) {
+        const owner = cameraAnimationOwner(scope, animationId, roomId);
+        const running = liveSessionState.snapshot.runtime?.runningAnimations?.some(animation =>
+          animation.boardId === boardId && animation.cameraTriggerOwner === owner) ?? false;
+        if (running === active) { res.writeHead(204).end(); return; }
+      }
+      res.writeHead(409).end();
       return;
     }
 

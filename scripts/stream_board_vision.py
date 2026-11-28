@@ -165,15 +165,19 @@ class DetailDetector:
         head = model.model.model.class_embed
         weights = torch.zeros_like(head.weight)
         bias = torch.zeros_like(head.bias)
+        preserve = torch.full_like(head.bias, 1)
         for name, row in adapter["classes"].items():
             index = list(model.class_names).index(name)
             weights[index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
             bias[index] = row["bias"]
+            preserve[index] = row.get("preserveConfidence", 1)
         head.register_buffer("detail_weights", weights, persistent=False)
         head.register_buffer("detail_bias", bias, persistent=False)
+        head.register_buffer("detail_preserve", preserve, persistent=False)
 
         def correct(layer, args, output):
-            return output + torch.nn.functional.linear(args[0], layer.detail_weights, layer.detail_bias)
+            adjusted = output + torch.nn.functional.linear(args[0], layer.detail_weights, layer.detail_bias)
+            return torch.where(output.sigmoid() >= layer.detail_preserve, torch.maximum(output, adjusted), adjusted)
 
         hook = head.register_forward_hook(correct)
         try:
@@ -325,6 +329,7 @@ def run_detector(args, url, model_identity, preset, progress):
     shown_connection_error = False
     published = False
     detection_threshold = min(args.threshold, 0.25) if args.game else args.threshold
+    refinement_budget = 5.2 if "malfunction" in small_objects else 4.4
     while True:
         started = time.monotonic()
         try:
@@ -369,7 +374,7 @@ def run_detector(args, url, model_identity, preset, progress):
                 reduced = reduce_projection(image, last_frame, previous_frames, original_size, args.roi, np)
                 detections, recent_small_objects = refine_small_objects(
                     detail or predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
-                    review_malfunctions=detail is not None, deadline=started + 4.4,
+                    review_malfunctions=detail is not None, deadline=started + refinement_budget,
                 )
                 analysis = image
             elapsed = (time.monotonic() - inference_start) * 1000
