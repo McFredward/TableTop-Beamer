@@ -1890,6 +1890,8 @@ body[data-output-role="final-output"] .cluster-pads {
 }
 #camera-preview[open] { display: flex; flex-direction: column; }
 .pi-output-dialog { width: min(540px, calc(100vw - 24px)); }
+.auto-calibration-dialog { width: min(480px, calc(100vw - 24px)); }
+.auto-calibration-dialog progress { width: 100%; margin: 12px 0; accent-color: var(--c-accent, #32d3a3); }
 .camera-preview-header,
 .camera-preview-controls {
   display: flex;
@@ -1908,7 +1910,7 @@ body[data-output-role="final-output"] .cluster-pads {
 .camera-zoom-controls button { min-width: 36px; }
 #camera-zoom-reset { min-width: 64px; font-variant-numeric: tabular-nums; }
 .camera-preview-header h2 { margin: 0; font-size: 1.1rem; }
-.camera-preview-controls [aria-pressed="true"] {
+.camera-preview-controls [aria-selected="true"] {
   background: var(--c-accent, #32d3a3);
   color: var(--c-on-accent, #071c16);
 }
@@ -1916,6 +1918,8 @@ body[data-output-role="final-output"] .cluster-pads {
 .camera-setup summary { width: fit-content; cursor: pointer; }
 .camera-setup p { margin: 8px 0; }
 .pi-output-controls { margin: 8px 0; }
+#pi-output-discovered:not([hidden]) { display: grid; gap: 8px; margin-bottom: 12px; }
+#pi-output-list { min-width: 0; width: 100%; }
 #pi-output-device:not([hidden]), .pi-output-fields {
   display: flex;
   flex-wrap: wrap;

@@ -89,13 +89,15 @@ default; use the second argument to override.
 ### Capture from `/output/` in Chromium
 
 1. Start TT-Beamer on the PC, plug the USB camera into the Pi and connect both devices to the same network.
-2. On the server PC, open `http://localhost:4173/` and choose **Pi output** in the dashboard. The dialog searches for the Pi as it opens. The Pi needs SSH enabled and a desktop session signed in with the same account.
+2. On the server PC, open the dashboard and choose **Pi output**. The dialog searches the local network and lists devices with their discovered names and addresses. Select your Pi. The Pi needs SSH enabled and a desktop session signed in with the same account.
 3. Check the suggested user name, confirm the Pi’s SSH identity on first use, and enter the password. Press Enter or choose **Start fullscreen**. TT-Beamer enables the detected HDMI output, pairs the camera when the server manages pairing, and starts its dedicated Chromium profile in fullscreen. The password is used for that SSH connection. Check **Camera → Live camera** on the PC.
 
-For later sessions, use the same button. TT-Beamer remembers the Pi’s host name,
-SSH identity and user name. If discovery needs help, open **Find again or enter
-address**. If the Pi was started before the projector, turn on
-the projector and run the button again to enable HDMI.
+For later sessions, use the same button. After a successful first start,
+TT-Beamer saves a dedicated SSH key restricted to launching the output on that
+Pi. It uses the key for subsequent starts, even if the Pi's address changes.
+If discovery needs help, open **Find again or enter address**. If the Pi was
+started before the projector, turn on the projector and run the button again to
+enable HDMI.
 
 **Manual setup command** remains available for a Pi without SSH. Copy the
 command into a terminal on the Pi desktop within five minutes. In Chromium,
@@ -142,8 +144,9 @@ Browser capture requires the TT-Beamer server to see the Pi's address directly.
 ### Automatic board alignment
 
 Select the matching board in TT-Beamer, lay it flat and keep all four corners
-in view of the camera. Open **Camera → Auto calibrate** on the server PC after
-the live camera is visible. Keep the projector's Output window in the foreground.
+in view of the camera. Choose **Auto calibrate** on the dashboard after the
+live camera is visible. The calibration dialog shows progress and offers
+**Cancel calibration**. Keep the projector's Output window in the foreground.
 
 The projector shows a black frame and then coded white dots. TT-Beamer matches
 the printed board to its reference artwork, refines the fit against local
@@ -300,11 +303,9 @@ independent captures with different paint schemes and unpainted pieces.
 
 With the camera and TT-Beamer running, open `http://127.0.0.1:4173/` on the PC
 and choose **Camera** in the dashboard. **Live camera** shows the full incoming
-frame. **Detections** shows segmentation masks, boxes, labels and confidence
-scores on the exact frame used for inference. On Nemesis boards A and B it also
-draws boxes and the confirmed artwork numbers for the transparent counters.
-It shows the local detections while
-waiting for a result from the Python process.
+frame. **Game observations** shows model boxes, labels, confidence scores and
+segmentation masks when available. On Nemesis boards A and B it also draws
+boxes and the confirmed artwork numbers for the transparent counters.
 
 In a second PowerShell window, start inference with the Python environment from
 the previous section. The default model is RF-DETR Seg 2XLarge. Its first launch

@@ -6,7 +6,7 @@ import { createCameraAutomation, rememberCameraStops, removeCameraAnimations } f
 import { trackActivation, trackAnimationBindings } from "./src/app/runtime/vision/game-observer.js";
 import { createManagedVision, localVisionOptions } from "./src/server/managed-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
-import { createPiOutput } from "./src/server/pi-output.mjs";
+import { createPiOutput, isLocalPiRequest } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
 import outputCameraDefaults from "./config/output-camera.json" with { type: "json" };
 import cameraModelPresets from "./config/camera-models.json" with { type: "json" };
@@ -4725,9 +4725,9 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && routePath === "/api/camera/pi-output") {
       res.setHeader("Cache-Control", "no-store");
-      if (!isLocalCameraRequest(req) || req.headers.origin !== `http://${req.headers.host}`) {
+      if (!isLocalPiRequest(req) || req.headers.origin !== `http://${req.headers.host}`) {
         req.resume();
-        sendJson(res, 403, { error: "Open TT-Beamer on the server PC using localhost to start the Pi." });
+        sendJson(res, 403, { error: "Open the dashboard on the TT-Beamer PC to start the Pi." });
         return;
       }
       let request;

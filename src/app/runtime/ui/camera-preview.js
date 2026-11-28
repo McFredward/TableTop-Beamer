@@ -1,7 +1,6 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
 import { bindCameraZoom } from "./camera-preview-zoom.js";
 import { createGameReview, paintBoxes } from "./game-review.js";
-import { readBoardObjects } from "../vision/camera-board-readings.js";
 
 function bootCameraPreview() {
   if (location.pathname.replace(/\/$/, "") === "/ssr" || document.body.dataset.outputRole === "final-output") return;
@@ -14,7 +13,8 @@ function bootCameraPreview() {
   const overlayContext = overlay.getContext("2d");
   const status = document.getElementById("camera-preview-status");
   const metrics = document.getElementById("camera-preview-metrics");
-  const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
+  const modeButtons = [...dialog.querySelectorAll("[data-camera-mode]")];
+  const panel = document.getElementById("camera-view-panel");
   const game = createGameReview();
   const zoom = bindCameraZoom(dialog, canvas, scale => {
     zoomScale = scale;
@@ -31,9 +31,8 @@ function bootCameraPreview() {
     if (boxes.length) paintBoxes(overlayContext, boxes, zoomScale);
   }
 
-  async function getFrame(frameId, after, signal) {
+  async function getFrame(after, signal) {
     const query = new URLSearchParams();
-    if (frameId) query.set("frameId", frameId);
     if (after) query.set("after", after);
     return fetch("/api/camera/latest.jpg" + (query.size ? "?" + query : ""), {
       cache: "no-store",
@@ -53,20 +52,13 @@ function bootCameraPreview() {
 
   async function refresh(signal) {
     let visibleId;
-    let visiblePreview;
     while (!signal.aborted) {
       const started = performance.now();
       let delay = 200;
       try {
-        let preview = mode === "vision" ? await readBoardObjects(signal, undefined, { preview: true }) : null;
-        let response = await getFrame(preview?.frameId, preview?.frameId === visiblePreview ? visibleId : null, signal);
-        if (preview && response.status === 503) {
-          preview = null;
-          response = await getFrame(null, visiblePreview ? null : visibleId, signal);
-        }
+        const response = await getFrame(visibleId, signal);
         if (signal.aborted) return;
 
-        let statusMessage = mode === "vision" && !preview ? "Local detections. Waiting for RF-DETR." : "";
         if (response.status === 200) {
           const blob = await response.blob();
           const id = response.headers.get("X-Camera-Frame-Id");
@@ -76,11 +68,10 @@ function bootCameraPreview() {
             let nextBoxes = [];
             if (mode !== "raw") {
               try {
-                nextBoxes = await game.observe(bitmap, id, signal, { preview });
+                nextBoxes = await game.observe(bitmap, id, signal);
               } catch (error) {
                 if (signal.aborted) return;
-                if (mode === "game") game.unavailable(error.message);
-                else statusMessage = error.message;
+                game.unavailable(error.message);
                 delay = 1000;
               }
             }
@@ -97,17 +88,10 @@ function bootCameraPreview() {
           showFrame(true);
           paintOverlay();
           visibleId = id;
-          visiblePreview = preview?.frameId;
-          if (preview?.preview) {
-            const { variant, weights, device, elapsed } = preview.preview;
-            const maskCount = boxes.filter(box => box.contours?.length).length;
-            metrics.textContent = `RF-DETR ${variant} · ${weights === "pretrained" ? "COCO pretrained" : "custom checkpoint"} · ${device.toUpperCase()} · ${boxes.length} boxes · ${maskCount} masks · ${elapsed} ms`;
-          } else {
-            metrics.textContent = `${canvas.width} × ${canvas.height} px`;
-          }
+          metrics.textContent = `${canvas.width} × ${canvas.height} px`;
         }
         if (response.status === 200 || response.status === 204) {
-          if (response.status === 200 || !visibleId) setStatus(statusMessage);
+          if (response.status === 200 || !visibleId) setStatus("");
         } else {
           showFrame(false);
           metrics.textContent = "";
@@ -160,29 +144,28 @@ function bootCameraPreview() {
     overlay.width = 1;
     overlay.height = 1;
   });
+  function select(button) {
+    if (mode === button.dataset.cameraMode) return;
+    mode = button.dataset.cameraMode;
+    for (const option of modeButtons) {
+      option.setAttribute("aria-selected", String(option === button));
+      option.tabIndex = option === button ? 0 : -1;
+    }
+    panel.setAttribute("aria-labelledby", button.id);
+    start();
+  }
   for (const button of modeButtons) {
-    button.addEventListener("click", () => {
-      if (mode === button.dataset.cameraMode) return;
-      mode = button.dataset.cameraMode;
-      for (const option of modeButtons) {
-        option.setAttribute("aria-pressed", String(option === button));
-      }
-      start();
+    button.addEventListener("click", () => select(button));
+    button.addEventListener("keydown", event => {
+      const next = event.key === "Home" ? modeButtons[0] : event.key === "End" ? modeButtons.at(-1)
+        : ["ArrowLeft", "ArrowRight"].includes(event.key) ? modeButtons.find(option => option !== button) : null;
+      if (!next) return;
+      event.preventDefault();
+      select(next);
+      next.focus();
     });
   }
-  bindAutoCalibration({
-    dialog,
-    pausePreview() {
-      active?.abort();
-      game.reset(false);
-      zoom.reset();
-      showFrame(false);
-      metrics.textContent = "";
-      setStatus("");
-      for (const button of modeButtons) button.disabled = true;
-    },
-    resumePreview: start,
-  });
+  bindAutoCalibration();
   trigger.hidden = false;
 }
 

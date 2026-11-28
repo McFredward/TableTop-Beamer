@@ -53,7 +53,8 @@ function bindPiOutput(dialog, trigger) {
   const find = document.getElementById("pi-output-find");
   const options = document.getElementById("pi-output-device-options");
   const device = document.getElementById("pi-output-device");
-  const addresses = document.getElementById("pi-output-addresses");
+  const discovered = document.getElementById("pi-output-discovered");
+  const list = document.getElementById("pi-output-list");
   const address = document.getElementById("pi-output-address");
   const login = document.getElementById("pi-output-login");
   const identity = document.getElementById("pi-output-identity");
@@ -77,13 +78,14 @@ function bindPiOutput(dialog, trigger) {
   async function act(callback) {
     if (busy) return;
     busy = true;
-    for (const button of [find, device.querySelector("button"), submit]) button.disabled = true;
+    const controls = [find, device.querySelector("button"), discovered.querySelector("button"), list, submit];
+    for (const control of controls) control.disabled = true;
     try { await callback(); }
     catch (error) {
       status.textContent = error.name === "TimeoutError" ? "The Pi took too long to respond. Try again." : error.message;
     } finally {
       busy = false;
-      for (const button of [find, device.querySelector("button"), submit]) button.disabled = false;
+      for (const control of controls) control.disabled = false;
     }
   }
 
@@ -93,10 +95,8 @@ function bindPiOutput(dialog, trigger) {
     selected = undefined;
   }
 
-  async function identify(value) {
+  function showLogin(value, result) {
     clearIdentity();
-    status.textContent = "Reading the Pi’s SSH identity…";
-    const result = await request({ action: "identify", address: value });
     selected = { address: value, fingerprint: result.fingerprint };
     username.value = result.username ?? "";
     identity.textContent = result.trusted ? `Raspberry Pi at ${value}` : `First connection to ${value} · ${result.fingerprint}`;
@@ -107,31 +107,80 @@ function bindPiOutput(dialog, trigger) {
     (result.username ? password : username).focus();
   }
 
-  async function search() {
+  async function launch(fields) {
+    status.textContent = "Starting fullscreen output on the Pi…";
+    const response = await request({ action: "start", ...fields }, 30000);
+    login.hidden = true;
+    const name = response.hostname ? `${response.hostname} · ` : "";
+    status.textContent = response.display ? `${name}Fullscreen output running on ${response.display} · ${response.address}`
+      : "Fullscreen browser started. Turn on the projector and start the output again to enable HDMI.";
+  }
+
+  async function identify(value, known) {
     clearIdentity();
+    status.textContent = "Reading the Pi’s SSH identity…";
+    const result = known?.trusted ? known : await request({ action: "identify", address: value });
+    if (result.autoStart) {
+      try {
+        await launch({ address: value, fingerprint: result.fingerprint });
+        return;
+      } catch (error) {
+        showLogin(value, result);
+        status.textContent = `${error.message} Sign in to set up automatic launch again.`;
+        return;
+      }
+    }
+    showLogin(value, result);
+  }
+
+  let choices = [];
+  async function search(reopen = false) {
+    clearIdentity();
+    discovered.hidden = true;
     status.textContent = "Looking for Raspberry Pi on the local network…";
-    const result = await request({ action: "find" }, 15000).catch(error => {
+    const result = await request({ action: "find" }, 23000).catch(error => {
       options.open = true;
       throw error;
     });
-    addresses.replaceChildren(...result.devices.map(value => new Option(value, value)));
-    const suggested = result.preferred ?? (result.devices.length === 1 ? result.devices[0] : null);
-    if (suggested) {
-      address.value = suggested;
-      await identify(suggested);
-    } else {
+    const pis = result.devices.filter(item => item.raspberry);
+    choices = result.devices;
+    function optionGroup(label, devices) {
+      const group = document.createElement("optgroup");
+      group.label = label;
+      group.append(...devices.map(({ address, hostname, trusted }) => new Option(
+        `${hostname ? hostname + " · " : ""}${address}${trusted ? " · Paired" : ""}`, address,
+      )));
+      return group;
+    }
+    const groups = [];
+    if (pis.length) groups.push(optionGroup("Raspberry Pi", pis));
+    const otherDevices = choices.filter(item => !item.raspberry);
+    if (otherDevices.length) groups.push(optionGroup("Other SSH devices", otherDevices));
+    list.replaceChildren(...groups);
+    discovered.hidden = !choices.length;
+    if (reopen && pis.length === 1 && pis[0].autoStart) {
+      await identify(pis[0].address, pis[0]);
+    } else if (!choices.length) {
       options.open = true;
-      status.textContent = result.devices.length ? "Choose the Pi’s address from the SSH devices found."
-        : "No Pi found. Check that SSH is enabled or enter its IPv4 address.";
+      status.textContent = "No Pi found. Check that SSH is enabled or enter its IPv4 address.";
       address.focus();
+    } else {
+      status.textContent = pis.length ? "Select the Raspberry Pi that is connected to the projector."
+        : "Select the Raspberry Pi from the SSH devices found.";
+      list.focus();
     }
   }
 
   trigger.addEventListener("click", () => {
     dialog.showModal();
-    void act(search);
+    void act(() => search(true));
   });
-  find.addEventListener("click", () => void act(search));
+  find.addEventListener("click", () => void act(() => search()));
+  discovered.addEventListener("submit", event => {
+    event.preventDefault();
+    const choice = choices.find(item => item.address === list.value);
+    if (choice) void act(() => identify(choice.address, choice));
+  });
   device.addEventListener("submit", event => {
     event.preventDefault();
     const value = address.value.trim();
@@ -163,13 +212,9 @@ function bindPiOutput(dialog, trigger) {
       return;
     }
     void act(async () => {
-      status.textContent = "Starting fullscreen output on the Pi…";
-      const pending = request({ action: "start", ...selected, username: user, password: password.value }, 30000);
+      const pending = launch({ ...selected, username: user, password: password.value });
       password.value = "";
-      const result = await pending;
-      login.hidden = true;
-      status.textContent = result.display ? `Fullscreen output running on ${result.display} · ${result.address}`
-        : "Fullscreen browser started. Turn on the projector and start the output again to enable HDMI.";
+      await pending;
     });
   });
   dialog.addEventListener("close", () => { password.value = ""; });

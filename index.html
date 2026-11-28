@@ -154,6 +154,8 @@
             aria-haspopup="dialog" hidden>Pi output</button>
           <button id="camera-preview-open" class="rd-btn rd-btn-ghost" type="button"
             aria-haspopup="dialog" hidden>Camera</button>
+          <button id="auto-calibration-start" class="rd-btn rd-btn-ghost" type="button"
+            aria-haspopup="dialog" hidden>Auto calibrate</button>
           <div class="camera-effects-control">
             <button id="camera-automation-switch" class="rd-btn rd-btn-ghost" type="button" role="switch"
               aria-checked="false" aria-describedby="camera-automation-status" disabled hidden>
@@ -1042,6 +1044,11 @@
     </header>
     <p id="pi-output-status" class="camera-preview-status" role="status"></p>
     <div class="pi-output-controls">
+      <form id="pi-output-discovered" hidden>
+        <label for="pi-output-list">Raspberry Pi</label>
+        <select id="pi-output-list" required></select>
+        <button class="rd-btn rd-btn-primary" type="submit">Use this device</button>
+      </form>
       <form id="pi-output-login" autocomplete="off" novalidate hidden>
         <p id="pi-output-identity"></p>
         <div class="pi-output-fields">
@@ -1057,8 +1064,7 @@
         <button id="pi-output-find" class="rd-btn rd-btn-ghost" type="button">Find Raspberry Pi</button>
         <form id="pi-output-device" novalidate>
           <label for="pi-output-address">Pi address</label>
-          <input id="pi-output-address" required list="pi-output-addresses" inputmode="decimal" spellcheck="false">
-          <datalist id="pi-output-addresses"></datalist>
+          <input id="pi-output-address" required inputmode="decimal" spellcheck="false">
           <button class="rd-btn rd-btn-ghost" type="submit">Continue</button>
         </form>
       </details>
@@ -1081,20 +1087,20 @@
       <h2 id="camera-preview-title">Board camera</h2>
       <form method="dialog"><button class="rd-btn rd-btn-ghost" type="submit">Close</button></form>
     </header>
-    <div class="camera-preview-controls" role="group" aria-label="Camera view">
-      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="raw" aria-pressed="false">Live camera</button>
-      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="vision" aria-pressed="false">Detections</button>
-      <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="game" aria-pressed="true">Game observation</button>
-      <button id="auto-calibration-start" class="rd-btn rd-btn-ghost" type="button">Auto calibrate</button>
-      <button id="auto-calibration-cancel" class="rd-btn rd-btn-ghost" type="button" hidden>Cancel calibration</button>
+    <div class="camera-preview-controls">
+      <div class="camera-preview-controls" role="tablist" aria-label="Camera view">
+        <button id="camera-tab-live" class="rd-btn rd-btn-ghost" type="button" data-camera-mode="raw" role="tab"
+          aria-selected="false" aria-controls="camera-view-panel" tabindex="-1">Live Camera</button>
+        <button id="camera-tab-game" class="rd-btn rd-btn-ghost" type="button" data-camera-mode="game" role="tab"
+          aria-selected="true" aria-controls="camera-view-panel">Game observations</button>
+      </div>
       <div id="camera-zoom-controls" class="camera-zoom-controls" role="group" aria-label="Camera zoom" hidden>
         <button id="camera-zoom-out" class="rd-btn rd-btn-ghost" type="button" aria-label="Zoom out">−</button>
         <button id="camera-zoom-reset" class="rd-btn rd-btn-ghost" type="button" title="Reset zoom">100%</button>
         <button id="camera-zoom-in" class="rd-btn rd-btn-ghost" type="button" aria-label="Zoom in">+</button>
       </div>
     </div>
-    <p id="auto-calibration-status" class="camera-preview-status" role="status"></p>
-    <div class="camera-preview-content">
+    <div id="camera-view-panel" class="camera-preview-content" role="tabpanel" aria-labelledby="camera-tab-game">
       <div>
         <div class="camera-preview-frame" tabindex="0" role="region" aria-label="Camera image viewport">
           <canvas id="camera-preview-image" role="img" aria-label="Latest board camera frame" hidden></canvas>
@@ -1123,6 +1129,17 @@
           <ul id="game-review-effects" class="game-review-effects"></ul>
         </section>
       </aside>
+    </div>
+  </dialog>
+  <dialog id="auto-calibration-dialog" class="camera-preview auto-calibration-dialog" aria-labelledby="auto-calibration-title">
+    <header class="camera-preview-header">
+      <h2 id="auto-calibration-title">Auto calibration</h2>
+    </header>
+    <p id="auto-calibration-status" class="camera-preview-status" role="status"></p>
+    <progress id="auto-calibration-progress" aria-label="Calibration in progress"></progress>
+    <div class="camera-preview-controls">
+      <button id="auto-calibration-cancel" class="rd-btn rd-btn-ghost" type="button">Cancel calibration</button>
+      <form method="dialog" id="auto-calibration-close" hidden><button class="rd-btn rd-btn-primary" type="submit">Close</button></form>
     </div>
   </dialog>
   <script type="module" src="/src/app/runtime/ui/camera-preview.js"></script>

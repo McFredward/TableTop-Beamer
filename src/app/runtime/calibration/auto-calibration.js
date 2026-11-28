@@ -120,18 +120,25 @@ async function runCalibration(signal, progress) {
   }
 }
 
-export function bindAutoCalibration({ dialog, pausePreview, resumePreview }) {
+export function bindAutoCalibration() {
+  const dialog = document.getElementById("auto-calibration-dialog");
   const start = document.getElementById("auto-calibration-start");
   const cancel = document.getElementById("auto-calibration-cancel");
+  const close = document.getElementById("auto-calibration-close");
+  const progress = document.getElementById("auto-calibration-progress");
   const status = document.getElementById("auto-calibration-status");
   let controller;
 
   start.addEventListener("click", async () => {
-    pausePreview();
+    if (controller) return;
     const operation = new AbortController();
     controller = operation;
     start.disabled = true;
+    close.hidden = true;
+    progress.hidden = false;
+    cancel.disabled = false;
     cancel.hidden = false;
+    dialog.showModal();
     try {
       const result = await runCalibration(operation.signal, message => {
         status.textContent = message;
@@ -145,10 +152,24 @@ export function bindAutoCalibration({ dialog, pausePreview, resumePreview }) {
     } finally {
       start.disabled = false;
       cancel.hidden = true;
+      progress.hidden = true;
+      close.hidden = false;
       controller = null;
-      if (dialog.open) resumePreview();
+      if (dialog.open) close.querySelector("button").focus();
     }
   });
-  cancel.addEventListener("click", () => controller?.abort());
+  function requestCancel() {
+    if (!controller || controller.signal.aborted) return;
+    cancel.disabled = true;
+    status.textContent = "Cancelling calibration…";
+    controller.abort();
+  }
+  cancel.addEventListener("click", requestCancel);
+  dialog.addEventListener("cancel", event => {
+    if (!controller) return;
+    event.preventDefault();
+    requestCancel();
+  });
   dialog.addEventListener("close", () => controller?.abort());
+  start.hidden = false;
 }

@@ -84,6 +84,12 @@ os.replace(output.name, path)
 PY
 }
 
+if [[ ${1:-} == --paired && $# -eq 1 ]]; then
+  read -r action remote_origin remote_token extra <<< "${SSH_ORIGINAL_COMMAND:-}"
+  [[ $action == tt-beamer-output && -n $remote_origin && -z $extra ]] || fail "Invalid paired launch request."
+  set -- --remote "$remote_origin" "$remote_token"
+fi
+
 if [[ ${1:-} == --start && $# -eq 1 ]]; then
   [[ -r $saved_origin_file ]] || fail "Set up this Pi from Pi output in the TT-Beamer dashboard first."
   origin=$(<"$saved_origin_file")
@@ -165,11 +171,16 @@ if [[ $mode == remote ]]; then
   fi
   if [[ -n $profile_pid ]]; then
     kill -TERM "$profile_pid" || fail "Could not close the previous TT-Beamer output window."
-    for attempt in {1..25}; do
-      [[ ! -L $profile_dir/SingletonLock ]] && break
+    previous_alive() {
+      local state
+      state=$(ps -p "$profile_pid" -o stat= || true)
+      [[ -n $state && $state != Z* ]]
+    }
+    for attempt in {1..45}; do
+      previous_alive || break
       sleep 0.2
     done
-    [[ ! -L $profile_dir/SingletonLock ]] || fail "Close the previous TT-Beamer output window and retry."
+    previous_alive && fail "Close the previous TT-Beamer output window and retry."
   fi
   camera_permission allow || fail "Could not grant the TT-Beamer site camera access in its Chromium profile."
   mkdir -p "$data_dir"

@@ -10,6 +10,7 @@ const classLabels = {
   alien: "Aliens", character: "Player figures", corpse: "Corpse miniatures", dice: "Dice", door: "Doors", fire: "Fire",
   hand: "Hands", malfunction: "Malfunction", noise: "Noise", round: "Round counter",
   "self-destruct": "Self-destruct counter", "track-marker": "Track markers",
+  "xeno-corpse": "Xeno corpse tokens",
 };
 
 function textNode(tag, text, className) {
@@ -171,10 +172,10 @@ export function createGameReview() {
       return row;
     });
 
-    const label = view.delayed ? "Showing last model frame" : view.classes.length ? "Trained model live"
+    const label = view.classes.length ? "Trained model"
       : setup.bindings.modelIds.length ? "Waiting for the trained model" : "Local image checks";
     if (source.textContent !== label) source.textContent = label;
-    source.dataset.state = view.classes.length && !view.delayed ? "live" : "waiting";
+    source.dataset.state = view.classes.length ? "live" : "waiting";
     const detail = view.classes.length ? view.classes.join(" · ")
       : setup.beads.length || setup.fireEffect ? "Fire and counters are available while the trained model is offline."
         : "Waiting for a trained model.";
@@ -211,18 +212,17 @@ export function createGameReview() {
     }));
   }
 
-  async function observe(bitmap, id, signal, { preview } = {}) {
+  async function observe(bitmap, id, signal) {
     const frame = readBitmap(bitmap, true);
     const [, generation] = id.split("-");
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
     if (!setup || generation !== setup.generation || frame.width !== setup.width || frame.height !== setup.height ||
         (boardId && boardId !== setup.id)) await register(frame, generation, signal);
-    const readings = panel.hidden ? [] : await readModels(generation, signal);
+    const readings = await readModels(generation, signal);
     signal.throwIfAborted();
-    const view = panel.hidden ? (preview ? filterCameraObjects(preview, setup) : { objects: [], classes: [] }) : {
+    const view = {
       objects: readings.flatMap(reading => reading.overlay.objects),
       classes: [...new Set(readings.flatMap(reading => reading.overlay.classes))],
-      delayed: readings.some(reading => reading.overlay.delayed),
     };
     const beads = detectTrackBeads(frame, setup.beads);
     const hits = setup.geometry && setup.fireEffect && !view.classes.includes("fire")
@@ -242,7 +242,7 @@ export function createGameReview() {
     const linked = setup.bindings.snapshots();
     const proposed = native.effects.concat(linked, trained.effects.filter(item =>
       !linked.some(binding => binding.roomId === item.roomId && binding.effect.id === item.effect.id)));
-    if (!panel.hidden) renderReadings(native, proposed, fallback, view);
+    renderReadings(native, proposed, fallback, view);
 
     const seenSlots = native.tracks.map(reading => {
       const previous = setup.beads.find(slot => slot.track === reading.kind && slot.value === reading.value);
@@ -259,9 +259,9 @@ export function createGameReview() {
     const modelBoxes = view.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
       .map(({ kind, confidence, box, held, contours }) => ({ kind, box, label: held ? `${kind} · last seen` : `${kind} ${Math.round(confidence * 100)}%`,
-        color: "#7be4b5", held, ...(panel.hidden && { contours }) }));
+        color: "#7be4b5", held, contours }));
     const boxes = [...markerBoxes, ...fireBoxes, ...modelBoxes];
-    return panel.hidden ? boxes : boxes.filter(box => !hiddenKinds.has(box.kind));
+    return boxes.filter(box => !hiddenKinds.has(box.kind));
   }
 
   return { reset, observe, unavailable };
