@@ -295,6 +295,7 @@ echo "[start]    Starting Node server (port ${PORT}) …"
 (
   unset DISPLAY
   export PORT
+  export TT_BEAMER_VISION_AUTOSTART="${TT_BEAMER_VISION_AUTOSTART:-1}"
   cd "$SCRIPT_DIR"
   exec "${NODE_PORTABLE_BIN}/node" server.mjs >> "$LOG_FILE" 2>&1
 ) &

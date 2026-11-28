@@ -4,7 +4,7 @@ import { createOutputCameraUpload } from "./src/server/output-camera-upload.mjs"
 import { cameraFrameId, createCameraVision, isLocalCameraRequest, sendCameraFrame } from "./src/server/camera-vision.mjs";
 import { createCameraAutomation, rememberCameraStops, removeCameraAnimations } from "./src/server/camera-automation.mjs";
 import { trackActivation, trackAnimationBindings } from "./src/app/runtime/vision/game-observer.js";
-import { createManagedVision } from "./src/server/managed-vision.mjs";
+import { createManagedVision, localVisionOptions } from "./src/server/managed-vision.mjs";
 import { createCameraPairing, readPairedCameraAddress } from "./src/server/camera-pairing.mjs";
 import { createPiOutput } from "./src/server/pi-output.mjs";
 import { createCalibrationSession } from "./src/server/calibration-session.mjs";
@@ -77,10 +77,7 @@ const outputCamera = createOutputCameraUpload({
 const cameraInput = () => outputCamera.enabled ? outputCamera : cameraReceiver;
 const cameraVision = createCameraVision({ latestFrame: () => cameraInput().latestFrame() });
 const cameraAutomation = createCameraAutomation();
-const managedVision = createManagedVision({ root: ROOT_DIR, vision: cameraVision,
-  python: process.env.TT_BEAMER_VISION_PYTHON, checkpoint: process.env.TT_BEAMER_VISION_CHECKPOINT,
-  modelId: process.env.TT_BEAMER_VISION_MODEL_ID, device: process.env.TT_BEAMER_VISION_DEVICE,
-  roi: process.env.TT_BEAMER_VISION_ROI, tileSize: process.env.TT_BEAMER_VISION_TILE_SIZE });
+const managedVision = createManagedVision({ ...localVisionOptions({ root: ROOT_DIR }), vision: cameraVision });
 process.on("exit", () => managedVision.stop());
 const cameraPairing = createCameraPairing({ file: PAIRED_CAMERA_PATH, setAddress: outputCamera.setAddress });
 const piOutput = createPiOutput({
@@ -4826,7 +4823,8 @@ const server = createServer(async (req, res) => {
         await acceptCommandMutation({ mutationType: "camera-automation", role: "camera-observer", payload });
       }
       const state = cameraAutomation.status();
-      const modelProgress = cameraAutomation.modelIds(liveSessionState.snapshot.selectedBoard).map(id => {
+      const ids = new Set([...cameraAutomation.modelIds(liveSessionState.snapshot.selectedBoard), ...managedVision.modelIds]);
+      const modelProgress = [...ids].map(id => {
         const report = cameraVision.modelStatus(id);
         return { ...report, id, name: cameraModelPresets.models.find(model => model.id === id)?.name ?? report.name ?? id,
           managed: managedVision.manages(id) };
@@ -4857,7 +4855,6 @@ const server = createServer(async (req, res) => {
       if (!lease) { res.writeHead(204).end(); return; }
       const frame = cameraInput().latestFrame();
       if (frame) cameraVision.rememberSource(frame);
-      managedVision.ensure(cameraAutomation.modelIds(boardId), Boolean(frame), server.address().port);
       sendJson(res, 200, { ...lease, paused: cameraAutomationPaused(), boardId,
         frameId: frame ? cameraFrameId(frame) : null });
       return;
@@ -6189,9 +6186,13 @@ try {
   );
 }
 
-server.on("close", () => { void cameraReceiver.stop(); });
+server.on("close", () => {
+  managedVision.stop();
+  void cameraReceiver.stop();
+});
 server.listen(PORT, HOST, () => {
   if (!outputCamera.enabled) cameraReceiver.start();
+  managedVision.start(server.address().port, () => Boolean(cameraInput().latestFrame()));
   logSessionEvent("server-start", {
     host: HOST,
     port: PORT,

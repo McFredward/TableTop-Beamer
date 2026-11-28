@@ -390,7 +390,7 @@ Start the worker with `--game --checkpoint path/to/weights.pth`. Registered
 checkpoints supply their model ID and RF-DETR variant. For custom checkpoints,
 use `--model-id my-detector` to give the worker a stable ID of your choice.
 
-Nemesis A and B already pair the seven-class Nemesis detector with Fire,
+Nemesis A and B already pair the Nemesis detector with Fire,
 Malfunction, Light Flicker and the room Alarm. Fire uses a verification opacity
 of 0.42. These bindings are editable like any other animation setting.
 
@@ -405,8 +405,16 @@ fresh result. The local Fire and track checks can already show bounding boxes
 while the trained detector is offline. An independently launched detector
 automatically reconnects to TT-Beamer after a server restart.
 
-To let TT-Beamer start and restart an installed detector itself, set these
-environment variables in the PowerShell window that launches the server.
+The launchers start the installed detector along with the server, before
+the dashboard or camera connects. Put the trained Nemesis checkpoint in
+`.vision/nemesis.pth` once. On Windows, `start.bat` prepares the local CPU
+environment in `.vision/venv` when Python is installed. On Linux, provide
+the Python environment with the vision dependencies at `.vision/venv`
+or set its executable explicitly. An unavailable detector appears in
+the launcher log and Camera Effects status while the server continues to run.
+
+An existing Python environment and a different checkpoint can be used through
+these overrides.
 
 ```powershell
 $env:TT_BEAMER_VISION_PYTHON = $visionPython
@@ -414,13 +422,15 @@ $env:TT_BEAMER_VISION_CHECKPOINT = (Resolve-Path 'path\to\checkpoint_best_ema.pt
 .\start.bat
 ```
 
-TT-Beamer starts the configured worker when **Camera effects** needs its
-model. The managed worker defaults to the `nemesis` model ID, CPU inference
-and one analyzed frame per second. `TT_BEAMER_VISION_MODEL_ID` selects another
+The managed worker defaults to the `nemesis` model ID, CPU inference and up to
+one analyzed frame per second. `TT_BEAMER_VISION_AUTOSTART=0` disables the
+managed startup. `TT_BEAMER_VISION_MODEL_ID` selects another
 binding ID. Set `TT_BEAMER_VISION_DEVICE=cuda` to use a configured CUDA
 environment. `TT_BEAMER_VISION_ROI` and `TT_BEAMER_VISION_TILE_SIZE` use the
-same syntax as `--roi` and `--tile-size`. For separate terminal use, pass `--model-id nemesis` to report
-checkpoint errors under that ID even before the weights can be loaded.
+same syntax as `--roi` and `--tile-size`. To keep local settings across launches,
+save a JSON object in `.vision/settings.json` with the keys
+`python`, `checkpoint`, `modelId`, `device`, `roi` or `tileSize` as needed.
+Environment variables take precedence.
 
 On setups without server rendering, keep the dashboard open on the server PC
 to run the camera observer.

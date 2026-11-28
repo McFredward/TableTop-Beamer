@@ -21,6 +21,7 @@ node_modules/
 # Phase 45 — click-and-run installer artifacts (downloaded per-machine)
 .node-portable/
 .node-portable.dl/
+/.vision/
 ffmpeg-portable/
 ffmpeg-portable.dl/
 .server.pid

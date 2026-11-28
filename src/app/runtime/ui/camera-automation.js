@@ -38,6 +38,10 @@ const modelHelp = {
   worker: "Check the detector terminal or the server log for the error.",
 };
 const startHelp = "Start the detector with --game and its trained checkpoint on the TT-Beamer PC.";
+const managedHelp = {
+  checkpoint: "Place the trained checkpoint in .vision/nemesis.pth or check the configured path.",
+  dependencies: "Run the TT-Beamer launcher to prepare the detector or check the configured Python environment.",
+};
 let worker;
 let enabled = false;
 let changing = false;
@@ -63,7 +67,7 @@ function showModelProgress(models) {
     let help = model.phase === "error" ? modelHelp[model.error] ?? modelHelp.worker
       : ["not-connected", "disconnected"].includes(model.phase) ? startHelp : null;
     if (help && model.managed) help = model.phase === "error"
-      ? `${help} TT-Beamer retries the configured detector automatically.`
+      ? `${managedHelp[model.error] ?? help} TT-Beamer retries the configured detector automatically.`
       : "TT-Beamer will start the configured detector automatically.";
     if (help) {
       const hint = document.createElement("p");

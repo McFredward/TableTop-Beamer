@@ -292,6 +292,9 @@ if (Test-NodeModulesStale) {
 # -----------------------------------------------------------------------------
 Write-Host "[start] (5/6) Boot server ..."
 
+. (Join-Path $ScriptDir 'scripts\bootstrap-vision.ps1')
+Initialize-VisionRuntime -Root $ScriptDir -DryRun:$DryRun
+
 function Stop-ServerProcess {
   if (Test-Path -LiteralPath $PidFile) {
     try {
