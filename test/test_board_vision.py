@@ -212,6 +212,15 @@ class BoardContextReviewTest(unittest.TestCase):
         np.testing.assert_allclose(result.xyxy, [die, fire])
         self.assertEqual(len(recent), 1)
 
+    def test_a_competing_dice_box_vetoes_only_overlapping_fire_during_the_overview(self):
+        fire = [296, 308, 359, 368]
+        die = [201, 263, 278, 331]
+        coarse = self.detections([("dice", .46, die), ("fire", .74, die), ("fire", .76, fire)])
+        image = Image.new("RGB", (960, 800))
+        result, _ = refine_board_context(None, image, coarse, .25, deadline=0)
+        self.assertEqual(result.data["class_name"].tolist(), ["dice", "fire"])
+        np.testing.assert_allclose(result.xyxy, [die, fire])
+
     def test_a_defect_without_an_overview_box_survives_next_to_fire_and_a_large_alien(self):
         fire = [286, 328, 350, 388]
         alien = [310, 204, 497, 357]

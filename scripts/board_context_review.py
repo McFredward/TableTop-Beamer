@@ -75,6 +75,22 @@ def review_anchors(detections, recent, sv, np, survey=False):
         yield from group
 
 
+def drop_fire_dice_aliases(detections, sv, np):
+    """Reject duplicate fire labels on dice in an unreviewed overview region."""
+    if not len(detections):
+        return detections
+    labels = detections.data["class_name"]
+    fire = np.flatnonzero(labels == "fire")
+    dice = np.flatnonzero((labels == "dice") & (detections.confidence >= 0.42))
+    if not len(fire) or not len(dice):
+        return detections
+    overlap = sv.box_iou_batch(detections.xyxy[fire], detections.xyxy[dice])
+    competitive = detections.confidence[dice] + 0.32 >= detections.confidence[fire, None]
+    keep = np.ones(len(detections), dtype=bool)
+    keep[fire] = ~((overlap >= 0.67) & competitive).any(axis=1)
+    return detections[keep]
+
+
 def refine_board_context(predictor, image, detections, threshold, recent=(), reduced_projection=None,
                          deadline=None, survey=False):
     """Review up to three neighborhoods at native resolution with one model pass each."""
@@ -152,7 +168,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             next_recent.append((boxes[best], purpose))
 
     if not reviewed:
-        return baseline, recent if not selected else []
+        return drop_fire_dice_aliases(baseline, sv, np), recent if not selected else []
     refined = sv.Detections.merge(reviewed).with_nms(threshold=0.33)
     if len(reviewed) > 1:
         boxes, labels = refined.xyxy, refined.data["class_name"]
@@ -160,9 +176,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         conflicting = same & (labels[:, None] != labels)
         refined = refined[~(conflicting & (refined.confidence[:, None] <= refined.confidence)).any(axis=1)]
     if not len(refined):
-        return baseline, next_recent
+        return drop_fire_dice_aliases(baseline, sv, np), next_recent
     if not len(baseline):
-        return refined, next_recent
+        return drop_fire_dice_aliases(refined, sv, np), next_recent
     # Remove old aliases only where a close view found the same physical piece.
     boxes = np.concatenate([refined.xyxy, baseline.xyxy])
     same = same_piece(boxes, boxes[:, 2:] - boxes[:, :2], (boxes[:, :2] + boxes[:, 2:]) / 2, sv, np)
@@ -182,4 +198,4 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             kinds[index] = labels[previous]
     result.data["reclassified_box"] = corrections
     result.data["reclassified_kind"] = kinds
-    return result, next_recent
+    return drop_fire_dice_aliases(result, sv, np), next_recent
