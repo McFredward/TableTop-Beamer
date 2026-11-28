@@ -10,6 +10,7 @@ SMALL_OBJECT_CROP_SIZE = 576
 MALFUNCTION_CROP_SIZE = 768
 MALFUNCTION_PROPOSAL_THRESHOLD = 0.16
 MALFUNCTION_REVIEW_CONFIDENCE = 0.82
+PLAYER_CROP_SIZE = 704
 
 
 def parse_roi(value):
@@ -103,6 +104,23 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
         center = (box[:2] + box[2:]) / 2
         return (np.linalg.norm(flame_centers - center, axis=1) < size / 5).any()
 
+    figure_reviews = []
+    if "character" in classes and "alien" in classes:
+        # A colored base ring can appear as a low-confidence die at board scale.
+        possible_players = small & (labels == "dice") & (scores >= 0.22) & (scores < 0.76)
+        aliens = np.flatnonzero(small & (labels == "alien") & (scores >= confidence) & (scores < 0.90))
+        if len(character_boxes) and len(aliens):
+            overlaps = sv.box_iou_batch(detections.xyxy[aliens], character_boxes).max(axis=1)
+            possible_players[aliens[overlaps >= 0.45]] = True
+        indexes = np.flatnonzero(possible_players)
+        if len(indexes):
+            previous_players = [box for label, box, misses in recent if label == "character" and misses == 0]
+            previous_hits = np.zeros(len(detections), dtype=bool)
+            if previous_players:
+                previous_hits[indexes] = sv.box_iou_batch(detections.xyxy[indexes], np.array(previous_players)).max(axis=1) >= 0.5
+            index = max(indexes, key=lambda i: (previous_hits[i], labels[i] == "alien", np.prod(dimensions[i]), scores[i]))
+            figure_reviews.append(("character", detections.xyxy[index], None))
+
     marker_reviews = []
     if review_malfunctions and "alien" in classes:
         minimum = MALFUNCTION_PROPOSAL_THRESHOLD if "malfunction" in classes else threshold
@@ -127,7 +145,7 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     accepted_from = []
     centers = []
     next_recent = []
-    for label, box, misses in chain(marker_reviews, recent, new_proposals):
+    for label, box, misses in chain(figure_reviews, marker_reviews, recent, new_proposals):
         if misses is not None and label == "alien" and len(character_boxes) and (
             sv.box_iou_batch(box[None, :], character_boxes) >= 0.55
         ).any():
@@ -148,25 +166,32 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
             break
         # The malfunction token is easier to recognize with more surrounding
         # room context, especially when a nearby flame washes out its edge.
-        crop_size = MALFUNCTION_CROP_SIZE if label == "malfunction" and near_fire(box) else size
+        crop_size = PLAYER_CROP_SIZE if label == "character" else size
+        if label == "malfunction" and near_fire(box):
+            crop_size = MALFUNCTION_CROP_SIZE
         width, height = min(crop_size, image.width), min(crop_size, image.height)
         left = max(0, min(image.width - width, round(float(center[0]) - width / 2)))
         top = max(0, min(image.height - height, round(float(center[1]) - height / 2)))
         bounds = (left, top, left + width, top + height)
         tile = image.crop(bounds)
-        if reduced_projection is not None and label != "malfunction":
+        if reduced_projection is not None and label == "alien":
             patch = tuple(map(round, box))
             before = np.asarray(image.crop(patch), dtype=np.int16)
             after = np.asarray(reduced_projection.crop(patch))
             if before.size and np.mean(np.max(before - after, axis=2) > 25) >= 0.08:
                 tile = ImageOps.grayscale(reduced_projection.crop(bounds)).convert("RGB")
         centers.append(center)
-        zoom = predictor.predict(tile, threshold=confidence, include_source_image=False)
+        predict = getattr(predictor, "predict_player", predictor.predict) if label == "character" else predictor.predict
+        zoom = predict(tile, threshold=confidence, include_source_image=False)
         confirmed = False
         if len(zoom):
             zoom.xyxy += (left, top, left, top)
             close = sv.box_iou_batch(box[None, :], zoom.xyxy)[0] >= 0.30
-            matches = (zoom.data["class_name"] == label) & close
+            local_labels = zoom.data["class_name"]
+            matches = (local_labels == label) & close
+            if label == "character":
+                competitors = zoom.confidence[close & np.isin(local_labels, ["alien", "dice"])]
+                matches &= zoom.confidence >= max(0.80, competitors.max(initial=0) + 0.08)
             if review_malfunctions and label in ("alien", "malfunction"):
                 competing = zoom.confidence[close & np.isin(zoom.data["class_name"], ["malfunction", "character"])]
                 alien_candidates = close & (zoom.data["class_name"] == "alien")
@@ -205,22 +230,30 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     if len(baseline):
         removed = np.zeros(len(baseline), dtype=bool)
         for label, candidate, actual in zip(refined.data["class_name"], accepted_from, refined.xyxy, strict=True):
-            if label not in ("alien", "malfunction"):
+            if label not in ("alien", "character", "malfunction"):
                 continue
             overlap = sv.box_iou_batch(np.array([candidate, actual]), baseline.xyxy)
-            matches = (baseline.data["class_name"] == "malfunction") & ((overlap[0] >= 0.70) | (overlap[1] >= 0.53))
-            if label == "alien" and matches.any():
-                replaced = baseline.xyxy[int(np.argmax(np.where(matches, overlap.max(axis=0), 0)))]
-                displaced.append((actual, replaced))
+            coarse_labels = baseline.data["class_name"]
+            rivals = np.isin(coarse_labels, ["alien", "dice"]) if label == "character" else coarse_labels == "malfunction"
+            matches = rivals & ((overlap[0] >= 0.70) | (overlap[1] >= 0.53))
+            corrections = matches & (coarse_labels != label)
+            if label == "character" and (corrections & (coarse_labels == "alien")).any():
+                corrections &= coarse_labels == "alien"
+            if corrections.any():
+                index = np.argmax(np.where(corrections, overlap.max(axis=0), 0))
+                displaced.append((label, actual, coarse_labels[index], baseline.xyxy[index]))
             removed |= matches
         baseline = baseline[~removed]
     merged = sv.Detections.merge([baseline, refined]).with_nms(threshold=0.5)
     if displaced:
         corrections = np.full(merged.xyxy.shape, np.nan)
-        for actual, replaced in displaced:
-            matches = (merged.data["class_name"] == "alien") & (sv.box_iou_batch(actual[None, :], merged.xyxy)[0] >= 0.7)
+        replaced_labels = np.full(len(merged), "", dtype="<U80")
+        for label, actual, replaced_label, replaced in displaced:
+            matches = (merged.data["class_name"] == label) & (sv.box_iou_batch(actual[None, :], merged.xyxy)[0] >= 0.7)
             corrections[matches] = replaced
-        merged.data["reclassified_malfunction"] = corrections
+            replaced_labels[matches] = replaced_label
+        merged.data["reclassified_box"] = corrections
+        merged.data["reclassified_kind"] = replaced_labels
     return merged, next_recent[:2]
 
 

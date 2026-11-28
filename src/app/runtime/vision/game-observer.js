@@ -108,6 +108,10 @@ function coversPosition(state, box, item) {
     sighting.figures.some(previous => samePosition(item.box, previous) && overlap(box, previous) + 0.15 >= area));
 }
 
+function isPlayerAt(box, item, minConfidence = 0.80) {
+  return item.kind === "character" && item.confidence >= minConfidence && samePosition(box, item.box);
+}
+
 function reclassifies(state, box, item) {
   return item.reclassifiedFrom?.kind === state.kind && samePosition(box, item.reclassifiedFrom.box);
 }
@@ -214,11 +218,14 @@ export function createGameObserver(layout, {
           !layout.effects[item.kind]) continue;
       if (item.kind === "fire" && dice.some(die =>
         overlap(item.box, die.box) >= 2 / 3 && overlap(die.box, item.box) >= 2 / 3)) continue;
+      if (item.kind === "alien" && possibleOccluders.some(other =>
+        isPlayerAt(item.box, other, Math.max(0.80, item.confidence - 0.06)))) continue;
       const zone = pieceZone(layout.zones, item, allZones);
       if (!zone) continue;
       const key = item.kind + ":" + zone.id;
-      const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [], strong: false };
+      const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [], verifiedAlienBoxes: [], strong: false };
       entry.boxes.push(item.box);
+      if (item.kind === "alien" && item.confidence >= strongConfidence) entry.verifiedAlienBoxes.push(item.box);
       if (startOnStrongReading && !entry.strong && item.confidence >= strongConfidence && !current.get(key)?.active &&
           !possibleOccluders.some(other => other.kind !== item.kind && occluders.has(other.kind) &&
             other.confidence >= detectionThreshold && samePosition(item.box, other.box)) &&
@@ -232,6 +239,10 @@ export function createGameObserver(layout, {
     for (const [key, hit] of hits) {
       const state = stateFor(key, { kind: hit.kind, zone: hit.zone });
       state.boxes = hit.boxes;
+      if (hit.kind === "alien") {
+        state.verifiedAlienBoxes = state.boxes.filter(box => hit.verifiedAlienBoxes.includes(box) ||
+          state.verifiedAlienBoxes?.some(previous => samePosition(box, previous)));
+      }
       state.count = hit.boxes.length;
       state.pending++;
       state.clear = 0;
@@ -247,8 +258,14 @@ export function createGameObserver(layout, {
       const weakFireReading = state.kind === "fire" && possibleOccluders.some(item =>
         item.kind === "fire" && item.confidence < detectionThreshold &&
         state.boxes.some(box => samePosition(box, item.box)));
-      const covered = state.boxes.some(box => possibleOccluders.some(item =>
-        (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) && coversPosition(state, box, item)));
+      const covered = state.boxes.some(box => {
+        const player = state.kind === "alien" &&
+          !state.verifiedAlienBoxes?.some(previous => samePosition(box, previous)) &&
+          possibleOccluders.some(item => isPlayerAt(box, item));
+        return possibleOccluders.some(item =>
+          (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) &&
+          !(player && item.kind !== "hand" && samePosition(box, item.box)) && coversPosition(state, box, item));
+      });
       const overexposed = (checkVisibility || state.kind === "fire") && state.active && !missingCoverage &&
         state.boxes.some(box => frame.fireOverexposed?.(box));
       if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];

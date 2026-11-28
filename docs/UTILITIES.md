@@ -335,7 +335,9 @@ A fine-tuned classification head for these crops distinguishes larvae from
 defect markers. The detector also checks weak malfunction proposals in a
 wider crop, where the marker can be recognized alongside nearby fire. Only
 a matching, confident detection drives the effect. Unconfirmed borderline
-defect proposals remain visible with low confidence.
+defect proposals remain visible with low confidence. Player reviews use a
+separate set of classification weights on the same detector to distinguish
+player miniatures from aliens and uncertain dice labels.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
@@ -347,7 +349,9 @@ Open **Camera → Game observation** on the server PC. On Nemesis boards A and B
 the view matches the camera image to the selected board artwork. Reopen the
 view after moving the board. It compares the printed track fields with the
 camera image and can use fainter round counter highlights when local contrast
-is low. Two matching frames confirm the slot. With **Camera Effects** enabled,
+is low. The view shows all bounding boxes initially. Use **Bounding boxes**
+to choose the visible classes. Two matching frames confirm a counter slot.
+With **Camera Effects** enabled,
 round positions 8–1 loop **Scanning** in the cryochamber (011 on A, 008 on B).
 Self-destruct positions 3 and below loop **Intruder Alert** in the ship interior.
 Moving a counter to a confirmed inactive field stops its effect. A readable,

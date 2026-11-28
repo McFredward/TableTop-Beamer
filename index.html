@@ -1101,6 +1101,14 @@
         <div class="game-review-card">
           <p id="game-review-source" class="game-review-source" role="status"></p>
           <p id="game-review-classes" class="game-review-meta"></p>
+          <details id="game-box-filter" class="game-box-filter">
+            <summary>Bounding boxes <span id="game-box-count"></span></summary>
+            <div class="game-box-options">
+              <button id="game-box-all" type="button">Show all</button>
+              <button id="game-box-none" type="button">Hide all</button>
+              <div id="game-box-classes" role="group" aria-label="Visible bounding box classes"></div>
+            </div>
+          </details>
         </div>
         <div id="game-review-tracks" class="game-review-tracks"></div>
         <section class="game-review-card game-review-effects-card">

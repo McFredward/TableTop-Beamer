@@ -3,6 +3,8 @@
 import { bootOutputLiveSync } from "./output-live-sync.js";
 
 const OUTPUT_WAKE_SECONDS = 0.55;
+const SOUND_START_LEAD_SECONDS = 0.025;
+const KEEP_ALIVE_AMPLITUDE = 1 / 65536;
 const MAX_CACHED_SOUNDS = 16;
 
 function resolveSoundPath(animation) {
@@ -26,7 +28,12 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
     if (!context) {
       const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
       if (!AudioContext) throw new Error("Web Audio is unavailable");
-      context = new AudioContext({ latencyHint: "interactive" });
+      context = new AudioContext({ latencyHint: "playback" });
+      const holdForDevice = () => {
+        if (context.state === "running") readyAt = context.currentTime + OUTPUT_WAKE_SECONDS;
+      };
+      context.addEventListener("statechange", holdForDevice);
+      context.addEventListener("sinkchange", holdForDevice);
     }
     return context;
   }
@@ -37,9 +44,15 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
         if (output.state !== "running") await output.resume();
         if (output.state === "closed") return;
         if (!keepAlive) {
-          // Keep an active silent stream so HDMI does not shut down between effects.
+          // Chromium can pause the real sink when it receives all-zero PCM.
+          // Keep the stream active with a DC-free signal below a 16-bit step.
           keepAlive = output.createBufferSource();
           keepAlive.buffer = output.createBuffer(1, 128, output.sampleRate);
+          const samples = keepAlive.buffer.getChannelData(0);
+          for (let i = 0; i < samples.length; i += 2) {
+            samples[i] = KEEP_ALIVE_AMPLITUDE;
+            samples[i + 1] = -KEEP_ALIVE_AMPLITUDE;
+          }
           keepAlive.loop = true;
           keepAlive.connect(output.destination);
           keepAlive.start();
@@ -93,7 +106,7 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
       source.buffer = buffer;
       source.loop = true;
       source.connect(output.destination);
-      source.start(Math.max(output.currentTime, readyAt), 0);
+      source.start(Math.max(output.currentTime + SOUND_START_LEAD_SECONDS, readyAt), 0);
       playback.stop = () => {
         source.stop();
         source.disconnect();

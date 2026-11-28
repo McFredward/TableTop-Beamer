@@ -13,7 +13,9 @@ test("brief model feed gaps preserve the overlay and mark it as last seen", () =
   now = 3500;
   assert.equal(overlay(null).delayed, true);
   assert.deepEqual(overlay(null).objects, [{ ...alien, held: true }, { ...fire, held: true }]);
-  now = 7000;
+  now = 12_000;
+  assert.equal(overlay(null).delayed, true);
+  now = 16_001;
   assert.deepEqual(overlay(null).objects, []);
 });
 

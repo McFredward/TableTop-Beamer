@@ -1,4 +1,4 @@
-const MODEL_GAP_MS = 6800;
+const MODEL_GAP_MS = 16_000;
 const HOLD_CONFIDENCE = 0.60;
 
 function overlaps([x, y, w, h], [u, v, a, b]) {

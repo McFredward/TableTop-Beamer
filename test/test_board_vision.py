@@ -72,6 +72,26 @@ class TileCoordinatesTest(unittest.TestCase):
 
 
 class SmallObjectRefinementTest(unittest.TestCase):
+    def test_a_recognized_player_can_replace_a_dice_or_alien_alias_in_the_same_position(self):
+        image = Image.new("RGB", (800, 720))
+        box = [350, 310, 450, 390]
+        labels = np.array(["dice", "alien", "malfunction"])
+        coarse = sv.Detections(xyxy=np.array([box, box, [473, 300, 530, 365]], dtype=np.float32),
+                               confidence=np.array([0.31, 0.65, 0.92]),
+                               class_id=np.array([2, 0, 3]), data={"class_name": labels})
+
+        class PlayerOnCloseCrop:
+            def predict(self, _crop, **_):
+                return sv.Detections(xyxy=np.array([[302, 310, 402, 390], [302, 310, 402, 390]], dtype=np.float32),
+                                     confidence=np.array([0.94, 0.68]), class_id=np.array([1, 0]),
+                                     data={"class_name": np.array(["character", "alien"])})
+
+        result, _ = refine_small_objects(PlayerOnCloseCrop(), image, coarse, ["character", "alien"], 0.25)
+        self.assertEqual(set(result.data["class_name"]), {"character", "malfunction"})
+        payload = board_objects("frame", {"alien", "character", "dice", "malfunction"}, result, image.size, image.size, None, np)
+        player = next(piece for piece in payload["objects"] if piece["kind"] == "character")
+        self.assertEqual(player["reclassifiedFrom"]["kind"], "alien")
+
     def test_a_borderline_defect_proposal_stays_uncertain_when_the_detail_pass_runs_out_of_time(self):
         image = Image.new("RGB", (800, 720))
         coarse = sv.Detections(xyxy=np.array([[350, 310, 430, 390], [550, 500, 630, 581]], dtype=np.float32),

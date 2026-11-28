@@ -1987,6 +1987,22 @@ body[data-output-role="final-output"] .cluster-pads {
 .game-review-meta { color: var(--c-text-2, #bac7d7); font-size: .75rem; line-height: 1.4; }
 .game-review-card .game-review-meta:not(:empty) { margin-top: 3px; }
 .game-review-source[data-state="live"] { color: var(--c-accent, #32d3a3); }
+.game-box-filter { position: relative; margin-top: 8px; font-size: .8rem; }
+.game-box-filter summary { width: fit-content; cursor: pointer; }
+#game-box-count { color: var(--c-text-2, #bac7d7); margin-inline-start: .3rem; }
+.game-box-options {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  top: calc(100% + 6px);
+  max-height: 35dvh;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--c-bg, #141820);
+  border: 1px solid var(--c-border-str, #454953);
+  border-radius: var(--rd-r-sm, 8px);
+}
+#game-box-classes label { display: flex; align-items: center; gap: .45rem; padding: 3px 0; }
 .game-review-value { display: block; font-size: 1.36rem; font-variant-numeric: tabular-nums; }
 .game-review-effects {
   display: grid;

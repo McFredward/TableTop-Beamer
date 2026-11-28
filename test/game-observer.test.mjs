@@ -73,6 +73,21 @@ test("noise, malfunction, fire and alien alarm can coexist and characters alone 
   assert.equal(alarm(observe(room)).active, false);
 });
 
+test("a clear player label resolves a tentative alien without changing the nearby malfunction", () => {
+  const observe = newRun();
+  const alien = { ...item("alien", 0.31, 0.24), confidence: 0.78 };
+  const player = item("character", 0.31, 0.24);
+  const defect = item("malfunction", 0.29, 0.29);
+  const alarm = snapshot => snapshot.effects.find(effect => effect.kind === "alien");
+  observe([alien, defect]);
+  assert.equal(alarm(observe([alien, defect])).active, true);
+  assert.equal(alarm(observe([alien, player, defect])).status, "checking");
+  const corrected = observe([alien, player, defect]);
+  assert.equal(alarm(corrected).active, false);
+  assert.equal(corrected.effects.find(effect => effect.kind === "malfunction").active, true);
+  assert.equal(alarm(observe([alien, player, defect])).active, false);
+});
+
 test("partial model coverage cannot clear a previously observed effect", () => {
   const observe = newRun();
   observe([item("fire", 0.2, 0.17)]);

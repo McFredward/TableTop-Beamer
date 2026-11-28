@@ -13,15 +13,18 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   const sources = [];
   const pcm = { kind: "decoded clip" };
   let currentOutput;
-  globalThis.AudioContext = class {
+  globalThis.AudioContext = class extends EventTarget {
     state = "suspended";
     currentTime = 0;
     sampleRate = 48000;
     destination = {};
-    constructor() { currentOutput = this; }
+    constructor(options) { super(); currentOutput = this; assert.equal(options.latencyHint, "playback"); }
     async resume() { this.state = "running"; }
     async close() { this.state = "closed"; }
-    createBuffer() { return { kind: "silence" }; }
+    createBuffer(_channels, size) {
+      const samples = new Float32Array(size);
+      return { getChannelData: () => samples };
+    }
     async decodeAudioData() { return pcm; }
     createBufferSource() {
       return {
@@ -52,7 +55,9 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   callbacks.start(alarm);
   await flush();
   assert.equal(sources.length, 2);
-  assert.equal(sources[0].buffer.kind, "silence");
+  const keepAlive = sources[0].buffer.getChannelData(0);
+  assert(keepAlive.every(sample => sample !== 0 && Math.abs(sample) < 1 / 32768));
+  assert.equal(keepAlive.reduce((sum, value) => sum + value, 0), 0);
   assert.equal(sources[1].buffer, pcm);
   assert.equal(sources[1].loop, true);
   assert.deepEqual(sources[1].startArgs, [0.55, 0]);
@@ -65,7 +70,7 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   callbacks.start({ ...alarm, id: "warm" });
   await flush();
   assert.equal(requests, 1);
-  assert.deepEqual(sources[2].startArgs, [8, 0]);
+  assert.deepEqual(sources[2].startArgs, [8.025, 0]);
 
   callbacks.start({ id: "canceled", soundAssetRef: "slow.wav" });
   callbacks.clear();
@@ -73,6 +78,11 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   await flush();
   assert.equal(sources[2].stopped, true);
   assert.equal(sources.length, 3);
+  currentOutput.currentTime = 9;
+  currentOutput.dispatchEvent(new Event("sinkchange"));
+  callbacks.start({ ...alarm, id: "changed-device" });
+  await flush();
+  assert.deepEqual(sources[3].startArgs, [9.55, 0]);
   binder.stop();
   assert.equal(sources[0].stopped, true);
 });

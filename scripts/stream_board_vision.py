@@ -38,7 +38,8 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
     sx, sy = roi_width / width / original_width, roi_height / height / original_height
     left, top = x / original_width, y / original_height
     objects = []
-    corrections = detections.data.get("reclassified_malfunction")
+    corrections = detections.data.get("reclassified_box")
+    replaced_labels = detections.data.get("reclassified_kind")
     for i, (label, score, box) in enumerate(zip(detections.data.get("class_name", []), detections.confidence,
                                                  detections.xyxy, strict=True)):
         if label not in classes:
@@ -66,11 +67,12 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
             "box": [left + x0 * sx, top + y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy],
             "anchor": [left + cx * sx, top + cy * sy],
         }
-        if corrections is not None and np.isfinite(corrections[i]).all():
+        if corrections is not None and replaced_labels[i] in classes and np.isfinite(corrections[i]).all():
             a, b, c, d = corrections[i].tolist()
             a, b, c, d = max(0, a), max(0, b), min(width, c), min(height, d)
             if c > a and d > b:
-                item["reclassifiedFrom"] = {"kind": "malfunction", "box": [left + a * sx, top + b * sy, (c - a) * sx, (d - b) * sy]}
+                item["reclassifiedFrom"] = {"kind": str(replaced_labels[i]),
+                                            "box": [left + a * sx, top + b * sy, (c - a) * sx, (d - b) * sy]}
         objects.append(item)
     return {
         "frameId": frame_id, "classes": sorted(classes),
@@ -163,21 +165,27 @@ class DetailDetector:
 
     def __init__(self, model, adapter, torch):
         head = model.model.model.class_embed
-        weights = torch.zeros_like(head.weight)
-        bias = torch.zeros_like(head.bias)
-        preserve = torch.full_like(head.bias, 1)
-        for name, row in adapter["classes"].items():
-            index = list(model.class_names).index(name)
-            weights[index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
-            bias[index] = row["bias"]
-            preserve[index] = row.get("preserveConfidence", 1)
-        head.register_buffer("detail_weights", weights, persistent=False)
-        head.register_buffer("detail_bias", bias, persistent=False)
-        head.register_buffer("detail_preserve", preserve, persistent=False)
+        self.player_review = False
+        variants = (adapter["classes"], {**adapter["classes"], **adapter.get("playerReview", {})})
+        for index, rows in enumerate(variants):
+            weights = torch.zeros_like(head.weight)
+            bias = torch.zeros_like(head.bias)
+            preserve = torch.full_like(head.bias, 1)
+            for name, row in rows.items():
+                class_index = list(model.class_names).index(name)
+                weights[class_index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
+                bias[class_index] = row["bias"]
+                preserve[class_index] = row.get("preserveConfidence", 1)
+            head.register_buffer(f"detail_weights_{index}", weights, persistent=False)
+            head.register_buffer(f"detail_bias_{index}", bias, persistent=False)
+            head.register_buffer(f"detail_preserve_{index}", preserve, persistent=False)
 
+        # Small-piece crops and player reviews share one inference model.
         def correct(layer, args, output):
-            adjusted = output + torch.nn.functional.linear(args[0], layer.detail_weights, layer.detail_bias)
-            return torch.where(output.sigmoid() >= layer.detail_preserve, torch.maximum(output, adjusted), adjusted)
+            index = int(self.player_review)
+            weights, bias, preserve = (getattr(layer, f"detail_{name}_{index}") for name in ("weights", "bias", "preserve"))
+            adjusted = output + torch.nn.functional.linear(args[0], weights, bias)
+            return torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
 
         hook = head.register_forward_hook(correct)
         try:
@@ -187,6 +195,13 @@ class DetailDetector:
 
     def predict(self, *args, **options):
         return self.predictor.predict(*args, antialias=True, **options)
+
+    def predict_player(self, *args, **options):
+        self.player_review = True
+        try:
+            return self.predict(*args, **options)
+        finally:
+            self.player_review = False
 
 
 class ModelProgress:
