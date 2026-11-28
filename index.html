@@ -1087,11 +1087,16 @@
       <button class="rd-btn rd-btn-ghost" type="button" data-camera-mode="game" aria-pressed="true">Game observation</button>
       <button id="auto-calibration-start" class="rd-btn rd-btn-ghost" type="button">Auto calibrate</button>
       <button id="auto-calibration-cancel" class="rd-btn rd-btn-ghost" type="button" hidden>Cancel calibration</button>
+      <div id="camera-zoom-controls" class="camera-zoom-controls" role="group" aria-label="Camera zoom" hidden>
+        <button id="camera-zoom-out" class="rd-btn rd-btn-ghost" type="button" aria-label="Zoom out">−</button>
+        <button id="camera-zoom-reset" class="rd-btn rd-btn-ghost" type="button" title="Reset zoom">100%</button>
+        <button id="camera-zoom-in" class="rd-btn rd-btn-ghost" type="button" aria-label="Zoom in">+</button>
+      </div>
     </div>
     <p id="auto-calibration-status" class="camera-preview-status" role="status"></p>
     <div class="camera-preview-content">
       <div>
-        <div class="camera-preview-frame">
+        <div class="camera-preview-frame" tabindex="0" role="region" aria-label="Camera image viewport">
           <canvas id="camera-preview-image" role="img" aria-label="Latest board camera frame" hidden></canvas>
         </div>
         <p id="camera-preview-status" class="camera-preview-status" role="status"></p>

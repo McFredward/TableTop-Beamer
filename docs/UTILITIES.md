@@ -350,7 +350,9 @@ the view matches the camera image to the selected board artwork. Reopen the
 view after moving the board. It compares the printed track fields with the
 camera image and can use fainter round counter highlights when local contrast
 is low. The view shows all bounding boxes initially. Use **Bounding boxes**
-to choose the visible classes. Two matching frames confirm a counter slot.
+to choose the visible classes. Zoom with the mouse wheel or the **+** and
+**−** buttons, drag to pan, and click the percentage to reset the view.
+Two matching frames confirm a counter slot.
 With **Camera Effects** enabled,
 round positions 8–1 loop **Scanning** in the cryochamber (011 on A, 008 on B).
 Self-destruct positions 3 and below loop **Intruder Alert** in the ship interior.

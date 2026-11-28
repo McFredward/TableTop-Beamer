@@ -1,4 +1,5 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
+import { bindCameraZoom } from "./camera-preview-zoom.js";
 import { createGameReview, paintBoxes } from "./game-review.js";
 import { readCameraBitmap } from "../vision/camera-board-readings.js";
 
@@ -13,6 +14,7 @@ function bootCameraPreview() {
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
   const game = createGameReview();
+  const zoom = bindCameraZoom(dialog, canvas);
   let mode = "game";
   let active;
 
@@ -27,6 +29,11 @@ function bootCameraPreview() {
 
   function setStatus(message) {
     if (status.textContent !== message) status.textContent = message;
+  }
+
+  function showFrame(visible) {
+    canvas.hidden = !visible;
+    zoom.setAvailable(visible);
   }
 
   async function refresh(signal) {
@@ -96,7 +103,7 @@ function bootCameraPreview() {
             original?.close();
             bitmap.close();
           }
-          canvas.hidden = false;
+          showFrame(true);
           visibleId = id;
           visibleSource = source;
           if (source === "vision") {
@@ -110,7 +117,7 @@ function bootCameraPreview() {
         if (response.status === 200 || response.status === 204) {
           setStatus(source === "raw" && mode === "vision" ? "Local detections. Waiting for RF-DETR." : "");
         } else {
-          canvas.hidden = true;
+          showFrame(false);
           metrics.textContent = "";
           visibleId = null;
           if (mode === "game") game.unavailable("Waiting for a fresh camera frame. Observation is paused.");
@@ -124,7 +131,7 @@ function bootCameraPreview() {
         }
       } catch {
         if (signal.aborted) return;
-        canvas.hidden = true;
+        showFrame(false);
         metrics.textContent = "";
         visibleId = null;
         if (mode === "game") game.unavailable("Observation paused during the camera interruption.");
@@ -139,7 +146,7 @@ function bootCameraPreview() {
     active?.abort();
     active = new AbortController();
     game.reset(mode === "game");
-    canvas.hidden = true;
+    showFrame(false);
     metrics.textContent = "";
     setStatus("Connecting to the board camera…");
     for (const button of modeButtons) button.disabled = false;
@@ -153,6 +160,8 @@ function bootCameraPreview() {
   dialog.addEventListener("close", () => {
     active?.abort();
     game.reset(false);
+    zoom.reset();
+    showFrame(false);
     canvas.width = 1;
     canvas.height = 1;
   });
@@ -171,7 +180,8 @@ function bootCameraPreview() {
     pausePreview() {
       active?.abort();
       game.reset(false);
-      canvas.hidden = true;
+      zoom.reset();
+      showFrame(false);
       metrics.textContent = "";
       setStatus("");
       for (const button of modeButtons) button.disabled = true;

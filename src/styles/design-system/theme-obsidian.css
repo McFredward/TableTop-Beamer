@@ -1899,6 +1899,14 @@ body[data-output-role="final-output"] .cluster-pads {
 }
 .camera-preview-header { justify-content: space-between; }
 .camera-preview-controls { flex-wrap: wrap; }
+.camera-zoom-controls:not([hidden]) {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.camera-zoom-controls button { min-width: 36px; }
+#camera-zoom-reset { min-width: 64px; font-variant-numeric: tabular-nums; }
 .camera-preview-header h2 { margin: 0; font-size: 1.1rem; }
 .camera-preview-controls [aria-pressed="true"] {
   background: var(--c-accent, #32d3a3);
@@ -1951,6 +1959,8 @@ body[data-output-role="final-output"] .cluster-pads {
   max-width: 100%;
   max-height: min(62dvh, 700px);
 }
+.camera-preview-frame[data-zoomed] { cursor: grab; touch-action: none; }
+.camera-preview-frame[data-panning] { cursor: grabbing; }
 .camera-preview-status,
 .camera-preview-metrics { margin: 8px 0 0; font-size: .8rem; }
 .camera-preview-status:empty,
