@@ -95,6 +95,10 @@
   function computeFadeMultiplier(animation, now) {
     if (!animation || animation.fadeEnabled !== true) return 1;
     const durationMs = clampFadeDurationMs(animation.fadeDurationMs);
+    const lifetimeMs = Number(animation.durationMs);
+    const hasEnd = !animation.hold && Number.isFinite(lifetimeMs) && lifetimeMs > 0 &&
+      Number.isFinite(animation.startedAt);
+    const edgeDurationMs = hasEnd ? Math.min(durationMs, lifetimeMs / 2) : durationMs;
     let mul = 1;
 
     // fadeOutStartedAtEpochMs > 0 means a fade-out is in progress. A
@@ -102,21 +106,19 @@
     // guard treats null/0/absent as "not fading out".
     const fadeOutEpoch = Number(animation.fadeOutStartedAtEpochMs);
     const isFadingOut = Number.isFinite(fadeOutEpoch) && fadeOutEpoch > 0;
+    const outElapsed = isFadingOut ? Math.max(0, Date.now() - fadeOutEpoch) : 0;
 
-    // Fade-IN — measured from this client's render anchor, NOT the trigger
-    // epoch. Skipped while a fade-out is in progress (the anchor is left
-    // untouched so a fade-out cancel can seed it via seedFadeInAnchor).
-    if (!isFadingOut) {
-      const anchor = resolveFadeInAnchor(animation, now);
-      const inElapsed = now - anchor;
-      if (inElapsed < durationMs) {
-        mul *= smoothstep01(inElapsed / durationMs);
-      }
+    const anchor = isFadingOut ? fadeInAnchorPerfMsById.get(animation.id) : resolveFadeInAnchor(animation, now);
+    if (anchor !== undefined) {
+      // A stop during fade-in starts at the opacity reached when it was requested.
+      mul *= smoothstep01((now - anchor - outElapsed) / edgeDurationMs);
     }
 
     if (isFadingOut) {
-      const outElapsed = Date.now() - fadeOutEpoch;
       mul *= 1 - smoothstep01(outElapsed / durationMs);
+    }
+    if (hasEnd) {
+      mul = Math.min(mul, smoothstep01((animation.startedAt + lifetimeMs - now) / edgeDurationMs));
     }
 
     return mul < 0 ? 0 : mul > 1 ? 1 : mul;

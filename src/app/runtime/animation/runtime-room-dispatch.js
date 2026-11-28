@@ -1144,6 +1144,8 @@
             heightScale: animation.heightScale,
             offsetXScale: animation.offsetXScale,
             offsetYScale: animation.offsetYScale,
+            fadeEnabled: animation.fadeEnabled,
+            fadeDurationMs: animation.fadeDurationMs,
           });
           state.defaultAnimationsByBoard[animation.boardId] = filtered;
         }

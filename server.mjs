@@ -613,10 +613,37 @@ function cameraAnimationOwner(scope, animationId, roomId) {
   return JSON.stringify([scope, animationId, roomId]);
 }
 
-function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token, track }) {
+function removeCameraAnimation(boardId, scope, animation) {
+  const patch = scope === "room"
+    ? applyRoomMutationPatch("stop-animation", { boardId, animationId: animation.id })
+    : applyGlobalMutationPatch({ boardId, animationType: animation.type, action: "stop",
+      animationId: animation.id, outsideHint: scope === "outside" });
+  return { ...patch, runtime: rememberCameraStops(patch.runtime, [animation.id]) };
+}
+
+function beginCameraFadeOut(boardId, scope, animation) {
+  if (animation.fadeOutStartedAtEpochMs > 0) return;
+  const duration = Math.max(100, Math.min(5000, Number(animation.fadeDurationMs) || 800));
+  const fadeStartedAt = Date.now();
+  animation.fadeOutStartedAtEpochMs = fadeStartedAt;
+  const payload = { action: "finish-fade", boardId, scope, animationId: animation.id, fadeStartedAt };
+  cameraAnimationCommands.add(payload);
+  setTimeout(() => {
+    void acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
+  }, duration).unref();
+}
+
+function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token, track,
+  animationId, fadeStartedAt }) {
+  if (boardId !== liveSessionState.snapshot.selectedBoard) return null;
+  if (action === "finish-fade") {
+    const instance = liveSessionState.snapshot.runtime?.runningAnimations?.find(item =>
+      item.id === animationId && item.boardId === boardId && item.cameraTriggerOwner &&
+      item.fadeOutStartedAtEpochMs === fadeStartedAt);
+    return instance ? removeCameraAnimation(boardId, scope, instance) : null;
+  }
   const [observedAt, generation, sequence] = frameId.split("-").map(Number);
-  if (boardId !== liveSessionState.snapshot.selectedBoard || !definition || cameraAutomationPaused() ||
-      !cameraAutomation.accepts(token, observedAt)) return null;
+  if (!definition || cameraAutomationPaused() || !cameraAutomation.accepts(token, observedAt)) return null;
   if (track ? !cameraVision.sourceFor(frameId) :
     !cameraVision.objectsFor(frameId, modelId)?.classes.includes(definition.cameraTrigger?.className)) return null;
 
@@ -635,11 +662,9 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
   }
   if (action === "stop") {
     if (!existing || existing.cameraTriggerObservedAt > observedAt) return null;
-    const patch = scope === "room"
-      ? applyRoomMutationPatch("stop-animation", { boardId, animationId: existing.id })
-      : applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "stop",
-        animationId: existing.id, outsideHint: scope === "outside" });
-    return { ...patch, runtime: rememberCameraStops(patch.runtime, [existing.id]) };
+    if (existing.fadeEnabled !== true) return removeCameraAnimation(boardId, scope, existing);
+    beginCameraFadeOut(boardId, scope, existing);
+    return { runtime };
   }
 
   if (action === "verify") {
@@ -652,6 +677,11 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
     return { runtime };
   }
 
+  if (action === "start" && existing?.fadeOutStartedAtEpochMs > 0) {
+    existing.fadeOutStartedAtEpochMs = null;
+    existing.cameraTriggerObservedAt = observedAt;
+    return { runtime };
+  }
   if (action !== "start" || existing || animations.some(item => item.boardId === boardId &&
       item.scope === runtimeScope && item.type === definition.id && (scope !== "room" || item.roomId === roomId))) return null;
 
@@ -1592,7 +1622,19 @@ function applyLiveMutation({
     }
     cameraAnimationReadings.clear();
     const runtime = readRuntimeSnapshot();
-    nextSnapshotPatch = payload.enabled ? { runtime } : removeCameraAnimations(runtime, readOutsideFxByBoard());
+    if (payload.enabled) {
+      nextSnapshotPatch = { runtime };
+    } else {
+      const fading = new Set();
+      for (const animation of runtime.runningAnimations ?? []) {
+        if (animation.fadeEnabled !== true || !animation.cameraTriggerOwner) continue;
+        const scope = animation.scope === "room" ? "room"
+          : animation.cameraTriggerOwner.startsWith('["outside",') ? "outside" : "inside";
+        beginCameraFadeOut(animation.boardId, scope, animation);
+        fading.add(animation.id);
+      }
+      nextSnapshotPatch = removeCameraAnimations(runtime, readOutsideFxByBoard(), fading);
+    }
   } else if (mutationType === "context-update") {
     const prevBoardForCodec = liveSessionState.snapshot?.selectedBoard ?? null;
     nextSnapshotPatch = applyContextUpdatePatch(payload);
@@ -6056,6 +6098,8 @@ function buildDefaultAnimationsForBoard(targetBoardId) {
         heightScale: def.heightScale ?? 1,
         offsetXScale: def.offsetXScale ?? 0,
         offsetYScale: def.offsetYScale ?? 0,
+        fadeEnabled: def.fadeEnabled === true,
+        fadeDurationMs: def.fadeDurationMs ?? 800,
         // Phase 21-1: carry colorHex so autostarted solid-color
         // animations come back up with the user's chosen color
         // instead of the factory #ff0000 default.

@@ -626,13 +626,13 @@
       ?? null;
     const desiredType = selectedDefinition?.id ?? null;
 
-    // If the selected animation changed while outside was already on, swap
-    // the mirrored type so the renderer picks up the new definition.
-    if (outsideEnabled && existing && desiredType && existing.type !== desiredType) {
-      ctx.stopAnimationSound(existing.id);
-      state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
-      ctx.clearOutsideMp4PlaybackState(effectiveBoardId);
-      ctx.clearOutsideTimelineState(effectiveBoardId);
+    if (outsideEnabled && desiredType && existing?.type !== desiredType) {
+      if (existing) {
+        ctx.stopAnimationSound(existing.id);
+        state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
+        ctx.clearOutsideMp4PlaybackState(effectiveBoardId);
+        ctx.clearOutsideTimelineState(effectiveBoardId);
+      }
       const outsideAnimation = ctx.createAnimation({
         boardId: effectiveBoardId,
         type: desiredType,
@@ -645,24 +645,8 @@
         fadeEnabled: selectedDefinition?.fadeEnabled === true,
         fadeDurationMs: selectedDefinition?.fadeDurationMs ?? 800,
       });
-      state.runningAnimations.push(outsideAnimation);
-      ctx.playSoundForAnimation(outsideAnimation);
-      return true;
-    }
-
-    if (outsideEnabled && !existing && desiredType) {
-      const outsideAnimation = ctx.createAnimation({
-        boardId: effectiveBoardId,
-        type: desiredType,
-        scope: "global",
-        intensity: 1,
-        hold: true,
-        durationSec: 0,
-        // Phase 58-w3.9h: carry the definition's fade config onto the
-        // mirrored outside instance so the render fade reads it.
-        fadeEnabled: selectedDefinition?.fadeEnabled === true,
-        fadeDurationMs: selectedDefinition?.fadeDurationMs ?? 800,
-      });
+      // Snapshots can rebuild the local mirror without starting a new fade.
+      outsideAnimation.id = `outside-mirror:${effectiveBoardId}:${desiredType}`;
       state.runningAnimations.push(outsideAnimation);
       ctx.playSoundForAnimation(outsideAnimation);
       return true;

@@ -49,10 +49,10 @@ export function rememberCameraStops(runtime, ids) {
   return { ...runtime, stoppedCameraAnimationIds: [...recent, ...ids].slice(-CAMERA_STOP_HISTORY) };
 }
 
-export function removeCameraAnimations(runtime, outsideFxByBoard) {
+export function removeCameraAnimations(runtime, outsideFxByBoard, fading = new Set()) {
   const running = runtime.runningAnimations ?? [];
   const isOwned = animation => typeof animation.cameraTriggerOwner === "string" && animation.cameraTriggerOwner.length > 0;
-  const owned = running.filter(isOwned);
+  const owned = running.filter(animation => isOwned(animation) && !fading.has(animation.id));
   if (!owned.length) return { runtime };
 
   for (const animation of owned) {
@@ -62,7 +62,7 @@ export function removeCameraAnimations(runtime, outsideFxByBoard) {
     }
   }
   return {
-    runtime: rememberCameraStops({ ...runtime, runningAnimations: running.filter(animation => !isOwned(animation)), outsideFxByBoard },
+    runtime: rememberCameraStops({ ...runtime, runningAnimations: running.filter(animation => !isOwned(animation) || fading.has(animation.id)), outsideFxByBoard },
       owned.map(animation => animation.id)),
     outsideFxByBoard,
   };

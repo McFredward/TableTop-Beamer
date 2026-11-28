@@ -1424,7 +1424,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "play-then-freeze",
           "onRetrigger": "reverse-then-disappear",
@@ -1572,7 +1572,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -1618,7 +1618,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "play-then-freeze",
           "onRetrigger": "reverse-then-freeze-first",
@@ -1664,7 +1664,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -1710,7 +1710,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -1756,7 +1756,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -1802,7 +1802,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -1864,7 +1864,9 @@
         "heightScale": 1.38,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mq2j8xk3-7",
@@ -1885,7 +1887,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#c98a4b"
+        "colorHex": "#c98a4b",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "inside-mpu7xifg-2",
@@ -1905,7 +1909,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "inside-mq5j6ldm-4",
@@ -1925,7 +1931,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff7a1a"
+        "colorHex": "#ff7a1a",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       }
     ],
     "frozenRooms": {},

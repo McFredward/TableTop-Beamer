@@ -595,6 +595,8 @@
             heightScale: animation.heightScale,
             offsetXScale: animation.offsetXScale,
             offsetYScale: animation.offsetYScale,
+            fadeEnabled: animation.fadeEnabled,
+            fadeDurationMs: animation.fadeDurationMs,
             // Persist the per-instance color on the default
             // so autostart reloads pick it back up. Without this, the
             // autostart path re-created the animation with the red

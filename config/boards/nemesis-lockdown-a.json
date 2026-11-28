@@ -7903,7 +7903,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -7959,7 +7959,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "play-once-disappear",
           "onRetrigger": "instant-disappear",
@@ -8004,7 +8004,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "play-once-disappear",
           "onRetrigger": "instant-disappear",
@@ -8049,7 +8049,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "play-once-disappear",
           "onRetrigger": "instant-disappear",
@@ -8106,7 +8106,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8152,7 +8152,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8198,7 +8198,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8244,7 +8244,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8290,7 +8290,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8336,7 +8336,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8396,7 +8396,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8442,7 +8442,7 @@
           "snowSpeed": 50,
           "snowStorm": false,
           "snowFlakeSize": 50,
-          "fadeEnabled": false,
+          "fadeEnabled": true,
           "fadeDurationMs": 800,
           "playbackMode": "loop",
           "onRetrigger": "instant-disappear",
@@ -8473,7 +8473,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8496,7 +8498,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8519,7 +8523,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8542,7 +8548,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8565,7 +8573,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8588,7 +8598,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8611,7 +8623,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8634,7 +8648,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8657,7 +8673,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8680,7 +8698,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8703,7 +8723,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8726,7 +8748,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       },
       {
         "type": "room-mohlqfe5-6",
@@ -8749,7 +8773,9 @@
         "heightScale": 1,
         "offsetXScale": 0,
         "offsetYScale": 0,
-        "colorHex": "#ff0000"
+        "colorHex": "#ff0000",
+        "fadeEnabled": true,
+        "fadeDurationMs": 800
       }
     ],
     "frozenRooms": {
