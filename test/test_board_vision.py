@@ -272,6 +272,23 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(purpose, "marker")
         np.testing.assert_allclose(center, [385, 255])
 
+    def test_projected_gear_keeps_its_confidence_with_independent_shape_confirmation(self):
+        gear = [260, 254, 330, 321]
+        player = [203, 293, 283, 367]
+        other = [425, 250, 490, 322]
+
+        class Predictor:
+            def rank_markers(self, _gray, boxes, _np):
+                return np.full(len(boxes), 0.12)
+
+            def rank_projected_markers(self, _gray, boxes, _np):
+                return np.full(len(boxes), 0.95)
+
+        coarse = self.detections([("malfunction", .79, gear), ("character", .96, player), ("malfunction", .52, other)])
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
+        self.assertEqual(result.data["class_name"].tolist(), ["malfunction", "character"])
+        np.testing.assert_allclose(result.confidence, [.79, .96])
+
     def test_crowded_marker_review_keeps_larva_and_bridges_only_the_missing_marker(self):
         nearby = [240, 205, 302, 270]
         larva = [304, 223, 369, 278]

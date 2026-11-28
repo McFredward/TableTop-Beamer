@@ -216,6 +216,7 @@ class DetailDetector:
         self.has_overview_review = bool(adapter.get("overviewReview") or extra_classes)
         self.marker_shape = adapter.get("markerShape")
         self.marker_shape_near_fire = adapter.get("markerShapeNearFire", self.marker_shape)
+        self.projected_marker_shape = adapter.get("projectedMarkerShape")
         marker_review = {**context, **adapter.get("markerReview", {})}
         if not self.has_overview_review and "malfunction" in adapter["classes"] and "markerReview" not in adapter:
             marker_review["malfunction"] = adapter["classes"]["malfunction"]
@@ -299,6 +300,9 @@ class DetailDetector:
     def rank_markers_near_fire(self, gray, boxes, np):
         return self._rank_marker_shape(self.marker_shape_near_fire, gray, boxes, np)
 
+    def rank_projected_markers(self, gray, boxes, np):
+        return self._rank_marker_shape(self.projected_marker_shape, gray, boxes, np)
+
     @staticmethod
     def _rank_marker_shape(row, gray, boxes, np):
         if not row or not len(boxes):
@@ -365,6 +369,7 @@ def main():
                         help="RF-DETR variant. Uses the registered checkpoint variant or seg-2xlarge by default.")
     parser.add_argument("--checkpoint", type=Path, help="Trusted local checkpoint for the selected model")
     parser.add_argument("--game", action="store_true", help="Publish checkpoint classes to Game observation")
+    parser.add_argument("--objects-only", action="store_true", help="Skip the separately rendered JPEG preview in game mode")
     parser.add_argument("--model-id", help="Stable name used by animation bindings. Defaults to the registered ID or a checkpoint hash.")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--threshold", type=float, default=0.45)
@@ -374,6 +379,8 @@ def main():
     args = parser.parse_args()
     if not 0 <= args.threshold <= 1 or not 0 < args.max_fps <= 5 or not 0 < args.port <= 65535:
         parser.error("Use a threshold from 0 to 1, an FPS limit above 0 and at most 5, and a valid port")
+    if args.objects_only and not args.game:
+        parser.error("--objects-only requires --game")
     if args.model_id and not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}", args.model_id):
         parser.error("Model ID must use up to 80 letters, numbers, periods, underscores or hyphens")
     url = f"http://127.0.0.1:{args.port}"
@@ -537,34 +544,35 @@ def run_detector(args, url, model_identity, preset, progress):
                 except HTTPError as error:
                     if error.code not in (404, 409):
                         raise
-            annotated = detections
-            if args.game and len(annotated):
-                included = (np.asarray(annotated.data["class_name"]) != "track-marker") & (annotated.confidence >= args.threshold)
-                annotated = annotated[included]
-            prediction_size = analysis.size
-            analysis.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-            annotated = resize_detections(annotated, prediction_size, analysis.size)
-            result = annotate(analysis, annotated, annotations, np)
-            original_width, original_height = original_size
-            x, y, width, height = args.roi or (0, 0, original_width, original_height)
-            coverage = [x / original_width, y / original_height, width / original_width, height / original_height]
-            request = Request(url + "/api/camera/vision.jpg", method="POST", data=result, headers={
-                "Content-Type": "image/jpeg",
-                "X-Camera-Frame-Id": last_frame,
-                "X-Vision-Model": model_name,
-                "X-Vision-Weights": "checkpoint" if weights else "pretrained",
-                "X-Vision-Device": device,
-                "X-Vision-Count": str(len(annotated)),
-                "X-Vision-Masks": str(len(annotated) if annotated.mask is not None else 0),
-                "X-Vision-MS": f"{elapsed:.1f}",
-                "X-Vision-Coverage": ",".join(str(value) for value in coverage),
-            })
-            try:
-                with urlopen(request, timeout=2):
-                    pass
-            except HTTPError as error:
-                if error.code != 409:
-                    raise
+            if not args.objects_only:
+                annotated = detections
+                if args.game and len(annotated):
+                    included = (np.asarray(annotated.data["class_name"]) != "track-marker") & (annotated.confidence >= args.threshold)
+                    annotated = annotated[included]
+                prediction_size = analysis.size
+                analysis.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+                annotated = resize_detections(annotated, prediction_size, analysis.size)
+                result = annotate(analysis, annotated, annotations, np)
+                original_width, original_height = original_size
+                x, y, width, height = args.roi or (0, 0, original_width, original_height)
+                coverage = [x / original_width, y / original_height, width / original_width, height / original_height]
+                request = Request(url + "/api/camera/vision.jpg", method="POST", data=result, headers={
+                    "Content-Type": "image/jpeg",
+                    "X-Camera-Frame-Id": last_frame,
+                    "X-Vision-Model": model_name,
+                    "X-Vision-Weights": "checkpoint" if weights else "pretrained",
+                    "X-Vision-Device": device,
+                    "X-Vision-Count": str(len(annotated)),
+                    "X-Vision-Masks": str(len(annotated) if annotated.mask is not None else 0),
+                    "X-Vision-MS": f"{elapsed:.1f}",
+                    "X-Vision-Coverage": ",".join(str(value) for value in coverage),
+                })
+                try:
+                    with urlopen(request, timeout=2):
+                        pass
+                except HTTPError as error:
+                    if error.code != 409:
+                        raise
             shown_connection_error = False
         except (OSError, HTTPException) as error:
             if isinstance(error, HTTPError) and 400 <= error.code < 500:

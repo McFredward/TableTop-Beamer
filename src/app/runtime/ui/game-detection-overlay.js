@@ -1,4 +1,5 @@
 const MODEL_GAP_MS = 16_000;
+const MODEL_DELAY_MS = 9_000;
 const HOLD_CONFIDENCE = 0.60;
 
 function overlaps([x, y, w, h], [u, v, a, b]) {
@@ -17,7 +18,7 @@ export function createGameDetectionOverlay(now = () => performance.now()) {
     const time = now();
     if (!model) {
       if (!last || time - receivedAt > MODEL_GAP_MS) return { objects: [], classes: [], delayed: false };
-      return { objects: objects.map(item => ({ ...item, held: true })), classes: last.classes, delayed: true };
+      return { objects, classes: last.classes, delayed: time - receivedAt >= MODEL_DELAY_MS };
     }
     if (model.frameId !== last?.frameId || model.modelId !== last?.modelId) {
       const previous = last && model.modelId === last.modelId && time - receivedAt <= MODEL_GAP_MS ? objects : [];

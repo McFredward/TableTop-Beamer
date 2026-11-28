@@ -200,6 +200,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     import supervision as sv
 
     marker_shape = None
+    overview_shape = None
     has_marker_rank = hasattr(predictor, "rank_markers")
     marker_image = image.convert("L") if has_marker_rank else None
     marker_reference = reduced_projection.convert("L") if has_marker_rank and reduced_projection is not None else None
@@ -241,7 +242,16 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
                 align = candidates & (scores >= 0.75) & (marker_shape >= 0.63) & (marker_shape < 0.86)
                 if align.any():
                     marker_shape[align] = align_marker_shape(detections.xyxy[align], marker_shape[align])
-                visible &= (labels != "malfunction") | (scores > 0.82) | (marker_shape >= 0.66)
+                overview_shape = marker_shape.copy()
+                possible_glare = candidates & (scores >= 0.75) & (marker_shape < 0.86)
+                projection_rank = getattr(predictor, "rank_projected_markers", None)
+                if projection_rank and possible_glare.any():
+                    # An independent shape fit for bright projections can
+                    # confirm a good overview reading without steering crops.
+                    corroboration = projection_rank(marker_image, detections.xyxy[possible_glare], np)
+                    if corroboration is not None:
+                        overview_shape[possible_glare] = np.maximum(overview_shape[possible_glare], corroboration)
+                visible &= (labels != "malfunction") | (scores > 0.82) | (overview_shape >= 0.66)
         baseline = detections[visible]
     else:
         baseline = detections
@@ -262,9 +272,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         dimensions = baseline.xyxy[:, 2:] - baseline.xyxy[:, :2]
         uncertain = ((baseline.data["class_name"] == "malfunction") & (baseline.confidence <= 0.82) &
                      np.all((dimensions >= 26) & (dimensions <= 144), axis=1))
-        if marker_shape is not None:
+        if overview_shape is not None:
             # Keep a strong reading when both the model and shape agree.
-            uncertain &= (baseline.confidence < 0.75) | (marker_shape[visible] < 0.86)
+            uncertain &= (baseline.confidence < 0.75) | (overview_shape[visible] < 0.86)
         baseline.confidence[uncertain] = np.minimum(baseline.confidence[uncertain], 0.60)
 
     limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73,

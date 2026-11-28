@@ -8,6 +8,7 @@ const MAX_MODELS = 16;
 const DEFAULT_MODEL_ID = "default";
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/;
 const MODEL_HEARTBEAT_MS = 12_000;
+const MODEL_RESULT_GAP_MS = 9_000;
 const MODEL_ERROR_MS = 300_000;
 const modelPhases = new Set(["starting", "loading", "preparing", "waiting-camera", "inference", "running", "reconnecting", "error", "stopped"]);
 const modelErrors = new Set(["checkpoint", "dependencies", "device", "frame-size", "server", "worker"]);
@@ -60,6 +61,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
   const sourceFrames = new Map();
   const inferenceFrames = new Map();
   const modelActivity = new Map();
+  const resultReceivedAt = new WeakMap();
 
   function isFreshFrame(id) {
     const parts = /^([0-9]{13})-([0-9]+)-([0-9]+)$/.exec(id ?? "");
@@ -125,8 +127,13 @@ export function createCameraVision(cameraInput, now = Date.now) {
       const reading = this.objectsFor(undefined, id);
       if (reading) return { phase: "ready", ...(reading.modelName && { name: reading.modelName }) };
       const activity = modelActivity.get(id);
+      const previous = [...(objectFrames.get(id)?.values() ?? [])].at(-1);
+      const generation = cameraInput.latestFrame()?.generation;
+      if (previous && Number(previous.frameId.split("-")[1]) === generation &&
+          (!activity || activity.phase === "running") && now() - resultReceivedAt.get(previous) < MODEL_RESULT_GAP_MS) {
+        return { phase: "ready", ...(previous.modelName && { name: previous.modelName }) };
+      }
       if (!activity) {
-        const previous = [...(objectFrames.get(id)?.values() ?? [])].at(-1);
         if (!previous) return { phase: "not-connected" };
         return { phase: now() - Number(previous.frameId.split("-")[0]) > MODEL_HEARTBEAT_MS ? "disconnected" : "stalled" };
       }
@@ -155,13 +162,15 @@ export function createCameraVision(cameraInput, now = Date.now) {
               item.reclassifiedFrom.kind === item.kind || !rect(item.reclassifiedFrom.box))))) return 400;
       const feed = previewOnly ? previewFrames : objectFrames.get(modelId) ?? new Map();
       if (!isFreshFrame(frameId) || feed.has(frameId)) return 409;
-      feed.set(frameId, { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
+      const result = { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
         ...(info && { preview: { variant: info.variant, weights: info.weights, device: info.device, elapsed: info.elapsed } }),
         objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom, contours }) => ({ kind, confidence, box, anchor,
           ...(contours && { contours }),
-          ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) });
+          ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) };
+      feed.set(frameId, result);
       if (feed.size > 4) feed.delete(feed.keys().next().value);
       if (previewOnly) return 204;
+      resultReceivedAt.set(result, now());
       objectFrames.delete(modelId);
       objectFrames.set(modelId, feed);
       if (objectFrames.size > MAX_MODELS) objectFrames.delete(objectFrames.keys().next().value);

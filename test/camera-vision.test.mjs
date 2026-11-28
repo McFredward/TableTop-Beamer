@@ -183,3 +183,24 @@ test("a reserved inference frame has time for a slow CPU pass and still expires"
   assert.equal(vision.latestFrame(), null);
   assert.equal(vision.sourceFor(detection.frameId), null);
 });
+
+test("model readiness spans an inference gap without making older readings actionable", () => {
+  let now = Date.parse(receivedAt);
+  let source = cameraFrame(1);
+  const vision = createCameraVision({ latestFrame: () => source }, () => now);
+  vision.rememberSource(source, { inference: true });
+  const reading = { frameId: cameraFrameId(source), modelId: "nemesis", classes: ["malfunction"],
+    coverage: [0, 0, 1, 1], objects: [] };
+  now += 5300;
+  assert.equal(vision.publishObjects(reading), 204);
+  vision.reportModelStatus({ modelId: "nemesis", phase: "running" });
+  now += 3000;
+  assert.equal(vision.objectsFor(undefined, "nemesis"), null);
+  assert.equal(vision.objectsFor(reading.frameId, "nemesis"), null);
+  assert.equal(vision.modelStatus("nemesis").phase, "ready");
+  source = cameraFrame(1, 2);
+  assert.equal(vision.modelStatus("nemesis").phase, "stalled");
+  source = cameraFrame(2);
+  now += 6000;
+  assert.equal(vision.modelStatus("nemesis").phase, "stalled");
+});

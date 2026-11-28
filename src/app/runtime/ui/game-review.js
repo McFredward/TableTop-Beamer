@@ -172,10 +172,11 @@ export function createGameReview() {
       return row;
     });
 
-    const label = view.classes.length ? "Trained model"
+    const label = view.delayed ? "Waiting for a newer model result"
+      : view.classes.length ? "Trained model"
       : setup.bindings.modelIds.length ? "Waiting for the trained model" : "Local image checks";
     if (source.textContent !== label) source.textContent = label;
-    source.dataset.state = view.classes.length ? "live" : "waiting";
+    source.dataset.state = view.classes.length && !view.delayed ? "live" : "waiting";
     const detail = view.classes.length ? view.classes.join(" · ")
       : setup.beads.length || setup.fireEffect ? "Fire and counters are available while the trained model is offline."
         : "Waiting for a trained model.";
@@ -223,6 +224,7 @@ export function createGameReview() {
     const view = {
       objects: readings.flatMap(reading => reading.overlay.objects),
       classes: [...new Set(readings.flatMap(reading => reading.overlay.classes))],
+      delayed: readings.some(reading => reading.overlay.delayed),
     };
     const beads = detectTrackBeads(frame, setup.beads);
     const hits = setup.geometry && setup.fireEffect && !view.classes.includes("fire")
@@ -258,8 +260,8 @@ export function createGameReview() {
     }));
     const modelBoxes = view.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
-      .map(({ kind, confidence, box, held, contours }) => ({ kind, box, label: held ? `${kind} · last seen` : `${kind} ${Math.round(confidence * 100)}%`,
-        color: "#7be4b5", held, contours }));
+      .map(({ kind, confidence, box, contours }) => ({ kind, box, label: `${kind} ${Math.round(confidence * 100)}%`,
+        color: "#7be4b5", contours }));
     const boxes = [...markerBoxes, ...fireBoxes, ...modelBoxes];
     return boxes.filter(box => !hiddenKinds.has(box.kind));
   }

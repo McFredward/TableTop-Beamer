@@ -95,7 +95,7 @@ export function createManagedVision({ root, python, checkpoint, modelId = "nemes
       if (!["cpu", "cuda"].includes(device)) { retry("device"); return; }
       console.log(`[vision] Starting ${modelId} detector on ${device}.`);
       const worker = start(executable, [resolve(root, "scripts/stream_board_vision.py"), "--port", String(port),
-        "--game", "--checkpoint", weights, "--model-id", modelId, "--device", device, "--max-fps", "1",
+        "--game", "--objects-only", "--checkpoint", weights, "--model-id", modelId, "--device", device, "--max-fps", "1",
         ...(roi ? ["--roi", roi] : []), ...(tileSize ? ["--tile-size", String(tileSize)] : [])],
       { cwd: root, windowsHide: true, stdio: ["ignore", "inherit", "inherit"], env: {
         ...process.env, PYTHONUNBUFFERED: "1",

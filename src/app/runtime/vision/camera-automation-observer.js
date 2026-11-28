@@ -4,6 +4,8 @@ import { checkCameraReading, readBoardObjects, readCameraBitmap, registerCameraB
 import { createGameObserver, makeGameLayout, trackActivation, trackAnimationBindings } from "./game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "./track-beads.js";
 
+const MODEL_RESPONSE_GRACE_MS = 9_000;
+
 function post(path, payload) {
   return fetch(path, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -104,6 +106,7 @@ export async function runCameraAutomation() {
 
       const reading = await checkCameraReading(model, setup, signal);
       setup.last.set(modelId, model.frameId);
+      setup.lastModelResultAt = performance.now();
       const { actions } = setup.bindings.observe(modelId, reading);
       await Promise.all(actions.map(async action => {
         try {
@@ -120,7 +123,10 @@ export async function runCameraAutomation() {
     });
     const [tracks, ...reports] = await Promise.allSettled([observeTracks(lease, signal, frame), ...modelReports]);
     if (tracks.status === "rejected") throw tracks.reason;
-    if (reports.some(report => report.status === "fulfilled" && report.value) || (!setup.modelIds.length && setup.tracks)) {
+    const hasModel = reports.some(report => report.status === "fulfilled" && report.value);
+    const waitingForNextResult = reports.some(report => report.status === "fulfilled") &&
+      performance.now() - setup.lastModelResultAt < MODEL_RESPONSE_GRACE_MS;
+    if (hasModel || waitingForNextResult || (!setup.modelIds.length && setup.tracks)) {
       phase = "active";
     } else {
       phase = reports.every(report => report.status === "rejected") ? "error" : "model";

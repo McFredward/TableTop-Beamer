@@ -23,16 +23,20 @@ const alien = { kind: "alien", confidence: 0.84, box: [0.15, 0.22, 0.07, 0.07] }
 const fire = { kind: "fire", confidence: 0.9, box: [0.42, 0.45, 0.03, 0.03] };
 const read = (frameId, objects, modelId = "nemesis") => ({ frameId, objects, modelId, classes: ["alien", "fire"] });
 
-test("brief model feed gaps preserve the overlay and mark it as last seen", () => {
+test("the whole overlay stays steady over alternating model feed responses", () => {
   let now = 0;
   const overlay = createGameDetectionOverlay(() => now);
   assert.deepEqual(overlay(read("1-1-1", [alien, fire])).objects, [alien, fire]);
-  now = 3500;
+  for (let sequence = 2; sequence < 5; sequence++) {
+    now += 3500;
+    assert.deepEqual(overlay(null).objects, [alien, fire]);
+    assert.equal(overlay(null).delayed, false);
+    now += 2800;
+    assert.deepEqual(overlay(read(`${sequence}-1-${sequence}`, [alien, fire])).objects, [alien, fire]);
+  }
+  now += 9000;
   assert.equal(overlay(null).delayed, true);
-  assert.deepEqual(overlay(null).objects, [{ ...alien, held: true }, { ...fire, held: true }]);
-  now = 12_000;
-  assert.equal(overlay(null).delayed, true);
-  now = 16_001;
+  now += 7001;
   assert.deepEqual(overlay(null).objects, []);
 });
 

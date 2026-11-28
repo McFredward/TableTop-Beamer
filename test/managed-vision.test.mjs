@@ -72,6 +72,7 @@ test("server startup runs the local detector before any camera or dashboard is c
   assert.ok(calls[0].args.includes("19217"));
   assert.ok(calls[0].args.includes("790,250,2290,1400"));
   assert.ok(calls[0].args.includes("1280"));
+  assert.ok(calls[0].args.includes("--objects-only"));
   assert.equal(localVisionOptions({ root, platform: "win32", env: {
     TT_BEAMER_VISION_AUTOSTART: "0", TT_BEAMER_VISION_DEVICE: "cuda",
   } }).enabled, false);
