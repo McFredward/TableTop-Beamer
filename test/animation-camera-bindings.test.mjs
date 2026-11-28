@@ -23,11 +23,12 @@ test("count announcements confirm a new piece across frames and ignore movement 
   assert.equal(read([elsewhere], 600), false);
   assert.equal(read([elsewhere, { ...elsewhere }], 1200), false);
   assert.equal(read([item, elsewhere], 1800), false);
-  assert.equal(read([item, elsewhere], 2400), true);
-  assert.equal(read([item], 3000), false);
+  assert.equal(read([item, elsewhere], 2400), false);
+  assert.equal(read([item, elsewhere], 3000), true);
   assert.equal(read([item], 3600), false);
-  assert.equal(read([item, elsewhere], 4200), false);
+  assert.equal(read([item], 4200), false);
   assert.equal(read([item, elsewhere], 4800), false);
+  assert.equal(read([item, elsewhere], 5400), false);
 });
 
 test("the sound can play again after a confirmed removal, without rearming under an occluder", () => {
@@ -37,10 +38,24 @@ test("the sound can play again after a confirmed removal, without rearming under
   const read = objects => follow({
     frameId: `${1795740000000 + n * 600}-1-${++n}`, coverage: [0, 0, 1, 1], objects,
   });
-  assert.deepEqual([read([]), read([]), read([item]), read([item])], [false, false, false, true]);
+  assert.deepEqual([read([]), read([]), read([item]), read([item]), read([item])], [false, false, false, false, true]);
   assert.deepEqual(Array.from({ length: 5 }, () => read([hand])), Array(5).fill(false));
   assert.deepEqual([read([item]), read([item])], [false, false]);
-  assert.deepEqual([read([]), read([]), read([]), read([item]), read([item])], [false, false, false, false, true]);
+  assert.deepEqual([read([]), read([]), read([]), read([]), read([item]), read([item]), read([item])],
+    [false, false, false, false, false, false, true]);
+});
+
+test("nested detections and changing false positions never become a new announcement", () => {
+  const follow = followDetectedCount(item.kind, 0.8);
+  const alias = { ...item, box: [0.15, 0.19, 0.02, 0.02] };
+  let n = 0;
+  const read = objects => follow({ frameId: `${1795740000000 + n * 600}-1-${++n}`, objects });
+  assert.equal(read([item]), false);
+  assert.equal(read([item]), false);
+  for (let i = 0; i < 4; i++) assert.equal(read([item, alias]), false);
+  for (const x of [0.35, 0.55, 0.70, 0.35, 0.55]) {
+    assert.equal(read([item, { ...item, box: [x, 0.5, 0.04, 0.04] }]), false);
+  }
 });
 
 test("an animation can publish its sound on a confirmed board-wide increase", () => {
@@ -55,6 +70,7 @@ test("an animation can publish its sound on a confirmed board-wide increase", ()
   assert.deepEqual(read([]), []);
   assert.deepEqual(read([]), []);
   assert.deepEqual(read([item]), []);
+  assert(!read([item]).some(action => action.action === "announce"));
   assert(read([item]).some(action => action.action === "announce" && action.roomId === null));
   assert(!read([item]).some(action => action.action === "announce"));
 });

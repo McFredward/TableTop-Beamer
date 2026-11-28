@@ -7,20 +7,32 @@ function overlapArea([x, y, w, h], [a, b, c, d]) {
 
 const COUNT_OCCLUDERS = new Set(["alien", "character", "dice", "hand", "door", "corpse"]);
 
+function countBoxMatches(a, b) {
+  const covered = overlapArea(a, b);
+  if (covered < 0.70 * Math.min(a[2] * a[3], b[2] * b[3])) return false;
+  return Math.abs((a[0] + a[2] / 2) - (b[0] + b[2] / 2)) <= 0.40 * Math.max(a[2], b[2]) &&
+    Math.abs((a[1] + a[3] / 2) - (b[1] + b[3] / 2)) <= 0.40 * Math.max(a[3], b[3]);
+}
+
 export function followDetectedCount(className, confidence) {
-  let lastId, accepted, candidate, readings = 0, since = 0;
+  let lastId, lastTime = -Infinity, accepted, candidate, newPositions = [], readings = 0, since = 0;
   return frame => {
-    if (frame.frameId === lastId) return false;
-    lastId = frame.frameId;
     const now = Number(frame.frameId.split("-")[0]);
+    if (frame.frameId === lastId || now < lastTime) return false;
+    lastId = frame.frameId;
+    lastTime = now;
     const boxes = [];
     for (const { kind, confidence: score, box } of frame.objects) {
       if (kind !== className || score < confidence) continue;
-      const duplicate = boxes.some(other =>
-        overlapArea(box, other) >= 0.70 * Math.max(box[2] * box[3], other[2] * other[3]));
-      if (!duplicate) boxes.push(box);
+      if (!boxes.some(other => countBoxMatches(box, other))) boxes.push(box);
     }
     const count = boxes.length;
+    if (accepted && count === accepted.length) {
+      accepted = boxes;
+      candidate = undefined;
+      readings = 0;
+      return false;
+    }
     if (accepted && count < accepted.length) {
       const [left, top, width, height] = frame.coverage ?? [0, 0, 1, 1];
       const clear = accepted.every(box => {
@@ -37,16 +49,23 @@ export function followDetectedCount(className, confidence) {
         return false;
       }
     }
-    if (count !== candidate) {
+    const increases = accepted !== undefined && count > accepted.length;
+    const distinct = increases ? boxes.filter(box => !accepted.some(previous => countBoxMatches(box, previous))) : [];
+    if (increases && !distinct.length) {
+      candidate = undefined;
+      readings = 0;
+      return false;
+    }
+    if (count !== candidate || (increases && !distinct.some(box => newPositions.some(previous => countBoxMatches(box, previous))))) {
       candidate = count;
       readings = 0;
       since = now;
     }
+    newPositions = distinct;
     readings++;
-    if (readings < 2 || (accepted && count < accepted.length && (readings < 3 || now - since < 650))) return false;
-    const increased = accepted !== undefined && count > accepted.length;
+    if (increases ? readings < 3 || now - since < 700 : accepted ? readings < 4 || now - since < 1600 : readings < 2) return false;
     accepted = boxes;
-    return increased;
+    return increases;
   };
 }
 
