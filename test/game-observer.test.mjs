@@ -133,7 +133,8 @@ test("a strong, explicit correction updates the old and new effects on the same 
     reclassifiedFrom: { kind: wrong.kind, box: wrong.box } };
   const frame = { classes: ["alien", "malfunction"], coverage: [0, 0, 1, 1] };
   observer.observe({ ...frame, frameId: "1795740000000-1-1", objects: [wrong] });
-  const reading = observer.observe({ ...frame, frameId: "1795740003100-1-2", objects: [corrected] });
+  observer.observe({ ...frame, frameId: "1795740003100-1-2", objects: [wrong] });
+  const reading = observer.observe({ ...frame, frameId: "1795740006200-1-3", objects: [corrected] });
   assert.deepEqual(reading.effects.map(effect => [effect.kind, effect.active]), [["malfunction", false], ["alien", true]]);
 });
 
@@ -198,6 +199,32 @@ test("a stationary figure near a fire marker does not mask removal", () => {
   const removed = state([nearby]);
   assert.equal(removed.status, "removed");
   assert.equal(removed.active, false);
+});
+
+test("moving a malfunction marker switches rooms even when the previous nearby alien stays put", () => {
+  const observe = newRun();
+  const marker = item("malfunction", 0.20, 0.17);
+  const moved = item("malfunction", 0.61, 0.18);
+  const alien = { ...item("alien", 0.226, 0.19), box: [0.197, 0.15, 0.053, 0.045] };
+  const widerBox = { ...alien, box: [0.165, 0.145, 0.088, 0.050] };
+  const current = result => Object.fromEntries(result.effects.filter(effect => effect.kind === "malfunction")
+    .map(effect => [effect.roomId, effect.status]));
+  observe([marker, alien]);
+  assert.deepEqual(current(observe([marker, alien])), { room: "visible" });
+  assert.deepEqual(current(observe([moved, widerBox])), { room: "checking", other: "checking" });
+  assert.deepEqual(current(observe([moved, widerBox])), { room: "removed", other: "visible" });
+});
+
+test("strong malfunction readings on different parts of the room do not confirm a marker", () => {
+  const observer = createGameObserver(layout, { startOnStrongReading: true });
+  const see = (sequence, x) => observer.observe({
+    frameId: `${1795740000000 + sequence * 2900}-1-${sequence}`, classes: ["malfunction"], coverage: [0, 0, 1, 1],
+    objects: [{ ...item("malfunction", x, 0.20), confidence: 0.99 }],
+  }).effects[0];
+  assert.equal(see(1, 0.17).active, false);
+  assert.equal(see(2, 0.21).active, false);
+  assert.equal(see(3, 0.25).active, false);
+  assert.equal(see(4, 0.253).active, true);
 });
 
 test("overexposure only holds an established fire until the position is readable", () => {

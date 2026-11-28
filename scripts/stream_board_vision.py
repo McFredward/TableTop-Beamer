@@ -8,6 +8,7 @@ import re
 import sys
 import time
 from collections import deque
+from contextlib import contextmanager, nullcontext
 from http.client import HTTPException
 from pathlib import Path
 from threading import Event, Thread
@@ -16,6 +17,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from board_context_review import refine_board_context
+from board_marker_shape import marker_features
 from board_vision import (
     SMALL_OBJECT_CROP_SIZE, SMALL_PROPOSAL_THRESHOLD, add_tile_option, parse_roi,
     predict_tiled, refine_small_objects, resize_detections,
@@ -32,7 +34,39 @@ def identify_checkpoint(checkpoint, model_id=None):
     return identity, preset
 
 
-def board_objects(frame_id, classes, detections, size, original_size, roi, np):
+def mask_contours(masks, index, box, np):
+    from PIL import Image
+    from supervision import mask_to_polygons
+
+    if hasattr(masks, "crop"):
+        offset_x, offset_y = masks.offsets[index]
+        mask = masks.crop(index)
+    else:
+        offset_x = offset_y = 0
+        mask = masks[index]
+    x0, y0, x1, y1 = box
+    left, top = max(int(x0), offset_x), max(int(y0), offset_y)
+    right = min(int(np.ceil(x1)), offset_x + mask.shape[1])
+    bottom = min(int(np.ceil(y1)), offset_y + mask.shape[0])
+    if right <= left or bottom <= top:
+        return []
+    crop = Image.fromarray(mask[top - offset_y:bottom - offset_y, left - offset_x:right - offset_x])
+    crop.thumbnail((128, 128), Image.Resampling.NEAREST)
+    polygons = mask_to_polygons(np.asarray(crop, dtype=bool))
+
+    def area(points):
+        x, y = points.T
+        return abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+    scale = [(right - left) / crop.width, (bottom - top) / crop.height]
+    result = []
+    for polygon in sorted(polygons, key=area, reverse=True)[:2]:
+        samples = np.linspace(0, len(polygon), min(len(polygon), 24), endpoint=False, dtype=int)
+        result.append(polygon[samples] * scale + [left, top])
+    return result
+
+
+def board_objects(frame_id, classes, detections, size, original_size, roi, np, *, include_contours=False):
     width, height = size
     original_width, original_height = original_size
     x, y, roi_width, roi_height = roi or (0, 0, original_width, original_height)
@@ -68,6 +102,11 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np):
             "box": [left + x0 * sx, top + y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy],
             "anchor": [left + cx * sx, top + cy * sy],
         }
+        if include_contours and detections.mask is not None and len(objects) < 256:
+            contours = mask_contours(detections.mask, i, (x0, y0, x1, y1), np)
+            if contours:
+                item["contours"] = [np.round(np.clip(polygon * [sx, sy] + [left, top], 0, 1), 5).tolist()
+                                    for polygon in contours]
         if corrections is not None and replaced_labels[i] in classes and np.isfinite(corrections[i]).all():
             a, b, c, d = corrections[i].tolist()
             a, b, c, d = max(0, a), max(0, b), min(width, c), min(height, d)
@@ -166,36 +205,45 @@ class DetailDetector:
 
     def __init__(self, model, adapter, torch):
         head = model.model.model.class_embed
-        self.variant = 0
+        self.variant = "legacy"
         context = adapter.get("contextReview", {})
         self.has_context_review = bool(context)
+        self.has_overview_review = bool(adapter.get("overviewReview"))
+        self.marker_shape = adapter.get("markerShape")
         marker_review = context.copy()
-        if "malfunction" in adapter["classes"]:
+        if not self.has_overview_review and "malfunction" in adapter["classes"]:
             marker_review["malfunction"] = adapter["classes"]["malfunction"]
-        variants = (
-            adapter["classes"],
-            {**adapter["classes"], **adapter.get("playerReview", {})},
-            context,
-            marker_review,
-        )
-        for index, rows in enumerate(variants):
+        variants = {
+            "legacy": adapter["classes"],
+            "player": {**adapter["classes"], **adapter.get("playerReview", {})},
+            "context": context,
+            "marker": marker_review,
+            "flame": {**context, **adapter.get("flameReview", {})},
+            "overview": adapter.get("overviewReview", {}),
+        }
+        for name, rows in variants.items():
             weights = torch.zeros_like(head.weight)
             bias = torch.zeros_like(head.bias)
             preserve = torch.full_like(head.bias, 1)
-            for name, row in rows.items():
-                class_index = list(model.class_names).index(name)
+            limit = torch.full_like(head.bias, 1)
+            suppress = torch.zeros_like(head.bias, dtype=torch.bool)
+            for label, row in rows.items():
+                class_index = list(model.class_names).index(label)
                 weights[class_index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
                 bias[class_index] = row["bias"]
                 preserve[class_index] = row.get("preserveConfidence", 1)
-            head.register_buffer(f"detail_weights_{index}", weights, persistent=False)
-            head.register_buffer(f"detail_bias_{index}", bias, persistent=False)
-            head.register_buffer(f"detail_preserve_{index}", preserve, persistent=False)
+                limit[class_index] = row.get("maxConfidence", 1)
+                suppress[class_index] = row.get("suppressOnly", False)
+            for key, value in (("weights", weights), ("bias", bias), ("preserve", preserve),
+                               ("limit", limit.logit()), ("suppress", suppress)):
+                head.register_buffer(f"detail_{key}_{name}", value, persistent=False)
 
         # Small-piece crops and player reviews share one inference model.
         def correct(layer, args, output):
-            index = self.variant
-            weights, bias, preserve = (getattr(layer, f"detail_{name}_{index}") for name in ("weights", "bias", "preserve"))
-            adjusted = output + torch.nn.functional.linear(args[0], weights, bias)
+            weights, bias, preserve, limit, suppress = (getattr(layer, f"detail_{key}_{self.variant}")
+                                                        for key in ("weights", "bias", "preserve", "limit", "suppress"))
+            adjusted = torch.minimum(output + torch.nn.functional.linear(args[0], weights, bias), limit)
+            adjusted = torch.where(suppress, torch.minimum(adjusted, output), adjusted)
             return torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
 
         hook = head.register_forward_hook(correct)
@@ -208,17 +256,29 @@ class DetailDetector:
         return self.predictor.predict(*args, antialias=True, **options)
 
     def predict_player(self, *args, **options):
-        return self.predict_variant(1, *args, **options)
+        with self.using_variant("player"):
+            return self.predict(*args, **options)
 
     def predict_context(self, *args, purpose, **options):
-        return self.predict_variant(3 if purpose in ("marker", "general") else 2, *args, **options)
+        variant = {"marker": "marker", "general": "marker", "flame": "flame"}.get(purpose, "context")
+        with self.using_variant(variant):
+            return self.predict(*args, **options)
 
-    def predict_variant(self, variant, *args, **options):
+    def rank_markers(self, gray, boxes, np):
+        if not self.marker_shape or not len(boxes):
+            return None
+        features = marker_features(gray, boxes, np)
+        logits = features @ np.asarray(self.marker_shape["weights"]) + self.marker_shape["bias"]
+        return 1 / (1 + np.exp(-logits))
+
+    @contextmanager
+    def using_variant(self, variant):
+        previous = self.variant
         self.variant = variant
         try:
-            return self.predict(*args, **options)
+            yield
         finally:
-            self.variant = 0
+            self.variant = previous
 
 
 class ModelProgress:
@@ -335,11 +395,11 @@ def run_detector(args, url, model_identity, preset, progress):
         adapter_path = Path(__file__).resolve().parents[1] / "config" / preset["detailAdapter"]
         detail = DetailDetector(model, json.loads(adapter_path.read_text(encoding="utf-8")), torch)
     context_review = detail is not None and detail.has_context_review
-    classes = set()
+    overview_predictor = detail if context_review and detail.has_overview_review else predictor
+    names = model.class_names
+    classes = {name for name in (names.values() if hasattr(names, "values") else names)
+               if isinstance(name, str) and name and name == name.strip() and len(name) <= 80}
     if args.game:
-        names = model.class_names
-        classes = {name for name in (names.values() if hasattr(names, "values") else names)
-                   if isinstance(name, str) and name and name == name.strip() and len(name) <= 80}
         if not classes:
             raise WorkerFailure("checkpoint", "The checkpoint does not define any usable classes")
         if len(classes) > 128:
@@ -396,13 +456,14 @@ def run_detector(args, url, model_identity, preset, progress):
             if not published:
                 progress.show("inference")
             inference_start = time.monotonic()
-            if args.tile_size:
-                # The close review recovers small pieces. A slightly smaller
-                # overview overlap avoids nearly identical tiles at the ROI edge.
-                detections = predict_tiled(predictor, analysis, threshold, args.tile_size,
-                                           overlap_fraction=0.20 if context_review else 0.25)
-            else:
-                detections = predictor.predict(analysis, threshold=threshold, include_source_image=False)
+            with detail.using_variant("overview") if overview_predictor is detail else nullcontext():
+                if args.tile_size:
+                    # The close review recovers small pieces. A slightly smaller
+                    # overview overlap avoids nearly identical tiles at the ROI edge.
+                    detections = predict_tiled(overview_predictor, analysis, threshold, args.tile_size,
+                                               overlap_fraction=0.20 if context_review else 0.25)
+                else:
+                    detections = overview_predictor.predict(analysis, threshold=threshold, include_source_image=False)
             if refine:
                 detections = resize_detections(detections, analysis.size, image.size)
                 current_key = (last_frame.split("-")[1], image.size)
@@ -423,9 +484,14 @@ def run_detector(args, url, model_identity, preset, progress):
                     )
                 analysis = image
             elapsed = (time.monotonic() - inference_start) * 1000
-            if classes:
-                payload = board_objects(last_frame, classes, detections, analysis.size, original_size, args.roi, np)
-                payload.update(model_identity)
+            preview_classes = classes if args.game else set(detections.data.get("class_name", [])) & classes
+            if preview_classes or not args.game:
+                payload = board_objects(last_frame, preview_classes, detections, analysis.size, original_size,
+                                        args.roi, np, include_contours=True)
+                payload.update(model_identity, previewOnly=not args.game, preview={
+                    "variant": model_name, "weights": "checkpoint" if weights else "pretrained",
+                    "device": device, "elapsed": round(elapsed, 1),
+                })
                 request = Request(url + "/api/camera/board-objects", method="POST",
                                   data=json.dumps(payload, allow_nan=False).encode("utf-8"),
                                   headers={"Content-Type": "application/json"})

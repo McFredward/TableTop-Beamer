@@ -1955,10 +1955,13 @@ body[data-output-role="final-output"] .cluster-pads {
   background: #090b10;
 }
 .camera-preview-frame canvas {
+  grid-area: 1 / 1;
   width: auto;
   max-width: 100%;
   max-height: min(62dvh, 700px);
+  transform: var(--camera-transform, none);
 }
+#camera-preview-overlay { pointer-events: none; }
 .camera-preview-frame[data-zoomed] { cursor: grab; touch-action: none; }
 .camera-preview-frame[data-panning] { cursor: grabbing; }
 .camera-preview-status,

@@ -87,7 +87,7 @@ export async function runCameraAutomation() {
       finally { bitmap.close(); }
       const { cv, registration, geometry, reference, width, height } = await registerCameraBoard(selection.board, frame, signal);
       const bindings = createAnimationCameraBindings(selection.board, registration, width, height);
-      setup = { key, cv, geometry, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map(),
+      setup = { key, cv, geometry, registration, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map(),
         trackBindings: selection.trackBindings, trackTargets: new Map() };
       if (setup.trackBindings.length) {
         const layout = makeGameLayout(selection.board, registration, width, height);

@@ -11,6 +11,21 @@ const MODEL_HEARTBEAT_MS = 12_000;
 const MODEL_ERROR_MS = 300_000;
 const modelPhases = new Set(["starting", "loading", "preparing", "waiting-camera", "inference", "running", "reconnecting", "error", "stopped"]);
 const modelErrors = new Set(["checkpoint", "dependencies", "device", "frame-size", "server", "worker"]);
+const visionVariants = /^(seg-nano|seg-large|seg-2xlarge|large)$/;
+const visionWeights = /^(pretrained|checkpoint)$/;
+const visionDevices = /^(cpu|cuda)$/;
+
+function validContours(contours) {
+  return Array.isArray(contours) && contours.length <= 2 && contours.every(polygon =>
+    Array.isArray(polygon) && polygon.length >= 3 && polygon.length <= 24 && polygon.every(point =>
+      Array.isArray(point) && point.length === 2 && point.every(value => Number.isFinite(value) && value >= 0 && value <= 1)));
+}
+
+function validPreview(preview) {
+  return preview && typeof preview === "object" && ["variant", "weights", "device"].every(key => typeof preview[key] === "string") &&
+    visionVariants.test(preview.variant) && visionWeights.test(preview.weights) && visionDevices.test(preview.device) &&
+    Number.isFinite(preview.elapsed) && preview.elapsed >= 0;
+}
 
 export function isLocalCameraRequest(req) {
   const { host, forwarded, "x-forwarded-for": forwardedFor, "x-forwarded-host": forwardedHost } = req.headers;
@@ -41,6 +56,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
   let preview;
   let pending = false;
   const objectFrames = new Map();
+  const previewFrames = new Map();
   const sourceFrames = new Map();
   const inferenceFrames = new Map();
   const modelActivity = new Map();
@@ -75,14 +91,18 @@ export function createCameraVision(cameraInput, now = Date.now) {
       return inferenceFrames.get(id) ?? sourceFrames.get(id) ?? (latest && cameraFrameId(latest) === id ? latest : null);
     },
 
-    objectsFor(id, modelId) {
+    objectsFor(id, modelId, { includePreview = false } = {}) {
       if (id && !isFreshFrame(id)) return null;
       const feeds = modelId ? [objectFrames.get(modelId)] : [...objectFrames.values()].reverse();
+      if (includePreview && !modelId) feeds.unshift(previewFrames);
+      let newest;
       for (const feed of feeds) {
         const reading = id ? feed?.get(id) : [...(feed?.values() ?? [])].reverse().find(item => isFreshFrame(item.frameId));
-        if (reading) return reading;
+        if (!reading) continue;
+        if (id || !includePreview) return reading;
+        if (!newest || Number(reading.frameId.split("-")[0]) > Number(newest.frameId.split("-")[0])) newest = reading;
       }
-      return null;
+      return newest ?? null;
     },
 
     models() {
@@ -117,10 +137,12 @@ export function createCameraVision(cameraInput, now = Date.now) {
     },
 
     publishObjects(payload) {
-      const { frameId, classes, objects, coverage, modelId = DEFAULT_MODEL_ID, modelName } = payload ?? {};
+      const { frameId, classes, objects, coverage, modelId = DEFAULT_MODEL_ID, modelName, previewOnly = false } = payload ?? {};
+      const info = payload?.preview;
       if (typeof frameId !== "string" || typeof modelId !== "string" || !MODEL_ID.test(modelId) ||
+          typeof previewOnly !== "boolean" || ((previewOnly || info !== undefined) && !validPreview(info)) ||
           (modelName !== undefined && (typeof modelName !== "string" || modelName.length > 120)) ||
-          !Array.isArray(classes) || !classes.length || classes.length > 128 ||
+          !Array.isArray(classes) || (!classes.length && !previewOnly) || classes.length > 128 ||
           new Set(classes).size !== classes.length || !classes.every(kind => typeof kind === "string" && kind.trim() === kind &&
             kind.length > 0 && kind.length <= 80 && !/[\u0000-\u001f]/.test(kind)) ||
           !rect(coverage) || !Array.isArray(objects) || objects.length > 256 || objects.some(item =>
@@ -128,14 +150,18 @@ export function createCameraVision(cameraInput, now = Date.now) {
             item.confidence < 0 || item.confidence > 1 || !rect(item.box) || !Array.isArray(item.anchor) ||
             item.anchor.length !== 2 || !item.anchor.every((v, i) => Number.isFinite(v) &&
               v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6) ||
+            (item.contours !== undefined && !validContours(item.contours)) ||
             (item.reclassifiedFrom !== undefined && (!classes.includes(item.reclassifiedFrom?.kind) ||
               item.reclassifiedFrom.kind === item.kind || !rect(item.reclassifiedFrom.box))))) return 400;
-      const feed = objectFrames.get(modelId) ?? new Map();
+      const feed = previewOnly ? previewFrames : objectFrames.get(modelId) ?? new Map();
       if (!isFreshFrame(frameId) || feed.has(frameId)) return 409;
       feed.set(frameId, { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
-        objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom }) => ({ kind, confidence, box, anchor,
+        ...(info && { preview: { variant: info.variant, weights: info.weights, device: info.device, elapsed: info.elapsed } }),
+        objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom, contours }) => ({ kind, confidence, box, anchor,
+          ...(contours && { contours }),
           ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) });
       if (feed.size > 4) feed.delete(feed.keys().next().value);
+      if (previewOnly) return 204;
       objectFrames.delete(modelId);
       objectFrames.set(modelId, feed);
       if (objectFrames.size > MAX_MODELS) objectFrames.delete(objectFrames.keys().next().value);
@@ -163,8 +189,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
       const elapsed = Number(req.headers["x-vision-ms"]);
       const coverage = req.headers["x-vision-coverage"]?.split(",").map(Number);
       if (!parts || !Number.isSafeInteger(sequence) || sequence < 1 ||
-          !/^(seg-nano|seg-large|seg-2xlarge|large)$/.test(model ?? "") ||
-          !/^(pretrained|checkpoint)$/.test(weights ?? "") || !/^(cpu|cuda)$/.test(device ?? "") ||
+          !visionVariants.test(model ?? "") || !visionWeights.test(weights ?? "") || !visionDevices.test(device ?? "") ||
           !Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(masks) || masks < 0 || masks > count ||
           !Number.isFinite(elapsed) || elapsed < 0 || (coverage && !rect(coverage))) return 400;
       if (pending) return 429;

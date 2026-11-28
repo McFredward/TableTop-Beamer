@@ -4941,7 +4941,9 @@ const server = createServer(async (req, res) => {
       }
       if (req.method === "GET") {
         const query = new URL(req.url, "http://localhost").searchParams;
-        const objects = cameraVision.objectsFor(query.get("frameId"), query.get("modelId"));
+        const objects = cameraVision.objectsFor(query.get("frameId"), query.get("modelId"), {
+          includePreview: query.get("preview") === "1",
+        });
         if (!objects) res.writeHead(204).end();
         else sendJson(res, 200, objects);
       } else {
@@ -4951,7 +4953,7 @@ const server = createServer(async (req, res) => {
           return;
         }
         let items;
-        try { items = await parseJsonBody(req, { maxBytes: 64 * 1024 }); }
+        try { items = await parseJsonBody(req, { maxBytes: 320 * 1024 }); }
         catch { res.writeHead(400).end(); return; }
         res.writeHead(cameraVision.publishObjects(items)).end();
       }

@@ -12,7 +12,7 @@ def same_piece(boxes, dimensions, centers, sv, np):
     return aligned | (sv.box_iou_batch(boxes, boxes) >= 0.45)
 
 
-def review_anchors(detections, recent, sv, np, survey=False):
+def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
     boxes = detections.xyxy
     labels = detections.data.get("class_name", np.empty(0))
     scores = detections.confidence if len(detections) else np.empty(0)
@@ -22,14 +22,19 @@ def review_anchors(detections, recent, sv, np, survey=False):
     same = same_piece(boxes, dimensions, centers, sv, np) if len(boxes) else np.zeros((0, 0), dtype=bool)
     distances = np.linalg.norm(centers[:, None] - centers, axis=2)
     flames = compact & (labels == "fire") & (scores >= 0.19)
-    dice = compact & (labels == "dice") & (scores >= 0.58)
+    dice = compact & (labels == "dice") & (scores >= 0.24)
     figures = np.isin(labels, ["character", "alien"]) & (scores >= 0.60)
-    mixed_flames = flames & ~(same & dice).any(axis=1)
+    mixed_flames = flames & ~(same & dice & (scores >= 0.62)).any(axis=1)
     packed = (distances < 135) & ~same
     adjacent_dice = (distances <= 228) & ~same & dice
     die_alias = dice & (same & flames).any(axis=1)
     pairs = 0.9 * die_alias + 0.7 * (1 - distances / 228) + 0.12 * scores
     paired_evidence = np.where(adjacent_dice, pairs, 0).max(axis=1, initial=0)
+    # Multiple nearby dice often light up in the same projection as the fire.
+    # Review the whole group even when the overview only sees weak proposals.
+    close_dice = (distances <= 200) & dice
+    covered_dice = close_dice.sum(axis=1)
+    dice_pairs = dice & (covered_dice >= 2) & (close_dice & die_alias).any(axis=1)
     aliases = np.isin(labels, ["alien", "fire", "malfunction"]) & (scores >= 0.075)
     player_conflicts = compact & (labels == "character") & (scores >= 0.48) & (same & aliases).any(axis=1)
     marker_proposals = compact & (labels == "malfunction") & (scores >= 0.10) & (scores <= 0.82)
@@ -45,16 +50,29 @@ def review_anchors(detections, recent, sv, np, survey=False):
         return np.maximum(0, 1 - distance / 170) * 0.25
 
     groups = (
-        (mixed_flames & adjacent_dice.any(axis=1),
-         paired_evidence + scores * 0.22 + recent_support("flame"), "flame"),
+        ((mixed_flames & adjacent_dice.any(axis=1)) | dice_pairs,
+         paired_evidence + 0.75 * np.minimum(covered_dice, 2) + scores * 0.22 + recent_support("flame"), "flame"),
         (mixed_flames & (packed & figures).any(axis=1),
          np.where(packed & figures, 1 - distances / 135, 0).max(axis=1, initial=0) + scores * 0.25, "crowd"),
         (player_conflicts, scores + recent_support("figure"), "figure"),
-        (marker_proposals, scores, "marker"),
+        (marker_proposals, scores + recent_support("marker") + (2.4 * marker_shape if marker_shape is not None else 0), "marker"),
         (possible_figures | ring_conflicts | weak_flames, scores, "general"),
     )
     groups = [[(centers[i], purpose) for i in np.flatnonzero(mask)[np.argsort(-priority[mask], kind="stable")]]
               for mask, priority, purpose in groups]
+    if marker_shape is not None and groups[3]:
+        target = groups[3][0][0]
+        promising = (marker_proposals & (np.linalg.norm(centers - target, axis=1) < 1) & (marker_shape >= 0.68)).any()
+        previous_marker = next(((box[:2] + box[2:]) / 2 for box, kind in recent if kind in ("marker", "marker-gap")), None)
+        if previous_marker is not None:
+            target, promising = previous_marker, True
+        if promising and groups[1] and np.linalg.norm(groups[1][0][0] - target) <= 425:
+            # Keep both promising areas in view with one close prediction.
+            groups[1][0] = (groups[1][0][0] * 0.44 + target * 0.56, "crowd")
+            if np.linalg.norm(groups[3][0][0] - target) < 135:
+                groups[3].pop(0)
+        elif promising and not groups[1]:
+            groups[1].append(groups[3].pop(0))
     first_groups = groups[:3]
     if survey and groups[3]:
         first_groups = [*first_groups[:2], groups[3], first_groups[2]]
@@ -97,18 +115,58 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     import numpy as np
     import supervision as sv
 
-    baseline = detections[detections.confidence >= threshold] if len(detections) else detections
+    marker_shape = None
+    marker_image = None
+    marker_reference = None
+    verified_shapes = []
+
+    def rank_markers(boxes):
+        raw = predictor.rank_markers(marker_image, boxes, np)
+        if raw is None or marker_reference is None:
+            return raw
+        # A short pixel minimum removes the moving highlight while the
+        # current frame remains evidence if a marker has just appeared.
+        return np.maximum(raw, predictor.rank_markers(marker_reference, boxes, np))
+
+    if len(detections):
+        labels = detections.data["class_name"]
+        scores = detections.confidence
+        visible = scores >= threshold
+        if hasattr(predictor, "rank_markers"):
+            marker_image = image.convert("L")
+            marker_reference = reduced_projection.convert("L") if reduced_projection is not None else None
+            dims = detections.xyxy[:, 2:] - detections.xyxy[:, :2]
+            candidates = (labels == "malfunction") & (scores >= 0.10) & np.all((dims >= 26) & (dims <= 144), axis=1)
+            ranked = rank_markers(detections.xyxy[candidates])
+            if ranked is not None:
+                marker_shape = np.zeros(len(detections))
+                marker_shape[candidates] = ranked
+                visible &= (labels != "malfunction") | (scores > 0.82) | (marker_shape >= 0.66)
+                previous_markers = [(box, purpose) for box, purpose in recent if purpose in ("marker", "marker-gap")]
+                if previous_markers:
+                    previous_boxes = np.array([box for box, _ in previous_markers])
+                    padding = 0.08 * (previous_boxes[:, 2:] - previous_boxes[:, :2])
+                    expanded = previous_boxes + np.concatenate([-padding, padding], axis=1)
+                    evidence = np.maximum(rank_markers(previous_boxes), rank_markers(expanded))
+                    verified_shapes = [box for (box, purpose), value in zip(previous_markers, evidence, strict=True)
+                                       if purpose == "marker" and value >= 0.86]
+                    recent = [(box, purpose) for box, purpose in recent if purpose not in ("marker", "marker-gap")]
+                    recent += [(box, purpose) for (box, purpose), value in zip(previous_markers, evidence, strict=True)
+                               if value >= 0.71]
+        baseline = detections[visible]
+    else:
+        baseline = detections
     if len(baseline):
         dimensions = baseline.xyxy[:, 2:] - baseline.xyxy[:, :2]
         uncertain = ((baseline.data["class_name"] == "malfunction") & (baseline.confidence <= 0.82) &
                      np.all((dimensions >= 26) & (dimensions <= 144), axis=1))
         baseline.confidence[uncertain] = np.minimum(baseline.confidence[uncertain], 0.60)
 
-    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.65, "alien": 0.73, "character": 0.78}
+    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73, "character": 0.78}
     reviewed = []
     selected = []
     next_recent = []
-    for center, purpose in review_anchors(detections, recent, sv, np, survey):
+    for center, purpose in review_anchors(detections, recent, sv, np, survey, marker_shape):
         if any(np.linalg.norm(center - previous) < 170 for previous in selected):
             continue
         if len(selected) == 3 or (deadline is not None and monotonic() >= deadline):
@@ -124,7 +182,11 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             previous_purpose == purpose and np.linalg.norm((box[:2] + box[2:]) / 2 - center) < 80
             for box, previous_purpose in recent
         )
-        source = reduced_projection if previously_reviewed and reduced_projection is not None else image
+        marker_under_projection = purpose in ("marker", "crowd") and any(
+            previous_purpose in ("marker", "marker-gap") and np.linalg.norm((box[:2] + box[2:]) / 2 - center) <= 245
+            for box, previous_purpose in recent
+        )
+        source = reduced_projection if reduced_projection is not None and (previously_reviewed or marker_under_projection) else image
         selected.append(center)
         zoom = predictor.predict_context(source.crop(bounds), purpose=purpose, threshold=0.32, include_source_image=False)
         if not len(zoom):
@@ -139,9 +201,12 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         dimensions = boxes[:, 2:] - boxes[:, :2]
         centers = (boxes[:, :2] + boxes[:, 2:]) / 2
         same = same_piece(boxes, dimensions, centers, sv, np)
-        rivals = np.where(same & (labels[:, None] != labels), scores, 0).max(axis=1)
-        support = (sv.box_iou_batch(boxes, detections.xyxy).max(axis=1, initial=0) >= 0.28
-                   if len(detections) else np.zeros(len(zoom), dtype=bool))
+        support = np.zeros(len(zoom), dtype=bool)
+        if len(detections):
+            overlaps = sv.box_iou_batch(boxes, detections.xyxy)
+            marker_hints = (detections.data["class_name"] == "malfunction") & (detections.confidence >= 0.10)
+            support = np.where(labels == "malfunction", overlaps[:, marker_hints].max(axis=1, initial=0),
+                               overlaps.max(axis=1)) >= 0.27
         distance = np.linalg.norm(centers - center, axis=1)
         central = distance <= 245
         # Independent pieces pass separately. A result without an overview
@@ -150,10 +215,21 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         # New detections should be compact. Existing coarse pieces supply
         # support for taller figures without adding a duplicate by the crop edge.
         compact = np.max(dimensions, axis=1) <= 144
-        unseeded_class = (labels == "malfunction") if purpose == "crowd" else (labels == "alien") & (purpose == "figure")
-        new_near_anchor = unseeded_class & compact & (distance <= 110) & (scores >= 0.82)
+        marker_checks = compact & central & (labels == "malfunction") & (scores >= 0.40)
+        shape_supported = np.zeros(len(zoom), dtype=bool)
+        if marker_shape is not None and marker_checks.any():
+            shape = rank_markers(boxes[marker_checks])
+            strong_shape = shape >= 0.86
+            shape_supported[marker_checks] = strong_shape
+            # Require agreement on the shape to lift a weak model reading.
+            scores[marker_checks] = np.where(strong_shape, np.maximum(scores[marker_checks], (scores[marker_checks] + shape) / 2),
+                                             np.where(shape >= 0.35, scores[marker_checks], 0))
+        unseeded_class = {"crowd": "malfunction", "figure": "alien", "flame": "fire"}.get(purpose)
+        discovery_confidence = 0.82 if purpose == "figure" else 0.88
+        new_near_anchor = (labels == unseeded_class) & compact & (distance <= 110) & (scores >= discovery_confidence)
         size_ok = compact | np.isin(labels, ["alien", "character"])
-        accepted = central & size_ok & (scores >= cutoff) & (scores >= rivals + 0.085) & (support | new_near_anchor)
+        rivals = np.where(same & (labels[:, None] != labels), scores, 0).max(axis=1)
+        accepted = central & size_ok & (scores >= cutoff) & (scores >= rivals + 0.085) & (support | new_near_anchor | shape_supported)
         if len(baseline):
             players = baseline.xyxy[(baseline.data["class_name"] == "character") & (baseline.confidence >= 0.62)]
             if len(players):
@@ -165,7 +241,24 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             target = {"flame": "fire", "figure": "alien"}.get(purpose, "malfunction")
             focus = accepted & (labels == target)
             best = np.argmin(np.where(focus if focus.any() else accepted, distance, np.inf))
-            next_recent.append((boxes[best], purpose))
+            if purpose != "marker" or focus.any():
+                next_recent.append((boxes[best], purpose))
+            markers = accepted & (labels == "malfunction")
+            if purpose == "crowd" and markers.any():
+                marker = np.argmax(np.where(markers, scores, -np.inf))
+                next_recent.append((boxes[marker], "marker"))
+
+    if verified_shapes and not any(purpose == "marker" for _, purpose in next_recent):
+        # Keep one weak, shape-confirmed reading across an illumination gap.
+        # It can preserve an existing effect, and a fresh model confirmation
+        # is needed before we can bridge another gap.
+        rows = np.flatnonzero(detections.data["class_name"] == "malfunction")
+        if len(rows):
+            gap = detections[rows[:1]]
+            gap.xyxy[0] = verified_shapes[0]
+            gap.confidence[0] = 0.57
+            baseline = sv.Detections.merge([baseline, gap]).with_nms(threshold=0.5)
+            next_recent.append((verified_shapes[0], "marker-gap"))
 
     if not reviewed:
         return drop_fire_dice_aliases(baseline, sv, np), recent if not selected else []

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAnimationCameraBindings } from "../src/app/runtime/vision/animation-camera-bindings.js";
 import { checkCameraReading } from "../src/app/runtime/vision/camera-board-readings.js";
+import { boardRegion } from "../src/app/runtime/calibration/calibration-math.js";
 
 const roomCatalog = [{ id: "room-1", name: "Workshop", polygon: [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]] }];
 const cameraTrigger = { modelId: "custom", className: "Gold idol", minConfidence: 0.8, verificationOpacity: 0.42 };
@@ -83,4 +84,20 @@ test("a missing verification photo only blocks classes that require it", async (
   assert.deepEqual(bindings.observe("custom", checked).actions, [
     { scope: "room", animationId: "alarm", roomId: "room-1", action: "start" },
   ]);
+});
+
+test("a perspective board edge excludes pieces and corrections whose anchors lie on the table", async () => {
+  const at = ({ x, y }) => ({ x: 0.2 + 0.6 * x - 0.1 * y, y: 0.2 + 0.55 * y });
+  const registration = { at, contains: boardRegion(at) };
+  const bindings = createAnimationCameraBindings(makeBoard(), registration, 1, 1);
+  const slope = { ...item, confidence: 0.99, box: [0.14, 0.22, 0.06, 0.09], anchor: [0.166, 0.28] };
+  const onBoard = { ...item, box: [0.10, 0.40, 0.11, 0.20], anchor: [0.19, 0.59],
+    reclassifiedFrom: { kind: "dice", box: slope.box } };
+  const model = { modelId: "other", frameId: "1795740000000-1-1", classes: [item.kind, "dice"], coverage: [0, 0, 1, 1],
+    objects: [slope, onBoard] };
+  const setup = { width: 1, height: 1, registration, bindings, checkedModels: new Map() };
+  const checked = await checkCameraReading(model, setup, new AbortController().signal);
+  assert.deepEqual(checked.objects, [{ ...item, box: onBoard.box, anchor: onBoard.anchor }]);
+  assert.deepEqual(checked.coverage, model.coverage);
+  assert.equal(model.objects.length, 2);
 });

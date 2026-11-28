@@ -64,6 +64,11 @@ class TileCoordinatesTest(unittest.TestCase):
         jpeg = annotate(preview, scaled, (sv.MaskAnnotator(), sv.BoxAnnotator(), sv.LabelAnnotator()), np)
         self.assertTrue(jpeg.startswith(b"\xff\xd8"))
 
+        with_contours = board_objects("frame", {"alien", "fire"}, detections, image.size,
+                                     (1600, 600), (320, 60, 800, 300), np, include_contours=True)
+        shape = next(item["contours"][0] for item in with_contours["objects"] if item["kind"] == "alien")
+        np.testing.assert_allclose(np.min(shape, axis=0), [(320 + 345) / 1600, (60 + 90) / 600], atol=1e-5)
+
     def test_reduced_overlap_keeps_the_board_covered_with_four_overview_tiles(self):
         image = Image.new("RGB", (2290, 1400))
         calls = []
@@ -211,6 +216,23 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(result.data["reclassified_kind"].tolist(), ["fire", ""])
         np.testing.assert_allclose(result.xyxy, [die, fire])
         self.assertEqual(len(recent), 1)
+
+    def test_two_weak_dice_proposals_can_schedule_a_close_view_for_unseeded_fire(self):
+        first = [230, 250, 305, 310]
+        second = [345, 250, 420, 310]
+        flame = [281, 306, 354, 367]
+        coarse = self.detections([("dice", .48, first), ("dice", .39, second), ("fire", .7, second)])
+        detail = self.detections([("dice", .95, first), ("dice", .94, second), ("fire", .93, flame)])
+
+        class Predictor:
+            def predict_context(self, _crop, *, purpose, **_):
+                if purpose != "flame":
+                    raise AssertionError("The nearby dice should get a joint fire review")
+                return detail[:]
+
+        actual, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertEqual(actual.data["class_name"].tolist(), ["dice", "dice", "fire"])
+        np.testing.assert_allclose(actual.xyxy, [first, second, flame])
 
     def test_a_competing_dice_box_vetoes_only_overlapping_fire_during_the_overview(self):
         fire = [296, 308, 359, 368]

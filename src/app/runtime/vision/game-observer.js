@@ -100,12 +100,16 @@ function coversPosition(state, box, item) {
   if (reclassifies(state, box, item)) return false;
   const area = overlap(box, item.box);
   if (area <= 0.25) return false;
-  if (state.kind !== "fire" || !miniatureKinds.has(item.kind)) return true;
+  const sightings = state.kind === "fire" ? state.fireSightings : state.markerSightings;
+  if (!sightings || !miniatureKinds.has(item.kind)) return true;
   // Nearby figures can have boxes that extend into the marker even when
   // it is visible. Check for movement beyond the usual box jitter.
-  return !state.fireSightings.some(sighting =>
+  return !sightings.some(sighting =>
     sighting.boxes.some(previous => samePosition(box, previous)) &&
-    sighting.figures.some(previous => samePosition(item.box, previous) && overlap(box, previous) + 0.15 >= area));
+    sighting.figures.some(previous => state.kind === "fire"
+      ? samePosition(item.box, previous) && overlap(box, previous) + 0.15 >= area
+      : previous.kind === item.kind && previous.anchor.every((position, axis) =>
+        Math.abs(position - item.anchor[axis]) <= 0.28 * Math.min(previous.box[axis + 2], item.box[axis + 2]))));
 }
 
 function isPlayerAt(box, item, minConfidence = 0.80) {
@@ -210,7 +214,8 @@ export function createGameObserver(layout, {
 
     const hits = new Map();
     const possibleOccluders = frame.objects.filter(item => item.confidence >= uncertainThreshold);
-    const figures = possibleOccluders.filter(item => miniatureKinds.has(item.kind)).map(item => item.box);
+    const figures = possibleOccluders.filter(item => miniatureKinds.has(item.kind));
+    const figureBoxes = figures.map(item => item.box);
     const dice = frame.classes.includes("dice") ? frame.objects.filter(item =>
       item.kind === "dice" && item.confidence >= detectionThreshold) : [];
     for (const item of frame.objects) {
@@ -226,7 +231,8 @@ export function createGameObserver(layout, {
       const entry = hits.get(key) ?? { kind: item.kind, zone, boxes: [], verifiedAlienBoxes: [], strong: false };
       entry.boxes.push(item.box);
       if (item.kind === "alien" && item.confidence >= strongConfidence) entry.verifiedAlienBoxes.push(item.box);
-      if (startOnStrongReading && !entry.strong && item.confidence >= strongConfidence && !current.get(key)?.active &&
+      if (startOnStrongReading && item.kind !== "malfunction" && !entry.strong &&
+          item.confidence >= strongConfidence && !current.get(key)?.active &&
           !possibleOccluders.some(other => other.kind !== item.kind && occluders.has(other.kind) &&
             other.confidence >= detectionThreshold && samePosition(item.box, other.box)) &&
           (item.kind !== "fire" || frame.confirmFire?.(item.box)) &&
@@ -246,7 +252,17 @@ export function createGameObserver(layout, {
       state.count = hit.boxes.length;
       state.pending++;
       state.clear = 0;
-      const confirmed = state.kind === "fire" ? recordFireSighting(state, hit.boxes, figures, frameNumber) : state.pending >= 2;
+      let confirmed = state.pending >= 2;
+      if (state.kind === "fire") {
+        confirmed = recordFireSighting(state, hit.boxes, figureBoxes, frameNumber);
+      } else if (state.kind === "malfunction") {
+        const earlier = (state.markerSightings ?? []).filter(sighting => frameNumber - sighting.frameNumber <= 3);
+        // A brief pulse can look like a marker. Confirm a repeated location
+        // before starting its effect, even when a single reading is strong.
+        confirmed = earlier.some(sighting => hit.boxes.some(box =>
+          sighting.boxes.some(previous => samePosition(box, previous))));
+        state.markerSightings = [...earlier, { boxes: hit.boxes, figures, frameNumber }];
+      }
       state.active ||= confirmed || hit.strong;
       state.status = state.active ? "visible" : "checking";
       state.confirmed ||= state.active;
@@ -277,7 +293,10 @@ export function createGameObserver(layout, {
       if (state.clear >= 2 || corrected) state.active = false;
       state.status = overexposed ? "overexposed" : blocked ? "occluded"
         : state.active || weakFireReading ? "checking" : "removed";
-      if (!state.active) state.count = 0;
+      if (!state.active) {
+        state.count = 0;
+        if (state.status === "removed") state.markerSightings = undefined;
+      }
     }
 
     for (const kind of ["round", "self-destruct"]) {

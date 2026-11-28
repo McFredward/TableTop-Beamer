@@ -46,6 +46,21 @@ test("vision results retain their exact camera frame and expire across a camera 
   assert.equal(await vision.publish(prediction(source), read), 204);
 });
 
+test("a preview-only segmentation feed is available to Detections and hidden from animation bindings", () => {
+  const source = cameraFrame(2);
+  const vision = createCameraVision({ latestFrame: () => source });
+  const preview = { variant: "seg-nano", weights: "pretrained", device: "cpu", elapsed: 55 };
+  const object = { kind: "cup", confidence: 0.95, box: [0.1, 0.2, 0.1, 0.1], anchor: [0.15, 0.25],
+    contours: [[[0.1, 0.2], [0.2, 0.2], [0.2, 0.3], [0.1, 0.3]]] };
+  const reading = { frameId: cameraFrameId(source), preview, classes: ["cup"], coverage: [0, 0, 1, 1], objects: [object] };
+  assert.equal(vision.publishObjects({ ...reading, previewOnly: true }), 204);
+  assert.equal(vision.objectsFor(), null);
+  assert.deepEqual(vision.models(), []);
+  assert.deepEqual(vision.objectsFor(reading.frameId, undefined, { includePreview: true }), reading);
+  assert.equal(vision.publishObjects({ ...reading,
+    objects: [{ ...object, contours: [[[0, 0], [1, 0], [1.1, 1]]] }] }), 400);
+});
+
 test("only direct loopback clients can view the preview and a browser cannot publish it", async () => {
   const frame = cameraFrame(1);
   const req = prediction(frame);

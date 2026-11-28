@@ -1,7 +1,7 @@
 import { bindAutoCalibration } from "../calibration/auto-calibration.js";
 import { bindCameraZoom } from "./camera-preview-zoom.js";
 import { createGameReview, paintBoxes } from "./game-review.js";
-import { readCameraBitmap } from "../vision/camera-board-readings.js";
+import { readBoardObjects } from "../vision/camera-board-readings.js";
 
 function bootCameraPreview() {
   if (location.pathname.replace(/\/$/, "") === "/ssr" || document.body.dataset.outputRole === "final-output") return;
@@ -10,18 +10,32 @@ function bootCameraPreview() {
   const dialog = document.getElementById("camera-preview");
   const canvas = document.getElementById("camera-preview-image");
   const context = canvas.getContext("2d", { alpha: false });
+  const overlay = document.getElementById("camera-preview-overlay");
+  const overlayContext = overlay.getContext("2d");
   const status = document.getElementById("camera-preview-status");
   const metrics = document.getElementById("camera-preview-metrics");
   const modeButtons = dialog.querySelectorAll("[data-camera-mode]");
   const game = createGameReview();
-  const zoom = bindCameraZoom(dialog, canvas);
+  const zoom = bindCameraZoom(dialog, canvas, scale => {
+    zoomScale = scale;
+    paintOverlay();
+  });
   let mode = "game";
   let active;
+  let zoomScale = 1;
+  let boxes = [];
 
-  async function getFrame(source, after, signal) {
-    const path = source === "vision" ? "vision.jpg" : "latest.jpg";
-    const query = after ? "?after=" + encodeURIComponent(after) : "";
-    return fetch("/api/camera/" + path + query, {
+  function paintOverlay() {
+    if (overlay.hidden) return;
+    overlayContext.clearRect(0, 0, overlay.width, overlay.height);
+    if (boxes.length) paintBoxes(overlayContext, boxes, zoomScale);
+  }
+
+  async function getFrame(frameId, after, signal) {
+    const query = new URLSearchParams();
+    if (frameId) query.set("frameId", frameId);
+    if (after) query.set("after", after);
+    return fetch("/api/camera/latest.jpg" + (query.size ? "?" + query : ""), {
       cache: "no-store",
       signal: AbortSignal.any([signal, AbortSignal.timeout(2500)]),
     });
@@ -33,89 +47,67 @@ function bootCameraPreview() {
 
   function showFrame(visible) {
     canvas.hidden = !visible;
+    overlay.hidden = !visible || mode === "raw";
     zoom.setAvailable(visible);
   }
 
   async function refresh(signal) {
     let visibleId;
-    let visibleSource;
-    let retryBoardAt = 0;
+    let visiblePreview;
     while (!signal.aborted) {
       const started = performance.now();
       let delay = 200;
       try {
-        let source = mode === "game" ? "raw" : mode;
-        let response = await getFrame(source, visibleSource === source ? visibleId : null, signal);
-        if (source === "vision" && response.status === 503) {
-          source = "raw";
-          response = await getFrame(source, visibleSource === source ? visibleId : null, signal);
+        let preview = mode === "vision" ? await readBoardObjects(signal, undefined, { preview: true }) : null;
+        let response = await getFrame(preview?.frameId, preview?.frameId === visiblePreview ? visibleId : null, signal);
+        if (preview && response.status === 503) {
+          preview = null;
+          response = await getFrame(null, visiblePreview ? null : visibleId, signal);
         }
         if (signal.aborted) return;
 
+        let statusMessage = mode === "vision" && !preview ? "Local detections. Waiting for RF-DETR." : "";
         if (response.status === 200) {
           const blob = await response.blob();
           const id = response.headers.get("X-Camera-Frame-Id");
           const bitmap = await createImageBitmap(blob);
-          let original;
           try {
             if (signal.aborted) return;
-            if (source === "vision") {
-              original = await readCameraBitmap(id, signal).catch(() => null);
-            }
-            if (signal.aborted) return;
-            const camera = original ?? bitmap;
-            let overlay = null;
-            if (original) {
-              const coverage = response.headers.get("X-Vision-Coverage");
-              overlay = coverage ? coverage.split(",").map(Number)
-                : Math.abs(bitmap.width / bitmap.height - camera.width / camera.height) < 0.025 ? [0, 0, 1, 1] : null;
-            }
-            let boxes = [];
-            const selectedBoard = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
-            const boardOverlay = mode === "vision" && selectedBoard?.startsWith("nemesis-") &&
-              (original || source === "raw") && performance.now() >= retryBoardAt;
-            if (mode === "game" || boardOverlay) {
+            let nextBoxes = [];
+            if (mode !== "raw") {
               try {
-                boxes = await game.observe(camera, id, signal, { annotated: Boolean(overlay) });
+                nextBoxes = await game.observe(bitmap, id, signal, { preview });
               } catch (error) {
                 if (signal.aborted) return;
-                if (mode === "game") {
-                  game.unavailable(error.message);
-                  delay = 1000;
-                } else {
-                  retryBoardAt = performance.now() + 3000;
-                }
+                if (mode === "game") game.unavailable(error.message);
+                else statusMessage = error.message;
+                delay = 1000;
               }
             }
             if (signal.aborted) return;
-            if (canvas.width !== camera.width || canvas.height !== camera.height) {
-              canvas.width = camera.width;
-              canvas.height = camera.height;
+            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+              overlay.width = canvas.width = bitmap.width;
+              overlay.height = canvas.height = bitmap.height;
             }
-            // Present the image and overlays together after the asynchronous readings.
-            context.drawImage(camera, 0, 0);
-            if (overlay) {
-              const [x, y, w, h] = overlay;
-              context.drawImage(bitmap, x * camera.width, y * camera.height, w * camera.width, h * camera.height);
-            }
-            if (boxes.length) paintBoxes(context, boxes);
+            context.drawImage(bitmap, 0, 0);
+            boxes = nextBoxes;
           } finally {
-            original?.close();
             bitmap.close();
           }
           showFrame(true);
+          paintOverlay();
           visibleId = id;
-          visibleSource = source;
-          if (source === "vision") {
-            const header = (name) => response.headers.get("X-Vision-" + name);
-            const weights = header("Weights") === "pretrained" ? "COCO pretrained" : "custom checkpoint";
-            metrics.textContent = `RF-DETR ${header("Model")} · ${weights} · ${header("Device").toUpperCase()} · ${header("Count")} detections · ${header("Masks")} masks · ${header("MS")} ms`;
+          visiblePreview = preview?.frameId;
+          if (preview?.preview) {
+            const { variant, weights, device, elapsed } = preview.preview;
+            const maskCount = boxes.filter(box => box.contours?.length).length;
+            metrics.textContent = `RF-DETR ${variant} · ${weights === "pretrained" ? "COCO pretrained" : "custom checkpoint"} · ${device.toUpperCase()} · ${boxes.length} boxes · ${maskCount} masks · ${elapsed} ms`;
           } else {
             metrics.textContent = `${canvas.width} × ${canvas.height} px`;
           }
         }
         if (response.status === 200 || response.status === 204) {
-          setStatus(source === "raw" && mode === "vision" ? "Local detections. Waiting for RF-DETR." : "");
+          if (response.status === 200 || !visibleId) setStatus(statusMessage);
         } else {
           showFrame(false);
           metrics.textContent = "";
@@ -146,6 +138,7 @@ function bootCameraPreview() {
     active?.abort();
     active = new AbortController();
     game.reset(mode === "game");
+    boxes = [];
     showFrame(false);
     metrics.textContent = "";
     setStatus("Connecting to the board camera…");
@@ -164,6 +157,8 @@ function bootCameraPreview() {
     showFrame(false);
     canvas.width = 1;
     canvas.height = 1;
+    overlay.width = 1;
+    overlay.height = 1;
   });
   for (const button of modeButtons) {
     button.addEventListener("click", () => {

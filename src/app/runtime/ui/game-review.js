@@ -3,7 +3,7 @@ import { createFireTracker, detectFireTokens } from "../vision/fire-observer.js"
 import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
 import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
-import { checkCameraReading, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
+import { checkCameraReading, filterCameraObjects, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
 import { createGameDetectionOverlay } from "./game-detection-overlay.js";
 
 const classLabels = {
@@ -28,23 +28,39 @@ function updateRows(container, rows, createRow) {
   if (scrollTop) container.scrollTop = scrollTop;
 }
 
-export function paintBoxes(context, boxes) {
+export function paintBoxes(context, boxes, zoom) {
   const { width, height } = context.canvas;
-  const unit = width / 960;
+  const unit = width / (context.canvas.offsetWidth || width) / zoom;
+  const labelScale = unit * Math.max(10, 13 * zoom ** -0.35) / 13;
   context.save();
-  context.lineWidth = Math.max(2, unit * 1.5);
-  context.font = `bold ${12 * unit}px system-ui`;
-  for (const { box, label, color, held } of boxes) {
-    const [x, y, w, h] = box.map((value, i) => value * (i % 2 === 0 ? width : height));
-    const textX = Math.min(x, width - context.measureText(label).width - 6 * unit);
-    const textY = Math.max(17 * unit, y - 2 * unit);
+  context.lineWidth = 1.5 * unit;
+  for (const { contours, color } of boxes) {
+    if (!contours?.length) continue;
+    context.beginPath();
+    for (const polygon of contours) {
+      context.moveTo(polygon[0][0] * width, polygon[0][1] * height);
+      for (const [x, y] of polygon.slice(1)) context.lineTo(x * width, y * height);
+      context.closePath();
+    }
+    context.globalAlpha = 0.36;
+    context.fillStyle = color;
+    context.fill("evenodd");
+  }
+  context.globalAlpha = 1;
+  for (const { box: [x, y, w, h], color, held } of boxes) {
     context.strokeStyle = color;
     context.setLineDash(held ? [5 * unit, 4 * unit] : []);
-    context.strokeRect(x, y, w, h);
+    context.strokeRect(x * width, y * height, w * width, h * height);
+  }
+  context.font = `bold ${13 * labelScale}px system-ui`;
+  for (const { box: [x, y], label, color } of boxes) {
+    const labelWidth = context.measureText(label).width + 6 * labelScale;
+    const textX = Math.max(0, Math.min(x * width, width - labelWidth));
+    const textY = Math.max(18 * labelScale, y * height - 2 * labelScale);
     context.fillStyle = "#10151e";
-    context.fillRect(textX, textY - 14 * unit, context.measureText(label).width + 6 * unit, 16 * unit);
+    context.fillRect(textX, textY - 16 * labelScale, labelWidth, 17 * labelScale);
     context.fillStyle = color;
-    context.fillText(label, textX + 3 * unit, textY - 2 * unit);
+    context.fillText(label, textX + 3 * labelScale, textY - 3 * labelScale);
   }
   context.restore();
 }
@@ -119,7 +135,7 @@ export function createGameReview() {
     const { cv, geometry, registration, reference, width, height } = await registerCameraBoard(board, frame, signal);
     const layout = makeGameLayout(board, registration, frame.width, frame.height);
     setup = {
-      cv, geometry, width, height, id, generation,
+      cv, geometry, registration, width, height, id, generation,
       beads: prepareTrackBeads(layout.slots, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
@@ -190,19 +206,20 @@ export function createGameReview() {
       if (!current.overlays.has(modelId)) current.overlays.set(modelId, createGameDetectionOverlay());
       const feed = await readBoardObjects(signal, modelId).catch(() => null);
       const model = feed?.frameId.split("-")[1] === generation ? feed : null;
-      return { modelId, model, overlay: current.overlays.get(modelId)(model) };
+      const filtered = model && filterCameraObjects(model, current);
+      return { modelId, model, overlay: current.overlays.get(modelId)(filtered) };
     }));
   }
 
-  async function observe(bitmap, id, signal, { annotated = false } = {}) {
+  async function observe(bitmap, id, signal, { preview } = {}) {
     const frame = readBitmap(bitmap, true);
     const [, generation] = id.split("-");
     const boardId = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.getCurrentBoardId();
     if (!setup || generation !== setup.generation || frame.width !== setup.width || frame.height !== setup.height ||
         (boardId && boardId !== setup.id)) await register(frame, generation, signal);
-    const readings = await readModels(generation, signal);
+    const readings = panel.hidden ? [] : await readModels(generation, signal);
     signal.throwIfAborted();
-    const view = {
+    const view = panel.hidden ? (preview ? filterCameraObjects(preview, setup) : { objects: [], classes: [] }) : {
       objects: readings.flatMap(reading => reading.overlay.objects),
       classes: [...new Set(readings.flatMap(reading => reading.overlay.classes))],
       delayed: readings.some(reading => reading.overlay.delayed),
@@ -239,10 +256,10 @@ export function createGameReview() {
       label: `${state === "visible" ? "Local fire check" : "Last seen fire"} · ${room.name}`,
       color: state === "visible" ? "#ffc359" : "#8be2ff",
     }));
-    const modelBoxes = !annotated ? view.objects
+    const modelBoxes = view.objects
       .filter(item => item.kind !== "track-marker" || !setup.beads.length)
-      .map(({ kind, confidence, box, held }) => ({ kind, box, label: held ? `${kind} · last seen` : `${kind} ${Math.round(confidence * 100)}%`,
-        color: "#7be4b5", held })) : [];
+      .map(({ kind, confidence, box, held, contours }) => ({ kind, box, label: held ? `${kind} · last seen` : `${kind} ${Math.round(confidence * 100)}%`,
+        color: "#7be4b5", held, ...(panel.hidden && { contours }) }));
     const boxes = [...markerBoxes, ...fireBoxes, ...modelBoxes];
     return panel.hidden ? boxes : boxes.filter(box => !hiddenKinds.has(box.kind));
   }

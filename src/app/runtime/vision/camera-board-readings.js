@@ -10,12 +10,28 @@ export async function readCameraBitmap(id, signal) {
   return response.ok ? createImageBitmap(await response.blob()) : null;
 }
 
-export async function readBoardObjects(signal, modelId) {
-  const query = modelId ? "?" + new URLSearchParams({ modelId }) : "";
-  const response = await fetch("/api/camera/board-objects" + query, {
+export async function readBoardObjects(signal, modelId, { preview = false } = {}) {
+  const query = new URLSearchParams();
+  if (modelId) query.set("modelId", modelId);
+  if (preview) query.set("preview", "1");
+  const response = await fetch("/api/camera/board-objects" + (query.size ? "?" + query : ""), {
     cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1400)]),
   });
   return response.status === 200 ? response.json() : null;
+}
+
+export function filterCameraObjects(model, { registration, width, height }) {
+  if (!registration) return model;
+  const inside = ([x, y]) => registration.contains({ x: x * width, y: y * height });
+  const objects = model.objects.filter(item => inside(item.anchor)).map(item => {
+    if (!item.reclassifiedFrom) return item;
+    const { kind, box: [x, y, w, h] } = item.reclassifiedFrom;
+    const anchor = [x + w / 2, y + h * (kind === "alien" || kind === "character" ? 0.92 : 0.5)];
+    if (inside(anchor)) return item;
+    const { reclassifiedFrom, ...filtered } = item;
+    return filtered;
+  });
+  return { ...model, objects };
 }
 
 export async function registerCameraBoard(board, frame, signal) {
@@ -36,11 +52,12 @@ export async function registerCameraBoard(board, frame, signal) {
 
 export async function checkCameraReading(model, setup, signal, currentFrame, currentId) {
   const modelId = model.modelId ?? "default";
+  const cached = setup.checkedModels.get(modelId);
+  if (cached?.frameId === model.frameId) return cached;
+  model = filterCameraObjects(model, setup);
   const checksFire = setup.geometry && model.classes.includes("fire");
   const checksVisibility = setup.bindings.needsVisibility(modelId);
   if (!checksFire && !checksVisibility) return model;
-  const cached = setup.checkedModels.get(modelId);
-  if (cached?.frameId === model.frameId) return cached;
 
   let frame = currentFrame;
   if (currentId !== model.frameId) {

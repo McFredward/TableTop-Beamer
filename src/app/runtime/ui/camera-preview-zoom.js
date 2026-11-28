@@ -1,7 +1,7 @@
 const MAX_ZOOM = 6;
 const ZOOM_STEP = 1.25;
 
-export function bindCameraZoom(dialog, canvas) {
+export function bindCameraZoom(dialog, canvas, onScale) {
   const frame = canvas.parentElement;
   const controls = dialog.querySelector("#camera-zoom-controls");
   const zoomOut = dialog.querySelector("#camera-zoom-out");
@@ -17,7 +17,7 @@ export function bindCameraZoom(dialog, canvas) {
     const yLimit = Math.max(0, (canvas.offsetHeight * scale - frame.clientHeight) / 2);
     x = Math.min(xLimit, Math.max(-xLimit, x));
     y = Math.min(yLimit, Math.max(-yLimit, y));
-    canvas.style.transform = scale === 1 ? "" : `translate(${x}px, ${y}px) scale(${scale})`;
+    frame.style.setProperty("--camera-transform", scale === 1 ? "none" : `translate(${x}px, ${y}px) scale(${scale})`);
     frame.toggleAttribute("data-zoomed", scale > 1);
     const percentage = `${Math.round(scale * 100)}%`;
     if (resetButton.textContent !== percentage || !resetButton.hasAttribute("aria-label")) {
@@ -26,6 +26,7 @@ export function bindCameraZoom(dialog, canvas) {
     }
     resetButton.disabled = zoomOut.disabled = scale === 1;
     zoomIn.disabled = scale === MAX_ZOOM;
+    onScale(scale);
   }
 
   function zoomTo(target, cursorX = 0, cursorY = 0) {
