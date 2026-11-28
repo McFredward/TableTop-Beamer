@@ -221,6 +221,7 @@ class DetailDetector:
         self.marker_shape = adapter.get("markerShape")
         self.marker_shape_near_fire = adapter.get("markerShapeNearFire", self.marker_shape)
         self.projected_marker_shape = adapter.get("projectedMarkerShape")
+        self.escape_pod_shape = adapter.get("escapePodShape")
         marker_review = {**context, **adapter.get("markerReview", {})}
         if not self.has_overview_review and "malfunction" in adapter["classes"] and "markerReview" not in adapter:
             marker_review["malfunction"] = adapter["classes"]["malfunction"]
@@ -325,6 +326,10 @@ class DetailDetector:
 
     def rank_projected_markers(self, gray, boxes, np):
         return self._rank_marker_shape(self.projected_marker_shape, gray, boxes, np)
+
+    def match_escape_pods(self, gray, boxes, np):
+        scores = self._rank_marker_shape(self.escape_pod_shape, gray, boxes, np)
+        return scores >= self.escape_pod_shape["minConfidence"] if scores is not None else None
 
     @staticmethod
     def _rank_marker_shape(row, gray, boxes, np):

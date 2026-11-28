@@ -218,9 +218,22 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     marker_shape = None
     overview_shape = None
     has_marker_rank = hasattr(predictor, "rank_markers")
-    marker_image = image.convert("L") if has_marker_rank else None
+    match_escape_pods = getattr(predictor, "match_escape_pods", None)
+    marker_image = image.convert("L") if has_marker_rank or match_escape_pods else None
     marker_reference = reduced_projection.convert("L") if has_marker_rank and reduced_projection is not None else None
     verified_shapes = []
+
+    def discard_capsule_aliases(candidates):
+        if match_escape_pods and len(candidates):
+            players = np.flatnonzero((candidates.data["class_name"] == "character") &
+                                     (candidates.confidence >= 0.50))
+            if len(players):
+                capsules = match_escape_pods(marker_image, candidates.xyxy[players], np)
+                if capsules is not None and capsules.any():
+                    keep = np.ones(len(candidates), dtype=bool)
+                    keep[players[capsules]] = False
+                    return candidates[keep]
+        return candidates
 
     def rank_marker_views(rank, boxes):
         raw = rank(marker_image, boxes, np)
@@ -243,6 +256,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         nearby = rank_markers(moved.reshape(-1, 4)).reshape(-1, len(offsets))
         return np.maximum(scores, nearby.max(axis=1))
 
+    detections = discard_capsule_aliases(detections)
     if len(detections):
         labels = detections.data["class_name"]
         scores = detections.confidence
@@ -346,6 +360,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         if not len(zoom):
             continue
         zoom.xyxy += (left, top, left, top)
+        zoom = discard_capsule_aliases(zoom)
+        if not len(zoom):
+            continue
         labels = zoom.data["class_name"]
         zoom = zoom[np.isin(labels, (*limits, "larva"))]
         zoom.data = {"class_name": zoom.data["class_name"]}

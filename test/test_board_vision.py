@@ -266,6 +266,20 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(result.data["class_name"].tolist(), ["xeno-corpse", "malfunction"])
         np.testing.assert_allclose(result.xyxy, [token, gear])
 
+    def test_capsule_review_preserves_the_neighboring_player(self):
+        capsule = [160, 140, 264, 315]
+        player = [240, 190, 310, 269]
+        coarse = self.detections([("character", .88, capsule), ("character", .91, player)])
+        image = Image.new("RGB", (960, 800))
+        image.paste((255, 255, 255), (170, 150, 200, 180))
+
+        class Predictor:
+            def match_escape_pods(self, gray, boxes, _np):
+                return np.array([gray.getpixel((int(x + 20), int(y + 20))) == 255 for x, y, *_ in boxes])
+
+        result, _ = refine_board_context(Predictor(), image, coarse, .25, deadline=0)
+        np.testing.assert_allclose(result.xyxy, [player])
+
     def test_two_well_supported_defects_share_a_native_resolution_crop(self):
         first = [200, 205, 260, 265]
         second = [510, 245, 570, 305]
