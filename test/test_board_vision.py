@@ -261,8 +261,8 @@ class BoardContextReviewTest(unittest.TestCase):
         fire = [419, 443, 478, 505]
         coarse = self.detections([
             ("door", .94, upright), ("character", .87, upright),
-            ("door", .92, lying), ("malfunction", .89, lying),
-            ("corpse", .88, [358, 416, 451, 474]),
+            ("door", .85, lying), ("malfunction", .83, lying),
+            ("corpse", .74, [358, 411, 425, 467]),
             ("character", .93, figure), ("fire", .88, fire),
         ])
         result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)

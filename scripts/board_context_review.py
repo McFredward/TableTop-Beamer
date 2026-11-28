@@ -153,6 +153,10 @@ def resolve_piece_aliases(detections, sv, np):
     weak_rival |= ((labels[preferred, None] == "door") & (labels[rivals] == "corpse") &
                    (scores[preferred, None] >= 0.85) & (scores[preferred, None] > scores[rivals]))
     matches = competing & (overlap >= np.where(weak_rival, 0.42, np.where(corpse_or_door, 0.54, 0.64)))
+    contained = ((boxes[preferred, None, :2] <= boxes[rivals, :2]) &
+                 (boxes[preferred, None, 2:] >= boxes[rivals, 2:])).all(axis=2)
+    matches |= ((labels[preferred, None] == "door") & (labels[rivals] == "corpse") & contained &
+                (overlap >= 0.27) & (scores[preferred, None] >= scores[rivals] + 0.07))
     matches &= scores[preferred, None] >= scores[rivals] + np.where(corpse_or_door, -0.06, 0.10)
     matches &= (labels[rivals] != "corpse") | (scores[preferred, None] > scores[rivals])
     if not matches.any():
