@@ -687,7 +687,8 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
     if (scope !== "room" || !existing || !Number.isFinite(opacity) || opacity < 0.1 || opacity > 1 ||
         existing.cameraVisibilityCheck?.until > now + 5500) return null;
     const from = existing.cameraVisibilityCheck?.until > now ? existing.cameraVisibilityCheck.from : now;
-    existing.cameraVisibilityCheck = { opacity, from, until: now + 11_000 };
+    const duration = definition.cameraTrigger.className === "malfunction" ? 4500 : 11_000;
+    existing.cameraVisibilityCheck = { opacity, from, until: now + duration };
     return { runtime };
   }
 

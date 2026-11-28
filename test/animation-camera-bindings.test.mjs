@@ -46,6 +46,22 @@ test("an animation can publish its sound on a confirmed board-wide increase", ()
   assert(!read([item]).some(action => action.action === "announce"));
 });
 
+test("a visible defect is checked once after its projection starts", () => {
+  const board = makeBoard();
+  board.roomFx.animations[0].cameraTrigger = { ...cameraTrigger, className: "malfunction", verificationOpacity: 0.12 };
+  const controller = createAnimationCameraBindings(board, { at: point => point }, 1, 1);
+  const marker = { ...item, kind: "malfunction" };
+  let n = 0;
+  const read = () => controller.observe("custom", {
+    frameId: `${1795740000000 + n * 600}-1-${++n}`, classes: [marker.kind],
+    coverage: [0, 0, 1, 1], objects: [marker],
+  }).actions.map(action => action.action);
+  assert.deepEqual(read(), []);
+  assert.deepEqual(read(), ["start"]);
+  assert.deepEqual(read(), ["verify"]);
+  assert.deepEqual(read(), []);
+});
+
 test("a saved model and class control an arbitrary room animation through glare and removal", () => {
   const controller = createAnimationCameraBindings(makeBoard(), { at: point => point }, 1, 1);
   let sequence = 0;

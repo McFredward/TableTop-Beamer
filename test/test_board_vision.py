@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from board_context_review import refine_board_context, review_anchors
 from board_vision import predict_tiled, refine_small_objects, resize_detections
+from marker_appearance import review_fire_markers
 from stream_board_vision import DetailDetector, annotate, board_objects
 
 
@@ -439,6 +440,24 @@ class BoardContextReviewTest(unittest.TestCase):
         result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
         self.assertEqual(result.data["class_name"].tolist(), ["fire", "dice"])
         np.testing.assert_allclose(result.xyxy, [fire, die])
+
+    def test_the_marker_review_promotes_a_real_flame_and_keeps_the_adjacent_die(self):
+        fire = [296, 308, 359, 368]
+        die = [201, 263, 278, 331]
+        coarse = self.detections([("dice", .94, fire), ("dice", .92, die)])
+
+        class Classifier:
+            def rank(self, _image, boxes):
+                scores = np.array([[[.99, .01, 0, 0], [.98, .02, 0, 0]],
+                                   [[.01, .99, 0, 0], [.01, .99, 0, 0]]])
+                return scores, np.repeat(boxes[:, None], 2, axis=1)
+
+        image = Image.new("RGB", (960, 800))
+        actual = review_fire_markers(Classifier(), image, coarse, coarse, 0, sv, np)
+        payload = board_objects("frame", {"dice", "fire"}, actual, image.size, image.size, None, np)
+        self.assertEqual([(o["kind"], o.get("markerVerified")) for o in payload["objects"]],
+                         [("fire", True), ("dice", None)])
+        np.testing.assert_allclose(actual.xyxy, [die, fire])
 
     def test_a_defect_without_an_overview_box_survives_next_to_fire_and_a_large_alien(self):
         fire = [286, 328, 350, 388]

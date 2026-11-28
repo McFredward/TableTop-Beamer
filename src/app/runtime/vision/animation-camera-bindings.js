@@ -82,7 +82,8 @@ export function createAnimationCameraBindings(board, registration, width, height
           binding.lastCheck.delete(roomId);
           actions.push({ ...target, action: "stop" });
         } else if (binding.scope === "room" && binding.verificationOpacity != null && effect.active &&
-                   (effect.status === "overexposed" || effect.status === "checking") &&
+                   (effect.status === "overexposed" || effect.status === "checking" ||
+                     (binding.className === "malfunction" && !binding.lastCheck.has(roomId))) &&
                    timestamp - (binding.lastCheck.get(roomId) ?? 0) >= 6500) {
           binding.lastCheck.set(roomId, timestamp);
           actions.push({ ...target, action: "verify" });

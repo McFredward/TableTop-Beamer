@@ -75,6 +75,7 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np, *
     objects = []
     corrections = detections.data.get("reclassified_box")
     replaced_labels = detections.data.get("reclassified_kind")
+    verified_markers = detections.data.get("marker_verified")
     for i, (label, score, box) in enumerate(zip(detections.data.get("class_name", []), detections.confidence,
                                                  detections.xyxy, strict=True)):
         if label not in classes:
@@ -102,6 +103,8 @@ def board_objects(frame_id, classes, detections, size, original_size, roi, np, *
             "box": [left + x0 * sx, top + y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy],
             "anchor": [left + cx * sx, top + cy * sy],
         }
+        if verified_markers is not None and verified_markers[i] and label == "fire":
+            item["markerVerified"] = True
         if include_contours and detections.mask is not None and len(objects) < 256:
             contours = mask_contours(detections.mask, i, (x0, y0, x1, y1), np)
             if contours:
@@ -464,6 +467,11 @@ def run_detector(args, url, model_identity, preset, progress):
     if small_objects and preset.get("detailAdapter"):
         adapter_path = Path(__file__).resolve().parents[1] / "config" / preset["detailAdapter"]
         detail = DetailDetector(model, json.loads(adapter_path.read_text(encoding="utf-8")), torch)
+    marker_appearance = None
+    if detail and preset.get("markerAppearance"):
+        from marker_appearance import MarkerAppearance, review_fire_markers
+        marker_path = Path(__file__).resolve().parents[1] / "config" / preset["markerAppearance"]
+        marker_appearance = MarkerAppearance.load(marker_path, device)
     context_review = detail is not None and detail.has_context_review
     overview_predictor = detail if detail and detail.has_overview_review else model.inference(compile=False)
     names = detail.classes if detail else model.class_names
@@ -542,10 +550,14 @@ def run_detector(args, url, model_identity, preset, progress):
                     review_number = 0
                 reduced = reduce_projection(image, last_frame, previous_frames, original_size, args.roi, np)
                 if context_review:
+                    proposals = detections
                     detections, recent_small_objects = refine_board_context(
                         detail, image, detections, detection_threshold, recent_small_objects, reduced,
                         deadline=started + refinement_budget, survey=review_number % 4 == 3,
                     )
+                    if marker_appearance:
+                        detections = review_fire_markers(marker_appearance, image, proposals, detections,
+                                                         detail.classes.index("fire"), sv, np)
                     review_number += 1
                 else:
                     detections, recent_small_objects = refine_small_objects(

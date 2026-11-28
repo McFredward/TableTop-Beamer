@@ -165,7 +165,7 @@ export function checkTrainedFireShapes(frame, geometry, model) {
   const redLight = boardUnderRedLight(geometry.mask, frame.rgba);
   let foundDie = false;
   const objects = model.objects.map(item => {
-    if (item.kind !== "fire") return item;
+    if (item.kind !== "fire" || item.markerVerified === true) return item;
     const [x, y, w, h] = item.box.map((value, axis) => value * (axis % 2 ? frame.height : frame.width));
     if (!modelBoxLooksLikeDie(frame, { x, y, w, h }, redLight)) return item;
     foundDie = true;

@@ -157,6 +157,7 @@ export function createCameraVision(cameraInput, now = Date.now) {
             item.confidence < 0 || item.confidence > 1 || !rect(item.box) || !Array.isArray(item.anchor) ||
             item.anchor.length !== 2 || !item.anchor.every((v, i) => Number.isFinite(v) &&
               v >= item.box[i] - 1e-6 && v <= item.box[i] + item.box[i + 2] + 1e-6) ||
+            (item.markerVerified !== undefined && (item.kind !== "fire" || typeof item.markerVerified !== "boolean")) ||
             (item.contours !== undefined && !validContours(item.contours)) ||
             (item.reclassifiedFrom !== undefined && (!classes.includes(item.reclassifiedFrom?.kind) ||
               item.reclassifiedFrom.kind === item.kind || !rect(item.reclassifiedFrom.box))))) return 400;
@@ -164,8 +165,9 @@ export function createCameraVision(cameraInput, now = Date.now) {
       if (!isFreshFrame(frameId) || feed.has(frameId)) return 409;
       const result = { frameId, classes, coverage, ...(payload.modelId ? { modelId, modelName } : {}),
         ...(info && { preview: { variant: info.variant, weights: info.weights, device: info.device, elapsed: info.elapsed } }),
-        objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom, contours }) => ({ kind, confidence, box, anchor,
+        objects: objects.map(({ kind, confidence, box, anchor, reclassifiedFrom, contours, markerVerified }) => ({ kind, confidence, box, anchor,
           ...(contours && { contours }),
+          ...(markerVerified && { markerVerified }),
           ...(reclassifiedFrom && { reclassifiedFrom: { kind: reclassifiedFrom.kind, box: reclassifiedFrom.box } }) })) };
       feed.set(frameId, result);
       if (feed.size > 4) feed.delete(feed.keys().next().value);
