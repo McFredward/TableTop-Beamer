@@ -6515,7 +6515,8 @@
           "playbackMode": "play-once-disappear",
           "onRetrigger": "instant-disappear",
           "playbackDirection": "forward",
-          "soundAssetRef": "none",
+          "soundAssetRef": "/resources/sounds/nemesis-evakuierungsalarm-maschinenalarm-rettungskapseln-de.mp3",
+          "soundLoop": false,
           "icon": null
         },
         {

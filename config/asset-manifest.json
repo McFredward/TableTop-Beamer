@@ -81,6 +81,11 @@
       "hash": "8e271583c8f9",
       "size": 421440,
       "mtime": "2026-04-12T08:27:47.270Z"
+    },
+    "/resources/sounds/nemesis-evakuierungsalarm-maschinenalarm-rettungskapseln-de.mp3": {
+      "hash": "ee9148d38954",
+      "size": 162563,
+      "mtime": "2026-11-28T10:27:33.292Z"
     }
   }
 }

@@ -171,6 +171,7 @@
       assetRef: String(definition.assetRef || "").trim(),
       loopUntilStopped: Boolean(definition.loopUntilStopped),
       soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
+      soundLoop: definition.soundLoop !== false,
     };
     ctx.insideEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -448,6 +449,7 @@
       assetType: ctx.normalizeOutsideAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
       soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
+      soundLoop: definition.soundLoop !== false,
     };
     ctx.outsideEditorDraftByBoard[effectiveBoardId] = next;
     return next;

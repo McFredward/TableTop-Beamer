@@ -131,7 +131,11 @@
     // don't support transforms (inside, outside, room non-media).
     const transformCard = buildTransformCard(sel.scope, def, boardId);
     if (transformCard) pane.append(transformCard);
-    pane.append(buildSoundCard(sel.scope, def, boardId));
+    const soundCard = buildSoundCard(sel.scope, def, boardId);
+    soundCard.append(buildToggleRow(sel.scope, { ...def, soundLoop: def.soundLoop !== false }, boardId, {
+      key: "soundLoop", label: "Loop sound",
+    }));
+    pane.append(soundCard);
   }
 
   function buildCameraTriggerCard(scope, def, boardId) {

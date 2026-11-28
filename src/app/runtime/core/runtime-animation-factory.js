@@ -41,6 +41,7 @@
     durationSec = 15,
     startDelayMs = 0,
     soundAssetRef = "",
+    soundLoop = true,
     rotationDeg = 0,
     stretchToPolygon = true,
     widthScale = 1,
@@ -126,6 +127,7 @@
       // the path directly from the animation. This per-animation ref is
       // the sole source of audio post-Phase-29.
       soundAssetRef: String(soundAssetRef || "").trim() || undefined,
+      soundLoop: soundLoop !== false,
       rotationDeg: Number(rotationDeg) || 0,
       stretchToPolygon: stretchToPolygon !== false,
       widthScale: Number(widthScale) || 1,

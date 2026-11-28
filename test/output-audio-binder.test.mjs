@@ -36,8 +36,17 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
     }
   };
   let requests = 0;
+  let catalogRequests = 0;
   let release;
+  let boardId = null;
   globalThis.fetch = async (path) => {
+    if (path === "/api/boards") {
+      catalogRequests++;
+      return { ok: true, json: async () => ({ boards: [{
+        boardId: "nemesis",
+        insideFx: { animations: [{ soundAssetRef: "evacuation.mp3", soundLoop: false }] },
+      }] }) };
+    }
     requests++;
     if (path.endsWith("slow.wav")) await new Promise(resolve => { release = resolve; });
     return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
@@ -46,6 +55,7 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   const subscribe = event => fn => { callbacks[event] = fn; };
   const binder = await bootOutputAudioBinder({ liveSync: {
     onAnimationStart: subscribe("start"), onAnimationStop: subscribe("stop"), onClearAll: subscribe("clear"),
+    onSelectedBoardChange: subscribe("board"), getSelectedBoardId: () => boardId,
   } });
   t.after(() => {
     if (currentOutput.state !== "closed") binder.stop();
@@ -83,6 +93,27 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   callbacks.start({ ...alarm, id: "changed-device" });
   await flush();
   assert.deepEqual(sources[3].startArgs, [9.55, 0]);
+
+  boardId = "nemesis";
+  callbacks.board(boardId);
+  await flush();
+  assert.equal(catalogRequests, 1);
+  assert.equal(requests, 3);
+  assert.equal(sources.length, 4);
+  currentOutput.currentTime = 10;
+  const evacuation = { id: "evacuation", soundAssetRef: "evacuation.mp3", soundLoop: false };
+  callbacks.start(evacuation);
+  await flush();
+  assert.equal(requests, 3);
+  assert.equal(sources[4].loop, false);
+  assert.deepEqual(sources[4].startArgs, [10.025, 0]);
+  sources[4].onended();
+  assert.equal(sources[4].disconnected, true);
+  callbacks.start(evacuation);
+  await flush();
+  assert.equal(sources.length, 5);
+  callbacks.stop(evacuation.id);
+  assert.equal(sources[4].stopped, undefined);
   binder.stop();
   assert.equal(sources[0].stopped, true);
 });

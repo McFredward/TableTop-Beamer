@@ -259,6 +259,7 @@
       playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      soundLoop: definition?.soundLoop !== false,
       // User-assigned icon key from the design-system set.
       // Empty string / missing → null so resolveAnimationIcon falls back
       // to its heuristic (coded-effect type / name keywords).
@@ -370,6 +371,7 @@
       intensity: seeded.intensity ?? 1,
       speed: seeded.speed ?? 1,
       soundAssetRef: seeded.soundAssetRef,
+      soundLoop: seeded.soundLoop,
     });
   }
 
@@ -429,6 +431,7 @@
       playbackDirection: normalizePlaybackDirection(definition),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      soundLoop: definition?.soundLoop !== false,
       // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };
@@ -600,6 +603,7 @@
       direction: seeded.direction ?? "forward",
       soundEnabled: seeded.soundEnabled ?? false,
       soundAssetRef: seeded.soundAssetRef,
+      soundLoop: seeded.soundLoop,
     });
   }
 
@@ -643,6 +647,7 @@
       ...(definition?.cameraTrigger ? { cameraTrigger: normalizeCameraTrigger(definition.cameraTrigger) } : {}),
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      soundLoop: definition?.soundLoop !== false,
       rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
       stretchToPolygon: definition?.stretchToPolygon !== false,
       widthScale: clamp(definition?.widthScale, 0.05, 10, 1),
@@ -769,6 +774,7 @@
       assetType: seeded.assetType ?? "coded",
       assetRef: seeded.assetRef ?? "intruder-alert",
       soundAssetRef: seeded.soundAssetRef,
+      soundLoop: seeded.soundLoop,
       rotationDeg: seeded.rotationDeg,
       stretchToPolygon: seeded.stretchToPolygon,
       widthScale: seeded.widthScale,

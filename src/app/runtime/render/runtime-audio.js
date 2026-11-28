@@ -296,6 +296,7 @@
     const onEnded = () => {
       const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
       const stillActive = activeAnimationAudioById.get(animation.id)?.voice === reusable;
+      if (animation.soundLoop === false && stillRunning && stillActive) return;
       if (!stillRunning || !stillActive || !isAudioPlaybackAllowed()) {
         stopAnimationSound(animation.id);
         return;

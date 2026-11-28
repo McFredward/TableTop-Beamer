@@ -1164,6 +1164,7 @@ function applyGlobalMutationPatch(payload) {
       soundVolume: soundEnabled ? 1 : 0,
       // Phase 49 gap-closure-10: preserve sound mapping in the snapshot.
       soundAssetRef: incomingSoundAssetRef ?? "none",
+      soundLoop: incomingAnimation?.soundLoop !== false,
       // Phase 58 Wave 3.8z: preserve definition name (Active Animations list).
       ...(incomingAnimationName ? { animationName: incomingAnimationName } : {}),
       // Phase 58 Wave 3.8l: per-animation playback schema (see above).
@@ -6087,6 +6088,7 @@ function buildDefaultAnimationsForBoard(targetBoardId) {
         roomAssetType: def.roomAssetType ?? "coded",
         roomAssetRef: def.roomAssetRef ?? def.type,
         soundAssetRef: def.soundAssetRef ?? "none",
+        soundLoop: def.soundLoop !== false,
         intensity: def.intensity ?? 0.8,
         speed: def.speed ?? 1,
         opacity: def.opacity ?? 0.9,

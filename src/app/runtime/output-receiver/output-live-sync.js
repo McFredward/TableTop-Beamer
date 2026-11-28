@@ -64,6 +64,8 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     clearAll: new Set(),
     alignModeChange: new Set(),
     projectionProfileChange: new Set(),
+    selectedBoardChange: new Set(),
+    boardConfigChange: new Set(),
     connect: new Set(),
     disconnect: new Set(),
     // Phase 38 W2: align-grid-snapshot subscription so consumers can react
@@ -74,6 +76,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   };
   let alignMode = false;
   let profileId = null;
+  let selectedBoardId = null;
   let clientId = null;
   let outputRevision = null;
   // Phase 49 gap-closure-9 (2026-05-17): track currently-running animations
@@ -133,6 +136,11 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
 
   function reconcileSnapshot(snap) {
     if (!snap || typeof snap !== "object") return;
+    const boardId = snap.selectedBoard ?? snap.runtime?.selectedBoardId ?? snap.runtime?.selectedBoard;
+    if (typeof boardId === "string" && boardId !== selectedBoardId) {
+      selectedBoardId = boardId;
+      emit("selectedBoardChange", selectedBoardId);
+    }
     if (typeof snap.alignMode === "boolean" && snap.alignMode !== alignMode) {
       alignMode = snap.alignMode;
       emit("alignModeChange", alignMode);
@@ -395,6 +403,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // visible on /output/ today is diagnosticOverlay — refresh it.
     // Skip asset-manifest broadcasts which use the same envelope type.
     if (envelope.type === "global-config-update") {
+      if (envelope.target === "config/global-defaults.json") emit("boardConfigChange");
       if (envelope.target !== "config/asset-manifest.json") {
         _refreshDiagnosticOverlayFromGlobalDefaults();
       }
@@ -631,12 +640,15 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     onClearAll: on("clearAll"),
     onAlignModeChange: on("alignModeChange"),
     onProjectionProfileChange: on("projectionProfileChange"),
+    onSelectedBoardChange: on("selectedBoardChange"),
+    onBoardConfigChange: on("boardConfigChange"),
     onConnect: on("connect"),
     onDisconnect: on("disconnect"),
     onAlignGridSnapshot: on("alignGridSnapshot"),
     onCalibrationPattern: on("calibrationPattern"),
     getAlignMode: () => alignMode,
     getActiveProjectionProfileId: () => profileId,
+    getSelectedBoardId: () => selectedBoardId,
     getCurrentClientId: () => clientId,
     // Phase 36 iter2 h3 (2026-05-10): expose ws-open state so callers
     // can defer emitLiveMutation until the connection is established.

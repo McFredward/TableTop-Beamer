@@ -585,6 +585,7 @@
             roomAssetType: animation.roomAssetType,
             roomAssetRef: animation.roomAssetRef,
             soundAssetRef: animation.soundAssetRef,
+            soundLoop: animation.soundLoop,
             opacity: animation.opacity,
             intensity: animation.intensity,
             speed: animation.speed,

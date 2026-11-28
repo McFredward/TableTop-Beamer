@@ -23,6 +23,7 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
   let keepAlive;
   let readyAt = 0;
   let resume;
+  let soundCatalogRequest;
 
   function getAudioOutput() {
     if (!context) {
@@ -82,6 +83,33 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
     return pending;
   }
 
+  function preloadBoardSounds(boardId) {
+    if (!boardId) return;
+    soundCatalogRequest ??= fetch("/api/boards")
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .finally(() => { soundCatalogRequest = null; });
+    const request = soundCatalogRequest;
+    void request.then(({ boards }) => {
+      if (sub.getSelectedBoardId?.() !== boardId) return;
+      const board = boards?.find(entry => entry.boardId === boardId);
+      if (!board) return;
+      const paths = new Set();
+      for (const scope of [board.insideFx, board.outsideFx, board.roomFx]) {
+        for (const animation of scope?.animations ?? []) {
+          const path = resolveSoundPath(animation);
+          if (path) paths.add(path);
+        }
+      }
+      for (const path of [...paths].slice(0, MAX_CACHED_SOUNDS)) {
+        if (context?.state === "closed") return;
+        void readSound(path, getAudioOutput()).catch(() => {});
+      }
+    }).catch(() => {});
+  }
+
   function stop(id) {
     const playback = active.get(id);
     active.delete(id);
@@ -95,7 +123,8 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
   async function play(animation) {
     const id = animation?.id;
     const path = resolveSoundPath(animation);
-    if (!id || !path || active.has(id)) return;
+    if (!id || !path || animation.soundVolume === 0 || active.has(id)) return;
+    const loop = animation.soundLoop !== false;
     const playback = {};
     active.set(id, playback);
     try {
@@ -104,18 +133,19 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
       if (active.get(id) !== playback) return;
       const source = output.createBufferSource();
       source.buffer = buffer;
-      source.loop = true;
+      source.loop = loop;
       source.connect(output.destination);
       source.start(Math.max(output.currentTime + SOUND_START_LEAD_SECONDS, readyAt), 0);
-      playback.stop = () => {
-        source.stop();
+      playback.stop = () => { source.stop(); };
+      source.onended = () => {
         source.disconnect();
+        delete playback.stop;
       };
     } catch {
       if (active.get(id) !== playback) return;
       try {
         const audio = new Audio(path);
-        audio.loop = true;
+        audio.loop = loop;
         audio.currentTime = 0;
         playback.stop = () => { audio.pause(); };
         await audio.play();
@@ -129,14 +159,19 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
   const offStart = sub.onAnimationStart(animation => { void play(animation); });
   const offStop = sub.onAnimationStop(stop);
   const offClear = sub.onClearAll(clear);
+  const offBoardChange = sub.onSelectedBoardChange?.(preloadBoardSounds);
+  const offConfigUpdate = sub.onBoardConfigChange?.(() => preloadBoardSounds(sub.getSelectedBoardId()));
   // Kiosk Chromium can open the audio device while the output connects.
   try { void wakeOutput(getAudioOutput())?.catch(() => {}); } catch {}
+  preloadBoardSounds(sub.getSelectedBoardId?.());
 
   return {
     stop() {
       offStart?.();
       offStop?.();
       offClear?.();
+      offBoardChange?.();
+      offConfigUpdate?.();
       clear();
       buffers.clear();
       if (keepAlive) {

@@ -109,6 +109,7 @@
       assetType: ctx.normalizeRoomAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
       soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
+      soundLoop: definition.soundLoop !== false,
       // Transform options
       rotationDeg: Number(definition.rotationDeg) || 0,
       stretchToPolygon: definition.stretchToPolygon !== false,
