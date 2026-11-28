@@ -192,7 +192,8 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         )
         source = reduced_projection if reduced_projection is not None and (previously_reviewed or marker_under_projection) else image
         selected.append(center)
-        zoom = predictor.predict_context(source.crop(bounds), purpose=purpose, threshold=0.32, include_source_image=False)
+        measure = "marker" if marker_under_projection else purpose
+        zoom = predictor.predict_context(source.crop(bounds), purpose=measure, threshold=0.32, include_source_image=False)
         if not len(zoom):
             continue
         zoom.xyxy += (left, top, left, top)

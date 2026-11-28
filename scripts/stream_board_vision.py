@@ -210,8 +210,8 @@ class DetailDetector:
         self.has_context_review = bool(context)
         self.has_overview_review = bool(adapter.get("overviewReview"))
         self.marker_shape = adapter.get("markerShape")
-        marker_review = context.copy()
-        if not self.has_overview_review and "malfunction" in adapter["classes"]:
+        marker_review = {**context, **adapter.get("markerReview", {})}
+        if not self.has_overview_review and "malfunction" in adapter["classes"] and "markerReview" not in adapter:
             marker_review["malfunction"] = adapter["classes"]["malfunction"]
         variants = {
             "legacy": adapter["classes"],
