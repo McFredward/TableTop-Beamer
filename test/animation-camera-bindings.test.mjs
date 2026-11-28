@@ -101,3 +101,29 @@ test("a perspective board edge excludes pieces and corrections whose anchors lie
   assert.deepEqual(checked.coverage, model.coverage);
   assert.equal(model.objects.length, 2);
 });
+
+test("a blue projection pulse requests a dimmed malfunction check before clearing the effect", async () => {
+  const board = makeBoard();
+  board.roomFx.animations[0].cameraTrigger = {
+    ...cameraTrigger, className: "malfunction", verificationOpacity: 0.38,
+  };
+  const bindings = createAnimationCameraBindings(board, { at: point => point }, 1, 1);
+  const setup = { width: 16, height: 16, bindings, checkedModels: new Map() };
+  const controller = new AbortController();
+  const camera = color => ({ width: 16, height: 16, rgba: Uint8Array.from({ length: 16 * 16 * 4 }, (_, i) => color[i % 4]) });
+  const before = camera([80, 90, 95, 255]);
+  const glare = camera([60, 115, 242, 255]);
+  const mark = { ...item, kind: "malfunction", confidence: 0.94 };
+  async function analyze(sequence, photo, objects = []) {
+    const frameId = `${1795740000000 + sequence * 3000}-1-${sequence}`;
+    const model = { modelId: "custom", frameId, objects, classes: ["malfunction"], coverage: [0, 0, 1, 1] };
+    return bindings.observe("custom", await checkCameraReading(model, setup, controller.signal, photo, frameId));
+  }
+  assert.equal((await analyze(1, before, [mark])).actions.length, 0);
+  assert.equal((await analyze(2, before, [mark])).actions[0].action, "start");
+  const covered = await analyze(3, glare);
+  assert.equal(covered.actions[0].action, "verify");
+  assert.equal(covered.effects[0].status, "overexposed");
+  assert.equal((await analyze(4, before)).effects[0].active, true);
+  assert.equal((await analyze(5, before)).actions[0].action, "stop");
+});

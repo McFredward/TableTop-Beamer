@@ -6681,7 +6681,8 @@
           "cameraTrigger": {
             "modelId": "nemesis",
             "className": "malfunction",
-            "minConfidence": 0.62
+            "minConfidence": 0.62,
+            "verificationOpacity": 0.38
           },
           "assetType": "gif",
           "assetRef": "/resources/animations/malfunction.gif",

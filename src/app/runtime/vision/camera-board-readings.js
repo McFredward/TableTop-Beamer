@@ -1,6 +1,7 @@
 import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-images.js";
 import { registerBoard } from "../calibration/calibration-math.js";
-import { checkTrainedFireShapes, detectFireTokens, firePositionIsOverexposed, makeFireGeometry } from "./fire-observer.js";
+import { checkTrainedFireShapes, detectFireTokens, firePositionIsOverexposed, makeFireGeometry,
+  malfunctionPositionIsOverexposed } from "./fire-observer.js";
 import { isClassicNemesisBoard } from "./game-observer.js";
 
 export async function readCameraBitmap(id, signal) {
@@ -73,6 +74,7 @@ export async function checkCameraReading(model, setup, signal, currentFrame, cur
   const checked = frame && frame.width === setup.width && frame.height === setup.height
     ? { ...(checksFire ? checkTrainedFireShapes(frame, setup.geometry, model) : model),
       fireOverexposed: box => firePositionIsOverexposed(frame, box),
+      ...(checksVisibility && { malfunctionOverexposed: box => malfunctionPositionIsOverexposed(frame, box) }),
       ...(checksFire && setup.cv && { confirmFire: ([x, y, w, h]) => {
         localFire ??= detectFireTokens(setup.cv, frame, setup.geometry);
         return [...localFire.values()].some(({ box }) => {

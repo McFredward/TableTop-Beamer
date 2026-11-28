@@ -282,8 +282,9 @@ export function createGameObserver(layout, {
           (occluders.has(item.kind) || (item.kind === state.kind && state.kind !== "fire")) &&
           !(player && item.kind !== "hand" && samePosition(box, item.box)) && coversPosition(state, box, item));
       });
+      const positionOverexposed = state.kind === "malfunction" ? frame.malfunctionOverexposed : frame.fireOverexposed;
       const overexposed = (checkVisibility || state.kind === "fire") && state.active && !missingCoverage &&
-        state.boxes.some(box => frame.fireOverexposed?.(box));
+        state.boxes.some(box => positionOverexposed?.(box));
       if (!state.active && (!weakFireReading || missingCoverage || covered)) state.fireSightings = [];
       const blocked = missingCoverage || covered || overexposed;
       state.pending = 0;

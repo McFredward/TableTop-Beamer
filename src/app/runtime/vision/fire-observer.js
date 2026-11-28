@@ -133,7 +133,7 @@ function boardUnderRedLight(mask, pixels) {
   return samples > 0 && redSamples / samples >= 0.16;
 }
 
-export function firePositionIsOverexposed(frame, [x, y, w, h]) {
+function projectedCoverage(frame, [x, y, w, h], brightPixel) {
   const left = Math.max(0, Math.floor(x * frame.width));
   const top = Math.max(0, Math.floor(y * frame.height));
   const right = Math.min(frame.width, Math.ceil((x + w) * frame.width));
@@ -143,13 +143,21 @@ export function firePositionIsOverexposed(frame, [x, y, w, h]) {
   for (let row = top; row < bottom; row += step) {
     for (let col = left; col < right; col += step) {
       const pixel = (row * frame.width + col) * 4;
-      // An orange token can clip red alone. Bright green as well indicates
-      // the white or yellow core of a wash rather than a saturated red token.
-      if (frame.rgba[pixel] >= 247 && frame.rgba[pixel + 1] >= 240) clipped++;
+      if (brightPixel(frame.rgba[pixel], frame.rgba[pixel + 1], frame.rgba[pixel + 2])) clipped++;
       total++;
     }
   }
-  return total > 0 && clipped / total >= 0.24;
+  return total ? clipped / total : 0;
+}
+
+export function firePositionIsOverexposed(frame, box) {
+  // An orange token can clip red alone. Green clips in the projector's white core.
+  return projectedCoverage(frame, box, (red, green) => red >= 247 && green >= 240) >= 0.24;
+}
+
+export function malfunctionPositionIsOverexposed(frame, box) {
+  return firePositionIsOverexposed(frame, box) ||
+    projectedCoverage(frame, box, (red, green, blue) => blue >= 180 && blue >= red + 35 && blue >= green + 10) >= 0.17;
 }
 
 export function checkTrainedFireShapes(frame, geometry, model) {
