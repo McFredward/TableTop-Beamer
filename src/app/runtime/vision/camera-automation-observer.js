@@ -1,8 +1,8 @@
 import { readBitmap } from "../calibration/calibration-images.js";
 import { createAnimationCameraBindings } from "./animation-camera-bindings.js";
-import { checkCameraReading, readBoardObjects, readCameraBitmap, registerCameraBoard } from "./camera-board-readings.js";
+import { checkCameraReading, createCameraTrackReader, readBoardObjects, readCameraBitmap,
+  registerCameraBoard } from "./camera-board-readings.js";
 import { createGameObserver, makeGameLayout, trackActivation, trackAnimationBindings } from "./game-observer.js";
-import { detectTrackBeads, prepareTrackBeads } from "./track-beads.js";
 
 const MODEL_RESPONSE_GRACE_MS = 9_000;
 
@@ -33,11 +33,18 @@ export async function runCameraAutomation() {
     }
     if (frame.width !== setup.width || frame.height !== setup.height) return;
     setup.lastTrackFrame = frameId;
-    const { tracks } = setup.tracks.observe({ ...detectTrackBeads(frame, setup.beads), frameId,
+    const { tracks } = setup.tracks.observe({ ...setup.beads.read(frame, Number(frameId.split("-")[0])), frameId,
       classes: ["track-marker"], coverage: [0, 0, 1, 1] });
     await Promise.all(setup.trackBindings.map(async ({ track, scope, roomId, definition }) => {
       const reading = tracks.find(item => item.kind === track);
       if (!["confirmed", "inactive"].includes(reading?.status)) return;
+      const soundAt = definition.trackSoundValue;
+      if (Number.isInteger(soundAt) && reading.value > soundAt) setup.trackSounds.delete(track);
+      if (Number.isInteger(soundAt) && reading.value === soundAt && !setup.trackSounds.has(track)) {
+        const announcement = await post("/api/camera/animation", { boardId, token, frameId, scope, roomId,
+          animationId: definition.id, track, value: reading.value, action: "announce" });
+        if (announcement.ok) setup.trackSounds.add(track);
+      }
       const active = trackActivation(track, reading.value);
       if (setup.trackTargets.get(track) === active) return;
       const result = await post("/api/camera/animation", { boardId, token, frameId, scope, roomId,
@@ -90,11 +97,11 @@ export async function runCameraAutomation() {
       const { cv, registration, geometry, reference, width, height } = await registerCameraBoard(selection.board, frame, signal);
       const bindings = createAnimationCameraBindings(selection.board, registration, width, height);
       setup = { key, cv, geometry, registration, width, height, bindings, modelIds: bindings.modelIds, last: new Map(), checkedModels: new Map(),
-        trackBindings: selection.trackBindings, trackTargets: new Map() };
+        trackBindings: selection.trackBindings, trackTargets: new Map(), trackSounds: new Set() };
       if (setup.trackBindings.length) {
         const layout = makeGameLayout(selection.board, registration, width, height);
         setup.tracks = createGameObserver(layout, { kinds: [] });
-        setup.beads = prepareTrackBeads(layout.slots, registration, reference, frame);
+        setup.beads = createCameraTrackReader(selection.board, layout, cv, registration, reference, frame);
       }
     }
 

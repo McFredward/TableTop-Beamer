@@ -86,6 +86,16 @@
       "hash": "6a8b378793e5",
       "size": 282160,
       "mtime": "2026-11-28T11:19:52.417Z"
+    },
+    "/resources/sounds/nemesis-unbekannte-lebensform-entdeckt-de.mp3": {
+      "hash": "cc7b7ccea2eb",
+      "size": 73401,
+      "mtime": "2026-11-28T01:15:22.487Z"
+    },
+    "/resources/sounds/nemesis-kryoschlaf-freigegeben-de.mp3": {
+      "hash": "bc269d3bc1a6",
+      "size": 118799,
+      "mtime": "2026-11-28T10:22:02.582Z"
     }
   }
 }

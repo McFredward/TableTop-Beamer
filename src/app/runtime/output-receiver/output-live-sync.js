@@ -166,7 +166,9 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     const liveAnimsTop = Array.isArray(snap?.runningAnimations)
       ? snap.runningAnimations
       : null;
-    const liveAnims = liveAnimsRuntime ?? liveAnimsTop ?? [];
+    const sounds = (Array.isArray(snap.runtime?.cameraSounds) ? snap.runtime.cameraSounds : []).filter(sound =>
+      sound.boardId === selectedBoardId && Date.now() - sound.startedAtEpochMs < 10000);
+    const liveAnims = [...(liveAnimsRuntime ?? liveAnimsTop ?? []), ...sounds];
     // Aggressive diag — only logs when snapshot actually changed shape vs prev
     // call. Logs snapshot top-level keys + runtime keys + animation count so
     // operators see if the structure differs from what we expect.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createAnimationCameraBindings } from "../src/app/runtime/vision/animation-camera-bindings.js";
+import { createAnimationCameraBindings, followDetectedCount } from "../src/app/runtime/vision/animation-camera-bindings.js";
 import { checkCameraReading, filterCameraObjects } from "../src/app/runtime/vision/camera-board-readings.js";
 import { boardRegion } from "../src/app/runtime/calibration/calibration-math.js";
 
@@ -13,6 +13,38 @@ const makeBoard = () => ({
   outsideFx: { animations: [{ id: "weather", name: "Weather", cameraTrigger: { ...cameraTrigger, modelId: "other" } }] },
 });
 const item = { kind: "Gold idol", confidence: 0.9, box: [0.14, 0.18, 0.04, 0.04], anchor: [0.16, 0.20] };
+
+test("count announcements confirm a new piece across frames and ignore movement or a short occlusion", () => {
+  const follow = followDetectedCount(item.kind, 0.8);
+  const elsewhere = { ...item, box: [0.6, 0.18, 0.04, 0.04], anchor: [0.62, 0.2] };
+  let n = 0;
+  const read = (objects, time) => follow({ frameId: `${1795740000000 + time}-1-${++n}`, objects });
+  assert.equal(read([item], 0), false);
+  assert.equal(read([elsewhere], 600), false);
+  assert.equal(read([elsewhere, { ...elsewhere }], 1200), false);
+  assert.equal(read([item, elsewhere], 1800), false);
+  assert.equal(read([item, elsewhere], 2400), true);
+  assert.equal(read([item], 3000), false);
+  assert.equal(read([item], 3600), false);
+  assert.equal(read([item, elsewhere], 4200), false);
+  assert.equal(read([item, elsewhere], 4800), false);
+});
+
+test("an animation can publish its sound on a confirmed board-wide increase", () => {
+  const board = makeBoard();
+  board.roomFx.animations[0].soundAssetRef = "/resources/sounds/alert.mp3";
+  board.roomFx.animations[0].cameraTrigger = { ...cameraTrigger, soundRule: "count-increase" };
+  const controller = createAnimationCameraBindings(board, { at: point => point }, 1, 1);
+  let n = 0;
+  const read = objects => controller.observe("custom", {
+    frameId: `${1795740000000 + n * 600}-1-${++n}`, classes: [item.kind], coverage: [0, 0, 1, 1], objects,
+  }).actions;
+  assert.deepEqual(read([]), []);
+  assert.deepEqual(read([]), []);
+  assert.deepEqual(read([item]), []);
+  assert(read([item]).some(action => action.action === "announce" && action.roomId === null));
+  assert(!read([item]).some(action => action.action === "announce"));
+});
 
 test("a saved model and class control an arbitrary room animation through glare and removal", () => {
   const controller = createAnimationCameraBindings(makeBoard(), { at: point => point }, 1, 1);

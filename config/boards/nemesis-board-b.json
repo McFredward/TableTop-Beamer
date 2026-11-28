@@ -7883,11 +7883,13 @@
           "cameraTrigger": {
             "modelId": "nemesis",
             "className": "alien",
-            "minConfidence": 0.62
+            "minConfidence": 0.62,
+            "soundRule": "count-increase"
           },
           "assetType": "coded",
           "assetRef": "intruder-alert",
-          "soundAssetRef": "none",
+          "soundAssetRef": "/resources/sounds/nemesis-unbekannte-lebensform-entdeckt-de.mp3",
+          "soundLoop": false,
           "rotationDeg": 0,
           "stretchToPolygon": true,
           "widthScale": 1,
@@ -8037,7 +8039,9 @@
           "name": "Scanning",
           "assetType": "coded",
           "assetRef": "special-scanning",
-          "soundAssetRef": "none",
+          "soundAssetRef": "/resources/sounds/nemesis-kryoschlaf-freigegeben-de.mp3",
+          "soundLoop": false,
+          "trackSoundValue": 8,
           "rotationDeg": 0,
           "stretchToPolygon": true,
           "widthScale": 1,

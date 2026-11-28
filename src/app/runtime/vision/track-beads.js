@@ -110,10 +110,16 @@ function intensityFit(frame, slot) {
 
 export function detectTrackBeads(frame, slots) {
   const ranked = new Map();
+  const fits = new Map();
   const faintRounds = [];
   const destructionReads = [];
   for (const slot of slots) {
     const fit = intensityFit(frame, slot);
+    if (fit) {
+      const correlations = fits.get(slot.track) ?? [];
+      correlations.push(fit.correlation);
+      fits.set(slot.track, correlations);
+    }
     if (slot.track === "self-destruct") destructionReads.push(fit);
     if (!fit || fit.correlation > 0.65) continue;
     // An occluding object distorts the digit and its surrounding print.
@@ -150,5 +156,55 @@ export function detectTrackBeads(frame, slots) {
   });
   const emptyDestruction = destructionReads.length > 0 && !ranked.has("self-destruct") &&
     destructionReads.every(fit => fit && fit.correlation >= 0.67 && fit.highlights < 24);
-  return { objects, emptyDestruction };
+  const alignment = [...fits.values()].map(correlations =>
+    correlations.toSorted((a, b) => a - b)[Math.floor(correlations.length / 2)]);
+  return { objects, emptyDestruction, alignment: alignment.length ? Math.min(...alignment) : 0 };
+}
+
+export function followTrackBeads(initialSlots, remap) {
+  let slots = initialSlots;
+  let referenceAlignment;
+  let weakFrames = 0;
+  let lastAttempt = -Infinity;
+  let pending = false;
+
+  return {
+    get slots() { return slots; },
+    read(frame, timestamp) {
+      if (!slots.length) return { objects: [], emptyDestruction: false };
+      const reading = detectTrackBeads(frame, slots);
+      if (referenceAlignment === undefined || reading.alignment >= referenceAlignment - 0.085) {
+        referenceAlignment = Math.max(reading.alignment, (referenceAlignment ?? 0) - 0.002);
+        weakFrames = 0;
+        return reading;
+      }
+      // A hand or a flash can hide a rail briefly. Wait for another frame and
+      // keep the confirmed counters while the printed board is located again.
+      if (++weakFrames >= 2 && !pending && timestamp - lastAttempt >= 1700) {
+        lastAttempt = timestamp;
+        const accept = updatedSlots => {
+          const updated = detectTrackBeads(frame, updatedSlots);
+          if (updated.alignment < reading.alignment + 0.055 ||
+              updated.alignment < referenceAlignment - 0.12) return;
+          slots = updatedSlots;
+          referenceAlignment = updated.alignment;
+          weakFrames = 0;
+          return updated;
+        };
+        try {
+          const update = remap(frame);
+          if (update?.then) {
+            pending = true;
+            update.then(accept).catch(() => {}).finally(() => { pending = false; });
+          } else {
+            const updated = accept(update);
+            if (updated) return updated;
+          }
+        } catch {
+          // A physical obstruction may also prevent finding the board.
+        }
+      }
+      return { objects: [], emptyDestruction: false };
+    },
+  };
 }

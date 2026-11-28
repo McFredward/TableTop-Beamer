@@ -239,7 +239,7 @@ export function createGameObserver(layout, {
           item.confidence >= strongConfidence && !current.get(key)?.active &&
           !possibleOccluders.some(other => other.kind !== item.kind && occluders.has(other.kind) &&
             other.confidence >= detectionThreshold && samePosition(item.box, other.box)) &&
-          (item.kind !== "fire" || frame.confirmFire?.(item.box)) &&
+          (item.kind !== "fire" || item.markerVerified === true || frame.confirmFire?.(item.box)) &&
           ((item.kind !== "fire" && !checkVisibility) || !frame.fireOverexposed?.(item.box))) {
         entry.strong = true;
       }
@@ -312,7 +312,9 @@ export function createGameObserver(layout, {
       for (const object of frame.objects) {
         if (object.kind !== "track-marker" || object.confidence < detectionThreshold || !frame.classes.includes(object.kind)) continue;
         const point = { x: object.anchor[0], y: object.anchor[1] };
-        const slot = slots.find(slot => polygonContains(slot.polygon, point));
+        const slot = object.track === kind && Number.isInteger(object.value)
+          ? slots.find(slot => slot.value === object.value)
+          : slots.find(slot => polygonContains(slot.polygon, point));
         if (slot) matching.push(slot);
       }
       const empty = kind === "self-destruct" && !matching.length && frame.emptyDestruction;

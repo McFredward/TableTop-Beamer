@@ -203,7 +203,8 @@
     const minConfidence = Number.isFinite(binding.minConfidence) ? Math.max(0.25, Math.min(1, binding.minConfidence)) : 0.62;
     const verificationOpacity = Number.isFinite(binding.verificationOpacity)
       ? Math.max(0.1, Math.min(1, binding.verificationOpacity)) : null;
-    return { modelId, className, minConfidence, verificationOpacity };
+    return { modelId, className, minConfidence, verificationOpacity,
+      ...(binding.soundRule === "count-increase" && { soundRule: binding.soundRule }) };
   }
 
   function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
@@ -648,6 +649,8 @@
       // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       soundLoop: definition?.soundLoop !== false,
+      ...(Number.isInteger(definition?.trackSoundValue) && definition.trackSoundValue >= 0 &&
+          definition.trackSoundValue <= 15 && { trackSoundValue: definition.trackSoundValue }),
       rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
       stretchToPolygon: definition?.stretchToPolygon !== false,
       widthScale: clamp(definition?.widthScale, 0.05, 10, 1),
@@ -775,6 +778,7 @@
       assetRef: seeded.assetRef ?? "intruder-alert",
       soundAssetRef: seeded.soundAssetRef,
       soundLoop: seeded.soundLoop,
+      ...(Number.isInteger(seeded.trackSoundValue) && { trackSoundValue: seeded.trackSoundValue }),
       rotationDeg: seeded.rotationDeg,
       stretchToPolygon: seeded.stretchToPolygon,
       widthScale: seeded.widthScale,

@@ -172,6 +172,20 @@
     const confidence = numberField("Minimum confidence", binding?.minConfidence ?? 0.62, { min: 0.25, max: 1, step: 0.01 });
     const opacity = scope === "room" ? numberField("Verification opacity (optional)", binding?.verificationOpacity,
       { min: 0.1, max: 1, step: 0.01, placeholder: "Keep animation opacity" }) : null;
+    const soundRule = field("Play sound when", document.createElement("select"));
+    soundRule.add(new Option("The animation starts", "start"));
+    soundRule.add(new Option("The count increases on the board", "count-increase"));
+    soundRule.value = binding?.soundRule ?? "start";
+    if (def.assetRef === "special-scanning") {
+      const trackSound = numberField("Sound at exact round", def.trackSoundValue,
+        { min: 0, max: 15, step: 1, placeholder: "When the animation starts" });
+      trackSound.addEventListener("change", () => {
+        if (!trackSound.reportValidity()) return;
+        patchAnimation(scope, boardId, def.id, {
+          trackSoundValue: trackSound.value === "" ? null : trackSound.valueAsNumber,
+        });
+      });
+    }
     let available = new Map();
 
     function updateClasses(selectedClass = "") {
@@ -197,6 +211,7 @@
       patchAnimation(scope, boardId, def.id, { cameraTrigger: modelId && className ? {
         modelId, className, minConfidence: confidence.valueAsNumber || 0.62,
         verificationOpacity: opacity?.value ? opacity.valueAsNumber : null,
+        ...(soundRule.value === "count-increase" && { soundRule: soundRule.value }),
       } : null });
     }
 
@@ -205,7 +220,7 @@
       updateClasses();
       save();
     });
-    for (const input of [kind, confidence, opacity].filter(Boolean)) input.addEventListener("change", save);
+    for (const input of [kind, confidence, opacity, soundRule].filter(Boolean)) input.addEventListener("change", save);
     card.addEventListener("toggle", async () => {
       if (!card.open) return;
       try {

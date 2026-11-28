@@ -2,7 +2,8 @@ import { loadOpenCV, readBitmap, readImage } from "../calibration/calibration-im
 import { registerBoard } from "../calibration/calibration-math.js";
 import { checkTrainedFireShapes, detectFireTokens, firePositionIsOverexposed, makeFireGeometry,
   malfunctionPositionIsOverexposed } from "./fire-observer.js";
-import { isClassicNemesisBoard } from "./game-observer.js";
+import { isClassicNemesisBoard, makeGameLayout } from "./game-observer.js";
+import { followTrackBeads, prepareTrackBeads } from "./track-beads.js";
 
 const pieces = new Set(["alien", "character", "corpse", "dice", "door", "fire", "malfunction", "noise",
   "track-marker", "xeno-corpse"]);
@@ -62,6 +63,31 @@ export async function registerCameraBoard(board, frame, signal) {
   const registration = registerBoard(cv, reference, frame);
   const geometry = classic ? makeFireGeometry(registration, board.roomCatalog, frame.width, frame.height, reference) : null;
   return { cv, reference, registration, geometry, width: frame.width, height: frame.height };
+}
+
+export function createCameraTrackReader(board, layout, cv, registration, reference, frame) {
+  return followTrackBeads(prepareTrackBeads(layout.slots, registration, reference, frame), currentFrame => {
+    if (typeof Worker === "function") {
+      return new Promise((resolve, reject) => {
+        const worker = new Worker(new URL("./track-registration.worker.js", import.meta.url));
+        const finish = callback => value => {
+          clearTimeout(timeout);
+          worker.terminate();
+          callback(value);
+        };
+        const failed = finish(reject);
+        const succeeded = finish(resolve);
+        const timeout = setTimeout(() => failed(new Error("The track registration timed out.")), 15000);
+        worker.onmessage = ({ data }) => data.error ? failed(new Error(data.error)) : succeeded(data.slots);
+        worker.onerror = failed;
+        const { pixels, width, height } = currentFrame;
+        worker.postMessage({ board, reference, frame: { pixels, width, height } });
+      });
+    }
+    const updated = registerBoard(cv, reference, currentFrame);
+    const { slots } = makeGameLayout(board, updated, currentFrame.width, currentFrame.height);
+    return prepareTrackBeads(slots, updated, reference, currentFrame);
+  });
 }
 
 export async function checkCameraReading(model, setup, signal, currentFrame, currentId) {

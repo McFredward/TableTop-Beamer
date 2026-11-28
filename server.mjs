@@ -280,6 +280,7 @@ const processedMutations = new Map();
 const lastClientSequenceById = new Map();
 const lastBroadcastVersionByClient = new Map();
 const cameraAnimationCommands = new WeakSet();
+const cameraTrackAnnouncements = new Set();
 const cameraAnimationReadings = new Map();
 const MAX_PROCESSED_MUTATIONS = 4000;
 const LIVE_MUTATION_TYPES = new Set([
@@ -630,7 +631,7 @@ function beginCameraFadeOut(boardId, scope, animation) {
   }, duration).unref();
 }
 
-function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token, track,
+function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, action, definition, token, track, value,
   animationId, fadeStartedAt }) {
   if (boardId !== liveSessionState.snapshot.selectedBoard) return null;
   if (action === "finish-fade") {
@@ -645,6 +646,21 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
     !cameraVision.objectsFor(frameId, modelId)?.classes.includes(definition.cameraTrigger?.className)) return null;
 
   const runtime = readRuntimeSnapshot();
+  const soundOnCountIncrease = definition.cameraTrigger?.soundRule === "count-increase";
+  const soundOnTrackValue = Boolean(track && Number.isInteger(definition.trackSoundValue));
+  const trackSoundKey = JSON.stringify([boardId, track, definition.id, definition.trackSoundValue]);
+  if (action === "announce") {
+    const configured = track ? soundOnTrackValue && definition.trackSoundValue === value : soundOnCountIncrease;
+    if (!configured || !/^\/resources\/sounds\/[^/]+\.(mp3|wav|ogg|m4a)$/i.test(definition.soundAssetRef ?? "")) return null;
+    const createdAt = Date.now();
+    const id = `camera-sound-${boardId}-${definition.id}-${frameId}`;
+    const sounds = (runtime.cameraSounds ?? []).filter(sound => sound.startedAtEpochMs > createdAt - 10000);
+    if (sounds.some(sound => sound.id === id) || (track && cameraTrackAnnouncements.has(trackSoundKey))) return null;
+    if (track) cameraTrackAnnouncements.add(trackSoundKey);
+    return { runtime: { ...runtime, cameraSounds: [...sounds.slice(-7), {
+      id, boardId, soundAssetRef: definition.soundAssetRef, soundLoop: false, startedAtEpochMs: createdAt,
+    }] } };
+  }
   const animations = runtime.runningAnimations ?? [];
   const runtimeScope = scope === "room" ? "room" : "global";
   const owner = cameraAnimationOwner(scope, definition.id, roomId);
@@ -658,6 +674,7 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
     if (cameraAnimationReadings.size > 1024) cameraAnimationReadings.delete(cameraAnimationReadings.keys().next().value);
   }
   if (action === "stop") {
+    if (soundOnTrackValue && value > definition.trackSoundValue) cameraTrackAnnouncements.delete(trackSoundKey);
     if (!existing || existing.cameraTriggerObservedAt > observedAt) return null;
     if (existing.fadeEnabled !== true) return removeCameraAnimation(boardId, scope, existing);
     beginCameraFadeOut(boardId, scope, existing);
@@ -682,7 +699,9 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
   if (action !== "start" || existing || animations.some(item => item.boardId === boardId &&
       item.scope === runtimeScope && item.type === definition.id && (scope !== "room" || item.roomId === roomId))) return null;
 
-  const animation = { ...definition, id: `camera-${randomUUID()}`, boardId, scope: runtimeScope, roomId,
+  const separateSound = soundOnCountIncrease || soundOnTrackValue;
+  const animation = { ...definition, ...(separateSound && { soundAssetRef: "none" }),
+    id: `camera-${randomUUID()}`, boardId, scope: runtimeScope, roomId,
     type: definition.id, animationName: definition.name, hold: true, startedAtEpochMs: Date.now(),
     ...(track && { playbackMode: "loop" }),
     roomAssetType: definition.assetType, roomAssetRef: definition.assetRef,
@@ -691,7 +710,7 @@ function applyCameraAnimationPatch({ boardId, modelId, frameId, scope, roomId, a
 
   const patch = applyGlobalMutationPatch({ boardId, animationType: definition.id, action: "start", animation,
     outsideHint: scope === "outside", loopUntilStopped: Boolean(track) || scope === "outside" || Boolean(definition.loopUntilStopped),
-    playSound: scope === "outside" ? definition.soundEnabled : definition.soundAssetRef !== "none" });
+    playSound: !separateSound && (scope === "outside" ? definition.soundEnabled : definition.soundAssetRef !== "none") });
   const started = patch.runtime.runningAnimations.find(item => item.scope === "global" &&
     item.boardId === boardId && item.type === definition.id);
   if (started) {
@@ -4873,10 +4892,10 @@ const server = createServer(async (req, res) => {
       const { boardId, modelId, frameId, scope, animationId, roomId, action, token, track, value } = command ?? {};
       const native = track !== undefined;
       const active = native ? trackActivation(track, value) : undefined;
-      if (!["room", "inside", "outside"].includes(scope) || !["start", "stop", "verify"].includes(action) ||
-          (native ? active === undefined || action !== (active ? "start" : "stop") : typeof modelId !== "string") ||
+      if (!["room", "inside", "outside"].includes(scope) || !["start", "stop", "verify", "announce"].includes(action) ||
+          (native ? active === undefined || (action !== "announce" && action !== (active ? "start" : "stop")) : typeof modelId !== "string") ||
           typeof frameId !== "string" || typeof animationId !== "string" ||
-          (scope === "room" ? typeof roomId !== "string" : roomId !== null)) {
+          (scope === "room" && (native || action !== "announce") ? typeof roomId !== "string" : roomId !== null)) {
         res.writeHead(400).end();
         return;
       }
@@ -4891,17 +4910,20 @@ const server = createServer(async (req, res) => {
           binding.roomId === roomId && binding.definition.id === animationId)?.definition
         : board?.[scope + "Fx"]?.animations?.find(candidate => candidate.id === animationId && candidate.cameraTrigger?.modelId === modelId);
       if (boardId !== liveSessionState.snapshot.selectedBoard || !definition ||
-          (scope === "room" && !board?.roomCatalog.some(room => room.id === roomId))) {
+          (scope === "room" && (native || action !== "announce") && !board?.roomCatalog.some(room => room.id === roomId))) {
         res.writeHead(409).end();
         return;
       }
-      const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token, track };
+      const payload = { boardId, modelId, frameId, scope, roomId, action, definition, token, track, value };
       cameraAnimationCommands.add(payload);
       const ack = await acceptCommandMutation({ mutationType: "camera-animation", role: "camera-observer", payload });
       if (ack?.applied) { res.writeHead(204).end(); return; }
       if (!(native ? cameraVision.sourceFor(frameId) : cameraVision.objectsFor(frameId, modelId))) {
         res.setHeader("X-Camera-Reading-Expired", "1");
-      } else if (native && boardId === liveSessionState.snapshot.selectedBoard && !cameraAutomationPaused() &&
+      } else if (native && action === "announce" && cameraTrackAnnouncements.has(JSON.stringify([boardId, track, definition.id, value]))) {
+        res.writeHead(204).end();
+        return;
+      } else if (native && action !== "announce" && boardId === liveSessionState.snapshot.selectedBoard && !cameraAutomationPaused() &&
         cameraAutomation.accepts(token, Number(frameId.split("-")[0]))) {
         const owner = cameraAnimationOwner(scope, animationId, roomId);
         const running = liveSessionState.snapshot.runtime?.runningAnimations?.some(animation =>

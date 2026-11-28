@@ -1,9 +1,9 @@
 import { readBitmap } from "../calibration/calibration-images.js";
 import { createFireTracker, detectFireTokens } from "../vision/fire-observer.js";
 import { createGameObserver, makeGameLayout } from "../vision/game-observer.js";
-import { detectTrackBeads, prepareTrackBeads } from "../vision/track-beads.js";
 import { createAnimationCameraBindings } from "../vision/animation-camera-bindings.js";
-import { checkCameraReading, filterCameraObjects, readBoardObjects, registerCameraBoard } from "../vision/camera-board-readings.js";
+import { checkCameraReading, createCameraTrackReader, filterCameraObjects, readBoardObjects,
+  registerCameraBoard } from "../vision/camera-board-readings.js";
 import { createGameDetectionOverlay } from "./game-detection-overlay.js";
 
 const classLabels = {
@@ -137,7 +137,7 @@ export function createGameReview() {
     const layout = makeGameLayout(board, registration, frame.width, frame.height);
     setup = {
       cv, geometry, registration, width, height, id, generation,
-      beads: prepareTrackBeads(layout.slots, registration, reference, frame),
+      beads: createCameraTrackReader(board, layout, cv, registration, reference, frame),
       native: createGameObserver(layout), trained: createGameObserver({ ...layout, slots: [] }),
       fire: createFireTracker(), fireEffect: layout.effects.fire,
       bindings: createAnimationCameraBindings(board, registration, frame.width, frame.height),
@@ -148,7 +148,7 @@ export function createGameReview() {
   }
 
   function renderReadings(native, proposed, fallback, view) {
-    const trackCards = setup.beads.length ? ["round", "self-destruct"].map(kind => ({
+    const trackCards = setup.beads.slots.length ? ["round", "self-destruct"].map(kind => ({
       label: kind === "round" ? "Round" : "Self-destruct",
       ...native.tracks.find(track => track.kind === kind),
     })) : [];
@@ -178,13 +178,13 @@ export function createGameReview() {
     if (source.textContent !== label) source.textContent = label;
     source.dataset.state = view.classes.length && !view.delayed ? "live" : "waiting";
     const detail = view.classes.length ? view.classes.join(" · ")
-      : setup.beads.length || setup.fireEffect ? "Fire and counters are available while the trained model is offline."
+      : setup.beads.slots.length || setup.fireEffect ? "Fire and counters are available while the trained model is offline."
         : "Waiting for a trained model.";
     if (sourceClasses.textContent !== detail) sourceClasses.textContent = detail;
     for (const kind of view.classes) {
-      if (kind !== "track-marker" || !setup.beads.length) setup.knownClasses.add(kind);
+      if (kind !== "track-marker" || !setup.beads.slots.length) setup.knownClasses.add(kind);
     }
-    if (setup.beads.length) {
+    if (setup.beads.slots.length) {
       setup.knownClasses.add("round");
       setup.knownClasses.add("self-destruct");
     }
@@ -226,7 +226,7 @@ export function createGameReview() {
       classes: [...new Set(readings.flatMap(reading => reading.overlay.classes))],
       delayed: readings.some(reading => reading.overlay.delayed),
     };
-    const beads = detectTrackBeads(frame, setup.beads);
+    const beads = setup.beads.read(frame, Number(id.split("-")[0]));
     const hits = setup.geometry && setup.fireEffect && !view.classes.includes("fire")
       ? detectFireTokens(setup.cv, frame, setup.geometry) : null;
     const fallback = hits ? setup.fire.observe(frame, hits, id, Number(id.split("-")[0]))
@@ -247,7 +247,7 @@ export function createGameReview() {
     renderReadings(native, proposed, fallback, view);
 
     const seenSlots = native.tracks.map(reading => {
-      const previous = setup.beads.find(slot => slot.track === reading.kind && slot.value === reading.value);
+      const previous = setup.beads.slots.find(slot => slot.track === reading.kind && slot.value === reading.value);
       return previous ?? beads.objects.find(item => item.track === reading.kind);
     }).filter(Boolean);
     const markerBoxes = seenSlots.map(({ track, value, box }) => ({
@@ -259,7 +259,7 @@ export function createGameReview() {
       color: state === "visible" ? "#ffc359" : "#8be2ff",
     }));
     const modelBoxes = view.objects
-      .filter(item => item.kind !== "track-marker" || !setup.beads.length)
+      .filter(item => item.kind !== "track-marker" || !setup.beads.slots.length)
       .map(({ kind, confidence, box, contours }) => ({ kind, box, label: `${kind} ${Math.round(confidence * 100)}%`,
         color: "#7be4b5", contours }));
     const boxes = [...markerBoxes, ...fireBoxes, ...modelBoxes];
