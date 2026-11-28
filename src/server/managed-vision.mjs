@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -8,6 +8,18 @@ function isFile(path) {
   } catch {
     return false;
   }
+}
+
+function stopWorker(worker) {
+  if (!worker || worker.killed) return;
+  // A Windows venv launches the interpreter through a redirector.
+  if (process.platform === "win32" && worker.pid) {
+    const result = spawnSync("taskkill.exe", ["/F", "/T", "/PID", String(worker.pid)], {
+      windowsHide: true, stdio: "ignore", timeout: 3000,
+    });
+    if (result.status === 0) return;
+  }
+  worker.kill();
 }
 
 export function localVisionOptions({ root, env = process.env, platform = process.platform }) {
@@ -63,7 +75,8 @@ export function createManagedVision({ root, python, checkpoint, modelId = "nemes
         phaseSince = time;
       } else if (time - phaseSince >= 120_000 && !child.killed) {
         console.warn("[vision] Managed detector stopped making progress. Restarting it.");
-        child.kill();
+        phaseSince = time;
+        stopWorker(child);
       }
       return;
     }
@@ -116,9 +129,10 @@ export function createManagedVision({ root, python, checkpoint, modelId = "nemes
     },
     ensure,
     stop() {
+      if (shuttingDown) return;
       shuttingDown = true;
       clearInterval(timer);
-      child?.kill();
+      stopWorker(child);
     },
   };
 }
