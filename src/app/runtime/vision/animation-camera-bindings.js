@@ -1,5 +1,12 @@
 import { createGameObserver } from "./game-observer.js";
 
+function overlapArea([x, y, w, h], [a, b, c, d]) {
+  return Math.max(0, Math.min(x + w, a + c) - Math.max(x, a)) *
+    Math.max(0, Math.min(y + h, b + d) - Math.max(y, b));
+}
+
+const COUNT_OCCLUDERS = new Set(["alien", "character", "dice", "hand", "door", "corpse"]);
+
 export function followDetectedCount(className, confidence) {
   let lastId, accepted, candidate, readings = 0, since = 0;
   return frame => {
@@ -9,24 +16,36 @@ export function followDetectedCount(className, confidence) {
     const boxes = [];
     for (const { kind, confidence: score, box } of frame.objects) {
       if (kind !== className || score < confidence) continue;
-      const [x, y, w, h] = box;
-      const duplicate = boxes.some(([a, b, c, d]) => {
-        const intersection = Math.max(0, Math.min(x + w, a + c) - Math.max(x, a)) *
-          Math.max(0, Math.min(y + h, b + d) - Math.max(y, b));
-        return intersection >= 0.70 * Math.max(w * h, c * d);
-      });
+      const duplicate = boxes.some(other =>
+        overlapArea(box, other) >= 0.70 * Math.max(box[2] * box[3], other[2] * other[3]));
       if (!duplicate) boxes.push(box);
     }
     const count = boxes.length;
+    if (accepted && count < accepted.length) {
+      const [left, top, width, height] = frame.coverage ?? [0, 0, 1, 1];
+      const clear = accepted.every(box => {
+        const [x, y, w, h] = box;
+        const area = w * h;
+        if (boxes.some(current => overlapArea(box, current) >= 0.55 * area)) return true;
+        return x >= left && y >= top && x + w <= left + width && y + h <= top + height &&
+          !frame.objects.some(item => item.confidence >= 0.25 &&
+            (item.kind === className || COUNT_OCCLUDERS.has(item.kind)) && overlapArea(box, item.box) >= 0.24 * area);
+      });
+      if (!clear) {
+        candidate = undefined;
+        readings = 0;
+        return false;
+      }
+    }
     if (count !== candidate) {
       candidate = count;
       readings = 0;
       since = now;
     }
     readings++;
-    if (readings < 2 || (accepted !== undefined && count < accepted && (readings < 4 || now - since < 8000))) return false;
-    const increased = accepted !== undefined && count > accepted;
-    accepted = count;
+    if (readings < 2 || (accepted && count < accepted.length && (readings < 3 || now - since < 650))) return false;
+    const increased = accepted !== undefined && count > accepted.length;
+    accepted = boxes;
     return increased;
   };
 }

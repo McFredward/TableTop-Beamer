@@ -30,6 +30,19 @@ test("count announcements confirm a new piece across frames and ignore movement 
   assert.equal(read([item, elsewhere], 4800), false);
 });
 
+test("the sound can play again after a confirmed removal, without rearming under an occluder", () => {
+  const follow = followDetectedCount(item.kind, 0.8);
+  const hand = { ...item, kind: "hand" };
+  let n = 0;
+  const read = objects => follow({
+    frameId: `${1795740000000 + n * 600}-1-${++n}`, coverage: [0, 0, 1, 1], objects,
+  });
+  assert.deepEqual([read([]), read([]), read([item]), read([item])], [false, false, false, true]);
+  assert.deepEqual(Array.from({ length: 5 }, () => read([hand])), Array(5).fill(false));
+  assert.deepEqual([read([item]), read([item])], [false, false]);
+  assert.deepEqual([read([]), read([]), read([]), read([item]), read([item])], [false, false, false, false, true]);
+});
+
 test("an animation can publish its sound on a confirmed board-wide increase", () => {
   const board = makeBoard();
   board.roomFx.animations[0].soundAssetRef = "/resources/sounds/alert.mp3";
