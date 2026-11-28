@@ -56,6 +56,7 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   const binder = await bootOutputAudioBinder({ liveSync: {
     onAnimationStart: subscribe("start"), onAnimationStop: subscribe("stop"), onClearAll: subscribe("clear"),
     onSelectedBoardChange: subscribe("board"), getSelectedBoardId: () => boardId,
+    onConnect: subscribe("connect"), onDisconnect: subscribe("disconnect"),
   } });
   t.after(() => {
     if (currentOutput.state !== "closed") binder.stop();
@@ -114,6 +115,14 @@ test("projector audio starts at the beginning after HDMI wake, loops, and respec
   assert.equal(sources.length, 5);
   callbacks.stop(evacuation.id);
   assert.equal(sources[4].stopped, undefined);
+
+  callbacks.disconnect();
+  callbacks.connect();
+  await flush();
+  assert.equal(catalogRequests, 2);
+  assert.equal(requests, 4);
+  assert.equal(sources.length, 5);
+
   binder.stop();
   assert.equal(sources[0].stopped, true);
 });

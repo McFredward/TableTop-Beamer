@@ -160,10 +160,14 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
   const offStop = sub.onAnimationStop(stop);
   const offClear = sub.onClearAll(clear);
   const offBoardChange = sub.onSelectedBoardChange?.(preloadBoardSounds);
-  const offConfigUpdate = sub.onBoardConfigChange?.(() => preloadBoardSounds(sub.getSelectedBoardId()));
+  const preloadSelectedSounds = () => preloadBoardSounds(sub.getSelectedBoardId?.());
+  const offConfigUpdate = sub.onBoardConfigChange?.(preloadSelectedSounds);
+  // The server may have been upgraded while this receiver stayed open.
+  const offDisconnect = sub.onDisconnect?.(() => buffers.clear());
+  const offConnect = sub.onConnect?.(preloadSelectedSounds);
   // Kiosk Chromium can open the audio device while the output connects.
   try { void wakeOutput(getAudioOutput())?.catch(() => {}); } catch {}
-  preloadBoardSounds(sub.getSelectedBoardId?.());
+  preloadSelectedSounds();
 
   return {
     stop() {
@@ -172,6 +176,8 @@ export async function bootOutputAudioBinder({ logger = console, liveSync = null 
       offClear?.();
       offBoardChange?.();
       offConfigUpdate?.();
+      offDisconnect?.();
+      offConnect?.();
       clear();
       buffers.clear();
       if (keepAlive) {
