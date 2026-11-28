@@ -42,6 +42,7 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
     )
     marker_proposals = compact & (labels == "malfunction") & (scores >= 0.10) & (scores <= 0.82)
     possible_figures = compact & (labels == "alien") & (scores >= 0.13) & (scores < 0.62)
+    larva_proposals = compact & (labels == "larva") & (scores >= 0.42)
     ring_conflicts = compact & (labels == "dice") & (scores >= 0.22) & (scores < 0.76)
     weak_flames = mixed_flames & (scores < 0.82)
 
@@ -97,8 +98,20 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
         priority = scores + nearby_fire
         marker = np.argmax(np.where(marker_by_fire, priority, -1))
         groups[1].insert(0, (centers[marker], "marker-fire"))
-    if joint_markers is not None:
+    larva_order = np.flatnonzero(larva_proposals)
+    priority = scores + recent_support("figure")
+    larva_centers = []
+    for index in larva_order[np.argsort(-priority[larva_order], kind="stable")]:
+        if all(np.linalg.norm(centers[index] - point) >= 170 for point in larva_centers):
+            larva_centers.append(centers[index])
+    if joint_markers is not None and len(larva_centers) < 3:
         # Both pieces fit near the center of one native-resolution crop.
+        yield joint_markers
+    # Close views can resolve a larva even when the overview labels its
+    # low-profile miniature as a player or corpse.
+    for center in larva_centers:
+        yield center, "figure"
+    if joint_markers is not None and len(larva_centers) >= 3:
         yield joint_markers
     first_groups = groups[:3]
     if survey and groups[3]:
@@ -158,14 +171,17 @@ def resolve_piece_aliases(detections, sv, np):
         boxes, labels, scores = detections.xyxy, detections.data["class_name"], detections.confidence
     preferred = np.flatnonzero((np.isin(labels, ["corpse", "door", "xeno-corpse"]) & (scores >= 0.70)) |
                              ((labels == "character") & (scores >= 0.74)))
-    rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "corpse", "dice", "fire", "malfunction", "noise"]))
+    rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "corpse", "dice", "fire", "malfunction", "noise", "xeno-corpse"]))
     if not len(preferred) or not len(rivals):
         return drop_fire_dice_aliases(detections, sv, np)
     corpse_or_door = np.isin(labels[preferred, None], ["corpse", "door"])
     xeno_token = labels[preferred, None] == "xeno-corpse"
     competing = np.where(corpse_or_door, labels[preferred, None] != labels[rivals],
-                         np.where(xeno_token, labels[rivals] == "malfunction", labels[rivals] == "dice"))
+                         np.where(xeno_token, labels[rivals] == "malfunction", np.isin(labels[rivals], ["dice", "xeno-corpse"])))
     overlap = sv.box_iou_batch(boxes[preferred], boxes[rivals])
+    player_marker_alias = ((labels[preferred, None] == "character") & (scores[preferred, None] >= 0.88) &
+                           (labels[rivals] == "malfunction") & (overlap >= 0.65))
+    competing |= player_marker_alias
     weak_rival = corpse_or_door & (scores[preferred, None] >= 0.86) & (scores[rivals] < 0.62)
     weak_rival |= ((labels[preferred, None] == "door") & (labels[rivals] == "corpse") &
                    (scores[preferred, None] >= 0.85) & (scores[preferred, None] > scores[rivals]))
@@ -206,14 +222,17 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     marker_reference = reduced_projection.convert("L") if has_marker_rank and reduced_projection is not None else None
     verified_shapes = []
 
-    def rank_markers(boxes, paired=False):
-        rank = getattr(predictor, "rank_markers_near_fire", predictor.rank_markers) if paired else predictor.rank_markers
+    def rank_marker_views(rank, boxes):
         raw = rank(marker_image, boxes, np)
         if raw is None or marker_reference is None:
             return raw
         # A short pixel minimum removes the moving highlight while the
         # current frame remains evidence if a marker has just appeared.
         return np.maximum(raw, rank(marker_reference, boxes, np))
+
+    def rank_markers(boxes, paired=False):
+        rank = getattr(predictor, "rank_markers_near_fire", predictor.rank_markers) if paired else predictor.rank_markers
+        return rank_marker_views(rank, boxes)
 
     def align_marker_shape(boxes, scores):
         # Overview boxes move by several pixels as the projector changes the
@@ -231,7 +250,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             [labels == "character", labels == "corpse", labels == "door", labels == "xeno-corpse"],
             [0.50, 0.73, 0.78, 0.67],
         ))
-        visible &= labels != ""
+        visible &= (labels != "") & (labels != "larva")
         if has_marker_rank:
             dims = detections.xyxy[:, 2:] - detections.xyxy[:, :2]
             candidates = (labels == "malfunction") & (scores >= 0.10) & np.all((dims >= 26) & (dims <= 144), axis=1)
@@ -248,8 +267,20 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
                 if projection_rank and possible_glare.any():
                     # An independent shape fit for bright projections can
                     # confirm a good overview reading without steering crops.
-                    corroboration = projection_rank(marker_image, detections.xyxy[possible_glare], np)
+                    boxes = detections.xyxy[possible_glare]
+                    corroboration = rank_marker_views(projection_rank, boxes)
                     if corroboration is not None:
+                        uncertain = (corroboration >= 0.30) & (corroboration < 0.86)
+                        if uncertain.any():
+                            region = boxes[uncertain]
+                            center = (region[:, :2] + region[:, 2:]) / 2
+                            dimensions = region[:, 2:] - region[:, :2]
+                            offsets = np.array([[0, -0.23], [0, 0.23], [-0.15, 0], [0.15, 0], [0, 0]])
+                            shifted = center[:, None] + dimensions[:, None] * offsets
+                            half = dimensions[:, None] * (0.5 * np.array([0.9, 0.9, 0.9, 0.9, 0.81])[None, :, None])
+                            aligned = np.concatenate([shifted - half, shifted + half], axis=2)
+                            nearby = rank_marker_views(projection_rank, aligned.reshape(-1, 4)).reshape(-1, len(offsets))
+                            corroboration[uncertain] = np.maximum(corroboration[uncertain], nearby.max(axis=1))
                         overview_shape[possible_glare] = np.maximum(overview_shape[possible_glare], corroboration)
                 visible &= (labels != "malfunction") | (scores > 0.82) | (overview_shape >= 0.66)
         baseline = detections[visible]
@@ -282,8 +313,11 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     reviewed = []
     selected = []
     next_recent = []
+    verified_aliens = []
     for center, purpose in review_anchors(detections, recent, sv, np, survey, marker_shape):
         if any(np.linalg.norm(center - previous) < 170 for previous in selected):
+            continue
+        if purpose == "figure" and any(np.linalg.norm(center - previous) < 80 for previous in verified_aliens):
             continue
         if len(selected) == 3 or (deadline is not None and monotonic() >= deadline):
             break
@@ -313,20 +347,31 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             continue
         zoom.xyxy += (left, top, left, top)
         labels = zoom.data["class_name"]
-        zoom = zoom[np.isin(labels, tuple(limits))]
+        zoom = zoom[np.isin(labels, (*limits, "larva"))]
         zoom.data = {"class_name": zoom.data["class_name"]}
         if not len(zoom):
             continue
-        labels, scores, boxes = zoom.data["class_name"], zoom.confidence, zoom.xyxy
+        labels, scores, boxes = zoom.data["class_name"].copy(), zoom.confidence, zoom.xyxy
         dimensions = boxes[:, 2:] - boxes[:, :2]
         centers = (boxes[:, :2] + boxes[:, 2:]) / 2
         same = same_piece(boxes, dimensions, centers, sv, np)
         support = np.zeros(len(zoom), dtype=bool)
+        corroborated_larvae = np.zeros(len(zoom), dtype=bool)
         if len(detections):
             overlaps = sv.box_iou_batch(boxes, detections.xyxy)
             marker_hints = (detections.data["class_name"] == "malfunction") & (detections.confidence >= 0.10)
             support = np.where(labels == "malfunction", overlaps[:, marker_hints].max(axis=1, initial=0),
                                overlaps.max(axis=1)) >= 0.27
+            larva_hints = (detections.data["class_name"] == "larva") & (overlaps >= 0.32)
+            overview_larva = np.where(larva_hints, detections.confidence, 0).max(axis=1)
+            corroborated_larvae = ((labels == "larva") & (overview_larva >= 0.38) &
+                                  (scores >= np.where(overview_larva >= 0.65, 0.76, 0.80)) &
+                                  np.all((dimensions >= 26) & (dimensions <= 144), axis=1))
+        scores[(labels == "larva") & ~corroborated_larvae] = 0
+        labels[labels == "larva"] = "alien"
+        zoom.data["class_name"] = labels
+        competing_mini = np.isin(labels, ["alien", "character", "malfunction", "corpse", "xeno-corpse"]) & ~corroborated_larvae
+        scores[competing_mini & (same & corroborated_larvae).any(axis=1)] = 0
         distance = np.linalg.norm(centers - center, axis=1)
         central = distance <= 245
         # Independent pieces pass separately. A result without an overview
@@ -357,9 +402,11 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             if len(players):
                 # Only a focused figure review can overturn a reliable player.
                 overlap = sv.box_iou_batch(boxes, players).max(axis=1)
-                accepted &= (labels == "character") | (overlap < 0.40) | ((purpose == "figure") & (distance <= 85))
+                accepted &= ((labels == "character") | (overlap < 0.40) | corroborated_larvae |
+                             ((purpose == "figure") & (distance <= 85)))
         if accepted.any():
             reviewed.append(zoom[accepted])
+            verified_aliens.extend(centers[accepted & (labels == "alien")])
             target = {"flame": "fire", "figure": "alien"}.get(purpose, "malfunction")
             focus = accepted & (labels == target)
             best = np.argmin(np.where(focus if focus.any() else accepted, distance, np.inf))

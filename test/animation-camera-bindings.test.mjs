@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAnimationCameraBindings } from "../src/app/runtime/vision/animation-camera-bindings.js";
-import { checkCameraReading } from "../src/app/runtime/vision/camera-board-readings.js";
+import { checkCameraReading, filterCameraObjects } from "../src/app/runtime/vision/camera-board-readings.js";
 import { boardRegion } from "../src/app/runtime/calibration/calibration-math.js";
 
 const roomCatalog = [{ id: "room-1", name: "Workshop", polygon: [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]] }];
@@ -100,6 +100,20 @@ test("a perspective board edge excludes pieces and corrections whose anchors lie
   assert.deepEqual(checked.objects, [{ ...item, box: onBoard.box, anchor: onBoard.anchor }]);
   assert.deepEqual(checked.coverage, model.coverage);
   assert.equal(model.objects.length, 2);
+});
+
+test("boxes spanning several rooms are removed in board coordinates while large aliens remain", () => {
+  const at = ({ x, y }) => ({ x: 0.2 + 0.6 * x - 0.08 * y, y: 0.2 + 0.55 * y });
+  const referenceAt = ({ x, y }) => {
+    const v = (y - 0.2) / 0.55;
+    return { x: (x - 0.2 + 0.08 * v) / 0.6, y: v };
+  };
+  const giant = { kind: "character", confidence: 0.99, box: [0.32, 0.31, 0.3, 0.27], anchor: [0.47, 0.55] };
+  const alien = { kind: "alien", confidence: 0.96, box: [0.32, 0.31, 0.124, 0.14], anchor: [0.38, 0.44],
+    reclassifiedFrom: { kind: giant.kind, box: giant.box } };
+  const corrected = filterCameraObjects({ objects: [giant, alien] },
+    { width: 1, height: 1, registration: { contains: boardRegion(at), referenceAt } });
+  assert.deepEqual(corrected.objects, [{ kind: alien.kind, confidence: alien.confidence, box: alien.box, anchor: alien.anchor }]);
 });
 
 test("a blue projection pulse requests a dimmed malfunction check before clearing the effect", async () => {

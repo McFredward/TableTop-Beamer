@@ -4,6 +4,9 @@ import { checkTrainedFireShapes, detectFireTokens, firePositionIsOverexposed, ma
   malfunctionPositionIsOverexposed } from "./fire-observer.js";
 import { isClassicNemesisBoard } from "./game-observer.js";
 
+const pieces = new Set(["alien", "character", "corpse", "dice", "door", "fire", "malfunction", "noise",
+  "track-marker", "xeno-corpse"]);
+
 export async function readCameraBitmap(id, signal) {
   const response = await fetch("/api/camera/latest.jpg?" + new URLSearchParams({ frameId: id }), {
     cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(1800)]),
@@ -24,11 +27,21 @@ export async function readBoardObjects(signal, modelId, { preview = false } = {}
 export function filterCameraObjects(model, { registration, width, height }) {
   if (!registration) return model;
   const inside = ([x, y]) => registration.contains({ x: x * width, y: y * height });
-  const objects = model.objects.filter(item => inside(item.anchor)).map(item => {
+  function plausible({ kind, box: [x, y, w, h] }) {
+    if (!pieces.has(kind) || !registration.referenceAt) return true;
+    const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]
+      .map(([u, v]) => registration.referenceAt({ x: u * width, y: v * height }));
+    const xs = corners.map(point => point.x);
+    const ys = corners.map(point => point.y);
+    // The largest alien miniatures can extend beyond their room.
+    const [maxWidth, maxHeight] = kind === "alien" ? [0.26, 0.32] : [0.16, 0.20];
+    return Math.max(...xs) - Math.min(...xs) <= maxWidth && Math.max(...ys) - Math.min(...ys) <= maxHeight;
+  }
+  const objects = model.objects.filter(item => inside(item.anchor) && plausible(item)).map(item => {
     if (!item.reclassifiedFrom) return item;
     const { kind, box: [x, y, w, h] } = item.reclassifiedFrom;
     const anchor = [x + w / 2, y + h * (kind === "alien" || kind === "character" ? 0.92 : 0.5)];
-    if (inside(anchor)) return item;
+    if (inside(anchor) && plausible(item.reclassifiedFrom)) return item;
     const { reclassifiedFrom, ...filtered } = item;
     return filtered;
   });

@@ -207,8 +207,12 @@ class DetailDetector:
         head = model.model.model.class_embed
         base_classes = list(model.class_names)
         extra_classes = adapter.get("additionalClasses", {})
+        larva_review = adapter.get("larvaReview")
+        negative_review = adapter.get("negativeReview")
         self.classes = [*base_classes, *extra_classes]
-        if extra_classes and (len(base_classes) > head.out_features or set(extra_classes) & set(base_classes)):
+        prediction_classes = [*self.classes, "larva"] if larva_review else self.classes
+        if (extra_classes or larva_review) and (len(base_classes) > head.out_features or
+                                               len(set(prediction_classes)) != len(prediction_classes)):
             raise ValueError("The detail adapter cannot map its extra classes to the checkpoint head")
         self.variant = "legacy"
         context = adapter.get("contextReview", {})
@@ -233,6 +237,17 @@ class DetailDetector:
                                  persistent=False)
             head.register_buffer("detail_extra_bias", head.bias.new_tensor([row["bias"] for row in extra_classes.values()]),
                                  persistent=False)
+        if larva_review:
+            for variant, row in larva_review.items():
+                head.register_buffer(f"detail_larva_weights_{variant}", head.weight.new_tensor([row["weights"]]),
+                                     persistent=False)
+                head.register_buffer(f"detail_larva_bias_{variant}", head.bias.new_tensor([row["bias"]]),
+                                     persistent=False)
+        if negative_review:
+            head.register_buffer("detail_negative_weights", head.weight.new_tensor([negative_review["weights"]]),
+                                 persistent=False)
+            head.register_buffer("detail_negative_bias", head.bias.new_tensor([negative_review["bias"]]),
+                                 persistent=False)
         proposal_rules = {}
         for name, rows in variants.items():
             weights = torch.zeros_like(head.weight)
@@ -250,7 +265,7 @@ class DetailDetector:
                 suppress[class_index] = row.get("suppressOnly", False)
                 if support := row.get("proposalSupport"):
                     sources = [base_classes.index(source) for source in support["classes"]]
-                    proposal_rules[name].append((class_index, sources, support["minConfidence"]))
+                    proposal_rules[name].append((class_index, sources, support["minConfidence"], support.get("strongConfidence", 1)))
             for key, value in (("weights", weights), ("bias", bias), ("preserve", preserve),
                                ("limit", limit.logit()), ("suppress", suppress)):
                 head.register_buffer(f"detail_{key}_{name}", value, persistent=False)
@@ -263,22 +278,30 @@ class DetailDetector:
             adjusted = torch.minimum(output + learned, limit)
             adjusted = torch.where(suppress, torch.minimum(adjusted, output), adjusted)
             adjusted = torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
-            for class_index, sources, minimum in proposal_rules[self.variant]:
-                supported = output[..., sources].amax(dim=-1).sigmoid() >= minimum
+            for class_index, sources, minimum, strong in proposal_rules[self.variant]:
                 detected = adjusted[..., class_index]
+                supported = (output[..., sources].amax(dim=-1).sigmoid() >= minimum) | (detected.sigmoid() >= strong)
                 adjusted[..., class_index] = torch.where(supported, detected, torch.minimum(detected, output[..., class_index]))
-            if not extra_classes:
-                return adjusted
-            extra = torch.nn.functional.linear(args[0], layer.detail_extra_weights, layer.detail_extra_bias)
-            return torch.cat((adjusted[..., :len(base_classes)], extra), dim=-1)
+            scores = [adjusted[..., :len(base_classes)] if extra_classes or larva_review else adjusted]
+            if extra_classes:
+                scores.append(torch.nn.functional.linear(args[0], layer.detail_extra_weights, layer.detail_extra_bias))
+            if larva_review:
+                variant = "overview" if self.variant == "overview" else "detail"
+                scores.append(torch.nn.functional.linear(args[0], getattr(layer, f"detail_larva_weights_{variant}"),
+                                                         getattr(layer, f"detail_larva_bias_{variant}")))
+            result = torch.cat(scores, dim=-1) if len(scores) > 1 else scores[0]
+            if negative_review:
+                negative = torch.nn.functional.linear(args[0], layer.detail_negative_weights, layer.detail_negative_bias)
+                result = result.masked_fill(negative.sigmoid() >= negative_review["minConfidence"], -torch.inf)
+            return result
 
         hook = head.register_forward_hook(correct)
         try:
-            if extra_classes:
-                model.model.class_names = self.classes
+            if extra_classes or larva_review:
+                model.model.class_names = prediction_classes
             self.predictor = model.inference(compile=False)
         finally:
-            if extra_classes:
+            if extra_classes or larva_review:
                 model.model.class_names = base_classes
             hook.remove()
 

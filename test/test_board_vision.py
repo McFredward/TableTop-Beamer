@@ -119,11 +119,15 @@ class DetailDetectorTest(unittest.TestCase):
             "classes": {"character": {"weights": [0.], "bias": 6.,
                                       "proposalSupport": {"classes": ["character", "dice"], "minConfidence": 0.1}}},
             "additionalClasses": {"corpse": {"weights": [0.], "bias": -1.}, "door": {"weights": [2.], "bias": -2.}},
+            "larvaReview": {"overview": {"weights": [-2.], "bias": 1.}, "detail": {"weights": [4.], "bias": -1.}},
+            "negativeReview": {"weights": [20.], "bias": -30., "minConfidence": 0.8},
         }, torch)
         self.assertEqual(checkpoint.class_names, ["character", "dice"])
-        self.assertEqual(detector.predictor.class_names, ["character", "dice", "corpse", "door"])
-        actual = detector.predict(torch.tensor([[0.], [1.]]))
-        torch.testing.assert_close(actual, torch.tensor([[-3., -4., -1., -2.], [3., 4., -1., 0.]]))
+        self.assertEqual(detector.classes, ["character", "dice", "corpse", "door"])
+        self.assertEqual(detector.predictor.class_names, [*detector.classes, "larva"])
+        actual = detector.predict(torch.tensor([[0.], [1.], [2.]]))
+        torch.testing.assert_close(actual[:2], torch.tensor([[-3., -4., -1., -2., -1.], [3., 4., -1., 0., 3.]]))
+        self.assertTrue(torch.isneginf(actual[2]).all())
 
 
 class SmallObjectRefinementTest(unittest.TestCase):
@@ -228,7 +232,7 @@ class SmallObjectRefinementTest(unittest.TestCase):
 class BoardContextReviewTest(unittest.TestCase):
     @staticmethod
     def detections(objects):
-        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse", "door", "xeno-corpse"]
+        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse", "door", "xeno-corpse", "larva"]
         return sv.Detections(xyxy=np.array([box for _, _, box in objects], dtype=np.float32),
                              confidence=np.array([score for _, score, _ in objects]),
                              class_id=np.array([classes.index(label) for label, _, _ in objects]),
@@ -288,6 +292,27 @@ class BoardContextReviewTest(unittest.TestCase):
         result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
         self.assertEqual(result.data["class_name"].tolist(), ["malfunction", "character"])
         np.testing.assert_allclose(result.confidence, [.79, .96])
+
+    def test_a_larva_review_keeps_the_adjacent_player_and_corpse(self):
+        larva = [278, 254, 338, 321]
+        player = [338, 267, 420, 356]
+        corpse = [215, 286, 299, 367]
+        coarse = self.detections([("larva", .55, larva), ("character", .89, larva),
+                                  ("character", .95, player), ("corpse", .91, corpse)])
+        detail = self.detections([("larva", .91, larva), ("character", .94, larva),
+                                 ("character", .96, player), ("corpse", .92, corpse)])
+
+        class Predictor:
+            def predict_context(self, _crop, *, purpose, **_options):
+                self.purpose = purpose
+                return detail[:]
+
+        predictor = Predictor()
+        result, _ = refine_board_context(predictor, Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertEqual(predictor.purpose, "figure")
+        self.assertCountEqual(result.data["class_name"], ["alien", "character", "corpse"])
+        self.assertEqual(result.data["reclassified_kind"][result.data["class_name"] == "alien"].item(), "character")
+        np.testing.assert_allclose(result.xyxy[result.data["class_name"] == "character"], [player])
 
     def test_crowded_marker_review_keeps_larva_and_bridges_only_the_missing_marker(self):
         nearby = [240, 205, 302, 270]
