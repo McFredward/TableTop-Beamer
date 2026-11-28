@@ -133,19 +133,22 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
         yield from group
 
 
-def drop_fire_dice_aliases(detections, sv, np):
-    """Reject duplicate fire labels on dice in an unreviewed overview region."""
+def resolve_fire_dice_aliases(detections, sv, np):
+    """Use one label for a piece with overlapping fire and dice predictions."""
     if not len(detections):
         return detections
     labels = detections.data["class_name"]
     fire = np.flatnonzero(labels == "fire")
-    dice = np.flatnonzero((labels == "dice") & (detections.confidence >= 0.42))
+    dice = np.flatnonzero(labels == "dice")
     if not len(fire) or not len(dice):
         return detections
-    overlap = sv.box_iou_batch(detections.xyxy[fire], detections.xyxy[dice])
-    competitive = detections.confidence[dice] + 0.32 >= detections.confidence[fire, None]
+    same = sv.box_iou_batch(detections.xyxy[fire], detections.xyxy[dice]) >= 0.67
+    decisive_fire = detections.confidence[fire, None] > detections.confidence[dice] + 0.32
+    plausible_dice = detections.confidence[dice] >= 0.42
+    strong_fire = detections.confidence[fire, None] >= 0.72
     keep = np.ones(len(detections), dtype=bool)
-    keep[fire] = ~((overlap >= 0.67) & competitive).any(axis=1)
+    keep[fire] = ~(same & plausible_dice & ~decisive_fire).any(axis=1)
+    keep[dice] = ~(same & strong_fire & decisive_fire).any(axis=0)
     return detections[keep]
 
 
@@ -173,7 +176,7 @@ def resolve_piece_aliases(detections, sv, np):
                              ((labels == "character") & (scores >= 0.74)))
     rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "corpse", "dice", "fire", "malfunction", "noise", "xeno-corpse"]))
     if not len(preferred) or not len(rivals):
-        return drop_fire_dice_aliases(detections, sv, np)
+        return resolve_fire_dice_aliases(detections, sv, np)
     corpse_or_door = np.isin(labels[preferred, None], ["corpse", "door"])
     xeno_token = labels[preferred, None] == "xeno-corpse"
     competing = np.where(corpse_or_door, labels[preferred, None] != labels[rivals],
@@ -193,7 +196,7 @@ def resolve_piece_aliases(detections, sv, np):
     matches &= scores[preferred, None] >= scores[rivals] + np.where(corpse_or_door, -0.06, 0.10)
     matches &= (labels[rivals] != "corpse") | (scores[preferred, None] > scores[rivals])
     if not matches.any():
-        return drop_fire_dice_aliases(detections, sv, np)
+        return resolve_fire_dice_aliases(detections, sv, np)
     corrections = detections.data.get("reclassified_box", np.full(detections.xyxy.shape, np.nan)).copy()
     kinds = detections.data.get("reclassified_kind", np.full(len(detections), "", dtype="<U80")).copy()
     for row in np.flatnonzero(matches.any(axis=1)):
@@ -206,7 +209,7 @@ def resolve_piece_aliases(detections, sv, np):
     result = detections[keep]
     result.data["reclassified_box"] = corrections[keep]
     result.data["reclassified_kind"] = kinds[keep]
-    return drop_fire_dice_aliases(result, sv, np)
+    return resolve_fire_dice_aliases(result, sv, np)
 
 
 def refine_board_context(predictor, image, detections, threshold, recent=(), reduced_projection=None,

@@ -432,6 +432,14 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(result.data["class_name"].tolist(), ["dice", "fire"])
         np.testing.assert_allclose(result.xyxy, [die, fire])
 
+    def test_a_decisive_fire_result_removes_only_its_own_weak_dice_label(self):
+        fire = [296, 308, 359, 368]
+        die = [201, 263, 278, 331]
+        coarse = self.detections([("fire", .94, fire), ("dice", .55, fire), ("dice", .91, die)])
+        result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
+        self.assertEqual(result.data["class_name"].tolist(), ["fire", "dice"])
+        np.testing.assert_allclose(result.xyxy, [fire, die])
+
     def test_a_defect_without_an_overview_box_survives_next_to_fire_and_a_large_alien(self):
         fire = [286, 328, 350, 388]
         alien = [310, 204, 497, 357]
