@@ -128,35 +128,39 @@ def resolve_piece_aliases(detections, sv, np):
     boxes = detections.xyxy
     labels = detections.data["class_name"]
     scores = detections.confidence
-    corpses = np.flatnonzero(labels == "corpse")
-    if len(corpses) > 1:
-        parts = boxes[corpses]
+    minis = np.flatnonzero(np.isin(labels, ["character", "corpse", "door"]))
+    if len(minis) > 1:
+        parts = boxes[minis]
         areas = np.prod(parts[:, 2:] - parts[:, :2], axis=1)
         iou = sv.box_iou_batch(parts, parts)
         intersection = iou / (1 + iou) * (areas[:, None] + areas)
         contained = (intersection >= areas * 0.86) & (areas[:, None] >= areas * 1.45)
-        contained &= scores[corpses, None] + 0.08 >= scores[corpses]
+        contained &= labels[minis, None] == labels[minis]
+        contained &= scores[minis, None] + 0.08 >= scores[minis]
         keep = np.ones(len(detections), dtype=bool)
-        keep[corpses[contained.any(axis=0)]] = False
+        keep[minis[contained.any(axis=0)]] = False
         detections = detections[keep]
         boxes, labels, scores = detections.xyxy, detections.data["class_name"], detections.confidence
-    figures = np.flatnonzero(((labels == "corpse") & (scores >= 0.70)) |
+    preferred = np.flatnonzero((np.isin(labels, ["corpse", "door"]) & (scores >= 0.70)) |
                              ((labels == "character") & (scores >= 0.74)))
-    rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "dice", "fire", "malfunction", "noise"]))
-    if not len(figures) or not len(rivals):
+    rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "corpse", "dice", "fire", "malfunction", "noise"]))
+    if not len(preferred) or not len(rivals):
         return drop_fire_dice_aliases(detections, sv, np)
-    corpse = labels[figures, None] == "corpse"
-    competing = np.where(corpse, labels[rivals] != "corpse", labels[rivals] == "dice")
-    overlap = sv.box_iou_batch(boxes[figures], boxes[rivals])
-    weak_rival = corpse & (scores[figures, None] >= 0.86) & (scores[rivals] < 0.62)
-    matches = competing & (overlap >= np.where(weak_rival, 0.42, np.where(corpse, 0.54, 0.64)))
-    matches &= scores[figures, None] >= scores[rivals] + np.where(corpse, -0.06, 0.10)
+    corpse_or_door = np.isin(labels[preferred, None], ["corpse", "door"])
+    competing = np.where(corpse_or_door, labels[preferred, None] != labels[rivals], labels[rivals] == "dice")
+    overlap = sv.box_iou_batch(boxes[preferred], boxes[rivals])
+    weak_rival = corpse_or_door & (scores[preferred, None] >= 0.86) & (scores[rivals] < 0.62)
+    weak_rival |= ((labels[preferred, None] == "door") & (labels[rivals] == "corpse") &
+                   (scores[preferred, None] >= 0.85) & (scores[preferred, None] > scores[rivals]))
+    matches = competing & (overlap >= np.where(weak_rival, 0.42, np.where(corpse_or_door, 0.54, 0.64)))
+    matches &= scores[preferred, None] >= scores[rivals] + np.where(corpse_or_door, -0.06, 0.10)
+    matches &= (labels[rivals] != "corpse") | (scores[preferred, None] > scores[rivals])
     if not matches.any():
         return drop_fire_dice_aliases(detections, sv, np)
     corrections = detections.data.get("reclassified_box", np.full(detections.xyxy.shape, np.nan)).copy()
     kinds = detections.data.get("reclassified_kind", np.full(len(detections), "", dtype="<U80")).copy()
     for row in np.flatnonzero(matches.any(axis=1)):
-        winner = figures[row]
+        winner = preferred[row]
         loser = rivals[np.argmax(np.where(matches[row], scores[rivals], -1))]
         corrections[winner] = detections.xyxy[loser]
         kinds[winner] = labels[loser]
@@ -191,7 +195,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     if len(detections):
         labels = detections.data["class_name"]
         scores = detections.confidence
-        visible = scores >= np.where(labels == "corpse", max(threshold, 0.73), threshold)
+        visible = scores >= np.maximum(threshold, np.select(
+            [labels == "character", labels == "corpse", labels == "door"], [0.50, 0.73, 0.78],
+        ))
         visible &= labels != ""
         if hasattr(predictor, "rank_markers"):
             marker_image = image.convert("L")
@@ -226,7 +232,8 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             uncertain &= (baseline.confidence < 0.75) | (marker_shape[visible] < 0.86)
         baseline.confidence[uncertain] = np.minimum(baseline.confidence[uncertain], 0.60)
 
-    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73, "character": 0.78, "corpse": 0.78}
+    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73,
+              "character": 0.78, "corpse": 0.78, "door": 0.78}
     reviewed = []
     selected = []
     next_recent = []
@@ -295,7 +302,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         unseeded_class = {"crowd": "malfunction", "figure": "alien", "flame": "fire"}.get(purpose)
         discovery_confidence = 0.82 if purpose == "figure" else 0.88
         new_near_anchor = (labels == unseeded_class) & compact & (distance <= 110) & (scores >= discovery_confidence)
-        size_ok = compact | np.isin(labels, ["alien", "character"])
+        size_ok = compact | np.isin(labels, ["alien", "character", "door"])
         rivals = np.where(same & (labels[:, None] != labels), scores, 0).max(axis=1)
         accepted = central & size_ok & (scores >= cutoff) & (scores >= rivals + 0.085) & (support | new_near_anchor | shape_supported)
         if len(baseline):

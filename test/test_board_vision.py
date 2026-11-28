@@ -2,7 +2,9 @@
 
 import sys
 import unittest
+from copy import deepcopy
 from pathlib import Path
+from types import SimpleNamespace
 
 try:
     import numpy as np
@@ -15,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from board_context_review import refine_board_context
 from board_vision import predict_tiled, refine_small_objects, resize_detections
-from stream_board_vision import annotate, board_objects
+from stream_board_vision import DetailDetector, annotate, board_objects
 
 
 class PixelPredictor:
@@ -87,6 +89,41 @@ class TileCoordinatesTest(unittest.TestCase):
         payload = board_objects("frame", {"fire"}, detections, image.size, image.size, None, np)
         self.assertEqual(payload["objects"], [])
         self.assertEqual(payload["classes"], ["fire"])
+
+
+class DetailDetectorTest(unittest.TestCase):
+    def test_added_labels_can_outnumber_the_checkpoint_slots_and_boosts_require_evidence(self):
+        try:
+            import torch
+        except ImportError as error:
+            self.skipTest(str(error))
+
+        head = torch.nn.Linear(1, 3)
+        with torch.no_grad():
+            head.weight.copy_(torch.tensor([[0.], [8.], [0.]]))
+            head.bias.copy_(torch.tensor([-3., -4., 0.]))
+
+        class Checkpoint:
+            model = SimpleNamespace(model=SimpleNamespace(class_embed=head), class_names=["character", "dice"])
+
+            @property
+            def class_names(self):
+                return self.model.class_names
+
+            def inference(self, *, compile):
+                snapshot = deepcopy(self.model.model.class_embed)
+                return SimpleNamespace(class_names=list(self.class_names), predict=lambda x, **_: snapshot(x))
+
+        checkpoint = Checkpoint()
+        detector = DetailDetector(checkpoint, {
+            "classes": {"character": {"weights": [0.], "bias": 6.,
+                                      "proposalSupport": {"classes": ["character", "dice"], "minConfidence": 0.1}}},
+            "additionalClasses": {"corpse": {"weights": [0.], "bias": -1.}, "door": {"weights": [2.], "bias": -2.}},
+        }, torch)
+        self.assertEqual(checkpoint.class_names, ["character", "dice"])
+        self.assertEqual(detector.predictor.class_names, ["character", "dice", "corpse", "door"])
+        actual = detector.predict(torch.tensor([[0.], [1.]]))
+        torch.testing.assert_close(actual, torch.tensor([[-3., -4., -1., -2.], [3., 4., -1., 0.]]))
 
 
 class SmallObjectRefinementTest(unittest.TestCase):
@@ -191,7 +228,7 @@ class SmallObjectRefinementTest(unittest.TestCase):
 class BoardContextReviewTest(unittest.TestCase):
     @staticmethod
     def detections(objects):
-        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse"]
+        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse", "door"]
         return sv.Detections(xyxy=np.array([box for _, _, box in objects], dtype=np.float32),
                              confidence=np.array([score for _, score, _ in objects]),
                              class_id=np.array([classes.index(label) for label, _, _ in objects]),
@@ -216,6 +253,21 @@ class BoardContextReviewTest(unittest.TestCase):
         minis = {piece["kind"]: piece for piece in payload["objects"] if piece.get("reclassifiedFrom")}
         self.assertEqual(minis["corpse"]["reclassifiedFrom"]["kind"], "fire")
         self.assertEqual(minis["character"]["reclassifiedFrom"]["kind"], "dice")
+
+    def test_upright_and_lying_doors_replace_only_labels_at_the_door(self):
+        upright = [125, 175, 201, 314]
+        lying = [325, 400, 465, 476]
+        figure = [185, 262, 264, 367]
+        fire = [419, 443, 478, 505]
+        coarse = self.detections([
+            ("door", .94, upright), ("character", .87, upright),
+            ("door", .92, lying), ("malfunction", .89, lying),
+            ("corpse", .88, [358, 416, 451, 474]),
+            ("character", .93, figure), ("fire", .88, fire),
+        ])
+        result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
+        self.assertCountEqual(result.data["class_name"].tolist(), ["door", "door", "character", "fire"])
+        self.assertEqual(result.data["reclassified_kind"].tolist(), ["character", "malfunction", "", ""])
 
     def test_one_close_view_keeps_the_marker_and_die_as_independent_pieces(self):
         fire = [296, 308, 359, 368]

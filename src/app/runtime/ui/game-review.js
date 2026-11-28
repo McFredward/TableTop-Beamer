@@ -7,7 +7,7 @@ import { checkCameraReading, filterCameraObjects, readBoardObjects, registerCame
 import { createGameDetectionOverlay } from "./game-detection-overlay.js";
 
 const classLabels = {
-  alien: "Aliens", character: "Player figures", corpse: "Corpse miniatures", dice: "Dice", fire: "Fire",
+  alien: "Aliens", character: "Player figures", corpse: "Corpse miniatures", dice: "Dice", door: "Doors", fire: "Fire",
   hand: "Hands", malfunction: "Malfunction", noise: "Noise", round: "Round counter",
   "self-destruct": "Self-destruct counter", "track-marker": "Track markers",
 };

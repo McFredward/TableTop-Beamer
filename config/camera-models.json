@@ -2,10 +2,10 @@
   "models": [
     {
       "id": "nemesis",
-      "name": "Nemesis (8 classes)",
+      "name": "Nemesis (9 classes)",
       "variant": "large",
       "checkpointSha256": "3e3337105f3b59720ec4f760f8834b39daab836e12821c4958cff157a324e2ed",
-      "classes": ["alien", "character", "corpse", "dice", "fire", "malfunction", "noise", "track-marker"],
+      "classes": ["alien", "character", "corpse", "dice", "door", "fire", "malfunction", "noise", "track-marker"],
       "smallObjectClasses": ["alien", "character", "malfunction"],
       "detailAdapter": "camera-model-adapters/nemesis-detail.json"
     },

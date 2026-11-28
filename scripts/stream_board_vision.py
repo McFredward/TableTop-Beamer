@@ -208,7 +208,7 @@ class DetailDetector:
         base_classes = list(model.class_names)
         extra_classes = adapter.get("additionalClasses", {})
         self.classes = [*base_classes, *extra_classes]
-        if extra_classes and (len(self.classes) > head.out_features or set(extra_classes) & set(base_classes)):
+        if extra_classes and (len(base_classes) > head.out_features or set(extra_classes) & set(base_classes)):
             raise ValueError("The detail adapter cannot map its extra classes to the checkpoint head")
         self.variant = "legacy"
         context = adapter.get("contextReview", {})
@@ -227,22 +227,29 @@ class DetailDetector:
             "flame": {**context, **adapter.get("flameReview", {})},
             "overview": adapter.get("overviewReview", {}),
         }
-        absolute = torch.zeros_like(head.bias, dtype=torch.bool)
-        absolute[len(base_classes):len(self.classes)] = True
-        head.register_buffer("detail_absolute", absolute, persistent=False)
+        if extra_classes:
+            head.register_buffer("detail_extra_weights", head.weight.new_tensor([row["weights"] for row in extra_classes.values()]),
+                                 persistent=False)
+            head.register_buffer("detail_extra_bias", head.bias.new_tensor([row["bias"] for row in extra_classes.values()]),
+                                 persistent=False)
+        proposal_rules = {}
         for name, rows in variants.items():
             weights = torch.zeros_like(head.weight)
             bias = torch.zeros_like(head.bias)
             preserve = torch.full_like(head.bias, 1)
             limit = torch.full_like(head.bias, 1)
             suppress = torch.zeros_like(head.bias, dtype=torch.bool)
-            for label, row in {**rows, **extra_classes}.items():
-                class_index = self.classes.index(label)
+            proposal_rules[name] = []
+            for label, row in rows.items():
+                class_index = base_classes.index(label)
                 weights[class_index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
                 bias[class_index] = row["bias"]
                 preserve[class_index] = row.get("preserveConfidence", 1)
                 limit[class_index] = row.get("maxConfidence", 1)
                 suppress[class_index] = row.get("suppressOnly", False)
+                if support := row.get("proposalSupport"):
+                    sources = [base_classes.index(source) for source in support["classes"]]
+                    proposal_rules[name].append((class_index, sources, support["minConfidence"]))
             for key, value in (("weights", weights), ("bias", bias), ("preserve", preserve),
                                ("limit", limit.logit()), ("suppress", suppress)):
                 head.register_buffer(f"detail_{key}_{name}", value, persistent=False)
@@ -255,7 +262,14 @@ class DetailDetector:
             adjusted = torch.minimum(output + learned, limit)
             adjusted = torch.where(suppress, torch.minimum(adjusted, output), adjusted)
             adjusted = torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
-            return torch.where(layer.detail_absolute, learned, adjusted)
+            for class_index, sources, minimum in proposal_rules[self.variant]:
+                supported = output[..., sources].amax(dim=-1).sigmoid() >= minimum
+                detected = adjusted[..., class_index]
+                adjusted[..., class_index] = torch.where(supported, detected, torch.minimum(detected, output[..., class_index]))
+            if not extra_classes:
+                return adjusted
+            extra = torch.nn.functional.linear(args[0], layer.detail_extra_weights, layer.detail_extra_bias)
+            return torch.cat((adjusted[..., :len(base_classes)], extra), dim=-1)
 
         hook = head.register_forward_hook(correct)
         try:
