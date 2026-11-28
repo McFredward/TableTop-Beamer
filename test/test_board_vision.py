@@ -93,6 +93,34 @@ class TileCoordinatesTest(unittest.TestCase):
 
 
 class DetailDetectorTest(unittest.TestCase):
+    def test_high_base_confidence_is_kept_for_markers_when_the_correction_agrees(self):
+        import torch
+
+        head = torch.nn.Linear(1, 1)
+        with torch.no_grad():
+            head.weight.zero_()
+            head.bias.fill_(2.0)
+
+        class Checkpoint:
+            model = SimpleNamespace(model=SimpleNamespace(class_embed=head), class_names=["malfunction"])
+
+            @property
+            def class_names(self):
+                return self.model.class_names
+
+            def inference(self, *, compile):
+                snapshot = deepcopy(self.model.model.class_embed)
+                return SimpleNamespace(predict=lambda x, **_: snapshot(x))
+
+        detector = DetailDetector(Checkpoint(), {
+            "classes": {},
+            "overviewReview": {"malfunction": {"weights": [4.], "bias": -4.,
+                                              "maxConfidence": .79, "preserveConfidence": .82,
+                                              "preserveAgreement": .45}},
+        }, torch)
+        with detector.using_variant("overview"):
+            torch.testing.assert_close(detector.predict(torch.tensor([[0.], [1.]])), torch.tensor([[-2.], [2.]]))
+
     def test_added_labels_can_outnumber_the_checkpoint_slots_and_boosts_require_evidence(self):
         try:
             import torch
@@ -258,6 +286,28 @@ class BoardContextReviewTest(unittest.TestCase):
         minis = {piece["kind"]: piece for piece in payload["objects"] if piece.get("reclassifiedFrom")}
         self.assertEqual(minis["corpse"]["reclassifiedFrom"]["kind"], "fire")
         self.assertEqual(minis["character"]["reclassifiedFrom"]["kind"], "dice")
+
+    def test_a_large_player_proposal_gets_a_figure_review_before_competing_crops(self):
+        adult = [135, 160, 360, 315]
+        different_player = [560, 460, 780, 610]
+        coarse = self.detections([("character", .78, adult), ("alien", .14, adult),
+                                  ("character", .91, different_player)])
+        center, purpose = next(review_anchors(coarse, [], sv, np))
+        self.assertEqual(purpose, "figure")
+        np.testing.assert_allclose(center, [247.5, 237.5])
+
+    def test_a_verified_large_alien_replaces_its_aliases_and_keeps_nearby_pieces(self):
+        adult = [132, 145, 350, 298]
+        alias = [132, 143, 351, 296]
+        fragment = [152, 155, 273, 266]
+        player = [355, 211, 432, 289]
+        larva = [288, 247, 340, 294]
+        fire = [303, 282, 373, 346]
+        coarse = self.detections([("character", .90, alias), ("alien", .89, adult),
+                                  ("alien", .83, fragment), ("character", .94, player),
+                                  ("alien", .90, larva), ("fire", .90, fire)])
+        result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
+        np.testing.assert_allclose(result.xyxy, [adult, player, larva, fire])
 
     def test_xeno_token_replaces_its_own_defect_alias_and_keeps_the_adjacent_gear(self):
         token = [310, 275, 376, 345]

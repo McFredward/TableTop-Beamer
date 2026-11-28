@@ -232,6 +232,7 @@ class DetailDetector:
             "legacy": adapter["classes"],
             "player": {**adapter["classes"], **adapter.get("playerReview", {})},
             "context": context,
+            "figure": {**context, **adapter.get("figureReview", {})},
             "marker": marker_review,
             "flame": {**context, **adapter.get("flameReview", {})},
             "overview": adapter.get("overviewReview", {}),
@@ -257,6 +258,7 @@ class DetailDetector:
             weights = torch.zeros_like(head.weight)
             bias = torch.zeros_like(head.bias)
             preserve = torch.full_like(head.bias, 1)
+            agreement = torch.zeros_like(head.bias)
             limit = torch.full_like(head.bias, 1)
             suppress = torch.zeros_like(head.bias, dtype=torch.bool)
             proposal_rules[name] = []
@@ -265,23 +267,28 @@ class DetailDetector:
                 weights[class_index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
                 bias[class_index] = row["bias"]
                 preserve[class_index] = row.get("preserveConfidence", 1)
+                agreement[class_index] = row.get("preserveAgreement", 0)
                 limit[class_index] = row.get("maxConfidence", 1)
                 suppress[class_index] = row.get("suppressOnly", False)
                 if support := row.get("proposalSupport"):
                     sources = [base_classes.index(source) for source in support["classes"]]
                     proposal_rules[name].append((class_index, sources, support["minConfidence"], support.get("strongConfidence", 1)))
-            for key, value in (("weights", weights), ("bias", bias), ("preserve", preserve),
+            for key, value in (("weights", weights), ("bias", bias), ("preserve", preserve), ("agreement", agreement.logit()),
                                ("limit", limit.logit()), ("suppress", suppress)):
                 head.register_buffer(f"detail_{key}_{name}", value, persistent=False)
 
         # Small-piece crops and player reviews share one inference model.
         def correct(layer, args, output):
-            weights, bias, preserve, limit, suppress = (getattr(layer, f"detail_{key}_{self.variant}")
-                                                        for key in ("weights", "bias", "preserve", "limit", "suppress"))
+            weights, bias, preserve, agreement, limit, suppress = (
+                getattr(layer, f"detail_{key}_{self.variant}")
+                for key in ("weights", "bias", "preserve", "agreement", "limit", "suppress")
+            )
             learned = torch.nn.functional.linear(args[0], weights, bias)
-            adjusted = torch.minimum(output + learned, limit)
+            corrected = output + learned
+            adjusted = torch.minimum(corrected, limit)
             adjusted = torch.where(suppress, torch.minimum(adjusted, output), adjusted)
-            adjusted = torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
+            adjusted = torch.where((output.sigmoid() >= preserve) & (corrected >= agreement),
+                                   torch.maximum(output, adjusted), adjusted)
             for class_index, sources, minimum, strong in proposal_rules[self.variant]:
                 detected = adjusted[..., class_index]
                 supported = (output[..., sources].amax(dim=-1).sigmoid() >= minimum) | (detected.sigmoid() >= strong)
@@ -317,7 +324,7 @@ class DetailDetector:
             return self.predict(*args, **options)
 
     def predict_context(self, *args, purpose, **options):
-        variant = {"marker": "marker", "general": "marker", "flame": "flame"}.get(purpose, "context")
+        variant = {"marker": "marker", "general": "marker", "flame": "flame", "figure": "figure"}.get(purpose, "context")
         with self.using_variant(variant):
             return self.predict(*args, **options)
 

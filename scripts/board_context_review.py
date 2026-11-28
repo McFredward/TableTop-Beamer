@@ -40,6 +40,16 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
         ((scores >= 0.48) & (same & aliases).any(axis=1)) |
         ((scores >= 0.30) & (same & dice).any(axis=1))
     )
+    feature_sizes = dimensions.max(axis=1)
+    # The figure review can see the base of a large miniature even when its
+    # overview box is mistaken for a player's piece or includes its shadow.
+    large_aliens = (labels == "alien") & (scores >= 0.055) & (scores < 0.73)
+    alien_alternative = np.where(same & large_aliens, scores, 0).max(axis=1, initial=0)
+    large_player_conflicts = ((labels == "character") & (scores >= 0.46)
+                              & (feature_sizes > 144) & (feature_sizes <= 365)
+                              & (dimensions.min(axis=1) >= 76)
+                              & ((alien_alternative > 0) | (feature_sizes >= 185))
+                              & ~(same & (labels == "alien") & (scores >= 0.80)).any(axis=1))
     marker_proposals = compact & (labels == "malfunction") & (scores >= 0.10) & (scores <= 0.82)
     possible_figures = compact & (labels == "alien") & (scores >= 0.13) & (scores < 0.62)
     larva_proposals = compact & (labels == "larva") & (scores >= 0.42)
@@ -107,6 +117,11 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
     if joint_markers is not None and len(larva_centers) < 3:
         # Both pieces fit near the center of one native-resolution crop.
         yield joint_markers
+    if large_player_conflicts.any():
+        priority = scores + feature_sizes / 720 + 0.65 * (alien_alternative > 0) + alien_alternative
+        choices = np.flatnonzero(large_player_conflicts)
+        for index in choices[np.argsort(-priority[choices], kind="stable")[:2]]:
+            yield centers[index], "figure"
     # Close views can resolve a larva even when the overview labels its
     # low-profile miniature as a player or corpse.
     for center in larva_centers:
@@ -152,10 +167,37 @@ def resolve_fire_dice_aliases(detections, sv, np):
     return detections[keep]
 
 
+def discard_large_alien_aliases(detections, sv, np):
+    boxes = detections.xyxy
+    labels, scores = detections.data["class_name"], detections.confidence
+    size = boxes[:, 2:] - boxes[:, :2]
+    largest = size.max(axis=1)
+    adults = np.flatnonzero((labels == "alien") & (largest >= 145) & (scores >= 0.80))
+    if not len(adults):
+        return detections
+    areas = size.prod(axis=1)
+    iou = sv.box_iou_batch(boxes[adults], boxes)
+    inside = iou / (1 + iou) * (areas[adults, None] + areas) >= 0.80 * areas
+    smaller = areas[adults, None] >= 1.50 * areas
+    player_alias = (labels == "character") & ((iou >= 0.66) |
+                  (inside & smaller & (scores < 0.91)))
+    player_alias &= scores[adults, None] + 0.10 >= scores
+    # Use a single ranking for both overlaps and contained fragments so
+    # two overlapping candidates cannot eliminate one another.
+    priority = scores + 0.15 * np.minimum(largest / 185, 1.45)
+    order = np.arange(len(detections))
+    preferred = (priority[adults, None] > priority) | (
+        (priority[adults, None] == priority) & (adults[:, None] < order))
+    duplicate = (labels == "alien") & (largest > 95) & preferred & (
+        (iou >= 0.47) | (inside & smaller))
+    return detections[~(player_alias | duplicate).any(axis=0)]
+
+
 def resolve_piece_aliases(detections, sv, np):
     """Keep the strongest miniature label when predictions overlap the same piece."""
     if not len(detections):
         return detections
+    detections = discard_large_alien_aliases(detections, sv, np)
     boxes = detections.xyxy
     labels = detections.data["class_name"]
     scores = detections.confidence
