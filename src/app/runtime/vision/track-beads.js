@@ -93,7 +93,7 @@ export function detectTrackBeads(frame, slots) {
     const score = count => 1 - fit.correlation + Math.min(count / slot.samples.length, 0.2) * 1.6;
     if (fit.highlights >= requiredHighlights) {
       const proposals = ranked.get(slot.track) ?? [];
-      proposals.push({ slot, score: score(fit.highlights) });
+      proposals.push({ slot, fit, score: score(fit.highlights) });
       ranked.set(slot.track, proposals);
     } else if (slot.track === "round" && fit.faintHighlights >= requiredHighlights) {
       faintRounds.push({ slot, score: score(fit.faintHighlights) });
@@ -103,7 +103,15 @@ export function detectTrackBeads(frame, slots) {
   const objects = [...ranked.values()].flatMap(proposals => {
     proposals.sort((a, b) => b.score - a.score);
     const [first, next] = proposals;
-    if (next && first.score - next.score < 0.09) return [];
+    if (next && first.score - next.score < 0.09) {
+      // In daylight the bare printed digits can also produce bright residues.
+      // A complete bead still distorts its digit more than the other slots.
+      const distinctRoundBead = first.slot.track === "round" && first.slot.value > 0 &&
+        first.fit.highlights >= 24 && first.fit.correlation <= 0.60 &&
+        next.fit.correlation - first.fit.correlation >= 0.052 &&
+        first.score - next.score >= 0.035;
+      if (!distinctRoundBead) return [];
+    }
     return [{ kind: "track-marker", confidence: 0.8, anchor: first.slot.anchor, box: first.slot.box,
       track: first.slot.track, value: first.slot.value }];
   });

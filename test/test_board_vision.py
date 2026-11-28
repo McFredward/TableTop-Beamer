@@ -15,7 +15,7 @@ except ImportError as error:
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from board_context_review import refine_board_context
+from board_context_review import refine_board_context, review_anchors
 from board_vision import predict_tiled, refine_small_objects, resize_detections
 from stream_board_vision import DetailDetector, annotate, board_objects
 
@@ -228,7 +228,7 @@ class SmallObjectRefinementTest(unittest.TestCase):
 class BoardContextReviewTest(unittest.TestCase):
     @staticmethod
     def detections(objects):
-        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse", "door"]
+        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse", "door", "xeno-corpse"]
         return sv.Detections(xyxy=np.array([box for _, _, box in objects], dtype=np.float32),
                              confidence=np.array([score for _, score, _ in objects]),
                              class_id=np.array([classes.index(label) for label, _, _ in objects]),
@@ -253,6 +253,48 @@ class BoardContextReviewTest(unittest.TestCase):
         minis = {piece["kind"]: piece for piece in payload["objects"] if piece.get("reclassifiedFrom")}
         self.assertEqual(minis["corpse"]["reclassifiedFrom"]["kind"], "fire")
         self.assertEqual(minis["character"]["reclassifiedFrom"]["kind"], "dice")
+
+    def test_xeno_token_replaces_its_own_defect_alias_and_keeps_the_adjacent_gear(self):
+        token = [310, 275, 376, 345]
+        gear = [362, 284, 427, 350]
+        coarse = self.detections([("xeno-corpse", .93, token), ("malfunction", .79, token), ("malfunction", .86, gear)])
+        result, _ = refine_board_context(None, Image.new("RGB", (960, 800)), coarse, .25, deadline=0)
+        self.assertEqual(result.data["class_name"].tolist(), ["xeno-corpse", "malfunction"])
+        np.testing.assert_allclose(result.xyxy, [token, gear])
+
+    def test_two_well_supported_defects_share_a_native_resolution_crop(self):
+        first = [200, 205, 260, 265]
+        second = [510, 245, 570, 305]
+        weak = [358, 514, 432, 570]
+        coarse = self.detections([("malfunction", .79, first), ("malfunction", .78, second),
+                                  ("malfunction", .80, weak)])
+        center, purpose = next(review_anchors(coarse, [], sv, np, marker_shape=np.array([.81, .92, .30])))
+        self.assertEqual(purpose, "marker")
+        np.testing.assert_allclose(center, [385, 255])
+
+    def test_crowded_marker_review_keeps_larva_and_bridges_only_the_missing_marker(self):
+        nearby = [240, 205, 302, 270]
+        larva = [304, 223, 369, 278]
+        missing = np.array([600, 490, 665, 554])
+        coarse = self.detections([("malfunction", .79, nearby)])
+        detail = self.detections([("malfunction", .94, nearby), ("alien", .91, larva)])
+
+        class Predictor:
+            def rank_markers(self, _image, boxes, _np):
+                return np.full(len(boxes), 0.95)
+
+            def predict_context(self, crop, **_options):
+                return detail[:] if crop.getpixel((0, 0)) == (0, 0, 0) else sv.Detections.empty()
+
+        image = Image.new("RGB", (960, 800), "white")
+        image.paste("black", (0, 0, 30, 30))
+        result, recent = refine_board_context(Predictor(), image, coarse, .25,
+                                              [(np.array(nearby), "marker"), (missing, "marker")])
+        self.assertCountEqual(result.data["class_name"], ["malfunction", "alien", "malfunction"])
+        self.assertAlmostEqual(result.confidence[np.flatnonzero((result.xyxy == missing).all(axis=1))[0]], .57)
+        self.assertCountEqual([kind for _, kind in recent], ["marker", "marker-gap"])
+        again, _ = refine_board_context(Predictor(), image, coarse, .25, recent)
+        self.assertCountEqual(again.data["class_name"], ["malfunction", "alien"])
 
     def test_upright_and_lying_doors_replace_only_labels_at_the_door(self):
         upright = [125, 175, 201, 314]
