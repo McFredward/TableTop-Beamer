@@ -83,6 +83,7 @@ const miniatureKinds = new Set(["alien", "character"]);
 const occluders = new Set([...miniatureKinds, "hand", "dice"]);
 const uncertainThreshold = 0.25;
 const MAX_CONFIRMATION_GAP_MS = 8000;
+const COUNTER_READING_GAP_MS = 2500;
 
 function recordFireSighting(state, boxes, figures, frameNumber) {
   // A projected flash can weaken a reading for one frame. For a gap,
@@ -204,7 +205,10 @@ export function createGameObserver(layout, {
         state.pending = state.clear = 0;
         if (!state.active) state.fireSightings = [];
       }
-      for (const track of tracks.values()) track.pending = 0;
+      for (const track of tracks.values()) {
+        track.pending = 0;
+        track.observedAt = undefined;
+      }
     }
     lastId = frame.frameId;
     lastTime = timestamp;
@@ -313,9 +317,10 @@ export function createGameObserver(layout, {
       }
       const empty = kind === "self-destruct" && !matching.length && frame.emptyDestruction;
       if (!tracks.has(kind) && !matching.length && !empty) continue;
-      const reading = tracks.get(kind) ?? { value: null, pending: 0, status: "checking" };
+      const reading = tracks.get(kind) ?? { value: null, pending: 0, status: "checking", initialized: false };
       tracks.set(kind, reading);
       if (matching.length !== 1 && !empty) {
+        if (matching.length === 0 && timestamp - reading.observedAt <= COUNTER_READING_GAP_MS) continue;
         reading.pending = 0;
         reading.status = "uncertain";
         if (current.has(kind)) current.get(kind).status = "uncertain";
@@ -323,12 +328,15 @@ export function createGameObserver(layout, {
       }
       const value = empty ? null : matching[0].value;
       const candidate = empty ? "empty" : value;
-      reading.pending = candidate === reading.candidate ? reading.pending + 1 : 1;
+      reading.pending = candidate === reading.candidate && timestamp - reading.observedAt <= COUNTER_READING_GAP_MS
+        ? reading.pending + 1 : 1;
       reading.candidate = candidate;
+      reading.observedAt = timestamp;
       reading.status = "checking";
       if (current.has(kind)) current.get(kind).status = "checking";
-      if (reading.pending >= 2) {
+      if (reading.pending >= 2 || (reading.initialized && value === reading.value)) {
         reading.value = value;
+        reading.initialized = true;
         reading.status = empty ? "inactive" : "confirmed";
         const state = stateFor(kind, { kind, zone });
         state.active = !empty && matching[0].enabled;

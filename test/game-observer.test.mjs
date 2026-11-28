@@ -319,11 +319,26 @@ test("the blue section starts scanning in the cryochamber and self-destruct 3 al
   assert.deepEqual(on.effects.map(item => [item.effect.id, item.scope, item.roomId, item.active]),
     [["scanning", "room", "special-cryoschlaf", true], ["intruder-alert", "inside", null, true]]);
   const hidden = observe([]);
-  assert.deepEqual(hidden.tracks.map(x => x.status), ["uncertain", "uncertain"]);
+  assert.deepEqual(hidden.tracks.map(x => x.status), ["confirmed", "confirmed"]);
   assert.ok(hidden.effects.every(x => x.active));
   const moved = [at("round", 9), at("self-destruct", 4)];
   assert.ok(observe(moved).effects.every(x => x.active));
   assert.ok(observe(moved).effects.every(x => !x.active));
+});
+
+test("one missed counter reading does not break confirmation or later removal", () => {
+  const observe = newRun();
+  const three = item("track-marker", 236 / 1600, 0.9514);
+  const four = item("track-marker", 174 / 1600, 0.9514);
+  observe([three]);
+  assert.equal(observe([]).tracks[0].status, "checking");
+  assert.deepEqual(observe([three]).tracks, [{ kind: "self-destruct", value: 3, status: "confirmed" }]);
+  for (let i = 0; i < 4; i++) observe([]);
+  const hidden = observe([]);
+  assert.equal(hidden.tracks[0].status, "uncertain");
+  assert.equal(hidden.effects[0].active, true);
+  assert.equal(observe([four]).effects[0].active, true);
+  assert.equal(observe([four]).effects[0].active, false);
 });
 
 test("a readable empty self-destruct track switches off the alarm and ignores the starting symbol", () => {
