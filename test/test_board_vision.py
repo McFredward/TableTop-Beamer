@@ -379,6 +379,24 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(result.data["reclassified_kind"][result.data["class_name"] == "alien"].item(), "character")
         np.testing.assert_allclose(result.xyxy[result.data["class_name"] == "character"], [player])
 
+    def test_a_weak_larva_hint_uses_a_tighter_crop_and_discards_room_sized_aliens(self):
+        larva = [196, 215, 262, 279]
+        corpse = [108, 212, 178, 285]
+        loose = [174, 193, 274, 288]
+        coarse = self.detections([("larva", .32, loose), ("corpse", .46, loose), ("corpse", .93, corpse)])
+        detail = self.detections([("larva", .91, larva), ("alien", .89, larva),
+                                  ("alien", .97, [42, 49, 396, 415]), ("corpse", .92, corpse)])
+
+        class Predictor:
+            def predict_context(self, crop, *, purpose, **_options):
+                if crop.size != (512, 512) or purpose != "figure":
+                    raise AssertionError("Expected the tight miniature review")
+                return detail[:]
+
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertCountEqual(result.data["class_name"], ["alien", "corpse"])
+        np.testing.assert_allclose(result.xyxy[result.data["class_name"] == "alien"], [larva])
+
     def test_crowded_marker_review_keeps_larva_and_bridges_only_the_missing_marker(self):
         nearby = [240, 205, 302, 270]
         larva = [304, 223, 369, 278]
@@ -508,6 +526,21 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual([(o["kind"], o.get("markerVerified")) for o in payload["objects"]],
                          [("fire", True), ("dice", None)])
         np.testing.assert_allclose(actual.xyxy, [die, fire])
+
+    def test_close_views_reject_projected_fire_and_defect_but_keep_real_markers(self):
+        boxes = [[100, 100, 165, 163], [200, 100, 265, 163], [300, 100, 365, 163], [400, 100, 465, 163]]
+        detections = self.detections(list(zip(["fire", "malfunction"] * 2, [.94, .88, .92, .90], boxes)))
+
+        class Classifier:
+            def rank(self, _image, candidates):
+                values = {100: [.04, .02, .06, .88], 200: [.03, .05, .15, .77],
+                          300: [.87, .03, .04, .06], 400: [.03, .02, .93, .02]}
+                scores = np.array([values[int(box[0])] for box in candidates])
+                return np.repeat(scores[:, None], 9, axis=1), np.repeat(candidates[:, None], 9, axis=1)
+
+        result = review_fire_markers(Classifier(), Image.new("RGB", (600, 400)), detections, detections, 0, sv, np)
+        self.assertEqual(result.data["class_name"].tolist(), ["fire", "malfunction"])
+        np.testing.assert_allclose(result.xyxy, boxes[2:])
 
     def test_a_defect_without_an_overview_box_survives_next_to_fire_and_a_large_alien(self):
         fire = [286, 328, 350, 388]

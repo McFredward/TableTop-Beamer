@@ -46,8 +46,28 @@ class MarkerAppearance(nn.Sequential):
         return scores.reshape(len(boxes), len(views), len(LABELS)), bounds
 
 
+def discard_projection_conflicts(classifier, image, detections):
+    """Remove marker detections when close views consistently see other material."""
+    if not len(detections):
+        return detections
+    labels = detections.data["class_name"]
+    candidates = np.flatnonzero(np.isin(labels, ("fire", "malfunction")))
+    if not len(candidates):
+        return detections
+    scores, _ = classifier.rank(image, detections.xyxy[candidates])
+    fire = labels[candidates] == "fire"
+    marker_scores = np.where(fire[:, None], scores[:, :, 0], scores[:, :, 2])
+    majority = (scores[:, :, 3] >= 0.68).mean(axis=1)
+    contradicted = ((majority >= np.where(fire, 0.55, 0.78)) &
+                    (marker_scores.max(axis=1) < np.where(fire, 0.14, 0.55)))
+    keep = np.ones(len(detections), dtype=bool)
+    keep[candidates[contradicted]] = False
+    return detections[keep]
+
+
 def review_fire_markers(classifier, image, proposals, detections, fire_class_id, sv, np):
-    """Require close visual evidence before promoting a weak fire proposal."""
+    """Check projected marker look-alikes and recover verified fire markers."""
+    detections = discard_projection_conflicts(classifier, image, detections)
     if not len(proposals):
         return detections
     labels = proposals.data["class_name"]

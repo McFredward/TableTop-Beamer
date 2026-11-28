@@ -53,6 +53,12 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
     marker_proposals = compact & (labels == "malfunction") & (scores >= 0.10) & (scores <= 0.82)
     possible_figures = compact & (labels == "alien") & (scores >= 0.13) & (scores < 0.62)
     larva_proposals = compact & (labels == "larva") & (scores >= 0.42)
+    possible_larva_alias = (np.isin(labels, ["corpse", "character", "malfunction"]) & (scores >= 0.15))
+    confirmed_piece = (np.isin(labels, ["alien", "character", "malfunction", "corpse"]) & (scores >= 0.80))
+    if marker_shape is not None:
+        confirmed_piece |= (labels == "malfunction") & (marker_shape >= 0.86)
+    weak_larvae = (compact & (labels == "larva") & (scores >= 0.065) & (scores < 0.65) &
+                   (same & possible_larva_alias).any(axis=1) & ~(same & confirmed_piece).any(axis=1))
     ring_conflicts = compact & (labels == "dice") & (scores >= 0.22) & (scores < 0.76)
     weak_flames = mixed_flames & (scores < 0.82)
 
@@ -117,6 +123,12 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
     if joint_markers is not None and len(larva_centers) < 3:
         # Both pieces fit near the center of one native-resolution crop.
         yield joint_markers
+    if weak_larvae.any():
+        # Reserve at most one review for a small piece whose overview
+        # classification is uncertain. Its closer view shares the crop budget.
+        priorities = scores + recent_support("larva")
+        candidate = np.argmax(np.where(weak_larvae, priorities, -1))
+        yield centers[candidate], "larva"
     if large_player_conflicts.any():
         priority = scores + feature_sizes / 720 + 0.65 * (alien_alternative > 0) + alien_alternative
         choices = np.flatnonzero(large_player_conflicts)
@@ -383,7 +395,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         paired = purpose == "marker-fire"
         if paired:
             purpose = "marker"
-        size = 768
+        size = 512 if purpose == "larva" else 768
         # Small box jitter should not shift the model's crop every frame.
         crop_center = np.round(center / 16) * 16
         width, height = min(size, image.width), min(size, image.height)
@@ -400,7 +412,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         )
         source = reduced_projection if reduced_projection is not None and (previously_reviewed or marker_under_projection) else image
         selected.append(center)
-        measure = "marker" if marker_under_projection else purpose
+        measure = "marker" if marker_under_projection else "figure" if purpose == "larva" else purpose
         zoom = predictor.predict_context(source.crop(bounds), purpose=measure, threshold=0.32, include_source_image=False)
         if not len(zoom):
             continue
@@ -419,6 +431,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         same = same_piece(boxes, dimensions, centers, sv, np)
         support = np.zeros(len(zoom), dtype=bool)
         corroborated_larvae = np.zeros(len(zoom), dtype=bool)
+        distance = np.linalg.norm(centers - center, axis=1)
         if len(detections):
             overlaps = sv.box_iou_batch(boxes, detections.xyxy)
             marker_hints = (detections.data["class_name"] == "malfunction") & (detections.confidence >= 0.10)
@@ -429,13 +442,21 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             corroborated_larvae = ((labels == "larva") & (overview_larva >= 0.38) &
                                   (scores >= np.where(overview_larva >= 0.65, 0.76, 0.80)) &
                                   np.all((dimensions >= 26) & (dimensions <= 144), axis=1))
+            if purpose == "larva":
+                alien_support = np.where(same & (labels == "alien"), scores, 0).max(axis=1)
+                player_conflict = (same & (labels == "character") & (scores >= 0.89)).any(axis=1)
+                focused = ((labels == "larva") & (distance <= 90) & ~player_conflict &
+                           np.all((dimensions >= 29) & (dimensions <= 112), axis=1) &
+                           (overview_larva >= 0.065) &
+                           (((scores >= 0.64) & (alien_support >= 0.77)) |
+                            ((scores >= 0.80) & (overview_larva >= 0.20))))
+                corroborated_larvae |= focused
         scores[(labels == "larva") & ~corroborated_larvae] = 0
         labels[labels == "larva"] = "alien"
         zoom.data["class_name"] = labels
         competing_mini = np.isin(labels, ["alien", "character", "malfunction", "corpse", "xeno-corpse"]) & ~corroborated_larvae
         scores[competing_mini & (same & corroborated_larvae).any(axis=1)] = 0
-        distance = np.linalg.norm(centers - center, axis=1)
-        central = distance <= 245
+        central = distance <= (155 if purpose == "larva" else 245)
         # Independent pieces pass separately. A result without an overview
         # proposal needs stronger evidence and must be close to the crop center.
         cutoff = np.array([limits[label] for label in labels])
@@ -458,7 +479,12 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             new_near_anchor |= (labels == "alien") & compact & (distance <= 120) & (scores >= 0.88)
         size_ok = compact | np.isin(labels, ["alien", "character", "door"])
         rivals = np.where(same & (labels[:, None] != labels), scores, 0).max(axis=1)
-        accepted = central & size_ok & (scores >= cutoff) & (scores >= rivals + 0.085) & (support | new_near_anchor | shape_supported)
+        accepted = (central & size_ok & (scores >= cutoff) & (scores >= rivals + 0.085) &
+                    (support | new_near_anchor | shape_supported | corroborated_larvae))
+        if purpose == "larva":
+            # A tight crop also predicts large boxes around fragments of
+            # the room. Admit alien readings only with small-piece evidence.
+            accepted &= (labels != "alien") | corroborated_larvae
         if len(baseline):
             players = baseline.xyxy[(baseline.data["class_name"] == "character") & (baseline.confidence >= 0.62)]
             if len(players):
@@ -469,7 +495,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         if accepted.any():
             reviewed.append(zoom[accepted])
             verified_aliens.extend(centers[accepted & (labels == "alien")])
-            target = {"flame": "fire", "figure": "alien"}.get(purpose, "malfunction")
+            target = {"flame": "fire", "figure": "alien", "larva": "alien"}.get(purpose, "malfunction")
             focus = accepted & (labels == target)
             best = np.argmin(np.where(focus if focus.any() else accepted, distance, np.inf))
             if purpose != "marker":
