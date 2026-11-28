@@ -66,7 +66,11 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
         previous_marker = next(((box[:2] + box[2:]) / 2 for box, kind in recent if kind in ("marker", "marker-gap")), None)
         if previous_marker is not None:
             target, promising = previous_marker, True
-        if promising and groups[1] and np.linalg.norm(groups[1][0][0] - target) <= 425:
+        if promising and previous_marker is None:
+            # Center an initial shape check on the candidate. Later reviews
+            # can share the crop once the marker has a reliable position.
+            groups[1].insert(0, groups[3].pop(0))
+        elif promising and groups[1] and np.linalg.norm(groups[1][0][0] - target) <= 425:
             # Keep both promising areas in view with one close prediction.
             groups[1][0] = (groups[1][0][0] * 0.44 + target * 0.56, "crowd")
             if np.linalg.norm(groups[3][0][0] - target) < 135:
