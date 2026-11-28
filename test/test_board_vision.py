@@ -13,6 +13,7 @@ except ImportError as error:
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+from board_context_review import refine_board_context
 from board_vision import predict_tiled, refine_small_objects, resize_detections
 from stream_board_vision import annotate, board_objects
 
@@ -62,6 +63,18 @@ class TileCoordinatesTest(unittest.TestCase):
         self.assertEqual(scaled.mask.image_shape, (150, 400))
         jpeg = annotate(preview, scaled, (sv.MaskAnnotator(), sv.BoxAnnotator(), sv.LabelAnnotator()), np)
         self.assertTrue(jpeg.startswith(b"\xff\xd8"))
+
+    def test_reduced_overlap_keeps_the_board_covered_with_four_overview_tiles(self):
+        image = Image.new("RGB", (2290, 1400))
+        calls = []
+
+        class Detector:
+            def predict(self, tile, **_):
+                calls.append(tile.size)
+                return sv.Detections.empty()
+
+        predict_tiled(Detector(), image, .25, 1280, overlap_fraction=.20)
+        self.assertEqual(calls, [(1280, 1280)] * 4)
 
     def test_empty_tiles_publish_a_valid_empty_observation(self):
         image = Image.new("RGB", (800, 300))
@@ -168,6 +181,79 @@ class SmallObjectRefinementTest(unittest.TestCase):
         again, _ = refine_small_objects(LarvaOnClearCrop(), image, sv.Detections.empty(), ["alien"], 0.25,
                                         recent, reduced)
         self.assertEqual(again.data["class_name"].tolist(), ["alien"])
+
+
+class BoardContextReviewTest(unittest.TestCase):
+    @staticmethod
+    def detections(objects):
+        classes = ["fire", "dice", "malfunction", "alien", "character"]
+        return sv.Detections(xyxy=np.array([box for _, _, box in objects], dtype=np.float32),
+                             confidence=np.array([score for _, score, _ in objects]),
+                             class_id=np.array([classes.index(label) for label, _, _ in objects]),
+                             data={"class_name": np.array([label for label, _, _ in objects])})
+
+    def test_one_close_view_keeps_the_marker_and_die_as_independent_pieces(self):
+        fire = [296, 308, 359, 368]
+        die = [201, 263, 278, 331]
+        coarse = self.detections([("dice", .86, die), ("fire", .66, die), ("fire", .30, fire)])
+        detail = self.detections([("dice", .97, die), ("fire", .39, die), ("fire", .95, fire)])
+
+        class Predictor:
+            def predict_context(self, crop, **_):
+                self.size = crop.size
+                return detail[:]
+
+        predictor = Predictor()
+        image = Image.new("RGB", (960, 800))
+        result, recent = refine_board_context(predictor, image, coarse, .25)
+        self.assertEqual(predictor.size, (768, 768))
+        self.assertEqual(result.data["class_name"].tolist(), ["dice", "fire"])
+        self.assertEqual(result.data["reclassified_kind"].tolist(), ["fire", ""])
+        np.testing.assert_allclose(result.xyxy, [die, fire])
+        self.assertEqual(len(recent), 1)
+
+    def test_a_defect_without_an_overview_box_survives_next_to_fire_and_a_large_alien(self):
+        fire = [286, 328, 350, 388]
+        alien = [310, 204, 497, 357]
+        defect = [267, 280, 331, 344]
+        coarse = self.detections([("fire", .82, fire), ("alien", .92, alien)])
+        detail = self.detections([("fire", .95, fire), ("alien", .91, alien), ("malfunction", .88, defect)])
+
+        class Predictor:
+            def predict_context(self, *_args, **_options):
+                return detail[:]
+
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertEqual(set(result.data["class_name"]), {"fire", "alien", "malfunction"})
+
+    def test_marker_review_cannot_reclassify_a_confident_nearby_player(self):
+        fire = [286, 328, 350, 388]
+        player = [363, 254, 475, 361]
+        coarse = self.detections([("fire", .82, fire), ("character", .88, player)])
+        detail = self.detections([("fire", .95, fire), ("alien", .92, player)])
+
+        class Predictor:
+            def predict_context(self, *_args, **_options):
+                return detail[:]
+
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertEqual(set(result.data["class_name"]), {"fire", "character"})
+
+    def test_a_larva_can_replace_a_character_without_replacing_the_player_next_to_it(self):
+        player = [275, 390, 375, 489]
+        larva = [308, 308, 369, 366]
+        alias = [291, 282, 388, 372]
+        coarse = self.detections([("character", .86, alias), ("alien", .19, larva), ("character", .88, player)])
+        detail = self.detections([("character", .94, player), ("character", .43, larva), ("alien", .88, larva)])
+
+        class Predictor:
+            def predict_context(self, *_args, **_options):
+                return detail[:]
+
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertEqual(result.data["class_name"].tolist(), ["character", "alien"])
+        self.assertEqual(result.data["reclassified_kind"].tolist(), ["", "character"])
+        np.testing.assert_allclose(result.xyxy, [player, larva])
 
 
 if __name__ == "__main__":

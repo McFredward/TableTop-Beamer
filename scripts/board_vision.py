@@ -34,7 +34,7 @@ def add_tile_option(parser):
                         help="Run inference on overlapping tiles of this size in original pixels")
 
 
-def predict_tiled(predictor, image, threshold, tile_size):
+def predict_tiled(predictor, image, threshold, tile_size, *, overlap_fraction=0.25):
     import supervision as sv
 
     width, height = min(tile_size, image.width), min(tile_size, image.height)
@@ -45,7 +45,7 @@ def predict_tiled(predictor, image, threshold, tile_size):
     slicer = sv.InferenceSlicer(
         callback=predict,
         slice_wh=(width, height),
-        overlap_wh=(width // 4, height // 4),
+        overlap_wh=(int(width * overlap_fraction), int(height * overlap_fraction)),
         overlap_filter=sv.OverlapFilter.NON_MAX_SUPPRESSION,
         iou_threshold=0.5,
         thread_workers=1,

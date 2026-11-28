@@ -15,6 +15,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from board_context_review import refine_board_context
 from board_vision import (
     SMALL_OBJECT_CROP_SIZE, SMALL_PROPOSAL_THRESHOLD, add_tile_option, parse_roi,
     predict_tiled, refine_small_objects, resize_detections,
@@ -165,8 +166,18 @@ class DetailDetector:
 
     def __init__(self, model, adapter, torch):
         head = model.model.model.class_embed
-        self.player_review = False
-        variants = (adapter["classes"], {**adapter["classes"], **adapter.get("playerReview", {})})
+        self.variant = 0
+        context = adapter.get("contextReview", {})
+        self.has_context_review = bool(context)
+        marker_review = context.copy()
+        if "malfunction" in adapter["classes"]:
+            marker_review["malfunction"] = adapter["classes"]["malfunction"]
+        variants = (
+            adapter["classes"],
+            {**adapter["classes"], **adapter.get("playerReview", {})},
+            context,
+            marker_review,
+        )
         for index, rows in enumerate(variants):
             weights = torch.zeros_like(head.weight)
             bias = torch.zeros_like(head.bias)
@@ -182,7 +193,7 @@ class DetailDetector:
 
         # Small-piece crops and player reviews share one inference model.
         def correct(layer, args, output):
-            index = int(self.player_review)
+            index = self.variant
             weights, bias, preserve = (getattr(layer, f"detail_{name}_{index}") for name in ("weights", "bias", "preserve"))
             adjusted = output + torch.nn.functional.linear(args[0], weights, bias)
             return torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
@@ -197,11 +208,17 @@ class DetailDetector:
         return self.predictor.predict(*args, antialias=True, **options)
 
     def predict_player(self, *args, **options):
-        self.player_review = True
+        return self.predict_variant(1, *args, **options)
+
+    def predict_context(self, *args, purpose, **options):
+        return self.predict_variant(3 if purpose in ("marker", "general") else 2, *args, **options)
+
+    def predict_variant(self, variant, *args, **options):
+        self.variant = variant
         try:
             return self.predict(*args, **options)
         finally:
-            self.player_review = False
+            self.variant = 0
 
 
 class ModelProgress:
@@ -317,6 +334,7 @@ def run_detector(args, url, model_identity, preset, progress):
     if small_objects and preset.get("detailAdapter"):
         adapter_path = Path(__file__).resolve().parents[1] / "config" / preset["detailAdapter"]
         detail = DetailDetector(model, json.loads(adapter_path.read_text(encoding="utf-8")), torch)
+    context_review = detail is not None and detail.has_context_review
     classes = set()
     if args.game:
         names = model.class_names
@@ -341,6 +359,7 @@ def run_detector(args, url, model_identity, preset, progress):
     last_frame = None
     refinement_key = None
     recent_small_objects = []
+    review_number = 0
     shown_connection_error = False
     published = False
     detection_threshold = min(args.threshold, 0.25) if args.game else args.threshold
@@ -378,7 +397,10 @@ def run_detector(args, url, model_identity, preset, progress):
                 progress.show("inference")
             inference_start = time.monotonic()
             if args.tile_size:
-                detections = predict_tiled(predictor, analysis, threshold, args.tile_size)
+                # The close review recovers small pieces. A slightly smaller
+                # overview overlap avoids nearly identical tiles at the ROI edge.
+                detections = predict_tiled(predictor, analysis, threshold, args.tile_size,
+                                           overlap_fraction=0.20 if context_review else 0.25)
             else:
                 detections = predictor.predict(analysis, threshold=threshold, include_source_image=False)
             if refine:
@@ -386,11 +408,19 @@ def run_detector(args, url, model_identity, preset, progress):
                 current_key = (last_frame.split("-")[1], image.size)
                 if current_key != refinement_key:
                     refinement_key, recent_small_objects = current_key, []
+                    review_number = 0
                 reduced = reduce_projection(image, last_frame, previous_frames, original_size, args.roi, np)
-                detections, recent_small_objects = refine_small_objects(
-                    detail or predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
-                    review_malfunctions=detail is not None, deadline=started + refinement_budget,
-                )
+                if context_review:
+                    detections, recent_small_objects = refine_board_context(
+                        detail, image, detections, detection_threshold, recent_small_objects, reduced,
+                        deadline=started + refinement_budget, survey=review_number % 4 == 3,
+                    )
+                    review_number += 1
+                else:
+                    detections, recent_small_objects = refine_small_objects(
+                        detail or predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
+                        review_malfunctions=detail is not None, deadline=started + refinement_budget,
+                    )
                 analysis = image
             elapsed = (time.monotonic() - inference_start) * 1000
             if classes:
