@@ -191,11 +191,31 @@ class SmallObjectRefinementTest(unittest.TestCase):
 class BoardContextReviewTest(unittest.TestCase):
     @staticmethod
     def detections(objects):
-        classes = ["fire", "dice", "malfunction", "alien", "character"]
+        classes = ["fire", "dice", "malfunction", "alien", "character", "corpse"]
         return sv.Detections(xyxy=np.array([box for _, _, box in objects], dtype=np.float32),
                              confidence=np.array([score for _, score, _ in objects]),
                              class_id=np.array([classes.index(label) for label, _, _ in objects]),
                              data={"class_name": np.array([label for label, _, _ in objects])})
+
+    def test_clear_minis_resolve_only_their_own_conflicting_labels(self):
+        corpse = [310, 275, 410, 350]
+        player = [510, 286, 628, 388]
+        true_fire = [376, 292, 442, 356]
+        true_die = [580, 300, 645, 358]
+        coarse = self.detections([
+            ("corpse", .90, corpse), ("fire", .91, corpse), ("alien", .67, corpse),
+            ("corpse", .91, [332, 300, 383, 337]),
+            ("character", .89, player), ("dice", .62, player),
+            ("fire", .83, true_fire), ("dice", .91, true_die),
+        ])
+        image = Image.new("RGB", (960, 800))
+        result, _ = refine_board_context(None, image, coarse, .25, deadline=0)
+        payload = board_objects("frame", {"corpse", "character", "fire", "dice", "alien"},
+                                result, image.size, image.size, None, np)
+        self.assertCountEqual([piece["kind"] for piece in payload["objects"]], ["corpse", "character", "fire", "dice"])
+        minis = {piece["kind"]: piece for piece in payload["objects"] if piece.get("reclassifiedFrom")}
+        self.assertEqual(minis["corpse"]["reclassifiedFrom"]["kind"], "fire")
+        self.assertEqual(minis["character"]["reclassifiedFrom"]["kind"], "dice")
 
     def test_one_close_view_keeps_the_marker_and_die_as_independent_pieces(self):
         fire = [296, 308, 359, 368]
@@ -216,6 +236,25 @@ class BoardContextReviewTest(unittest.TestCase):
         self.assertEqual(result.data["reclassified_kind"].tolist(), ["fire", ""])
         np.testing.assert_allclose(result.xyxy, [die, fire])
         self.assertEqual(len(recent), 1)
+
+    def test_fire_prioritizes_a_nearby_defect_proposal_with_uncertain_shape(self):
+        marker = [240, 205, 302, 270]
+        fire = [245, 278, 306, 338]
+        coarse = self.detections([("fire", .91, fire), ("malfunction", .79, marker)])
+        detail = self.detections([("fire", .94, fire), ("malfunction", .97, marker)])
+
+        class Predictor:
+            def rank_markers(self, _gray, boxes, _np):
+                return np.full(len(boxes), 0.4)
+
+            def predict_context(self, _crop, *, purpose, **_):
+                if purpose != "marker":
+                    raise AssertionError("The defect and fire should share the marker review")
+                return detail[:]
+
+        result, _ = refine_board_context(Predictor(), Image.new("RGB", (960, 800)), coarse, .25)
+        self.assertCountEqual(result.data["class_name"].tolist(), ["fire", "malfunction"])
+        self.assertAlmostEqual(result.confidence[result.data["class_name"] == "malfunction"][0], .97)
 
     def test_two_weak_dice_proposals_can_schedule_a_close_view_for_unseeded_fire(self):
         first = [230, 250, 305, 310]

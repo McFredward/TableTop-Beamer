@@ -88,6 +88,20 @@ test("a clear player label resolves a tentative alien without changing the nearb
   assert.equal(alarm(observe([alien, player, defect])).active, false);
 });
 
+test("a recognized corpse can clear a false fire while a nearby fire stays active", () => {
+  const observe = newRun();
+  const falseFire = item("fire", 0.21, 0.18);
+  const trueFire = item("fire", 0.60, 0.24);
+  const corpse = { ...item("corpse", 0.21, 0.18), reclassifiedFrom: { kind: "fire", box: falseFire.box } };
+  const classes = ["corpse", "fire", "alien"];
+  observe([falseFire, trueFire], classes);
+  const before = observe([falseFire, trueFire], classes);
+  assert.deepEqual(before.effects.map(({ roomId, active }) => [roomId, active]), [["room", true], ["other", true]]);
+  observe([corpse, trueFire], classes);
+  const after = observe([corpse, trueFire], classes);
+  assert.deepEqual(after.effects.filter(effect => effect.active).map(effect => effect.roomId), ["other"]);
+});
+
 test("partial model coverage cannot clear a previously observed effect", () => {
   const observe = newRun();
   observe([item("fire", 0.2, 0.17)]);

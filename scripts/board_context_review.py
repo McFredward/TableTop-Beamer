@@ -77,6 +77,14 @@ def review_anchors(detections, recent, sv, np, survey=False, marker_shape=None):
                 groups[3].pop(0)
         elif promising and not groups[1]:
             groups[1].append(groups[3].pop(0))
+    # Fire can distort a neighboring marker's shape at overview scale.
+    # Check that pair together before spending the crop on weaker proposals.
+    nearby_fire = np.where(packed & flames & (scores >= 0.40), 1 - distances / 135, 0).max(axis=1, initial=0)
+    marker_by_fire = marker_proposals & (scores >= 0.75) & (nearby_fire > 0)
+    if marker_by_fire.any():
+        priority = scores + nearby_fire
+        marker = np.argmax(np.where(marker_by_fire, priority, -1))
+        groups[1].insert(0, (centers[marker], "marker-fire"))
     first_groups = groups[:3]
     if survey and groups[3]:
         first_groups = [*first_groups[:2], groups[3], first_groups[2]]
@@ -113,6 +121,53 @@ def drop_fire_dice_aliases(detections, sv, np):
     return detections[keep]
 
 
+def resolve_piece_aliases(detections, sv, np):
+    """Keep the strongest miniature label when predictions overlap the same piece."""
+    if not len(detections):
+        return detections
+    boxes = detections.xyxy
+    labels = detections.data["class_name"]
+    scores = detections.confidence
+    corpses = np.flatnonzero(labels == "corpse")
+    if len(corpses) > 1:
+        parts = boxes[corpses]
+        areas = np.prod(parts[:, 2:] - parts[:, :2], axis=1)
+        iou = sv.box_iou_batch(parts, parts)
+        intersection = iou / (1 + iou) * (areas[:, None] + areas)
+        contained = (intersection >= areas * 0.86) & (areas[:, None] >= areas * 1.45)
+        contained &= scores[corpses, None] + 0.08 >= scores[corpses]
+        keep = np.ones(len(detections), dtype=bool)
+        keep[corpses[contained.any(axis=0)]] = False
+        detections = detections[keep]
+        boxes, labels, scores = detections.xyxy, detections.data["class_name"], detections.confidence
+    figures = np.flatnonzero(((labels == "corpse") & (scores >= 0.70)) |
+                             ((labels == "character") & (scores >= 0.74)))
+    rivals = np.flatnonzero(np.isin(labels, ["alien", "character", "dice", "fire", "malfunction", "noise"]))
+    if not len(figures) or not len(rivals):
+        return drop_fire_dice_aliases(detections, sv, np)
+    corpse = labels[figures, None] == "corpse"
+    competing = np.where(corpse, labels[rivals] != "corpse", labels[rivals] == "dice")
+    overlap = sv.box_iou_batch(boxes[figures], boxes[rivals])
+    weak_rival = corpse & (scores[figures, None] >= 0.86) & (scores[rivals] < 0.62)
+    matches = competing & (overlap >= np.where(weak_rival, 0.42, np.where(corpse, 0.54, 0.64)))
+    matches &= scores[figures, None] >= scores[rivals] + np.where(corpse, -0.06, 0.10)
+    if not matches.any():
+        return drop_fire_dice_aliases(detections, sv, np)
+    corrections = detections.data.get("reclassified_box", np.full(detections.xyxy.shape, np.nan)).copy()
+    kinds = detections.data.get("reclassified_kind", np.full(len(detections), "", dtype="<U80")).copy()
+    for row in np.flatnonzero(matches.any(axis=1)):
+        winner = figures[row]
+        loser = rivals[np.argmax(np.where(matches[row], scores[rivals], -1))]
+        corrections[winner] = detections.xyxy[loser]
+        kinds[winner] = labels[loser]
+    keep = np.ones(len(detections), dtype=bool)
+    keep[rivals[matches.any(axis=0)]] = False
+    result = detections[keep]
+    result.data["reclassified_box"] = corrections[keep]
+    result.data["reclassified_kind"] = kinds[keep]
+    return drop_fire_dice_aliases(result, sv, np)
+
+
 def refine_board_context(predictor, image, detections, threshold, recent=(), reduced_projection=None,
                          deadline=None, survey=False):
     """Review up to three neighborhoods at native resolution with one model pass each."""
@@ -124,18 +179,20 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
     marker_reference = None
     verified_shapes = []
 
-    def rank_markers(boxes):
-        raw = predictor.rank_markers(marker_image, boxes, np)
+    def rank_markers(boxes, paired=False):
+        rank = getattr(predictor, "rank_markers_near_fire", predictor.rank_markers) if paired else predictor.rank_markers
+        raw = rank(marker_image, boxes, np)
         if raw is None or marker_reference is None:
             return raw
         # A short pixel minimum removes the moving highlight while the
         # current frame remains evidence if a marker has just appeared.
-        return np.maximum(raw, predictor.rank_markers(marker_reference, boxes, np))
+        return np.maximum(raw, rank(marker_reference, boxes, np))
 
     if len(detections):
         labels = detections.data["class_name"]
         scores = detections.confidence
-        visible = scores >= threshold
+        visible = scores >= np.where(labels == "corpse", max(threshold, 0.73), threshold)
+        visible &= labels != ""
         if hasattr(predictor, "rank_markers"):
             marker_image = image.convert("L")
             marker_reference = reduced_projection.convert("L") if reduced_projection is not None else None
@@ -164,9 +221,12 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         dimensions = baseline.xyxy[:, 2:] - baseline.xyxy[:, :2]
         uncertain = ((baseline.data["class_name"] == "malfunction") & (baseline.confidence <= 0.82) &
                      np.all((dimensions >= 26) & (dimensions <= 144), axis=1))
+        if marker_shape is not None:
+            # Keep a strong reading when both the model and shape agree.
+            uncertain &= (baseline.confidence < 0.75) | (marker_shape[visible] < 0.86)
         baseline.confidence[uncertain] = np.minimum(baseline.confidence[uncertain], 0.60)
 
-    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73, "character": 0.78}
+    limits = {"fire": 0.72, "dice": 0.79, "malfunction": 0.68, "alien": 0.73, "character": 0.78, "corpse": 0.78}
     reviewed = []
     selected = []
     next_recent = []
@@ -175,6 +235,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             continue
         if len(selected) == 3 or (deadline is not None and monotonic() >= deadline):
             break
+        paired = purpose == "marker-fire"
+        if paired:
+            purpose = "marker"
         size = 768
         # Small box jitter should not shift the model's crop every frame.
         crop_center = np.round(center / 16) * 16
@@ -223,7 +286,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         marker_checks = compact & central & (labels == "malfunction") & (scores >= 0.40)
         shape_supported = np.zeros(len(zoom), dtype=bool)
         if marker_shape is not None and marker_checks.any():
-            shape = rank_markers(boxes[marker_checks])
+            shape = rank_markers(boxes[marker_checks], paired)
             strong_shape = shape >= 0.86
             shape_supported[marker_checks] = strong_shape
             # Require agreement on the shape to lift a weak model reading.
@@ -266,7 +329,7 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             next_recent.append((verified_shapes[0], "marker-gap"))
 
     if not reviewed:
-        return drop_fire_dice_aliases(baseline, sv, np), recent if not selected else []
+        return resolve_piece_aliases(baseline, sv, np), recent if not selected else []
     refined = sv.Detections.merge(reviewed).with_nms(threshold=0.33)
     if len(reviewed) > 1:
         boxes, labels = refined.xyxy, refined.data["class_name"]
@@ -274,9 +337,9 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
         conflicting = same & (labels[:, None] != labels)
         refined = refined[~(conflicting & (refined.confidence[:, None] <= refined.confidence)).any(axis=1)]
     if not len(refined):
-        return drop_fire_dice_aliases(baseline, sv, np), next_recent
+        return resolve_piece_aliases(baseline, sv, np), next_recent
     if not len(baseline):
-        return drop_fire_dice_aliases(refined, sv, np), next_recent
+        return resolve_piece_aliases(refined, sv, np), next_recent
     # Remove old aliases only where a close view found the same physical piece.
     boxes = np.concatenate([refined.xyxy, baseline.xyxy])
     same = same_piece(boxes, boxes[:, 2:] - boxes[:, :2], (boxes[:, :2] + boxes[:, 2:]) / 2, sv, np)
@@ -296,4 +359,4 @@ def refine_board_context(predictor, image, detections, threshold, recent=(), red
             kinds[index] = labels[previous]
     result.data["reclassified_box"] = corrections
     result.data["reclassified_kind"] = kinds
-    return drop_fire_dice_aliases(result, sv, np), next_recent
+    return resolve_piece_aliases(result, sv, np), next_recent

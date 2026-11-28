@@ -201,15 +201,21 @@ class WorkerFailure(Exception):
 
 
 class DetailDetector:
-    """Use fine-tuned logits on close crops with the board detector unchanged."""
+    """Apply learned corrections and extra class logits to the board detector."""
 
     def __init__(self, model, adapter, torch):
         head = model.model.model.class_embed
+        base_classes = list(model.class_names)
+        extra_classes = adapter.get("additionalClasses", {})
+        self.classes = [*base_classes, *extra_classes]
+        if extra_classes and (len(self.classes) > head.out_features or set(extra_classes) & set(base_classes)):
+            raise ValueError("The detail adapter cannot map its extra classes to the checkpoint head")
         self.variant = "legacy"
         context = adapter.get("contextReview", {})
         self.has_context_review = bool(context)
-        self.has_overview_review = bool(adapter.get("overviewReview"))
+        self.has_overview_review = bool(adapter.get("overviewReview") or extra_classes)
         self.marker_shape = adapter.get("markerShape")
+        self.marker_shape_near_fire = adapter.get("markerShapeNearFire", self.marker_shape)
         marker_review = {**context, **adapter.get("markerReview", {})}
         if not self.has_overview_review and "malfunction" in adapter["classes"] and "markerReview" not in adapter:
             marker_review["malfunction"] = adapter["classes"]["malfunction"]
@@ -221,14 +227,17 @@ class DetailDetector:
             "flame": {**context, **adapter.get("flameReview", {})},
             "overview": adapter.get("overviewReview", {}),
         }
+        absolute = torch.zeros_like(head.bias, dtype=torch.bool)
+        absolute[len(base_classes):len(self.classes)] = True
+        head.register_buffer("detail_absolute", absolute, persistent=False)
         for name, rows in variants.items():
             weights = torch.zeros_like(head.weight)
             bias = torch.zeros_like(head.bias)
             preserve = torch.full_like(head.bias, 1)
             limit = torch.full_like(head.bias, 1)
             suppress = torch.zeros_like(head.bias, dtype=torch.bool)
-            for label, row in rows.items():
-                class_index = list(model.class_names).index(label)
+            for label, row in {**rows, **extra_classes}.items():
+                class_index = self.classes.index(label)
                 weights[class_index] = torch.as_tensor(row["weights"], device=weights.device, dtype=weights.dtype)
                 bias[class_index] = row["bias"]
                 preserve[class_index] = row.get("preserveConfidence", 1)
@@ -242,14 +251,20 @@ class DetailDetector:
         def correct(layer, args, output):
             weights, bias, preserve, limit, suppress = (getattr(layer, f"detail_{key}_{self.variant}")
                                                         for key in ("weights", "bias", "preserve", "limit", "suppress"))
-            adjusted = torch.minimum(output + torch.nn.functional.linear(args[0], weights, bias), limit)
+            learned = torch.nn.functional.linear(args[0], weights, bias)
+            adjusted = torch.minimum(output + learned, limit)
             adjusted = torch.where(suppress, torch.minimum(adjusted, output), adjusted)
-            return torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
+            adjusted = torch.where(output.sigmoid() >= preserve, torch.maximum(output, adjusted), adjusted)
+            return torch.where(layer.detail_absolute, learned, adjusted)
 
         hook = head.register_forward_hook(correct)
         try:
+            if extra_classes:
+                model.model.class_names = self.classes
             self.predictor = model.inference(compile=False)
         finally:
+            if extra_classes:
+                model.model.class_names = base_classes
             hook.remove()
 
     def predict(self, *args, **options):
@@ -265,10 +280,17 @@ class DetailDetector:
             return self.predict(*args, **options)
 
     def rank_markers(self, gray, boxes, np):
-        if not self.marker_shape or not len(boxes):
+        return self._rank_marker_shape(self.marker_shape, gray, boxes, np)
+
+    def rank_markers_near_fire(self, gray, boxes, np):
+        return self._rank_marker_shape(self.marker_shape_near_fire, gray, boxes, np)
+
+    @staticmethod
+    def _rank_marker_shape(row, gray, boxes, np):
+        if not row or not len(boxes):
             return None
         features = marker_features(gray, boxes, np)
-        logits = features @ np.asarray(self.marker_shape["weights"]) + self.marker_shape["bias"]
+        logits = features @ np.asarray(row["weights"]) + row["bias"]
         return 1 / (1 + np.exp(-logits))
 
     @contextmanager
@@ -389,14 +411,13 @@ def run_detector(args, url, model_identity, preset, progress):
     progress.show("loading")
     model = model_type(device=device, **weights)
     progress.show("preparing")
-    predictor = model.inference(compile=False)
     detail = None
     if small_objects and preset.get("detailAdapter"):
         adapter_path = Path(__file__).resolve().parents[1] / "config" / preset["detailAdapter"]
         detail = DetailDetector(model, json.loads(adapter_path.read_text(encoding="utf-8")), torch)
     context_review = detail is not None and detail.has_context_review
-    overview_predictor = detail if context_review and detail.has_overview_review else predictor
-    names = model.class_names
+    overview_predictor = detail if detail and detail.has_overview_review else model.inference(compile=False)
+    names = detail.classes if detail else model.class_names
     classes = {name for name in (names.values() if hasattr(names, "values") else names)
                if isinstance(name, str) and name and name == name.strip() and len(name) <= 80}
     if args.game:
@@ -479,7 +500,7 @@ def run_detector(args, url, model_identity, preset, progress):
                     review_number += 1
                 else:
                     detections, recent_small_objects = refine_small_objects(
-                        detail or predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
+                        detail or overview_predictor, image, detections, small_objects, detection_threshold, recent_small_objects, reduced,
                         review_malfunctions=detail is not None, deadline=started + refinement_budget,
                     )
                 analysis = image

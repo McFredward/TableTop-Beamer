@@ -338,6 +338,9 @@ a matching, confident detection drives the effect. Unconfirmed borderline
 defect proposals remain visible with low confidence. Player reviews use a
 separate set of classification weights on the same detector to distinguish
 player miniatures from aliens and uncertain dice labels.
+The same checkpoint with its registered adapter reports corpse miniatures as
+a separate class in Game observation. Printed planets and exploration tokens
+are negative training examples for defect-marker recognition.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes
