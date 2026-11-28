@@ -72,6 +72,17 @@ class TileCoordinatesTest(unittest.TestCase):
 
 
 class SmallObjectRefinementTest(unittest.TestCase):
+    def test_a_borderline_defect_proposal_stays_uncertain_when_the_detail_pass_runs_out_of_time(self):
+        image = Image.new("RGB", (800, 720))
+        coarse = sv.Detections(xyxy=np.array([[350, 310, 430, 390], [550, 500, 630, 581]], dtype=np.float32),
+                               confidence=np.array([0.74, 0.93]), class_id=np.array([2, 2]),
+                               data={"class_name": np.array(["malfunction", "malfunction"])})
+        result, recent = refine_small_objects(None, image, coarse, ["alien", "malfunction"], 0.25,
+                                              review_malfunctions=True, deadline=0)
+        np.testing.assert_allclose(result.confidence, [0.60, 0.93])
+        np.testing.assert_allclose(coarse.confidence, [0.74, 0.93])
+        self.assertEqual(recent, [])
+
     def test_a_close_view_recovers_a_weak_defect_without_removing_a_nearby_fire_marker(self):
         image = Image.new("RGB", (800, 720))
         box = [350, 310, 450, 390]

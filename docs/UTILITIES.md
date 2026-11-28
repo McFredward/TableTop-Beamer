@@ -334,7 +334,8 @@ to reduce the overlay. Confirmed positions get checked again in later frames.
 A fine-tuned classification head for these crops distinguishes larvae from
 defect markers. The detector also checks weak malfunction proposals in a
 wider crop, where the marker can be recognized alongside nearby fire. Only
-a matching, confident detection is added to the game readings.
+a matching, confident detection drives the effect. Unconfirmed borderline
+defect proposals remain visible with low confidence.
 
 The worker and dashboard access the camera images on the server PC over
 loopback. TT-Beamer keeps the newest result in memory. When the camera goes

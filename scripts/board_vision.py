@@ -9,6 +9,7 @@ SMALL_PROPOSAL_THRESHOLD = 0.04
 SMALL_OBJECT_CROP_SIZE = 576
 MALFUNCTION_CROP_SIZE = 768
 MALFUNCTION_PROPOSAL_THRESHOLD = 0.16
+MALFUNCTION_REVIEW_CONFIDENCE = 0.82
 
 
 def parse_roi(value):
@@ -70,6 +71,12 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     dimensions = detections.xyxy[:, 2:] - detections.xyxy[:, :2]
     small = np.all((dimensions >= size * 0.045) & (dimensions <= size * 0.25), axis=1)
     relevant = np.isin(labels, classes)
+    if review_malfunctions and "malfunction" in classes and len(baseline):
+        # A small, borderline overview prediction can be a larva. Keep it
+        # visible as evidence while a detail crop supplies the decisive label.
+        uncertain_markers = small & (labels == "malfunction") & (scores <= MALFUNCTION_REVIEW_CONFIDENCE)
+        baseline.confidence = np.where(uncertain_markers[scores >= threshold],
+                                       np.minimum(baseline.confidence, 0.60), baseline.confidence)
     candidates = np.flatnonzero(small & relevant & (scores < confidence))
     character_boxes = detections.xyxy[(labels == "character") & (scores >= 0.15)]
     confirmed_characters = detections.xyxy[(labels == "character") & (scores >= 0.40)]
@@ -99,7 +106,8 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
     marker_reviews = []
     if review_malfunctions and "alien" in classes:
         minimum = MALFUNCTION_PROPOSAL_THRESHOLD if "malfunction" in classes else threshold
-        doubtful = np.flatnonzero(small & (labels == "malfunction") & (scores >= minimum) & (scores <= 0.82))
+        doubtful = np.flatnonzero(small & (labels == "malfunction") & (scores >= minimum) &
+                                  (scores <= MALFUNCTION_REVIEW_CONFIDENCE))
         reviews = {}
         additional_reviews = []
         for index in sorted(doubtful, key=lambda i: abs(scores[i] - confidence)):
@@ -107,7 +115,7 @@ def refine_small_objects(predictor, image, detections, classes, threshold, recen
             if len(character_boxes) and (sv.box_iou_batch(box[None, :], character_boxes) >= 0.55).any():
                 continue
             by_fire = near_fire(box)
-            label = "malfunction" if "malfunction" in classes and (by_fire or scores[index] < confidence) else "alien"
+            label = "malfunction" if "malfunction" in classes else "alien"
             proposal = (label, box, None)
             if by_fire in reviews:
                 additional_reviews.append(proposal)
